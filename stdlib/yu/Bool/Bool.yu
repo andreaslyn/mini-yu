@@ -1,0 +1,12 @@
+import "yu/basic/Bool.yu"
+import "yu/Order/Order.yu"
+
+
+val (?false_\Bool) : Bool -> Ty
+let (b) => b = false
+
+
+val _cmp\Bool : (Bool, Bool) -> Order
+let (false, true) => lt.Order
+let (true, false) => gt.Order
+let (_, _) => eq.Order

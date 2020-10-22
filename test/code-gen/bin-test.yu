@@ -1,0 +1,28 @@
+import "yu/prelude/prelude.yu"
+import "yu/Bin/Bin.yu"
+
+
+val 100.Bin : Bin
+let => 10.Bin * 10.Bin
+
+val 1000.Bin : Bin
+let => 100.Bin * 10.Bin
+
+val 10'000.Bin : Bin
+let => 100.Bin * 100.Bin
+
+val 100'000.Bin : Bin
+let => 100.Bin * 1000.Bin
+
+val 10'000'000'000.Bin : Bin
+let => 100'000.Bin * 100'000.Bin
+
+val 100'000'000'000'000'000'000.Bin : Bin
+let => 10'000'000'000.Bin * 10'000'000'000.Bin
+
+val 10'000'000'000'000'000'000'000'000'000'000'000'000'000.Bin : Bin
+let => 100'000'000'000'000'000'000.Bin * 100'000'000'000'000'000'000.Bin
+
+val main : () ->> {}
+let () =>
+  10'000'000'000'000'000'000'000'000'000'000'000'000'000.Bin str println

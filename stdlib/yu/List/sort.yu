@@ -1,0 +1,41 @@
+import "List.yu"
+import "yu/DelayList1/DelayList1.yu"
+import "yu/Ordering?/Ordering?.yu"
+
+
+val _sort\_List\Ty[A : Ty] : (A List, A Ordering?) -> A List
+let (origList, cmp) => sequences(origList) tournament(merge)
+where
+  val sequences : A List -> A List DelayList1
+  let (a :: b :: xs) =>
+    case cmp le?(a, b)
+    of false => descending(b, a :: nil,  xs)
+    of true => ascending(b, a :: _, xs)
+    end
+  let (xs) => one.DelayList1(xs)
+
+  val descending : (A, A List, A List) -> A List DelayList1
+  let (a, as, b :: bs) =>
+    case cmp le?(a, b)
+    of false => descending(b, a :: as, bs)
+    of true => (a :: as) :: (). sequences(b :: bs)
+    end
+  let (a, as, bs) => (a :: as) :: (). sequences(bs)
+
+  val ascending : (A, A List -> A List, A List) -> A List DelayList1
+  let (a, as, b :: bs) =>
+    case cmp le?(a, b)
+    of true => ascending(b, (ys). as (a :: ys), bs)
+    of false => as (a :: nil) :: (). sequences(b :: bs)
+    end
+  let (a, as, bs) => as (a :: nil) :: (). sequences(bs)
+
+  val merge : (A List, A List) -> A List
+  let (a :: as, b :: bs) =>
+    case cmp le?(a, b)
+    of false => b :: merge(a :: as, bs)
+    of true => a :: merge(as, b :: bs)
+    end
+  let (nil, bs) => bs
+  let (as, nil) => as
+end

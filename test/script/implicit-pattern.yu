@@ -1,0 +1,27 @@
+
+data Nat : Ty
+let 0 : Nat
+let (++_\Nat) : Nat -> Nat
+
+val eid : (A : Ty, A) -> A
+let (A, a) => a
+
+data ReflectNat : Nat -> Ty
+let reflectNat[n : Nat] : ReflectNat(++(n))
+
+val plus : (Nat, Nat) -> Nat
+let (m, 0) => m
+let (m, ++(n)) => ++(plus(m, n))
+
+val plusReflect[n : Nat, m : Nat] : (ReflectNat(n), ReflectNat(m)) -> Nat
+let [n := 0]((), reflectNat)
+let [m := 0](reflectNat, ())
+let (reflectNat, reflectNat) => plus(m, n)
+
+data Id[A : Ty] : (A, A) -> Ty
+let refl[A : Ty, a : A] : Id(a, a)
+
+val test-incReflect1 :
+  Id(plusReflect(eid(ReflectNat(++(0)), reflectNat),
+      eid(ReflectNat(++(0)), reflectNat)), ++(++(0)))
+let => refl

@@ -1,0 +1,8 @@
+data Nat : Ty
+let 0 : Nat
+let (++_\Nat) : Nat -> Nat
+
+val ackermann : (Nat, Nat) -> Nat
+let (0, n) => ++ n
+let (++ m, 0) => ackermann(m, ++ 0)
+let (++ m, ++ n) => ackermann(m, ackermann(++ m, n))

@@ -1,0 +1,13 @@
+
+data Bool : Ty
+let false : Bool
+let true : Bool
+
+data IsTrue : Bool -> Ty
+let is-true : IsTrue(true)
+
+##val is-true-false : IsTrue(false) -> Bool
+##let (is-true) => true
+
+val is-true-false : IsTrue(false) -> Bool
+let (())

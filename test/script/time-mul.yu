@@ -1,0 +1,48 @@
+
+data Nat : Ty
+let 0 : Nat
+let (+_\Nat) : Nat -> Nat
+
+val 1 : Nat
+let => +(0)
+
+val 2 : Nat
+let => +(1)
+
+val 3 : Nat
+let => +(2)
+
+val 4 : Nat
+let => +(3)
+
+val 5 : Nat
+let => +(4)
+
+val 6 : Nat
+let => +(5)
+
+val 7 : Nat
+let => +(6)
+
+val 8 : Nat
+let => +(7)
+
+val 9 : Nat
+let => +(8)
+
+val 10 : Nat
+let => +(9)
+
+val plus : (Nat, Nat) -> Nat
+let (m, 0) => m
+let (m, +(n)) => +(plus(m, n))
+
+val mul : (Nat, Nat) -> Nat
+let (m, 0) => 0
+let (m, +(n)) => plus(mul(m, n), m)
+
+data NatId : (Nat, Nat) -> Ty
+let refl[n : Nat] : NatId(n, n)
+
+val test-eq : NatId(mul(10, mul(10, 10)), mul(10, mul(10, 10)))
+let => refl

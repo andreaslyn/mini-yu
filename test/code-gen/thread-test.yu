@@ -1,0 +1,41 @@
+import "yu/parallel/parallel.yu"
+import "yu/print/print.yu"
+
+
+val printResult : Str | {} ->> {}
+let (in1(msg)) => ("error: " :+: msg) println
+let (in2([])) => "ok" println
+
+
+val 100 : Nat
+let => 10 * 10
+
+val 10000 : Nat
+let => 100 * 100
+
+
+val spawnLoop : Nat ->> ([] -> Str | {}) List
+let (0) => nil
+let (++ n) =>
+  parallel'((). n str println) :: spawnLoop(n)
+
+
+val _foreach\_List\Ty[A : Ty] : (A List, A ->> {}) ->> {}
+let (nil, _) => []
+let (x :: xs, f) => f(x); xs foreach(f)
+
+
+val main : () ->> {}
+let () =>
+  t1 := parallel' (). ('t :: '1 :: nil.Str) println;
+  t2 := parallel' (). ('t :: '2 :: nil.Str) println;
+  t3 := parallel' (). ('t :: '3 :: nil.Str) println;
+  t4 := parallel' (). ('t :: '4 :: nil.Str) println;
+  t5 := parallel' (). ('t :: '5 :: nil.Str) println;
+  t6 := parallel' (). ('t :: '6 :: nil.Str) println;
+  t7 := parallel' (). ('t :: '7 :: nil.Str) println;
+  printResult(t4[]);
+  printResult(t5[]);
+  printResult(t6[]);
+  printResult(t7[]);
+  spawnLoop(10 * 10) foreach (t). printResult(t[])

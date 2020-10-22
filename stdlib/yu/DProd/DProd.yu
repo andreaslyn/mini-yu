@@ -1,0 +1,18 @@
+import "yu/basic/Equal.yu"
+
+
+data (&_\_->_)[A : Ty] : (B : A -> Ty) -> Ty
+let _$_\[A : Ty, B : A -> Ty] : (a : A, B(a)) -> & B
+
+
+val _1\&_\_->_[A : Ty, B : A -> Ty] : & B -> A
+let (a $ _) => a
+
+
+val _2\&_\_->_[A : Ty, B : A -> Ty] : (s : & B) -> B(s 1)
+let (_ $ b) => b
+
+
+val pair=.DProd[A : Ty, B : A -> Ty, x : A, y : A, r : B(x), s : B(y)] :
+  (x = y, r = s) -> (x $ r) = (y $ s)
+let (refl, refl) => refl

@@ -1,0 +1,31 @@
+import "yu/basic/Bool.yu"
+import "yu/Prod/Prod.yu"
+
+
+data Order : Ty
+let lt.Order : Order
+let eq.Order : Order
+let gt.Order : Order
+
+val _lt?\Order : Order -> Bool
+let (lt.Order) => true
+let (_) => false
+
+val _eq?\Order : Order -> Bool
+let (eq.Order) => true
+let (_) => false
+
+val _gt?\Order : Order -> Bool
+let (gt.Order) => true
+let (_) => false
+
+
+val _ind\Order :
+  (c : Order, P : Order -> Ty,
+    P(lt.Order), P(eq.Order), P(gt.Order)) -> P(c)
+let (lt.Order, P, x, _, _) => x
+let (eq.Order, P, _, y, _) => y
+let (gt.Order, P, _, _, z) => z
+
+val _rec\Order[A : Ty] : (Order, A, A, A) -> A
+let (c, lt, eq, gt) => c ind(const(A), lt, eq, gt)

@@ -1,0 +1,7 @@
+
+import "base.yu"
+
+data Vec : (Ty, Nat) -> Ty where
+  val vnil : (A : Ty) -> Vec(A, 0)
+  val vcons : (A : Ty, n : Nat, A, Vec(A, n)) -> Vec(A, inc(n))
+end

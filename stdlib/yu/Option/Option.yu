@@ -1,0 +1,25 @@
+import "yu/basic/Fun.yu"
+import "yu/Bool/Bool.yu"
+
+
+data (?_\Ty) : Ty -> Ty
+let no[A : Ty] : ? A
+let yes[A : Ty] : A -> ? A
+
+
+val _isNo\?_\Ty[A : Ty] : ? A -> Bool
+let (no) => true
+let (yes(_)) => false
+
+
+val _isYes\?_\Ty[A : Ty] : ? A -> Bool
+let => (~_) @ _isNo\?_\Ty
+
+
+val _!_\?_\Ty[A : Ty, B : Ty] : (? A, A -> ? B) -> ? B
+let (no, _) => no
+let (yes(a), f) => f(a)
+
+
+val _map\?_\Ty[A : Ty, B : Ty] : (? A, A -> B) -> ? B
+let (x, f) => x ! yes @ f

@@ -1,0 +1,2 @@
+data x : Ty where end
+val x : {} = []

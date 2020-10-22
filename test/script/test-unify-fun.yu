@@ -1,0 +1,6 @@
+
+val const[A : Ty, B : Ty] : (A -> B) -> {}
+let (_) => []
+
+val test : {}
+let => const((_ : {}). [])

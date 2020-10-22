@@ -1,0 +1,101 @@
+import "yu/List/List.yu"
+import "yu/Char/Char.yu"
+import "yu/basic/Bool.yu"
+import "yu/basic/Nat.yu"
+
+
+data Str : Ty
+let mk.Str : Char List -> Str
+
+
+val _list\Str : Str -> Char List
+let (mk.Str(cs)) => cs
+
+
+val nil.Str : Str
+let => mk.Str(nil)
+
+
+val singleton.Str : Char -> Str
+let (c) => mk.Str(c :: nil)
+
+
+val _modify\Str : (Str, Char List -> Char List) -> Str
+let (mk.Str(cs), f) => mk.Str(f(cs))
+
+
+val _accum\Str[A : Ty] : (Str, A, (A, Char) -> A) -> A
+let (s, x, f) => s list accum(x, f)
+
+
+val _fold\Str[A : Ty] : (Str, A, (Char, A) -> A) -> A
+let (s, x, f) => s list fold(x, f)
+
+
+val _::_\Str : (Char, Str) -> Str
+let (c, s) => s modify(c :: _)
+
+
+val _:+:_\Str : (Str, Str) -> Str
+let (s1, s2) => s1 modify (cs1). cs1 :+: s2 list
+
+
+val _rev\Str : Str -> Str
+let (s) => s modify(_rev)
+
+
+val _IsNonempty\Str : Str -> Ty
+let (s) => s list IsNonempty
+
+
+val _All\Str : (Str, Char -> Ty) -> Ty
+let (s, P) => s list All(P)
+
+
+val _toUpper\Str : Str -> Str
+let (s) => s modify(_ map(_toUpper))
+
+
+val _toLower\Str : Str -> Str
+let (s) => s modify(_ map(_toLower))
+
+
+val _str\_List\Ty[A : Ty] : (A List, A -> Str, Str) -> Str
+let (nil, _, _) => nil.Str
+let (x :: nil, f, _) => f(x)
+let (x :: xs, f, s) => f(x) :+: s :+: xs str(f, s)
+
+
+val _str\Bool : Bool -> Str
+let (true) => mk.Str('t :: 'r :: 'u :: 'e :: nil)
+let (false) => mk.Str('f :: 'a :: 'l :: 's :: 'e :: nil)
+
+
+val _str\Char : Char -> Str
+let => mk.Str @ (_ :: nil)
+
+
+val.. _str\Nat : Nat -> Str
+let (0) => mk.Str('0 :: nil)
+let (++ 0) => mk.Str('1 :: nil)
+let (++ ++ 0) => mk.Str('2 :: nil)
+let (++ ++ ++ 0) => mk.Str('3 :: nil)
+let (++ ++ ++ ++ 0) => mk.Str('4 :: nil)
+let (++ ++ ++ ++ ++ 0) => mk.Str('5 :: nil)
+let (++ ++ ++ ++ ++ ++ 0) => mk.Str('6 :: nil)
+let (++ ++ ++ ++ ++ ++ ++ 0) => mk.Str('7 :: nil)
+let (++ ++ ++ ++ ++ ++ ++ ++ 0) => mk.Str('8 :: nil)
+let (++ ++ ++ ++ ++ ++ ++ ++ ++ 0) => mk.Str('9 :: nil)
+let (n) =>
+  q $ r := n divmod(10, isNonzero.Nat);
+  q str :+: r str
+
+
+val _str\Order : Order -> Str
+let => _ rec("lt", "eq", "gt")
+
+
+val _cmp\Str : (Str, Str) -> Order
+let (s, t) => s list cmp(t list, ordering?.Char)
+
+## TODO Proof that it is ordering.

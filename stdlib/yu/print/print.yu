@@ -1,0 +1,41 @@
+import "yu/Str/Str.yu"
+
+
+## TODO When effects are implemented, this should be effectful, since it may fail.
+extern _print\Char : Char ->> {}
+
+val _println\Char : Char ->> {}
+let (c) => c print; 'lf print
+
+
+val _print\Str : Str ->> {}
+let (str) => aux(str list)
+where
+  val aux : Char List ->> {}
+  let (nil) => []
+  let (c :: cs) => c print; aux(cs)
+end
+
+val _println\Str : Str ->> {}
+let (s) => s print; 'lf print
+
+
+val _print\Bool : Bool ->> {}
+let (b) => b str print
+
+val _println\Bool : Bool ->> {}
+let (b) => b print; 'lf print
+
+
+val _print\Nat : Nat ->> {}
+let (n) => n str print
+
+val _println\Nat : Nat ->> {}
+let (n) => n print; 'lf print
+
+
+val _print\_List\Ty[A : Ty] : (A List, A -> Str, Str) ->> {}
+let (xs, f, s) => xs str(f, s) print
+
+val _println\_List\Ty[A : Ty] : (A List, A -> Str, Str) ->> {}
+let (xs, f, s) => xs print(f, s); 'lf print

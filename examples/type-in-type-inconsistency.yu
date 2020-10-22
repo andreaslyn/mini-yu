@@ -1,0 +1,52 @@
+#{
+## Short proof of type-in-type inconsistency.
+##
+## This code was originally written by Torsten Altenkirch in Agda,
+## http://www.cs.nott.ac.uk/~psztxa/g53cfr/l20.html/l20.html.
+## I have rewritten the code in Yu syntax.
+#}
+
+import "yu/prelude.yu"
+
+data M : Ty
+let m.M : (I : Ty, I -> M) -> M
+
+
+val 0.M : M
+let => m.M(Empty, _rec)
+
+
+val 1.M : M
+let => m.M({}, const(0.M))
+
+
+val 2.M : M
+let => m.M(Bool, (b). if(b) then(0.M) else(1.M))
+
+
+val _<-_\M : (M, M) -> Ty
+let (a, m.M(I, f)) => & ((i : I). a = f(i))
+
+
+val _<!_\M : (M, M) -> Ty
+let (a, b) => ~ (a <- b)
+
+
+val R : M
+let => m.M(& ((a : M). a <! a), _1)
+
+
+val lem-1[X : M] : X <- R -> X <! X
+let ((Y $ Y!) $ refl) => Y!
+
+
+val lem-2[X : M] : X <! X -> X <- R
+let (X!) => (X $ X!) $ refl
+
+
+val lem-3 : R <! R
+let (Ri) => lem-1(Ri)(Ri)
+
+
+val contr : Empty
+let => lem-3(lem-2(lem-3))

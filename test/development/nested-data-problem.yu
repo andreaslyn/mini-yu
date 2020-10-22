@@ -1,0 +1,22 @@
+
+data (&_)[A : Ty] : (A -> Ty) -> Ty
+let _$_[A : Ty, B : A -> Ty] : (a : A, B(a)) -> & B
+
+val pr1[A : Ty, B : A -> Ty] : & B -> A
+let pr1(a $ _) => a
+
+val pr2[A : Ty, B : A -> Ty] : (x : & B) -> B(pr1(x))
+let pr2(_ $ b) => b
+
+val foo[A : Ty] : A -> & ((A : Ty). A)
+let foo(a) => MyData $ myCtor(a)
+where
+  data MyData : Ty
+  let myCtor : A -> MyData
+end
+
+data _=_[A : Ty, B : Ty] : (A, B) -> Ty
+let refl[A : Ty, a : A] : a = a
+
+val test1 : pr1(foo(Ty)) = pr1(foo({}))
+let test1 => refl

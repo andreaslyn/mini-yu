@@ -1,0 +1,228 @@
+
+import "List.yu"
+import "Nat.yu"
+
+data Bin+ : Ty
+let bin+ : List(Bool) -> Bin+
+
+val list-Bin+ : Bin+ -> List(Bool)
+let (bin+(bs)) => bs
+
+val 1.Bin+ : Bin+
+let => bin+(nil)
+
+val 2.Bin+ : Bin+
+let => bin+(false :: nil)
+
+val 3.Bin+ : Bin+
+let => bin+(true :: nil)
+
+val 4.Bin+ : Bin+
+let => bin+(false :: false :: nil)
+
+val 5.Bin+ : Bin+
+let => bin+(true :: false :: nil)
+
+val 6.Bin+ : Bin+
+let => bin+(false :: true :: nil)
+
+val 7.Bin+ : Bin+
+let => bin+(true :: true :: nil)
+
+val 8.Bin+ : Bin+
+let => bin+(false :: false :: false :: nil)
+
+val 9.Bin+ : Bin+
+let => bin+(true :: false :: false :: nil)
+
+val 10.Bin+ : Bin+
+let => bin+(false :: true :: false :: nil)
+
+val plus.Bin+ : (Bin+, Bin+) -> Bin+
+let => (x, y). bin+(aux-plus.Bin+(list-Bin+(x), list-Bin+(y)))
+
+val.. aux-plus.Bin+ : (List(Bool), List(Bool)) -> List(Bool)
+let (nil, nil) => false :: nil
+let (nil, false :: bs2) => true :: bs2
+let (nil, true :: bs2) => false :: aux-plus.Bin+(nil, bs2)
+let (bs1, nil) => aux-plus.Bin+(nil, bs1)
+let (false :: bs1, b2 :: bs2) => b2 :: aux-plus.Bin+(bs1, bs2)
+let (true :: bs1, false :: bs2) => true :: aux-plus.Bin+(bs1, bs2)
+let (true :: bs1, true :: bs2) =>
+  false :: aux-plus.Bin+(nil, aux-plus.Bin+(bs1, bs2))
+
+val inc.Bin+ : Bin+ -> Bin+
+let => (b). plus.Bin+(b, 1.Bin+)
+
+val mul.Bin+ : (Bin+, Bin+) -> Bin+
+let => (x, y). bin+(aux-mul.Bin+(list-Bin+(x), list-Bin+(y)))
+
+val aux-mul.Bin+ : (List(Bool), List(Bool)) -> List(Bool)
+let (bs1, nil) => bs1
+let (bs1, false :: bs2) =>
+  false :: aux-mul.Bin+(bs1, bs2)
+let (bs1, true :: bs2) =>
+  aux-plus.Bin+(false :: aux-mul.Bin+(bs1, bs2), bs1)
+
+val inj-Bin+-Nat : Bin+ -> Nat
+let => aux-inj-Bin+-Nat @ list-Bin+
+
+val aux-inj-Bin+-Nat : List(Bool) -> Nat
+let (nil) => 1
+let (false :: bs) => aux-inj-Bin+-Nat(bs) * 2
+let (true :: bs) => ++ (aux-inj-Bin+-Nat(bs) * 2)
+
+val.. aux-plus-inj-Bin+-Nat
+  : (b1 : List(Bool), b2 : List(Bool)) ->
+    aux-inj-Bin+-Nat(aux-plus.Bin+(b1, b2))
+    = aux-inj-Bin+-Nat(b1) + aux-inj-Bin+-Nat(b2)
+let (nil, nil) =>
+  refl
+let (nil, false :: bs2) =>
+  plus-comm(aux-inj-Bin+-Nat(bs2) * 2, 1)
+let (nil, true :: bs2) =>
+  rew(aux-plus-inj-Bin+-Nat(nil, bs2),
+    (x). x * 2 = b,
+    rew(plus-comm(1, a),
+      (x). 1 + a + x = b,
+      plus-assoc(1, a, ++ a)))
+where
+  val a : Nat
+  let => aux-inj-Bin+-Nat(bs2)
+  val b : Nat
+  let => 1 + ++ (a * 2)
+end
+let (b1 :: bs1, nil) =>
+  trans(aux-plus-inj-Bin+-Nat(nil, b1 :: bs1), plus-comm(1, a))
+where
+  val a : Nat
+  let => aux-inj-Bin+-Nat(b1 :: bs1)
+end
+let (false :: bs1, false :: bs2) =>
+  rew(aux-plus-inj-Bin+-Nat(bs1, bs2),
+    (x). x * 2 = a1 + a1 + (a2 + a2),
+    aux-plus-22-swap-23(a1, a2))
+where
+  val a1 : Nat
+  let => aux-inj-Bin+-Nat(bs1)
+  val a2 : Nat
+  let => aux-inj-Bin+-Nat(bs2)
+end
+let (false :: bs1, true :: bs2) =>
+  rew(aux-plus-inj-Bin+-Nat(bs1, bs2),
+    (x). ++ (x * 2) = a1 + a1 + ++ (a2 + a2),
+    ap=(aux-plus-22-swap-23(a1, a2), (++_)))
+where
+  val a1 : Nat
+  let => aux-inj-Bin+-Nat(bs1)
+  val a2 : Nat
+  let => aux-inj-Bin+-Nat(bs2)
+end
+let (true :: bs1, false :: bs2) =>
+  rew(aux-plus-inj-Bin+-Nat(bs1, bs2),
+    (x). ++ (x * 2) = ++ (a1 + a1) + (a2 + a2),
+    trans(ap=(aux-plus-22-swap-23(a1, a2), (++_)),
+      plus-+(a1 + a1, a2 + a2)))
+where
+  val a1 : Nat
+  let => aux-inj-Bin+-Nat(bs1)
+  val a2 : Nat
+  let => aux-inj-Bin+-Nat(bs2)
+end
+let (true :: bs1, true :: bs2) =>
+  rew(simpl(aux-plus.Bin+(bs1, bs2)),
+    (x). x * 2 = pp,
+    rew(aux-plus-inj-Bin+-Nat(bs1, bs2),
+      (x). ++ x * 2 = pp,
+      ap=(trans(sym(plus-+(a12, a12)),
+        trans(ap=(aux-plus-22-swap-23(a1, a2), (++_)),
+          plus-+(a11, a22))), (++_))))
+where
+  val a1 : Nat
+  let => aux-inj-Bin+-Nat(bs1)
+
+  val a2 : Nat
+  let => aux-inj-Bin+-Nat(bs2)
+
+  val pp : Nat
+  let => ++ (a1 + a1) + ++ (a2 + a2)
+
+  val a12 : Nat
+  let => a1 + a2
+
+  val a11 : Nat
+  let => a1 + a1
+
+  val a22 : Nat
+  let => a2 + a2
+
+  val simpl
+    : (bs : List(Bool)) ->
+      aux-inj-Bin+-Nat(aux-plus.Bin+(nil, bs)) = ++ aux-inj-Bin+-Nat(bs)
+  let (nil) => refl
+  let (false :: bs) => refl
+  let (true :: bs) =>
+    rew(simpl(bs),
+      (x). x * 2 = ++ ++ (a * 2),
+      sym(plus-+(a, ++ a)))
+  where
+    val a : Nat
+    let => aux-inj-Bin+-Nat(bs)
+  end
+end
+
+val aux-plus-22-swap-23
+  : (a1 : Nat, a2 : Nat) ->
+    a1 + a2 + (a1 + a2) = a1 + a1 + (a2 + a2)
+let (a1, a2) =>
+  trans(plus-assoc(a1, a2, a1 + a2),
+    trans(ap=(plus-plus-swap-12(a2, a1, a2), (x). a1 + x),
+      sym(plus-assoc(a1, a1, a2 + a2))))
+
+data Bin : Ty
+let 0.Bin : Bin
+let pos.Bin : Bin+ -> Bin
+
+val 1.Bin : Bin
+let => pos.Bin(1.Bin+)
+
+val 2.Bin : Bin
+let => pos.Bin(2.Bin+)
+
+val 3.Bin : Bin
+let => pos.Bin(3.Bin+)
+
+val 4.Bin : Bin
+let => pos.Bin(4.Bin+)
+
+val 5.Bin : Bin
+let => pos.Bin(5.Bin+)
+
+val 6.Bin : Bin
+let => pos.Bin(6.Bin+)
+
+val 7.Bin : Bin
+let => pos.Bin(7.Bin+)
+
+val 8.Bin : Bin
+let => pos.Bin(8.Bin+)
+
+val 9.Bin : Bin
+let => pos.Bin(9.Bin+)
+
+val 10.Bin : Bin
+let => pos.Bin(10.Bin+)
+
+val inj-Bin-Nat : Bin -> Nat
+let (0.Bin) => 0
+let (pos.Bin(b)) => inj-Bin+-Nat(b)
+
+val _+_\Bin : (Bin, Bin) -> Bin
+let (b1, 0.Bin) => b1
+let (0.Bin, b2) => b2
+let (pos.Bin(b1), pos.Bin(b2)) => pos.Bin(plus.Bin+(b1, b2))
+
+val _*_\Bin : (Bin, Bin) -> Bin
+let (b1, 0.Bin) => 0.Bin
+let (0.Bin, b2) => 0.Bin
+let (pos.Bin(b1), pos.Bin(b2)) => pos.Bin(mul.Bin+(b1, b2))

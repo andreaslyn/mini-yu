@@ -1,0 +1,13 @@
+import "Monoid.yu"
+import "yu/Nat/theorems.yu"
+
+
+val isMonoid+.Nat : Nat IsMonoid
+let =>
+  is.Monoid(_+_, 0,
+    (k, m, n). ! k associativeOp+\Nat(m, n),
+    ((n). n simpl0Op+) $ (n). refl)
+
+
+val monoid+.Nat : Monoid
+let => mk.Monoid(isMonoid+.Nat)

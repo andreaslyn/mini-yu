@@ -1,0 +1,65 @@
+import "yu/prelude/prelude.yu"
+
+
+val gen-list : Nat -> Nat List
+let (0) => 0 :: nil
+let (++ n) => ++ n :: gen-list(n)
+
+val 100 : Nat
+let => 10 * 10
+
+val 1000 : Nat
+let => 100 * 10
+
+val 10000 : Nat
+let => 1000 * 10
+
+val 100000 : Nat
+let => 10000 * 10
+
+val 1000000 : Nat
+let => 100000 * 10
+
+val 10000000 : Nat
+let => 1000000 * 10
+
+val listFirstAndLast : Nat List -> Nat & Nat
+let (nil) => 0 $ 0
+let (x :: nil) => x $ x
+let (x :: xs) => x $ listlast(xs)
+where
+  val listlast : Nat List -> Nat
+  let (nil) => 0
+  let (x :: nil) => x
+  let (_ :: xs) => listlast(xs)
+end
+
+val reverse[A : Ty] : A List -> A List
+let (xs) => xs accum(nil, (a, x). x :: a)
+
+val reverse'[A : Ty] : A List -> A List
+let => aux0(nil)
+where
+  val aux0 : A List -> A List -> A List
+  let (a) => (xs). aux(a, xs)
+
+  val aux : (A List, A List) -> A List
+  let (a, nil) => a
+  let (a, x :: xs) => aux(x :: a, xs)
+end
+
+val main : () ->> {}
+let () =>
+  xs := gen-list(10000000);
+  case listFirstAndLast(reverse'(reverse'(xs)))
+  of 0 $ 0 => "0" println
+  of _ $ 0 => "1" println
+  of 0 $ _ => "2" println
+  of _ $ _ => "3" println
+  end;
+  case listFirstAndLast(reverse(reverse(xs)))
+  of 0 $ 0 => "0" println
+  of _ $ 0 => "1" println
+  of 0 $ _ => "2" println
+  of _ $ _ => "3" println
+  end

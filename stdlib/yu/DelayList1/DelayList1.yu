@@ -1,0 +1,24 @@
+
+data _DelayList1\Ty : Ty -> Ty
+let one.DelayList1[A : Ty] : A -> A DelayList1
+let _::_\_DelayList1\Ty[A : Ty] : (A, () -> A DelayList1) -> A DelayList1
+
+
+val _map\_DelayList1\Ty[A : Ty, B : Ty] :
+  (A DelayList1, A -> B) -> B DelayList1
+let (one.DelayList1(x), f) => one.DelayList1(f(x))
+let (x :: xs, f) => f(x) :: (). xs() map(f)
+
+
+val.. _tournament\_DelayList1\Ty[A : Ty] : (A DelayList1, (A, A) -> A) -> A
+let (one.DelayList1(x), _) => x
+let (x :: as, f) => pairHead(as(), x) tournament(f)
+where
+  val pairHead : (A DelayList1, A) -> A DelayList1
+  let (one.DelayList1(x), y) => one.DelayList1(f(x, y))
+  let (x :: as, y) => f(x, y) :: (). pair(as())
+
+  val pair : A DelayList1 -> A DelayList1
+  let (x :: as) => pairHead(as(), x)
+  let (as) => as
+end

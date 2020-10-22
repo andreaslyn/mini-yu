@@ -1,0 +1,12 @@
+import "yu/print/print.yu"
+
+extern char-id : Char -> Char
+
+extern str-id : Str -> Str
+
+val main : () ->> {}
+let () =>
+  char-id('0) print; char-id('lf) print;
+  char-id('tab) print; char-id('A) print; char-id('a) println;
+  str-id("Andreas") println;
+  str-id("\t:\n$") println

@@ -1,0 +1,46 @@
+import "yu0/List.yu"
+
+val id2[A : Ty] : A -> A -> A
+let =>
+  f := (x). (y). y;
+  f
+
+val evens : List(Nat) -> List(Nat)
+let (xs) =>
+  fold(xs, nil, (n, m).
+    case m
+    of nil => _::_(n, nil)
+    of _ => _::_(n, m)
+    end)
+
+val fold'[A : Ty, B : Ty] : ((A, B) -> B, List(A), B) -> B
+let (f, xs, y) => fold(xs, y, f)
+
+val evens' : List(Nat) -> List(Nat)
+let (xs) =>
+  r := fold'((n, m).
+    case m
+    of nil => _::_(n, nil)
+    of _ => _::_(n, m)
+    end, xs, nil);
+  r
+
+val test1 : Nat -> & id[A := Ty]
+let (n) => IsArg(n, n) $ isArg(n, n, refl)
+
+data IsArg : (Nat, Nat) -> Ty
+let isArg : (m : Nat, n : Nat, n = m) -> IsArg(m, n) 
+
+val.. list-len[A : Ty] : List(A) -> Nat
+let =>
+  tl := (f : List(A) -> Nat, xs : List(A)).
+    case xs
+    of nil => 0
+    of _ :: xs => f(xs)
+    end;
+  aux := (xs : List(A)).
+    case xs
+    of nil => 0
+    of _::_(x, xs) => tl((++_) @ list-len, _::_(x, xs))
+    end;
+  aux

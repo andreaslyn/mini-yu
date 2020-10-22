@@ -1,0 +1,30 @@
+
+data _List\Ty : Ty -> Ty
+let nil[A : Ty] : A List
+let _::_\_List\Ty[A : Ty] : (A, A List) -> A List
+
+
+data Bool : Ty
+let false : Bool
+let true : Bool
+
+
+data Nat : Ty
+let 0 : Nat
+let (++_\Nat) : Nat -> Nat
+
+
+val _+_\Nat : (Nat, Nat) -> Nat
+let (m, 0) => m
+let (m, ++ n) => ++ m + n
+
+
+val _ListType\Bool : (b : Bool) -> Ty
+let (true) => Nat
+let (false) => Nat List
+
+
+val sum.ListType : (b ListType, b : Bool) -> Nat
+let (n, true) => n
+let (nil, false) => 0
+let (n :: ns, false) => n + sum.ListType(ns, false)

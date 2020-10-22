@@ -1,0 +1,2 @@
+
+val id(A : Ty, a : A) : A = a

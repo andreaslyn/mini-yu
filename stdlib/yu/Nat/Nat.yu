@@ -1,0 +1,105 @@
+import "yu/basic/Nat.yu"
+import "yu/basic/Bool.yu"
+import "yu/basic/List.yu"
+import "yu/Ordering?/Ordering?.yu"
+import "yu/Ordering?/theorems.yu"
+import "yu/Prod/Prod.yu"
+import "yu/Option/Option.yu"
+
+
+data _Nonzero\Nat : Nat -> Ty
+let isNonzero.Nat[n : Nat] : (++ n) Nonzero
+
+
+val _divmod\Nat : (Nat, n : Nat, n Nonzero) -> Nat & Nat
+let (m, ++ n, isNonzero.Nat) => q $ r := aux(m, 0, n); q $ (n - r)
+where
+  val aux : (Nat, Nat, Nat) -> Nat & Nat
+  let (0, q, u) => q $ u
+  let (++ m, q, 0) => aux(m, ++ q, n)
+  let (++ m, q, ++ u) => aux(m, q, u)
+end
+
+
+val _divmod?\Nat : (Nat, Nat) -> ? (Nat & Nat)
+let (_, 0) => no
+let (m, ++ n) => yes do m divmod(++ n, isNonzero.Nat)
+
+
+val _div?\Nat : (Nat, Nat) -> ? Nat
+let => (m, n). m divmod?(n) map(_1)
+
+val _div\Nat : (Nat, n : Nat, n Nonzero) -> Nat
+let (m, n, D) => m divmod(n, D) 1
+
+
+val _mod?\Nat : (Nat, Nat) -> ? Nat
+let => (m, n). m divmod?(n) map(_2)
+
+val _mod\Nat : (Nat, n : Nat, n Nonzero) -> Nat
+let (m, n, D) => m divmod(n, D) 2
+
+
+val _isEven\Nat : Nat -> Bool
+let (0) => true
+let (++ n) => n isOdd
+
+val _isOdd\Nat : Nat -> Bool
+let (0) => false
+let (++ n) => n isEven
+
+
+val _cmp\Nat : (Nat, Nat) -> Order
+let (0, 0) => eq.Order
+let (0, ++ _) => lt.Order
+let (++ _, 0) => gt.Order
+let (++ m, ++ n) => m cmp(n)
+
+
+val cmpIsTransitive?.Nat : cmpToLe?.Ordering?(_cmp\Nat) IsTransitive?
+let (0, _, 0, _, _) => refl
+let (0, _, ++ _, _, _) => refl
+let (++ _, 0, _, (), _)
+let (++ _, ++ _, 0, _, ())
+let (++ l, ++ m, ++ n, t1, t2) => cmpIsTransitive?.Nat(l, m, n, t1, t2)
+
+
+val cmpIsCompatible.Nat :
+  (m : Nat, n : Nat) -> m cmp(n) lt? = n cmp(m) gt?
+let (0, 0) => refl
+let (0, ++ _) => refl
+let (++ _, 0) => refl
+let (++ m, ++ n) => cmpIsCompatible.Nat(m, n)
+
+
+val ordering?.Nat : Nat Ordering?
+let => fromCmp.Ordering?(_cmp, cmpIsTransitive?.Nat, cmpIsCompatible.Nat)
+
+val equivalence?.Nat : Nat Equivalence?
+let => ordering?.Nat equivalence?
+
+val _<?_\Nat : (Nat, Nat) -> Bool
+let => ordering?.Nat lt?
+
+val _<=?_\Nat : (Nat, Nat) -> Bool
+let => ordering?.Nat le?
+
+val _>?_\Nat : (Nat, Nat) -> Bool
+let => ordering?.Nat gt?
+
+val _>=?_\Nat : (Nat, Nat) -> Bool
+let => ordering?.Nat ge?
+
+val _=?_\Nat : (Nat, Nat) -> Bool
+let => equivalence?.Nat eq?
+
+val _<>?_\Nat : (Nat, Nat) -> Bool
+let => equivalence?.Nat neq?
+
+
+val _divides\Nat : (m : Nat, Nat, m Nonzero) -> Bool
+let (m, n, D) => n mod(m, D) =? 0
+
+
+val _listSmaller\Nat : Nat -> Nat List
+let (n) => n rec[A := Nat List -> Nat List](id, (m, f). (t). f(m :: t))(nil)

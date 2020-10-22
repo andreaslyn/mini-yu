@@ -1,0 +1,11 @@
+import "yu/prelude/prelude.yu"
+
+val main : () ->> {}
+let () => x := lazy-print1[]; y := lazy-print1[]; z := lazy-print2[]; 'lf print
+where
+  val lazy-print1 : [] ->> {}
+  let => '1 println
+
+  val lazy-print2 : [] ->> {}
+  let => '2 println
+end

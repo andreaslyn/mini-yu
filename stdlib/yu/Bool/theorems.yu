@@ -1,0 +1,88 @@
+import "yu/Bool/Bool.yu"
+import "yu/Prod/Prod.yu"
+import "yu/Sum/Sum.yu"
+
+
+val true<>false.Bool : true <> false
+let (())
+
+val false<>true.Bool : false <> true
+let (())
+
+
+val involutionOp~.Bool[b : Bool] : ~ ~ b = b
+let [b := true] => refl
+let [b := false] => refl
+
+
+val _commutativeOp|\Bool : (a : Bool, b : Bool) -> a | b = b | a
+let (true, true) => refl
+let (true, false) => refl
+let (false, true) => refl
+let (false, false) => refl
+
+
+val _simplOp|true\Bool : (b : Bool) -> ? (b | true)
+let (true) => refl
+let (false) => refl
+
+
+val _commutativeOp&\Bool : (a : Bool, b : Bool) -> a & b = b & a
+let (true, true) => refl
+let (true, false) => refl
+let (false, true) => refl
+let (false, false) => refl
+
+
+val op<->ToOp=.Bool[b : Bool, c : Bool] : ? b <-> ? c -> b = c
+let [b := true, c := true](_) => refl
+let [b := false, c := false](_) => refl
+let [b := true, c := false](f $ _) => case f(refl) of () end
+let [b := false, c := true](_ $ g) => case g(refl) of () end
+
+
+val op=ToOp<->.Bool[b : Bool, c : Bool] : b = c -> ? b <-> ? c
+let (refl) => id $ id
+
+
+val pushInOp~.Bool[b : Bool] : ~ ? b -> ? ~ b
+let [b := true](f) => f(refl) rec
+let [b := false](_) => refl
+
+
+val pullOutOp~.Bool[b : Bool] : ? ~ b -> ~ ? b
+let [b := true](())
+let [b := false](_) => (e). case e of () end
+
+
+val op~ToOp?false.Bool[b : Bool] : ? ~ b -> ?false b
+let [b := true](())
+let [b := false](_) => refl
+
+
+val op?falseToOp~.Bool[b : Bool] : ?false b -> ? ~ b
+let [b := true](())
+let [b := false](_) => refl
+
+
+val pushInOp|.Bool[a : Bool, b : Bool] : (? a | ? b) -> ? (a | b)
+let (in1(refl)) => refl
+let (in2(refl)) => a simplOp|true
+
+
+val pullOutOp|.Bool[a : Bool, b : Bool] : ? (a | b) -> ? a | ? b
+let [a := true](_) => in1(refl)
+let [b := true](_) => in2(refl)
+let [a := false, b := false](())
+
+
+val pushInOp&.Bool[a : Bool, b : Bool] : (? a & ? b) -> ? (a & b)
+let [a := false](() $ _)
+let [b := false](_ $ ())
+let [a := true, b := true](_) => refl
+
+
+val pullOutOp&.Bool[a : Bool, b : Bool] : ? (a & b) -> ? a & ? b
+let [a := false](())
+let [a := true, b := false](())
+let [a := true, b := true](_) => refl $ refl

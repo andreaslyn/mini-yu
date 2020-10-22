@@ -1,0 +1,36 @@
+import "yu/prelude/prelude.yu"
+
+
+val 100 : Nat
+let => 10 * 10
+
+val 1000 : Nat
+let => 100 * 10
+
+val 30'000 : Nat
+let => 100 * 100 * 3
+
+val make-list : Nat -> Nat List
+let (n) => aux(n, nil)
+where
+  val aux : (Nat, Nat List) -> Nat List
+  let (0, ns) => 0 :: ns
+  let (++ n, ns) => aux(n, ++ n :: ns)
+end
+
+val evens : Nat List -> Bool List
+let (ns) => ns map(_isEven)
+
+val count-evens : Bool List -> Nat
+let (ns) =>
+  ns fold(0, _) (b, x).
+    case b
+    of true => ++ x
+    of false => x
+    end
+
+val test : Nat
+let => count-evens(evens(make-list(30'000)))
+
+val main : () ->> {}
+let () => test str println

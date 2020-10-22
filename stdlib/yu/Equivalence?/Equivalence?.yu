@@ -1,0 +1,32 @@
+import "yu/Bool/Bool.yu"
+import "yu/relation?/relation?.yu"
+
+
+data _Equivalence?\Ty : Ty -> Ty
+let mk.Equivalence?[A : Ty] :
+  (R : (A, A) -> Bool, R IsEquivalence?) -> A Equivalence?
+
+
+val _eq?\_Equivalence?\Ty[A : Ty] : A Equivalence? -> (A, A) -> Bool
+let (mk.Equivalence?(R, _)) => R
+
+
+val _neq?\_Equivalence?\Ty[A : Ty] : A Equivalence? -> (A, A) -> Bool
+let (E) => (x, y). ~ E eq?(x, y)
+
+
+val _isEquivalence\_Equivalence?\Ty[A : Ty] :
+  (E : A Equivalence?) -> E eq? IsEquivalence?
+let (mk.Equivalence?(_, isR)) => isR
+
+val _isSymmetric\_Equivalence?\Ty[A : Ty] :
+  (E : A Equivalence?) -> E eq? IsSymmetric?
+let (E) => E isEquivalence 1
+
+val _isReflexive\_Equivalence?\Ty[A : Ty] :
+  (E : A Equivalence?) -> E eq? IsReflexive?
+let (E) => E isEquivalence 2 1
+
+val _isTransitive\_Equivalence?\Ty[A : Ty] :
+  (E : A Equivalence?) -> E eq? IsTransitive?
+let (E) => E isEquivalence 2 2

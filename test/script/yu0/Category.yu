@@ -1,0 +1,52 @@
+
+import "very-weak-funext.yu"
+
+data Category : Ty
+let category :
+  (Obj : Ty,
+    Hom : (Obj, Obj) -> Ty,
+    id-hom : (A : Obj) -> Hom(A, A),
+    com
+      : (A : Obj, B : Obj, C : Obj,
+          Hom(B, C), Hom(A, B)) -> Hom(A, C),
+    unit-left
+      : (A : Obj, B : Obj, f : Hom(A, B)) ->
+        com(A, B, B, id-hom(B), f) = f,
+    unit-right
+      : (A : Obj, B : Obj, f : Hom(A, B)) ->
+        com(A, A, B, f, id-hom(A)) = f,
+    (A : Obj, B : Obj, C : Obj, D : Obj,
+      h : Hom(C, D), g : Hom(B, C), f : Hom(A, B)) ->
+    com(A, B, D, com(B, C, D, h, g), f)
+    = com(A, C, D, h, com(A, B, C, g, f))
+  ) -> Category
+
+val Obj : Category -> Ty
+let (category(o, _, _, _, _, _, _)) => o
+
+val Hom : (X : Category) -> (Obj(X), Obj(X)) -> Ty
+let (category(_, h, _, _, _, _, _)) => h
+
+val id-hom : (X : Category) -> (A : Obj(X)) -> Hom(X)(A, A)
+let (category(_, _, i, _, _, _, _)) => i
+
+val com
+  : (X : Category) ->
+    (A : Obj(X), B : Obj(X), C : Obj(X), Hom(X)(B, C), Hom(X)(A, B)) ->
+    Hom(X)(A, C)
+let (category(_, _, _, c, _, _, _)) => c
+
+val fcom[A : Ty, B : Ty, C : B -> Ty] :
+  (g : (b : B) -> C(b), f : A -> B) -> (a : A) -> C(f(a))
+let (g, f) => (a). g(f(a))
+
+val CatTy : Category
+let =>
+  category(Ty,
+    (A, B). A -> B,
+    (A). id,
+    (A, B, C, f, g). fcom(f, g),
+    (A, B, f). veryWeakFunext(fcom(id, f), f, refl),
+    (A, B, f). refl,
+    (A, B, C, D, h, g, f). refl
+  )

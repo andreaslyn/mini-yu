@@ -1,0 +1,39 @@
+import "print.yu"
+import "yu/Str/Format.yu"
+
+
+val _Printf\PreFormat.Str : PreFormat.Str -> Ty
+let (natPreFormat.Str(p)) => Nat ->> p Printf
+let (strPreFormat.Str(p)) => Str ->> p Printf
+let (charPreFormat.Str(p)) => Char ->> p Printf
+let (boolPreFormat.Str(p)) => Bool ->> p Printf
+let (constPreFormat.Str(_, p)) => p Printf
+let (errorPreFormat.Str) => {}
+let (nilPreFormat.Str) => {}
+
+
+val _Printf\Str : Str -> Ty
+let (s) => s preFormat Printf
+
+
+val printfAccum.print : (p : PreFormat.Str, () ->> {}) ->> p Printf
+let (natPreFormat.Str(p), a) =>
+  (n). printfAccum.print(p, (). do a(); n print) 
+let (strPreFormat.Str(p), a) =>
+  (s). printfAccum.print(p, (). do a(); s print)
+let (charPreFormat.Str(p), a) =>
+  (c). printfAccum.print(p, (). do a(); c print)
+let (boolPreFormat.Str(p), a) =>
+  (b). printfAccum.print(p, (). do a(); b print)
+let (constPreFormat.Str(c, p), a) =>
+  printfAccum.print(p, (). do a(); c print)
+let (errorPreFormat.Str, _) => []
+let (nilPreFormat.Str, a) => a()
+
+
+val _printf\PreFormat.Str : (p : PreFormat.Str) ->> p Printf
+let (p) => printfAccum.print(p, (). [])
+
+
+val _printf\Str : (s : Str) ->> s Printf
+let (s) => s preFormat printf

@@ -1,0 +1,13 @@
+import "../test/script/yu0/BinNat.yu"
+
+val test-eq : 10.Bin *.Bin (10.Bin *.Bin 10.Bin)
+              = 10.Bin *.Bin (10.Bin *.Bin 10.Bin)
+let => refl
+
+val test-eq2 : 10.Bin *.Bin (10.Bin *.Bin 10.Bin)
+              = 10.Bin *.Bin (10.Bin *.Bin 10.Bin)
+let => refl
+
+val test-eq3 : 10.Bin *.Bin (10.Bin *.Bin 10.Bin)
+              = 10.Bin *.Bin (10.Bin *.Bin 10.Bin)
+let => refl

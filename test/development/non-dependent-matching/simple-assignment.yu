@@ -1,0 +1,10 @@
+
+val simple1 : Ascii
+let simple1 => []; x; y
+where
+  val x : {}
+  let x => []
+
+  val y : Ascii
+  let y => `a`
+end

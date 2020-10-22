@@ -1,0 +1,244 @@
+
+data Nat : Ty
+let 0 : Nat
+let (+1_\Nat) : Nat -> Nat
+
+data Unit : Ty
+let unit : Unit
+
+val nat-id : Nat -> Nat
+let (n) => n
+
+val nat-id' : Nat -> Nat
+let (0) => 0
+let (+1(n)) => +1(n)
+
+val unit-id : Unit -> Unit
+let (x) => x
+
+val unit-id' : Unit -> Unit
+let (unit) => unit
+
+val id-real-unit : {} -> {}
+let (x) => x
+
+val id-real-unit' : {} -> {}
+let ([]) => []
+
+data NatList : Ty
+let nnil : NatList
+let ncons : (Nat, NatList) -> NatList
+
+val ntail : NatList -> NatList
+let (nnil) => nnil
+let (ncons(_, tl)) => tl
+
+data Vec : (Ty, Nat) -> Ty
+let vnil : (A : Ty) -> Vec(A, 0)
+let vcons : (A, Vec(A, n), n : Nat, A : Ty) -> Vec(A, +1(n))
+
+val vzeros : (n : Nat) -> Vec(Nat, n)
+let (0) => vnil(Nat)
+let (+1(n')) => vcons(0, vzeros(n'), n', Nat)
+
+val vec-id : (Vec(Nat, n), n : Nat) -> Vec(Nat, n)
+let (v, n') => vec-id-impl(v)
+where
+  val vec-id-impl : Vec(Nat, n') -> Vec(Nat, n')
+  let (v) => v
+end
+
+val vec-id1 : (Vec(Nat, n), n : Nat) -> Vec(Nat, n)
+let (v, 0) => v
+let (v, +1(n)) => v
+
+val vec-id2 : (Vec(A, n), n : Nat, A : Ty) -> Vec(A, n)
+let (v, 0, X) => vnil(X)
+let (v, +1(_), _) => v
+
+data Empty : Ty
+let ()
+
+val empty-id : Empty -> Empty
+let (e) => e
+
+val empty-match : Empty -> {}
+let (())
+
+data DepEmpty : Empty -> Ty
+let makeDepEmpty : (e : Empty) -> DepEmpty(e)
+
+val match-dep-empty : (e : Empty, DepEmpty(e)) -> DepEmpty(e)
+let ((), d)
+
+val plus : (_ : Nat, _ : Nat) -> Nat
+let (0, m) => m
+let (+1(n), m) => +1(plus(n, m))
+
+data Bool : Ty
+let false : Bool
+let true : Bool
+
+val nfilter : (NatList, Nat -> Bool) -> NatList
+let (nnil, _) => nnil
+let (ncons(n, ns), p) => do-filter(p(n))
+where
+  val do-filter : Bool -> NatList
+  let (true) => ncons(n, nfilter(ns, p))
+  let (false) => nfilter(ns, p)
+end
+
+val vsum : (T : Ty, n : Nat, Vec(T, n), Vec(T, n), plus : (T, T) -> T) -> Vec(T, n)
+let (A0, nn, vnil(X), vnil(Y), op) => vec-id2(vnil(Y), nn, X)
+let (A, _, vcons(x, xs, n, A'), vcons(y, ys, n'', A''), plus) =>
+  vcons(plus(x, y), vsum(A, n, xs, ys, plus), n, A)
+
+data Id : (A : Ty, A, A) -> Ty
+let refl : (A : Ty, x : A) -> Id(A, x, x)
+
+val hard-vsum : (A : Ty, m : Nat, n : Nat, Vec(A, m), Vec(A, n), Id(Nat, m, n), (A, A) -> A) -> Vec(A, n)
+let (A, m, n, v, vnil(X), refl(Y, k), _) => vec-id2(vec-id2(v, 0, X), k, A)
+let (A, _, _, vcons(x, xs, _, _), vcons(y, ys, n, _), refl(_, _), plus) => 
+  vcons(plus(x, y), hard-vsum(A, n, n, xs, ys, refl(Nat, n), plus), n, A)
+
+data Interleave : (Nat, Nat, Nat) -> Ty
+let inter-zero : Interleave(0, 0, 0)
+let inter-left : (k : Nat, m : Nat, n : Nat) -> Interleave(k, m, n) -> Interleave(+1(k), m, +1(n))
+let inter-right : (k : Nat, m : Nat, n : Nat) -> Interleave(k, m, n) -> Interleave(k, +1(m), +1(n))
+
+val shuffle : (A : Ty, k : Nat, m : Nat, n : Nat, Interleave(k, m, n), Vec(A, k), Vec(A, m)) -> Vec(A, n)
+let (_, _, _, _, inter-zero, v, w) => w
+let (A, _, m', _, inter-left(k, m, n)(i), vcons(x, v, _, _), w) =>
+  vcons(x, shuffle(A, k, m, n, i, v, w), n, A)
+let (A, _, _, _, inter-right(k', m, n)(i), v, vcons(y, w, _, _)) =>
+  vcons(y, shuffle(A, k', m, n, i, v, w), n, A)
+
+data Deal
+  : (A : Ty, k : Nat, m : Nat, n : Nat,
+      i : Interleave(k, m, n), Vec(A, n)) -> Ty
+let deal
+    : (A : Ty, k : Nat, m : Nat, n : Nat,
+        i : Interleave(k, m, n), xs : Vec(A, k), ys : Vec(A, m)) ->
+      Deal(A, k, m, n, i, shuffle(A, k, m, n, i, xs, ys))
+
+val makeDeal
+  : (A : Ty, k : Nat, m : Nat, n : Nat, i : Interleave(k, m, n),
+      v : Vec(A, n)) -> Deal(A, k, m, n, i, v)
+let (A, k, m, n, inter-zero, vnil(_)) =>
+  deal(A, 0, 0, 0, inter-zero, vnil(A), vnil(A))
+let (A, _, _, _, inter-left(k, m, n)(i), vcons(x, xs, n', A')) =>
+  aux(makeDeal(A, k, m, n, i, xs))
+where
+  val aux :
+    Deal(A, k, m, n, i, xs) ->
+    Deal(A, +1(k), m, +1(n), inter-left(k, m, n)(i), vcons(x, xs, n, A))
+  let (deal(A, _, _, _, _, ls, rs)) =>
+    deal(A, +1(k), m, +1(n), inter-left(k, m, n)(i), vcons(x, ls, k, A), rs)
+end
+let (A, _, _, _, inter-right(k, m, n)(i), vcons(x, xs, n', A')) =>
+  aux(makeDeal(A, k, m, n, i, xs))
+where
+  val aux :
+    Deal(A, k, m, n, i, xs) ->
+    Deal(A, k, +1(m), +1(n), inter-right(k, m, n)(i), vcons(x, xs, n, A))
+  let (deal(A, _, _, _, _, ls, rs)) =>
+    ##deal(A, k, m, n, i, ls, rs)
+    deal(A, k, +1(m), +1(n), inter-right(k, m, n)(i), ls, vcons(x, rs, m, A))
+end
+
+val transitive-Id : (A : Ty, x : A, y : A, z : A, Id(A, x, y), Id(A, y, z)) -> Id(A, x, z)
+let (A, _, y, _, refl(_, _), refl(_, _)) => refl(A, y)
+
+data id-fun-type : Ty -> Ty
+let fun-ctor1 : (A : Ty) -> id-fun-type(A -> A)
+
+val id-fun-test : (A : Ty, id-fun-type(A -> Nat)) -> Id(Ty, A, Nat)
+let (_, fun-ctor1(_)) => refl(Ty, Nat)
+
+data (?_\Ty) : Ty -> Ty
+let none : (A : Ty) -> ?(A)
+let some : (A : Ty, A) -> ?(A)
+
+data unif : (A : Ty, F : A -> Ty, (a : A) -> F(a)) -> Ty
+let unif-ctor : unif(Ty, (?_), none)
+
+val test :
+  Id(Ty,
+    (n : Nat, v : Vec({}, +1(+1(m))), m : Nat) -> Vec(Nat, n) -> ?(Interleave(+1(n), m, n)),
+    (naa : Nat, Vec({}, +1(+1(m2))), m2 : Nat) -> Vec(Nat, naa) -> ?(Interleave(+1(naa), m2, naa)))
+let => refl(Ty, (n : Nat, v : Vec({}, +1(+1(m))), m : Nat) -> Vec(Nat, n) -> ?(Interleave(+1(n), m, n)))
+
+val seq-norm-test : Nat -> Nat
+let (0) =>
+  test1(0); test2(+1(0), 0); plus(+1(0), +1(+1(0)))
+where
+  val test1 : Nat -> {}
+  let (0) => []
+  let (_) => []
+
+  val test2 : (Nat, Nat) -> {}
+  let (+1(n), 0) => test1(0)
+  let (_, _) => []
+end
+let (+1 n) =>
+  test2(0, 0); plus(+1(0), seq-norm-test(n))
+where
+  val test1' : Nat -> {}
+  let (0) => []
+  let (_) => []
+
+  val test2 : (Nat, Nat) -> {}
+  let (+1(n), 0) => test1'(0)
+  let (_, _) => []
+end
+
+val test-seq0 : Id(Nat, +1(+1(+1(0))), seq-norm-test(0))
+let => refl(Nat, +1(+1(+1(0))))
+
+val test-seq1 : Id(Nat, +1(+1(+1(+1(0)))), seq-norm-test(+1(0)))
+let => refl(Nat, +1(+1(+1(+1(0)))))
+
+val seq-norm-test2 : Nat -> Nat
+let (0) =>
+  [] := test1(0); x := test2(+1(0), 0); plus(+1(0), +1(0))
+where
+  val test1 : Nat -> {}
+  let (0) => []
+  let (_) => []
+
+  val test2 : (Nat, Nat) -> {}
+  let (+1(n), 0) => test1(0)
+  let (_, _) => []
+end
+let (+1 x) =>
+  mkNatPair(m, n) := test2(0, 0); plus(plus(m, n), seq-norm-test2(x))
+where
+  val test1' : Nat -> Nat
+  let (0) => +1(0)
+  let (_) => 0
+
+  val test2 : (Nat, Nat) -> NatPair
+  let (+1(n), 0) => mkNatPair(test1'(0), 0)
+  let (_, _) => mkNatPair(test1'(0), +1(0))
+end
+
+data NatPair : Ty
+let mkNatPair : (Nat, Nat) -> NatPair
+
+val test-seq0-2 : Id(Nat, +1(+1(0)), seq-norm-test2(0))
+let => refl(Nat, +1(+1(0)))
+
+val test-seq1-2 : Id(Nat, +1(+1(+1(+1(0)))), seq-norm-test2(+1(0)))
+let => refl(Nat, +1(+1(+1(+1(0)))))
+
+val lazy-0 : [] -> Nat
+let => []. 0
+
+val test-lazy-0 : Id(Nat, 0, lazy-0[])
+let => refl(Nat, lazy-0[])
+
+val higher-lazy : ([] -> [] -> Nat, [] -> Nat) -> [] -> Nat
+let (f, g) => []. plus(f[][], g[])
+
+val test-higher-lazy : Id(Nat, +1(+1(0)), higher-lazy([]. []. +1(+1(0)), lazy-0)[])
+let => refl(Nat, higher-lazy([]. []. +1(+1(0)), lazy-0)[])

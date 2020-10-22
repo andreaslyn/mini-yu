@@ -1,0 +1,10 @@
+import "Bin0.yu"
+import "Bin1-theorems.yu"
+
+val compute-op++op<.Bin0
+  : (a : Bin0, b : Bin0, ++.Bin0 a <.Bin0 b) -> a <.Bin0 --.Bin0 b
+let (_, 0.Bin0, ())
+let (0.Bin0, pos.Bin0(bin+(_ :: _)), len<.Bin1) => []
+let (_, pos.Bin0(bin+(nil)), ())
+let (pos.Bin0(a), pos.Bin0(bin+(b :: bs)), h) =>
+  step-op++op<.Bin1(a, h)

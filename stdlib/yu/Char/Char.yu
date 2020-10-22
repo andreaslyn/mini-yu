@@ -1,0 +1,238 @@
+import "yu/Vec/Vec.yu"
+
+
+data Char : Ty
+let '0 : Char ## "0"
+let '1 : Char ## "1"
+let '2 : Char ## "2"
+let '3 : Char ## "3"
+let '4 : Char ## "4"
+let '5 : Char ## "5"
+let '6 : Char ## "6"
+let '7 : Char ## "7"
+let '8 : Char ## "8"
+let '9 : Char ## "9"
+let 'a : Char ## "a"
+let 'b : Char ## "b"
+let 'c : Char ## "c"
+let 'd : Char ## "d"
+let 'e : Char ## "e"
+let 'f : Char ## "f"
+let 'g : Char ## "g"
+let 'h : Char ## "h"
+let 'i : Char ## "i"
+let 'j : Char ## "j"
+let 'k : Char ## "k"
+let 'l : Char ## "l"
+let 'm : Char ## "m"
+let 'n : Char ## "n"
+let 'o : Char ## "o"
+let 'p : Char ## "p"
+let 'q : Char ## "q"
+let 'r : Char ## "r"
+let 's : Char ## "s"
+let 't : Char ## "t"
+let 'u : Char ## "u"
+let 'v : Char ## "v"
+let 'w : Char ## "w"
+let 'x : Char ## "x"
+let 'y : Char ## "y"
+let 'z : Char ## "z"
+let 'A : Char ## "A"
+let 'B : Char ## "B"
+let 'C : Char ## "C"
+let 'D : Char ## "D"
+let 'E : Char ## "E"
+let 'F : Char ## "F"
+let 'G : Char ## "G"
+let 'H : Char ## "H"
+let 'I : Char ## "I"
+let 'J : Char ## "J"
+let 'K : Char ## "K"
+let 'L : Char ## "L"
+let 'M : Char ## "M"
+let 'N : Char ## "N"
+let 'O : Char ## "O"
+let 'P : Char ## "P"
+let 'Q : Char ## "Q"
+let 'R : Char ## "R"
+let 'S : Char ## "S"
+let 'T : Char ## "T"
+let 'U : Char ## "U"
+let 'V : Char ## "V"
+let 'W : Char ## "W"
+let 'X : Char ## "X"
+let 'Y : Char ## "Y"
+let 'Z : Char ## "Z"
+let 'nul : Char ## Null character
+let 'lf : Char  ## Line feed "\n"
+let 'tab : Char ## Horizontal tab "\t"
+let 'sp : Char  ## Space " "
+let 'qu : Char  ## Double quote "\""
+let 'po : Char  ## Pound sign "#"
+let '' : Char   ## Single quote "'"
+let '^ : Char   ## "^"
+let '@ : Char   ## "@"
+let 'ba : Char  ## Back slash "\\"
+let '/ : Char   ## "/"
+let '* : Char   ## "*"
+let '% : Char   ## "%"
+let '$ : Char   ## "$"
+let '| : Char   ## "|"
+let '& : Char   ## "&"
+let '+ : Char   ## "+"
+let '- : Char   ## "-"
+let '? : Char   ## "?"
+let '! : Char   ## "!"
+let '< : Char   ## "<"
+let '> : Char   ## ">"
+let '= : Char   ## "="
+let ': : Char   ## ":"
+let '~ : Char   ## "~"
+let 'soh : Char ## Start of heading character
+let 'stx : Char ## Start of text character
+let 'etx : Char ## End of header character
+let 'eot : Char ## End of transmission character
+let 'enq : Char ## Enquiry character
+let 'ack : Char ## Acknowledge
+let 'bel : Char ## Bell character
+let 'bs : Char  ## Back space character
+let 'vt : Char  ## Vertical tab character
+let 'ff : Char  ## Form feed character
+let 'cr : Char  ## Carriage return character
+let 'so : Char  ## Shift out character
+let 'si : Char  ## Shift in character
+let 'dle : Char ## Data link escape character
+let 'dc1 : Char ## Device control 1 character
+let 'dc2 : Char ## Device control 2 character
+let 'dc3 : Char ## Device control 3 character
+let 'dc4 : Char ## Device control 4 character
+let 'nak : Char ## Negative acknowledge character
+let 'syn : Char ## Synchronous idle character
+let 'etb : Char ## End of transmission block character
+let 'can : Char ## Cancel character
+let 'em : Char  ## End of medium character
+let 'sub : Char ## Substitute character
+let 'esc : Char ## Escape character
+let 'fs : Char  ## File seperator character
+let 'gs : Char  ## Group seperator character
+let 'rs : Char  ## REecord seperator character
+let 'us : Char  ## Unit seperator character
+let 'lpa : Char ## Left parenthesis "("
+let 'rpa : Char ## Right parenthesis ")"
+let 'lsq : Char ## Left square bracket "]"
+let 'rsq : Char ## Right square bracket "]"
+let 'lcu : Char ## Left curly bracket "{"
+let 'rcu : Char ## Right curly bracket "}"
+let '. : Char   ## Period "."
+let 'co : Char  ## Comma ","
+let 'se : Char  ## Semicolon ";"
+let 'un : Char  ## Underscore "_"
+let 'gr : Char  ## Grave accent "`"
+let 'del : Char ## Delete character
+
+
+data _IsDigit\Char : Char -> Ty
+let 0IsDigit.Char : '0 IsDigit
+let 1IsDigit.Char : '1 IsDigit
+let 2IsDigit.Char : '2 IsDigit
+let 3IsDigit.Char : '3 IsDigit
+let 4IsDigit.Char : '4 IsDigit
+let 5IsDigit.Char : '5 IsDigit
+let 6IsDigit.Char : '6 IsDigit
+let 7IsDigit.Char : '7 IsDigit
+let 8IsDigit.Char : '8 IsDigit
+let 9IsDigit.Char : '9 IsDigit
+
+
+val _toUpper\Char : Char -> Char
+let ('a) => 'A
+let ('b) => 'B
+let ('c) => 'C
+let ('d) => 'D
+let ('e) => 'E
+let ('f) => 'F
+let ('g) => 'G
+let ('h) => 'H
+let ('i) => 'I
+let ('j) => 'J
+let ('k) => 'K
+let ('l) => 'L
+let ('m) => 'M
+let ('n) => 'N
+let ('o) => 'O
+let ('p) => 'P
+let ('q) => 'Q
+let ('r) => 'R
+let ('s) => 'S
+let ('t) => 'T
+let ('u) => 'U
+let ('v) => 'V
+let ('w) => 'W
+let ('x) => 'X
+let ('y) => 'Y
+let ('z) => 'Z
+let (c) => c
+
+
+val _toLower\Char : Char -> Char
+let ('A) => 'a
+let ('B) => 'b
+let ('C) => 'c
+let ('D) => 'd
+let ('E) => 'e
+let ('F) => 'f
+let ('G) => 'g
+let ('H) => 'h
+let ('I) => 'i
+let ('J) => 'j
+let ('K) => 'k
+let ('L) => 'l
+let ('M) => 'm
+let ('N) => 'n
+let ('O) => 'o
+let ('P) => 'p
+let ('Q) => 'q
+let ('R) => 'r
+let ('S) => 's
+let ('T) => 't
+let ('U) => 'u
+let ('V) => 'v
+let ('W) => 'w
+let ('X) => 'x
+let ('Y) => 'y
+let ('Z) => 'z
+let (c) => c
+
+
+extern _cmp\Char : (Char, Char) -> Order
+
+extern cmpIsTransitive?.Char :
+  cmpToLe?.Ordering?(_cmp\Char) IsTransitive?
+
+extern cmpIsCompatible.Char :
+  (b : Char, c : Char) -> b cmp(c) lt? = c cmp(b) gt?
+
+val ordering?.Char : Char Ordering?
+let => fromCmp.Ordering?(_cmp, cmpIsTransitive?.Char, cmpIsCompatible.Char)
+
+val equivalence?.Char : Char Equivalence?
+let => ordering?.Char equivalence?
+
+val _<?_\Char : (Char, Char) -> Bool
+let => ordering?.Char lt?
+
+val _<=?_\Char : (Char, Char) -> Bool
+let => ordering?.Char le?
+
+val _>?_\Char : (Char, Char) -> Bool
+let => ordering?.Char gt?
+
+val _>=?_\Char : (Char, Char) -> Bool
+let => ordering?.Char ge?
+
+val _=?_\Char : (Char, Char) -> Bool
+let => equivalence?.Char eq?
+
+val _<>?_\Char : (Char, Char) -> Bool
+let => equivalence?.Char neq?

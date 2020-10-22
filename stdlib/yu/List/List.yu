@@ -1,0 +1,143 @@
+import "yu/basic/List.yu"
+import "yu/Nat/Nat.yu"
+import "yu/Prod/Prod.yu"
+import "yu/Option/Option.yu"
+import "yu/Equivalence?/Equivalence?.yu"
+
+
+data _IsNonempty\_List\Ty[A : Ty] : A List -> Ty
+let mkIsNonempty.List[A : Ty, a : A, as : A List] : (a :: as) IsNonempty
+
+
+val _empty?\_List\Ty[A : Ty] : A List -> Bool
+let (nil) => true
+let (_ :: _) => false
+
+
+val _head?\_List\Ty[A : Ty] : A List -> ? A
+let (nil) => no
+let (x :: _) => yes(x)
+
+
+val _head\_List\Ty[A : Ty] : (as : A List, as IsNonempty) -> A
+let (x :: _, mkIsNonempty.List) => x
+
+
+val _tail?\_List\Ty[A : Ty] : A List -> ? A List
+let (nil) => no
+let (_ :: xs) => yes(xs)
+
+
+val _tail!\_List\Ty[A : Ty] : A List -> A List
+let (nil) => nil
+let (_ :: xs) => xs
+
+
+val _tail\_List\Ty[A : Ty] : (as : A List, as IsNonempty) -> A List
+let (_ :: as, mkIsNonempty.List) => as
+
+
+val _len\_List\Ty[A : Ty] : A List -> Nat
+let (nil) => 0
+let (_ :: xs) => ++ xs len
+
+
+val _update?\_List\Ty[A : Ty] : (A List, A, Nat) -> ? A List
+let (nil, _, _) => no
+let (_ :: xs, a, 0) => yes(a :: xs)
+let (x :: xs, a, ++ n) =>
+  xs update?(a, n) ! (xs'). yes(x :: xs')
+
+
+val _update!\_List\Ty[A : Ty] : (A List, A, Nat) -> A List
+let (nil, _, _) => nil
+let (_ :: xs, a, 0) => a :: xs
+let (x :: xs, a, ++ n) => x :: xs update!(a, n)
+
+
+val _map\_List\Ty[A : Ty, B : Ty] : (A List, A -> B) -> B List
+let (nil, _) => nil
+let (x :: xs, f) => f(x) :: xs map(f)
+
+
+val _filter\_List\Ty[A : Ty] : (A List, A -> Bool) -> A List
+let (nil, _) => nil
+let (x :: xs, p) =>
+  if(p(x)) then(x :: xs filter(p)) else(xs filter(p))
+
+
+val _partition\_List\Ty[A : Ty] : (A List, A -> Bool) -> A List & A List
+let (nil, _) => nil $ nil
+let (x :: xs, p) =>
+  l $ r := xs partition(p);
+  if(p(x)) then((x :: l) $ r) else(l $ (x :: r))
+
+
+val _accum\_List\Ty[A : Ty, B : Ty] : (B List, A, (A, B) -> A) -> A
+let (nil, a, _) => a
+let (x :: xs, a, f) => xs accum(f(a, x), f)
+
+
+val _fold\_List\Ty[A : Ty, B : Ty] : (B List, A, (B, A) -> A) -> A
+let (nil, a, _) => a
+let (x :: xs, a, f) => f(x, xs fold(a, f))
+
+
+val _:+:_\_List\Ty[A : Ty] : (A List, A List) -> A List
+let (xs, ys) => xs fold(ys, _::_)
+
+
+val _rev\_List\Ty[A : Ty] : A List -> A List
+let => _ accum(nil, _::_\_List\Ty flip)
+
+
+val _concat\_List\Ty[A : Ty] : (A List List) -> A List
+let (as) => as fold(nil, _:+:_)
+
+
+val _accumScan\_List\Ty[A : Ty, B : Ty] : (A List, B, (B, A) -> B) -> B List
+let (xs, y, f) =>
+  xs accum(y $ (t : B List). y :: t, (b, a). do
+    b' := f(b 1, a);
+    b' $ (t : B List). b 2(b' :: t)
+  ) 2(nil)
+
+
+val _foldScan\_List\Ty[A : Ty, B : Ty] : (A List, B, (A, B) -> B) -> B List
+let (xs, y, f) =>
+  xs fold(y $ (y :: nil), (a, b). do
+    b' := f(a, b 1);
+    b' $ (b' :: b 2)) 2
+
+
+val _intercalate\_List\Ty[A : Ty] : (A List List, A List) -> A List
+let (nil, _) => nil
+let (xs :: nil, s) => xs
+let (xs :: xss, s) => xs :+: s :+: xss intercalate(s)
+
+
+val _sublistOf\_List\Ty[A : Ty] : (A List, A List, A Equivalence?) -> Bool
+let (nil, _, _) => true
+let (_ :: _, nil, _) => false
+let (x :: xs, y :: ys, q) =>
+  (q eq?(x, y) & xs sublistOf(ys, q)) | xs sublistOf(y :: ys, q)
+
+
+data _All\_List\Ty[A : Ty] : (A List, A -> Ty) -> Ty
+let allNil.List[A : Ty, P : A -> Ty] : nil All(P)
+let _::_\_All\_List\Ty[A : Ty, P : A -> Ty, x : A, xs : A List] :
+  (P(x), xs All(P)) -> (x :: xs) All(P)
+
+
+val _cmp\_List\Ty[A : Ty] : (A List, A List, A Ordering?) -> Order
+let (nil, nil, _) => eq.Order
+let (nil, _ :: _, _) => lt.Order
+let (_ :: _, nil, _) => gt.Order
+let (x :: xs, y :: ys, C) =>
+  C cmp(x, y) rec(lt.Order, xs cmp(ys, C), gt.Order)
+
+
+#{ TODO
+val cmpIsTransitive?.List[A : Ty] :
+  (C : A Ordering?) -> cmpToLe?.Ordering?(_cmp\_List\Ty(_, _, C)) IsTransitive?
+#}
