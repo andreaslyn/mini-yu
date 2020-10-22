@@ -1,0 +1,18 @@
+import "Fun.yu"
+import "Equal.yu"
+
+
+val idLeftIdentityOp@@[A : Ty, B : Ty]
+  : (f : A -> B) -> id @ f = f
+let (_) => refl
+
+
+val idRightIdentityOp@@[A : Ty, B : Ty]
+  : (f : A -> B) -> f @ id = f
+let (_) => refl
+
+
+val associativeOp@@[A : Ty, B : Ty, C : Ty, D : Ty]
+  : (f : A -> B, g : B -> C, h : C -> D) ->
+    h @ (g @ f) = (h @ g) @ f
+let (_, _, _) => refl

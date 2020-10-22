@@ -1,0 +1,5 @@
+import "yu/print/print.yu"
+
+
+val main : () ->> {}
+let () => "Hello, World!" println

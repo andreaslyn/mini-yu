@@ -1,0 +1,5 @@
+import "yu/Str/Str.yu"
+
+
+val hello : Str
+let => "hello\n"

@@ -1,0 +1,60 @@
+
+data Id[A : Ty] : (A, A) -> Ty
+let refl[A : Ty] : (a : A) -> Id(a, a)
+
+data Nat : Ty
+let zero : Nat
+let succ : Nat -> Nat
+
+val ff : Nat -> Nat
+let (zero) => zero
+let (succ(n)) => succ(n)
+
+val gg : Nat -> Nat
+let (n) => succ(n)
+
+val Ret : (a : Nat, b : Nat, Id(a, b)) -> Ty
+let (a, b, i) => Id(a, b)
+
+val eid : (A : Ty) -> A -> A
+let (_) => (a). a
+
+val test : (a : Nat, b : Nat, i : Id(ff(a), gg(b))) -> Ret(ff(a), gg(b), i)
+let (zero, b, ())
+let (succ(a), b, i) => do-test(a, b, i)
+where
+  val do-test : (a : Nat, b : Nat, i : Id(ff (succ(a)), gg(b))) -> Ret(ff (succ(a)), gg(b), i)
+  let (a, _ , refl(_)) => refl(succ(a))
+end
+
+val plus : Nat -> Nat -> Nat
+let (n) => aux
+where
+  val aux : Nat -> Nat
+  let (m) =>
+    case m
+    of zero => n
+    of succ(m) => succ(aux(m))
+    end
+end
+
+val first-fn : Nat -> Nat
+let => (n). plus(n)(zero)
+
+val second-fn : Nat -> Nat
+let (n) => n
+
+val eq-first-second : (n : Nat) -> Id(first-fn(n), second-fn(n))
+let => (n). refl(second-fn(n))
+
+val succ-inj[x : Nat, y : Nat] : Id(succ(x), succ(y)) -> Id(x, y)
+let (refl(succ(_))) => refl(x)
+
+data my-new-id[A : Ty] : A -> A -> Ty
+let my-new-id-ctor1[A : Ty] : (x : A) -> do (y : A) -> do my-new-id(x)(y)
+let my-new-id-ctor2[A : Ty] : do [] := []; (x : A) -> (y : A) -> my-new-id(x)(y)
+let my-new-id-refl[A : Ty] : (x : A) -> my-new-id(x)(x)
+
+val test-my-new-id[n : Nat] : my-new-id(n)(plus(zero)(n)) -> Nat
+let (my-new-id-ctor1(x)(y)) => zero
+let (_) => zero

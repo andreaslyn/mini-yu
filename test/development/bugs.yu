@@ -1,0 +1,70 @@
+
+data Nat : Ty
+let 0 : Nat
+let (++_) : Nat -> Nat
+#{
+
+val _+_ : (Nat, Nat) -> Nat
+let 0 + n => n
+let m + n => aux
+where
+  val aux : Nat
+  let aux =>
+    case m
+    of 0 => n
+    of ++ m => m + n
+    end
+end
+
+data Tree : Ty
+let node : (Nat -> [] -> Nat -> Tree) -> Tree
+let leaf : Tree
+
+val treeBranch : Tree -> Tree
+let treeBranch(leaf) => leaf
+let treeBranch(node(f)) => treeBranch(f(0)[](++ 0))
+
+data _=_[A : Ty, B : Ty] : (A, B) -> Ty
+let refl[A : Ty] : (a : A) -> a = a
+
+val sym[A : Ty, a : A, b : A] : a = b -> b = a
+let sym(refl(x)) => refl(a)
+#}
+#{
+val foo[m : Nat] : Nat -> Nat
+let foo => (n).
+  case n
+  of 0 => 0
+  of ++ n => foo[m := 0](n)
+  end
+#}
+
+#{
+val bar : Nat -> Nat
+let bar =>
+  x := 0;
+  (n).
+    case n
+    of 0 => 0
+    of ++ n => bar(n)
+    end
+#}
+
+#{
+val const[A : Ty, B : Ty] : A -> B -> A
+let const(a) => (_). a
+
+data Test : Ty
+let c1 : useTest(c2) -> Test
+let c2 : Test
+
+val useTest : Test -> Ty
+let useTest(c1(_)) => {}
+let useTest(c2) => Ty
+#}
+
+data A : B -> Ty
+let ()
+
+data B : A -> Ty
+let ()

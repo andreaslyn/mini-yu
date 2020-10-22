@@ -1,0 +1,1 @@
+stack exec --profile -- "`dirname $0`"/bin/mini-yu-exe $@ +RTS -p "-M2G -H2G"

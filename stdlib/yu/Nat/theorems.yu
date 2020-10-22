@@ -1,0 +1,82 @@
+import "Nat.yu"
+import "yu/basic/Equal.yu"
+
+
+########################## Addition theormes #########################
+
+
+val _simplOp++Op+\Nat : (m : Nat, n : Nat) -> ++ m + n = ++ (m + n)
+let (m, 0) => refl
+let (m, ++ n) => (++ m) simplOp++Op+(n)
+
+
+val _op+IsOp+r\Nat : (m : Nat, n : Nat) -> m + n = m +r n
+let (m, 0) => refl
+let (m, ++ n) => m simplOp++Op+(n) @ m op+IsOp+r(n) ap(++ _)
+
+
+val _simplOp++Op+r\Nat : (m : Nat, n : Nat) -> ++ m +r n = ++ (m +r n)
+let (m, 0) => refl
+let (m, ++ n) => m simplOp++Op+r(n) ap(++ _)
+
+
+val _simpl0Op+r\Nat : (n : Nat) -> 0 +r n = n
+let (0) => refl
+let (++ n) => n simpl0Op+r ap(++ _)
+
+
+val _simpl0Op+\Nat : (n : Nat) -> 0 + n = n
+let (n) => 0 op+IsOp+r(n) @ n simpl0Op+r
+
+
+val _commutativeOp+r\Nat : (m : Nat, n : Nat) -> m +r n = n +r m
+let (m, 0) => ! m simpl0Op+r
+let (m, ++ n) =>
+  m commutativeOp+r(n) ap(++ _) @ ! n simplOp++Op+r(m)
+
+
+val _commutativeOp+\Nat : (m : Nat, n : Nat) -> m + n = n + m
+let (m, n) =>
+  m op+IsOp+r(n) @ m commutativeOp+r(n) @ ! n op+IsOp+r(m)
+
+
+val _associativeOp+r\Nat :
+  (k : Nat, m : Nat, n : Nat) -> (k +r m) +r n = k +r (m +r n)
+let (k, m, 0) => refl
+let (k, m, ++ n) => k associativeOp+r(m, n) ap(++ _)
+
+
+val _associativeOp+\Nat :
+  (k : Nat, m : Nat, n : Nat) -> (k + m) + n = k + (m + n)
+let (k, m, n) =>
+  (k + m) op+IsOp+r(n)
+  @ k op+IsOp+r(m) ap(_ +r n)
+  @ k associativeOp+r(m, n)
+  @ ! k op+IsOp+r(m +r n)
+  @ (! m op+IsOp+r(n)) ap(k + _)
+
+
+val _op+rIsOp+l\Nat : (m : Nat, n : Nat) -> m +r n = m +l n
+let (m, n) => m commutativeOp+r(n) @ aux(m, n)
+where
+  val aux : (m : Nat, n : Nat) -> n +r m = m +l n
+  let (0, n) => refl
+  let (++ m, n) => aux(m, n) ap(++ _)
+end
+
+
+###################### Multiplication theormes #######################
+
+
+val _op*IsOp*r\Nat : (m : Nat, n : Nat) -> m * n = m *r n
+let (_, 0) => refl
+let (m, ++ n) =>
+  (m * n) op+IsOp+r(m) @ m op*IsOp*r(n) ap(_ +r m)
+
+
+######################## Ordering theormes ###########################
+
+
+val _op++Is<?\Nat : (n : Nat) -> ? (n <? ++ n)
+let (0) => refl
+let (++ n) => n op++Is<?

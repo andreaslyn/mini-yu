@@ -1,0 +1,199 @@
+import "yu/prelude/prelude.yu"
+
+
+val partition[A : Ty] : (A List, f : A -> Bool) -> A List & A List
+let (nil, _) => nil $ nil
+let (x :: xs, f) =>
+  a $ b := partition(xs, f);
+  case f(x)
+  of true => (x :: a) $ b
+  of false => a $ (x :: b)
+  end
+
+
+
+val.. qsort[A : Ty] : (A List, f : (A, A) -> Bool) -> A List
+let (nil, _) => nil
+let (x :: xs, f) =>
+  ls $ rs := partition(xs, (a). f(a, x));
+  qsort(ls, f) :+: x :: qsort(rs, f)
+
+
+data Delay-List1 : Ty -> Ty
+let one.Delay-List1[A : Ty] : A -> Delay-List1(A)
+let _::_\Delay-List1[A : Ty] : (A, () -> Delay-List1(A)) -> Delay-List1(A)
+
+
+val sort[A : Ty] : (A List, (A, A) -> Bool) -> A List
+let (origList, cmp) => merge-all(sequences(origList))
+where
+  val sequences : A List -> Delay-List1(A List)
+  let (a :: b :: xs) =>
+    case cmp(a, b)
+    of false => descending(b, a :: nil,  xs)
+    of true => ascending(b, (t). a :: t, xs)
+    end
+  let (xs) => one.Delay-List1(xs)
+
+  val descending : (A, A List, A List) -> Delay-List1(A List)
+  let (a, as, b :: bs) =>
+    case cmp(a, b)
+    of false => descending(b, a :: as, bs)
+    of true => (a :: as) :: ((). sequences(b :: bs))
+    end
+  let (a, as, bs) => (a :: as) :: ((). sequences(bs))
+
+  val ascending : (A, A List -> A List, A List) -> Delay-List1(A List)
+  let (a, as, b :: bs) =>
+    case cmp(a, b)
+    of true => ascending(b, (ys). as (a :: ys), bs)
+    of false => as (a :: nil) :: ((). sequences(b :: bs))
+    end
+  let (a, as, bs) => as (a :: nil) :: ((). sequences(bs))
+
+  val.. merge-all : Delay-List1(A List) -> A List
+  let (one.Delay-List1(as)) => as
+  let (as :: xs) => merge-all(merge-with-head(as, xs()))
+
+  val merge-with-head : (A List, Delay-List1(A List)) -> Delay-List1(A List)
+  let (as, one.Delay-List1(bs)) => one.Delay-List1(merge(as, bs))
+  let (as, bs :: xs) =>
+    merge(as, bs) :: ((). merge-pairs(xs()))
+
+  val merge-pairs : Delay-List1(A List) -> Delay-List1(A List)
+  let (as :: xs) => merge-with-head(as, xs())
+  let (xs) => xs
+
+  val merge : (A List, A List) -> A List
+  let (a :: as, b :: bs) =>
+    case cmp(a, b)
+    of false => b :: merge(a :: as, bs)
+    of true => a :: merge(as, b :: bs)
+    end
+  let (nil, bs) => bs
+  let (as, nil) => as
+end
+
+
+val msort[A : Ty] : (A List, (A, A) -> Bool) -> A List
+let (origList, cmp) => mergeAll(sequences(origList))
+where
+  val sequences : A List -> A List List
+  let (a :: b :: xs) =>
+    case cmp(a, b)
+    of false => descending(b, a :: nil,  xs)
+    of true => ascending(b, (t). a :: t, xs)
+    end
+  let (xs) => xs :: nil
+
+  val descending : (A, A List, A List) -> A List List
+  let (a, as, b :: bs) =>
+    case cmp(a, b)
+    of false => descending(b, a :: as, bs)
+    of true => (a :: as) :: sequences(b :: bs)
+    end
+  let (a, as, bs) => (a :: as) :: sequences(bs)
+
+  val ascending : (A, A List -> A List, A List) -> A List List
+  let (a, as, b :: bs) =>
+    case cmp(a, b)
+    of true => ascending(b, (ys). as (a :: ys), bs)
+    of false => as (a :: nil) :: sequences(b :: bs)
+    end
+  let (a, as, bs) => as (a :: nil) :: sequences(bs)
+
+  val.. mergeAll : A List List -> A List
+  let (x :: nil) => x
+  let (xs) => mergeAll(mergePairs(xs))
+
+  val mergePairs : A List List -> A List List
+  let (a :: b :: xs) => merge(a, b) :: mergePairs(xs)
+  let (xs) => xs
+
+  val merge : (A List, A List) -> A List
+  let (a :: as, b :: bs) =>
+    case cmp(a, b)
+    of false => b :: merge(a :: as, bs)
+    of true => a :: merge(as, b :: bs)
+    end
+  let (nil, bs) => bs
+  let (as, nil) => as
+end
+
+
+val test1 : (
+  bs := false :: false :: true :: false :: true :: true :: false :: nil;
+  s := false :: false :: false :: false :: true :: true :: true :: nil;
+  msort(bs, _<=_) = s
+)
+let => refl
+
+
+val gen-list : Nat -> Bool List
+let (0) => nil
+let (++ n) => true :: false :: gen-list(n)
+
+
+val plus : (Nat, Nat) -> Nat
+let (m, 0) => m
+let (m, ++ n) => plus(++ m, n)
+
+
+val mul : (Nat, Nat) -> Nat
+let (_, 0) => 0
+let (m, ++ n) => plus(mul(m, n), m)
+
+
+val _<=_\ : (Bool, Bool) -> Bool
+let (true, false) => false
+let (_, _) => true
+
+
+val _>=_\Bool : (Bool, Bool) -> Bool
+let (false, true) => false
+let (_, _) => true
+
+
+val 100 : Nat
+let => mul(10, 10)
+
+val 1'000 : Nat
+let => mul(100, 10)
+
+val mN : Nat
+let => mul(1'000, 100)
+
+val qN : Nat
+let => mul(1'000, ++ ++ ++ ++ 0)
+
+
+val is-ordered : ((Bool, Bool) -> Bool, Bool List) -> Bool
+let (_, nil) => true
+let (_, _ :: nil) => true
+let (cmp, x1 :: x2 :: xs) =>
+  case cmp(x1, x2)
+  of false => false
+  of true => is-ordered(cmp, x2 :: xs)
+  end
+
+
+val main : () ->> {}
+let () =>
+  ms := gen-list(mN);
+  case is-ordered(_<=_, msort(ms, _<=_))
+  of true => "1" println
+  of false => "0" println
+  end;
+  case is-ordered(_>=_, msort(ms, _>=_))
+  of true => "1" println
+  of false => "0" println
+  end;
+  qs := gen-list(qN);
+  case is-ordered(_<=_, qsort(qs, _<=_))
+  of true => "1" println
+  of false => "0" println
+  end;
+  case is-ordered(_>=_, qsort(qs, _>=_))
+  of true => "1" println
+  of false => "0" println
+  end

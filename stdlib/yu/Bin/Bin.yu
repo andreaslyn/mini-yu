@@ -1,0 +1,161 @@
+import "yu/Bin+/Bin+.yu"
+import "yu/Prod/Prod.yu"
+
+
+data Bin : Ty
+let 0.Bin : Bin
+let _inBin\Bin+ : Bin+ -> Bin
+
+
+val 1.Bin : Bin
+let => 1.Bin+ inBin
+
+
+val 2.Bin : Bin
+let => 2.Bin+ inBin
+
+
+val 3.Bin : Bin
+let => 3.Bin+ inBin
+
+
+val 4.Bin : Bin
+let => 4.Bin+ inBin
+
+
+val 5.Bin : Bin
+let => 5.Bin+ inBin
+
+
+val 6.Bin : Bin
+let => 6.Bin+ inBin
+
+
+val 7.Bin : Bin
+let => 7.Bin+ inBin
+
+
+val 8.Bin : Bin
+let => 8.Bin+ inBin
+
+
+val 9.Bin : Bin
+let => 9.Bin+ inBin
+
+
+val 10.Bin : Bin
+let => 10.Bin+ inBin
+
+
+val (+++_\Bin) : Bin -> Bin+
+let (0.Bin) => 1.Bin+
+let (n inBin) => ++ n
+
+
+val (++_\Bin) : Bin -> Bin
+let (n) => (+++ n) inBin
+
+
+val (---_\Bin+) : Bin+ -> Bin
+let (1.Bin+) => 0.Bin
+let (n) => (-- n) inBin
+
+
+val (--_\Bin) : Bin -> Bin
+let (0.Bin) => 0.Bin
+let (n inBin) => --- n
+
+
+val _+_\Bin : (Bin, Bin) -> Bin
+let (m, 0.Bin) => m
+let (0.Bin, n) => n
+let (m inBin, n inBin) => (m + n) inBin
+
+
+val _*_\Bin : (Bin, Bin) -> Bin
+let (_, 0.Bin) => 0.Bin
+let (0.Bin, _) => 0.Bin
+let (m inBin, n inBin) => (m * n) inBin
+
+
+val _divmod2\Bin : Bin -> Bin & Bool
+let (0.Bin) => 0.Bin $ false
+let (1.Bin+ inBin) => 0.Bin $ true
+let ((n % b) inBin) => n inBin $ b
+
+
+val (*2_\Bin) : Bin -> Bin
+let (0.Bin) => 0.Bin
+let (n inBin) => (*2 n) inBin
+
+
+val _--_\Bin+ : (Bin+, Bin+) -> Bin
+let (1.Bin+, _) => 0.Bin
+let (m, 1.Bin+) => --- m
+let (m % false, n % false) => *2 (m -- n)
+let (m % true, n % true) => *2 (m -- n)
+let (m % true, n % false) => ++ *2 (m -- n)
+let (1.Bin+ % false, n % true) => 0.Bin
+let (m % false, n % true) => ++ *2 (-- m -- n)
+
+
+val _-_\Bin : (Bin, Bin) -> Bin
+let (m, 0.Bin) => m
+let (0.Bin, _) => 0.Bin
+let (m inBin, n inBin) => m -- n
+
+
+val _cmp\Bin : (Bin, Bin) -> Order
+let (0.Bin, 0.Bin) => eq.Order
+let (0.Bin, _ inBin) => lt.Order
+let (_ inBin, 0.Bin) => gt.Order
+let (m inBin, n inBin) => m cmp(n)
+
+
+val _<?_\Bin : (Bin, Bin) -> Bool
+let (m, n) => m cmp(n) lt?
+
+val _=?_\Bin : (Bin, Bin) -> Bool
+let (m, n) => m cmp(n) eq?
+
+
+val _ind\Bin
+  : (b : Bin, P : Bin -> Ty, P(0.Bin), (x : Bin, P(x)) -> P(++ x)) -> P(b)
+let (0.Bin, P, p0, _) => p0
+let (n inBin, P, p0, pi) => n ind(P', pi(0.Bin, p0), (x, a). pi(x inBin, a))
+where
+  val P' : Bin+ -> Ty
+  let (m) => P(m inBin)
+end
+
+
+val _rec\Bin[A : Ty] : (b : Bin, A, (Bin, A) -> A) -> A
+let (n, a0, ai) => n ind(const(A), a0, ai)
+
+
+val.. _divmod\Bin : (Bin, Bin) -> Bin & Bin
+let (m, n) =>
+  if(m <? n)
+  then(0.Bin $ m)
+  else do
+    q $ r := m divmod(*2 n);
+    if(r <? n)
+    then(*2 q $ r)
+    else(++ *2 q $ (r - n))
+
+
+val.. _str\Bin : Bin -> Str
+let (n) =>
+  if(n =? 0.Bin) then("0")
+  or(n =? 1.Bin) then("1")
+  or(n =? 2.Bin) then("2")
+  or(n =? 3.Bin) then("3")
+  or(n =? 4.Bin) then("4")
+  or(n =? 5.Bin) then("5")
+  or(n =? 6.Bin) then("6")
+  or(n =? 7.Bin) then("7")
+  or(n =? 8.Bin) then("8")
+  or(n =? 9.Bin) then("9")
+  else do
+    q $ r := n divmod(10.Bin);
+    q str :+: r str

@@ -1,0 +1,73 @@
+import "yu/basic/Equal.yu"
+import "List.yu"
+
+
+val _nilLeftIdentityOp:+:\_List\Ty[A : Ty]
+  : (xs : A List) -> (nil :+: xs) = xs
+let (_) => refl
+
+
+val _nilRightIdentityOp:+:\_List\Ty[A : Ty]
+  : (xs : A List) -> (xs :+: nil) = xs
+let (nil) => refl
+let (x :: xs) =>
+  xs nilRightIdentityOp:+: ap(x :: _)
+
+
+val _associativeOp:+:\_List\Ty[A : Ty]
+  : (xs : A List, ys : A List, zs : A List) ->
+    (xs :+: (ys :+: zs)) = ((xs :+: ys) :+: zs)
+let (nil, _, _) => refl
+let (x :: xs, ys, zs) =>
+  xs associativeOp:+:(ys, zs) ap(x :: _)
+
+
+val _nonEmptyOp:+:Left\_List\Ty[A : Ty] :
+  (xs : A List, ys : A List, xs IsNonempty) -> (xs :+: ys) IsNonempty
+let (x :: xs, ys, mkIsNonempty.List) => mkIsNonempty.List
+
+
+val _nonEmptyMap\_List\Ty[A : Ty, B : Ty] :
+  (xs : A List, f : A -> B, xs IsNonempty) -> xs map(f) IsNonempty
+let (x :: xs, f, mkIsNonempty.List) => mkIsNonempty.List
+
+
+val _simplRevOp::Aux\_List\Ty[A : Ty] :
+  (xs : A List, ys : A List) ->
+  xs accum(ys, (a, y). y :: a) = xs accum(nil, (a, y). y :: a) :+: ys
+let (nil, ys) => refl
+let (x :: xs, ys) =>
+  xs simplRevOp::Aux(x :: nil) rewR(_ :+: ys, _) do
+  xs simplRevOp::Aux(x :: ys)
+  @ xs accum(nil, (a, y). y :: a) associativeOp:+:(x :: nil, ys)
+
+
+val _simplRevOp::\_List\Ty[A : Ty] :
+  (xs : A List, x : A) -> (x :: xs) rev = xs rev :+: x :: nil
+let (xs, x) => xs simplRevOp::Aux(x :: nil)
+
+
+val _revDistributesOp:+:\_List\Ty[A : Ty] :
+  (xs : A List, ys : A List) -> (xs :+: ys) rev = ys rev :+: xs rev
+let (nil, ys) => ! ys rev nilRightIdentityOp:+:
+let (x :: xs, ys) =>
+  (xs :+: ys) simplRevOp::(x) @
+  xs revDistributesOp:+:(ys) rewL(_ :+: x :: nil, _) do
+  xs simplRevOp::(x) rewR(ys rev :+: _, _) do
+  ! ys rev associativeOp:+:(xs rev, x :: nil)
+
+
+val _op:+:PreservesAll\_List\Ty[A : Ty, P : A -> Ty] :
+  (xs : A List, ys : A List, xs All(P), ys All(P)) ->
+  (xs :+: ys) All(P)
+let (nil, ys, allNil.List, Ys) => Ys
+let (x :: xs, ys, X :: Xs, Ys) => X :: xs op:+:PreservesAll(ys, Xs, Ys)
+
+
+val _revPreservesAll\_List\Ty[A : Ty, P : A -> Ty] :
+  (xs : A List, xs All(P)) -> xs rev All(P)
+let (nil, H) => allNil.List
+let (x :: xs, X :: Xs) =>
+  xs simplRevOp::(x) rew(_ All(P), _) do
+  xs rev op:+:PreservesAll(
+    x :: nil, xs revPreservesAll(Xs), X :: allNil.List)

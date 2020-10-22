@@ -1,0 +1,2 @@
+import "Nat/IsNat.yu"
+import "Nat/NatIsNat.yu"

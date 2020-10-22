@@ -1,0 +1,22 @@
+
+data Nat : Ty
+let 0 : Nat
+let (++_\Nat) : Nat -> Nat
+
+data List : Ty -> Ty
+let nil[A : Ty] : List(A)
+let cons[A : Ty] : (A, List(A)) -> List(A)
+
+val eid : (A : Ty, A) -> A
+let (A, a) => a
+
+data Id[A : Ty] : (A, A) -> Ty
+let refl[a : A, A : Ty] : Id(a, a)
+
+val test2 : List(Nat)
+let =>
+  x := eid(List(Id(0, 0)), nil);
+  case x
+  of nil => cons(0, nil)
+  of cons(refl, _) => cons(++(0), nil)
+  end

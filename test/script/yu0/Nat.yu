@@ -1,0 +1,199 @@
+
+import "Id.yu"
+import "Fun.yu"
+import "Prod.yu"
+import "Bool.yu"
+
+data Nat : Ty
+let 0 : Nat
+let (++_\Nat) : Nat -> Nat
+
+val 1 : Nat
+let => ++ 0
+
+val 2 : Nat
+let => ++ 1
+
+val 3 : Nat
+let => ++ 2
+
+val 4 : Nat
+let => ++ 3
+
+val 5 : Nat
+let => ++ 4
+
+val 6 : Nat
+let => ++ 5
+
+val 7 : Nat
+let => ++ 6
+
+val 8 : Nat
+let => ++ 7
+
+val 9 : Nat
+let => ++ 8
+
+val 10 : Nat
+let => ++ 9
+
+val _+_\Nat : (Nat, Nat) -> Nat
+let (m, 0) => m
+let (m, ++ n) => ++ (m + n)
+
+val _-_\Nat : (Nat, Nat) -> Nat
+let (0, _) => 0
+let (m, 0) => m
+let (++ m, ++ n) => m - n
+
+val succ-<>-0 : (n : Nat) -> ++ n <> 0
+let (n) => (p). case p of () end
+
+val plus0 : (n : Nat) -> n = 0 + n
+let (0) => refl
+let (++ n) => ap=(plus0(n), (++_))
+
+val plus-comm : (m : Nat, n : Nat) -> m + n = n + m
+let (m, 0) => plus0(m)
+let (m, ++ n) =>
+  trans(ap=(plus-comm(m, n), (++_)), plus-+(n, m))
+
+val plus-+ : (m : Nat, n : Nat) -> ++ (m + n) = ++ m + n
+let (m, 0) => refl
+let (m, ++ n) => ap=(plus-+(m, n), (++_))
+
+val plus-assoc
+  : (k : Nat, m : Nat, n : Nat) ->
+    k + m + n = k + (m + n)
+let (k, m, 0) => refl
+let (k, m, ++ n) => ap=(plus-assoc(k, m, n), (++_))
+
+val _*_\Nat : (Nat, Nat) -> Nat
+let (m, 0) => 0
+let (m, ++ n) => m + m * n
+
+val mul0 : (n : Nat) -> 0 = 0 * n
+let (0) => refl
+let (++ n) => trans(mul0(n), plus0(0 * n))
+
+val mul1 : (n : Nat) -> n = 1 * n
+let (0) => refl
+let (++ n) =>
+  trans(ap=(mul1(n), (++_)), plus-comm(1 * n, 1))
+
+val plus-plus-swap-12
+  : (k : Nat, m : Nat, n : Nat) ->
+    k + (m + n) = m + (k + n)
+let (k, m, n) =>
+  resp(plus-assoc(k, m, n), (x). x = r,
+    rew(plus-comm(k, m), (x). x + n = r,
+      rew(plus-assoc(m, k, n), (x). x = r, refl)))
+where
+  val r : Nat
+  let => m + (k + n)
+end
+
+val plus-plus-swap-23
+  : (k : Nat, m : Nat, n : Nat) ->
+    k + m + n = k + n + m
+let (k, m, n) =>
+  trans(plus-assoc(k, m, n),
+    trans(ap=(plus-comm(m, n), (x). k + x),
+      sym(plus-assoc(k, n, m))))
+
+val mul-comm : (m : Nat, n : Nat) -> m * n = n * m
+let (m, 0) => mul0(m)
+let (m, ++ n) => trans(t, mul-plus(n, m))
+where
+  val E : Ty
+  let => m + m * n = m + n * m
+
+  val x : m * n = n * m
+  let => mul-comm(m, n)
+
+  val t : E
+  let => ap=(x, m + _)
+
+  val mul-plus : (m : Nat, n : Nat) -> n + m * n = ++ m * n
+  let (m, 0) => refl
+  let (m, ++ n) => trans(help0, help1)
+  where
+    val help0 : ++ n + (m + m * n) = ++ (m + m * n + n)
+    let =>
+      rew(plus-comm(m + m * n, n),
+            (x). ++ n + (m + m * n) = ++ x,
+            sym(plus-+(n, m + m * n)))
+
+    val help1 : ++ (m + m * n + n) = ++ m + ++ m * n
+    let =>
+      rew(plus-comm(m + m * n, n),
+            (x). ++ x = ++ m + ++ m * n, help2)
+
+    val help2 : ++ (n + (m + m * n)) = ++ m + ++ m * n
+    let =>
+      rew(plus-plus-swap-12(n, m, m * n),
+            (x). ++ x = ++ m + ++ m * n, help3)
+
+    val help3 : ++ (m + (n + m * n)) = ++ m + ++ m * n
+    let =>
+      rew(mul-plus(m, n),
+            (x). ++ (m + x) = ++ m + ++ m * n, help4)
+
+    val help4 : ++ (m + ++ m * n) = ++ m + ++ m * n
+    let => plus-+(m, ++ m * n)
+  end
+end
+
+val divmod : (Nat, Nat, Nat, Nat) -> Nat & Nat
+let (0, _, q, u) => q $ u
+let (++ m, n, q, 0) => divmod(m, n, ++ q, n)
+let (++ m, n, q, ++ u) => divmod(m, n, q, u)
+
+val _/_\Nat : (Nat, Nat) -> Nat
+let (_, 0) => 0
+let (m, ++ n) => pr1(divmod(m, n, 0, n))
+
+val mod : (Nat, Nat) -> Nat
+let (_, 0) => 0
+let (m, ++ n) => n - pr2(divmod(m, n, 0, n))
+
+val _even\Nat : Nat -> Bool
+let (0) => true
+let (++ 0) => false
+let (++ ++ n) => n even
+
+
+val _@'_\[A : Ty, B : Ty, C : Ty]
+  : (g : B -> C, f : A -> B) -> A -> C
+let (g, f) => (a). g(f(a))
+
+val _odd\Nat : Nat -> Bool
+let => (!_) @' _even\Nat
+
+val _<=n_\Nat : (Nat, Nat) -> Bool
+let (0, _) => true
+let (++ _, 0) => false
+let (++ m, ++ n) => m <=n n
+
+val _>=n_\Nat : (Nat, Nat) -> Bool
+let (m, n) => n <=n m
+
+val _=n_\Nat : (Nat, Nat) -> Bool
+let (0, 0) => true
+let (++ m, ++ n) => m =n n
+let (_, _) => false
+
+data _<_\Nat : (Nat, Nat) -> Ty
+let 0<++ : (n : Nat) -> 0 < ++ n
+let rec< : (m : Nat, n : Nat) -> m < n -> ++ m < ++ n
+
+val _>_\Nat : (Nat, Nat) -> Ty
+let (m, n) => n < m
+
+val IsPrime : Nat -> Ty
+let (n) => (n > 1) & not(& primeProperty)
+where
+  val primeProperty : Nat & Nat -> Ty
+  let (x $ y) => not(x = 1) & not(y = 1) & (x * y = n)
+end

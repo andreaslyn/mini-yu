@@ -1,0 +1,5 @@
+
+data Nat : Ty where
+  val 0 : Nat
+  val inc : Nat -> Nat
+end

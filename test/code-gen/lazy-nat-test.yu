@@ -1,0 +1,104 @@
+import "yu/prelude/prelude.yu"
+
+data LNat : Ty
+let zero : LNat
+let succ : ([] -> LNat) -> LNat
+
+val L1 : LNat
+let => succ(zero)
+
+val L2 : LNat
+let => succ(L1)
+
+val L10 : LNat
+let => succ(succ(succ(succ(succ(succ(succ(succ(L2))))))))
+
+val plus : (LNat, LNat) -> LNat
+let (m, zero) => m
+let (m, succ(n)) => succ(plus(m, n[]))
+
+val mul : (LNat, LNat) -> LNat
+let (_, zero) => zero
+let (m, succ(n)) => plus(mul(m, n[]), m)
+
+val L100 : LNat
+let => mul(L10, L10)
+
+val L1000 : LNat
+let => mul(L100, L10)
+
+val L10000 : LNat
+let => mul(L1000, L10)
+
+val N : LNat
+let => mul(L10000, L1000)
+
+
+val ldivmod : (LNat, LNat, LNat, LNat) -> LNat & LNat
+let (zero,  _, q, u) => q $ u
+let (succ(m), n, q, zero) => ldivmod(m[], n, succ(q), n)
+let (succ(m), n, q, succ(u)) => ldivmod(m[], n, q, u[])
+
+val natDiv : (LNat, LNat) -> LNat
+let (_, zero) => zero
+let (m , succ(n)) => ldivmod(m, n[], zero, n[]) 1
+
+val natMod : (LNat, LNat) -> LNat
+let (_, zero) => zero
+let (m, succ(n)) => minus(n[], ldivmod(m, n[], zero, n[]) 2)
+
+val minus : (LNat, LNat) -> LNat
+let (zero, _) => zero
+let (m, zero) => m
+let (succ(m), succ(n)) => minus(m[], n[])
+
+val.. lnatToStr : LNat -> Str
+let (n0) =>
+  case n0
+  of zero => "0"
+  of succ(n) =>
+    case n[]
+    of zero => "1"
+    of succ(n) =>
+      case n[]
+      of zero => "2"
+      of succ(n) =>
+        case n[]
+        of zero => "3"
+        of succ(n) =>
+          case n[]
+          of zero => "4"
+          of succ(n) =>
+            case n[]
+            of zero => "5"
+            of succ(n) =>
+              case n[]
+              of zero => "6"
+              of succ(n) =>
+                case n[]
+                of zero => "7"
+                of succ(n) =>
+                  case n[]
+                  of zero => "8"
+                  of succ(n) =>
+                    case n[]
+                    of zero => "9"
+                    of succ(_) =>
+                      x := natDiv(n0, L10);
+                      y := natMod(n0, L10);
+                      lnatToStr(x) :+: lnatToStr(y)
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+val main : () ->> {}
+let () =>
+  lnatToStr(N) println;
+  lnatToStr(plus(N, succ(zero))) println

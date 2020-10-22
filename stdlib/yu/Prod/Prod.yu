@@ -1,0 +1,10 @@
+import "yu/DProd/DProd.yu"
+import "yu/basic/Fun.yu"
+
+
+val _&_\Ty : (Ty, Ty) -> Ty
+let (A, B) => & const[B := A](B)
+
+
+val _<->_\Ty : (Ty, Ty) -> Ty
+let (A, B) => (A -> B) & (B -> A)

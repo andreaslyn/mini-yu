@@ -1,0 +1,5 @@
+import "yu/Bool/theorems.yu"
+import "yu/Prod/theorems.yu"
+import "yu/basic/theorems.yu"
+import "yu/Nat/theorems.yu"
+import "yu/List/theorems.yu"

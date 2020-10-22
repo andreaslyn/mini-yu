@@ -1,0 +1,11 @@
+import "yu/prelude.yu"
+import "yu/Nat/theorems.yu"
+import "yu/Ordering?.yu"
+
+
+val.. _quicksort\_List\Ty[A : Ty] : (A List, A Ordering?) -> A List
+let (nil, _) => nil
+let (x :: xs, cmp) =>
+  xs filter(cmp lt?(_, x)) quicksort(cmp)
+  :+: (x :: nil)
+  :+: xs filter(cmp ge?(_, x)) quicksort(cmp)

@@ -1,0 +1,13 @@
+*.yu.c
+*.yu.s
+*.yu.exe
+Hs*/Main
+Hs*/Main.hi
+Hs*/Main.s
+Hs*/Main.o
+OCaml*/Main
+OCaml*/Main.cmi
+OCaml*/Main.cmx
+OCaml*/Main.o
+OCaml*/Main.s
+OCaml*/a.out

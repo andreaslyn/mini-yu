@@ -1,0 +1,50 @@
+import "operations.yu"
+
+
+data _IsMonoid\Ty : Ty -> Ty
+let is.Monoid[A : Ty] :
+  (op : (A, A) -> A, unit : A, op IsAssociative, op HasUnit(unit)) -> A IsMonoid
+
+
+val _op\_IsMonoid\Ty[A : Ty] : A IsMonoid -> (A, A) -> A
+let (is.Monoid(op, _, _, _)) => op
+
+
+val _unit\_IsMonoid\Ty[A : Ty] : A IsMonoid -> A
+let (is.Monoid(_, u, _, _)) => u
+
+
+val _isAssociative\_IsMonoid\Ty[A : Ty] : (M : A IsMonoid) -> M op IsAssociative
+let (is.Monoid(_, _, a, _)) => a
+
+
+val _hasUnit\_IsMonoid\Ty[A : Ty] : (M : A IsMonoid) -> M op HasUnit(M unit)
+let (is.Monoid(_, _, _, h)) => h
+
+
+data Monoid : Ty
+let mk.Monoid[A : Ty] : A IsMonoid -> Monoid
+
+
+val _Carrier\Monoid : Monoid -> Ty
+let (mk.Monoid[A := A](_)) => A
+
+
+val _isMonoid\Monoid : (M : Monoid) -> M Carrier IsMonoid
+let (mk.Monoid(h)) => h
+
+
+val _op\Monoid : (M : Monoid) -> (M Carrier, M Carrier) -> M Carrier
+let (M) => M isMonoid op
+
+
+val _unit\Monoid : (M : Monoid) -> M Carrier
+let (M) => M isMonoid unit
+
+
+val _isAssociative\Monoid : (M : Monoid) -> M op IsAssociative
+let (M) => M isMonoid isAssociative
+
+
+val _hasUnit\Monoid : (M : Monoid) -> M op HasUnit(M unit)
+let (M) => M isMonoid hasUnit

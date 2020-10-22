@@ -1,0 +1,145 @@
+#ifndef YU_YUSTR_H
+#define YU_YUSTR_H
+
+#include "yu.h"
+
+extern yur_Ref yur_ch_0;
+extern yur_Ref yur_ch_1;
+extern yur_Ref yur_ch_2;
+extern yur_Ref yur_ch_3;
+extern yur_Ref yur_ch_4;
+extern yur_Ref yur_ch_5;
+extern yur_Ref yur_ch_6;
+extern yur_Ref yur_ch_7;
+extern yur_Ref yur_ch_8;
+extern yur_Ref yur_ch_9;
+extern yur_Ref yur_ch_a;
+extern yur_Ref yur_ch_b;
+extern yur_Ref yur_ch_c;
+extern yur_Ref yur_ch_d;
+extern yur_Ref yur_ch_e;
+extern yur_Ref yur_ch_f;
+extern yur_Ref yur_ch_g;
+extern yur_Ref yur_ch_h;
+extern yur_Ref yur_ch_i;
+extern yur_Ref yur_ch_j;
+extern yur_Ref yur_ch_k;
+extern yur_Ref yur_ch_l;
+extern yur_Ref yur_ch_m;
+extern yur_Ref yur_ch_n;
+extern yur_Ref yur_ch_o;
+extern yur_Ref yur_ch_p;
+extern yur_Ref yur_ch_q;
+extern yur_Ref yur_ch_r;
+extern yur_Ref yur_ch_s;
+extern yur_Ref yur_ch_t;
+extern yur_Ref yur_ch_u;
+extern yur_Ref yur_ch_v;
+extern yur_Ref yur_ch_w;
+extern yur_Ref yur_ch_x;
+extern yur_Ref yur_ch_y;
+extern yur_Ref yur_ch_z;
+extern yur_Ref yur_ch_A;
+extern yur_Ref yur_ch_B;
+extern yur_Ref yur_ch_C;
+extern yur_Ref yur_ch_D;
+extern yur_Ref yur_ch_E;
+extern yur_Ref yur_ch_F;
+extern yur_Ref yur_ch_G;
+extern yur_Ref yur_ch_H;
+extern yur_Ref yur_ch_I;
+extern yur_Ref yur_ch_J;
+extern yur_Ref yur_ch_K;
+extern yur_Ref yur_ch_L;
+extern yur_Ref yur_ch_M;
+extern yur_Ref yur_ch_N;
+extern yur_Ref yur_ch_O;
+extern yur_Ref yur_ch_P;
+extern yur_Ref yur_ch_Q;
+extern yur_Ref yur_ch_R;
+extern yur_Ref yur_ch_S;
+extern yur_Ref yur_ch_T;
+extern yur_Ref yur_ch_U;
+extern yur_Ref yur_ch_V;
+extern yur_Ref yur_ch_W;
+extern yur_Ref yur_ch_X;
+extern yur_Ref yur_ch_Y;
+extern yur_Ref yur_ch_Z;
+extern yur_Ref yur_ch_null;
+extern yur_Ref yur_ch_line_feed;
+extern yur_Ref yur_ch_horizontal_tab;
+extern yur_Ref yur_ch_space;
+extern yur_Ref yur_ch_double_quote;
+extern yur_Ref yur_ch_pound;
+extern yur_Ref yur_ch_single_quote;
+extern yur_Ref yur_ch_caret;
+extern yur_Ref yur_ch_at;
+extern yur_Ref yur_ch_back_slash;
+extern yur_Ref yur_ch_forward_slash;
+extern yur_Ref yur_ch_asterisk;
+extern yur_Ref yur_ch_percent;
+extern yur_Ref yur_ch_dollar;
+extern yur_Ref yur_ch_vertical_bar;
+extern yur_Ref yur_ch_ampersand;
+extern yur_Ref yur_ch_plus;
+extern yur_Ref yur_ch_minus;
+extern yur_Ref yur_ch_question_mark;
+extern yur_Ref yur_ch_exclamation_mark;
+extern yur_Ref yur_ch_less_than;
+extern yur_Ref yur_ch_greater_than;
+extern yur_Ref yur_ch_equal;
+extern yur_Ref yur_ch_colon;
+extern yur_Ref yur_ch_tilde;
+extern yur_Ref yur_ch_start_of_heading;
+extern yur_Ref yur_ch_start_of_text;
+extern yur_Ref yur_ch_end_of_text;
+extern yur_Ref yur_ch_end_of_transmission;
+extern yur_Ref yur_ch_enquiry;
+extern yur_Ref yur_ch_acknowledge;
+extern yur_Ref yur_ch_bell;
+extern yur_Ref yur_ch_back_space;
+extern yur_Ref yur_ch_vertival_tab;
+extern yur_Ref yur_ch_form_feed;
+extern yur_Ref yur_ch_carriage_return;
+extern yur_Ref yur_ch_shift_out;
+extern yur_Ref yur_ch_shift_in;
+extern yur_Ref yur_ch_data_link_escape;
+extern yur_Ref yur_ch_device_control_1;
+extern yur_Ref yur_ch_device_control_2;
+extern yur_Ref yur_ch_device_control_3;
+extern yur_Ref yur_ch_device_control_4;
+extern yur_Ref yur_ch_negative_acknowledge;
+extern yur_Ref yur_ch_synchronous_idle;
+extern yur_Ref yur_ch_end_of_transmission_block;
+extern yur_Ref yur_ch_cancel;
+extern yur_Ref yur_ch_end_of_medium;
+extern yur_Ref yur_ch_substitute;
+extern yur_Ref yur_ch_escape;
+extern yur_Ref yur_ch_file_seperator;
+extern yur_Ref yur_ch_group_seperator;
+extern yur_Ref yur_ch_record_seperator;
+extern yur_Ref yur_ch_unit_seperator;
+extern yur_Ref yur_ch_left_parenthesis;
+extern yur_Ref yur_ch_right_parenthesis;
+extern yur_Ref yur_ch_left_square_bracket;
+extern yur_Ref yur_ch_right_square_bracket;
+extern yur_Ref yur_ch_left_curly_bracket;
+extern yur_Ref yur_ch_right_curly_bracket;
+extern yur_Ref yur_ch_period;
+extern yur_Ref yur_ch_comma;
+extern yur_Ref yur_ch_semicolon;
+extern yur_Ref yur_ch_underscore;
+extern yur_Ref yur_ch_grave_accent;
+extern yur_Ref yur_ch_delete;
+
+char yur_yuchar_to_cchar(yur_Ref *);
+
+yur_Ref *yur_cchar_to_yuchar(char);
+
+// Returns dynamically allocated string.
+// Free it with free() when it is not needed anymore.
+char *yur_yustr_to_cstr(yur_Ref *);
+
+yur_Ref *yur_cstr_to_yustr(const char *);
+
+#endif // YU_YUSTR_H

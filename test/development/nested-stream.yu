@@ -1,0 +1,27 @@
+
+data SStream : Ty -> Ty
+let scon[A : Ty] : (A, Stream(A)) -> Stream(A)
+
+val Stream : Ty -> Ty
+let Stream(A) => [] -> SStream(A)
+
+data Nat : Ty
+let 0 : Nat
+let ++ : Nat -> Nat
+
+val replicate[A : Ty] : A -> Stream(A)
+let replicate(a) => aux
+where
+  val aux : Stream(A)
+  let aux => []. scon(a, aux)[]
+end
+
+val test-1 : SStream({})
+let test-1 => scon([], []. test-1)[]
+
+val test-inline-2 : [] ->> Nat
+let test-inline-2 => []. 0
+
+val test-2 : () ->> Nat
+let test-2() =>
+  f = test-inline-2; f[]

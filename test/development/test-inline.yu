@@ -1,0 +1,24 @@
+
+data Nat : Ty
+let 0 : Nat
+let (++_) : Nat -> Nat
+
+val 1 : Nat
+let => ++(0)
+
+val.. plus : Nat -> Nat -> Nat
+let (m) => (n).
+  case n
+  of 0 => m
+  of ++(n) => ++(plus(m)(n))
+  end
+
+val inc : Nat -> Nat
+let (n) => plus(1)(n)
+
+val plus' : (Nat, Nat) -> Nat
+let (m, 0) => m
+let (m, ++(n)) => ++(plus'(m, n))
+
+val inc' : Nat -> Nat
+let (n) => plus'(1, n)

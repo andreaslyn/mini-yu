@@ -1,0 +1,29 @@
+
+data Nat : Ty
+let 0 : Nat
+let +1 : Nat -> Nat
+
+val 1 : Nat
+let 1 => +1(0)
+
+val 2 : Nat
+let 2 => +1(1)
+
+val 3 : Nat
+let 3 => +1(2)
+
+val 4 : Nat
+let 4 => +1(3)
+
+val 5 : Nat
+let 5 => +1(4)
+
+val plus : (Nat, Nat) -> Nat
+let plus(m, 0) => m
+let plus(m, +1(n)) => +1(plus(m, n))
+
+data Eq : (Nat, Nat) -> Ty
+let refl : (n : Nat) -> Eq(n, n)
+
+val plus22 : Eq(plus(2, 2), 4)
+let plus22 => refl(plus(2, 2))

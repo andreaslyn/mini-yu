@@ -1,0 +1,62 @@
+import "Empty.yu"
+
+
+data _=_\[A : Ty, B : Ty] : (A, B) -> Ty
+let refl[A : Ty, a : A] : a = a
+
+
+val (!_\_=_\)[A : Ty, B : Ty, a : A, b : B] : a = b -> b = a
+let (refl) => refl
+
+
+val _@_\_=_\[a : A, b : B, c : C, A : Ty, B : Ty, C : Ty]
+  : (a = b, b = c) -> a = c
+let (refl, p) => p
+
+
+val _ap\_=_\[A : Ty, B : A -> Ty, a1 : A, a2 : A]
+  : (a1 = a2, f : (a : A) -> B(a)) -> f(a1) = f(a2)
+let (refl, _) => refl
+
+
+val _rew\_=_\[A : Ty, a1 : A, a2 : A]
+  : (a1 = a2, P : A -> Ty, P(a2)) -> P(a1)
+let (refl, _, x) => x
+
+
+val _rewR\_=_\[A : Ty, B : A -> Ty, C : Ty, a1 : A, a2 : A, c : C]
+  : (a1 = a2, f : (x : A) -> B(x), c = f(a2)) -> c = f(a1)
+let (e, f, h) => e rew((x). c = f(x), h)
+
+
+val _rewL\_=_\[A : Ty, B : A -> Ty, C : Ty, a1 : A, a2 : A, c : C]
+  : (a1 = a2, f : (x : A) -> B(x), f(a2) = c) -> f(a1) = c
+let (e, f, h) => e rew((x). f(x) = c, h)
+
+
+val _resp\_=_\[A : Ty, a1 : A, a2 : A]
+  : (a1 = a2, P : A -> Ty, P(a1)) -> P(a2)
+let (refl, _, x) => x
+
+
+val _<>_\[A : Ty, B : Ty] : (A, B) -> Ty
+let (a, b) => ~ (a = b)
+
+
+val _sym<>\_=_\[A : Ty, B : Ty, a : A, b : B] : a <> b -> b <> a
+let (e) => e @ (!_\_=_\)
+
+
+extern depFunext.Equal :
+  (f : (a : A1) -> B1(a), g : (a : A2) -> B2(a),
+    (a1 = a2, a1 : A1, a2 : A2) -> f(a1) = g(a2),
+    A1 : Ty, A2 : Ty, B1 : A1 -> Ty, B2 : A2 -> Ty) -> f = g
+
+val depFunext[A1 : Ty, A2 : Ty, B1 : A1 -> Ty, B2 : A2 -> Ty,
+    f : (a : A1) -> B1(a), g : (a : A2) -> B2(a)] :
+  ((a1 = a2, a1 : A1, a2 : A2) -> f(a1) = g(a2)) -> f = g
+let (r) => depFunext.Equal(f, g, r, A1, A2, B1, B2)
+
+val funext[A : Ty, B : A -> Ty, f : (a : A) -> B(a), g : (a : A) -> B(a)] :
+  ((a : A) -> f(a) = g(a)) -> f = g
+let (r) => depFunext (e, a1, a2). e resp((x). f(a1) = g(x), r(a1))

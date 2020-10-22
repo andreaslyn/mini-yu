@@ -1,0 +1,153 @@
+import "List.yu"
+import "Fun.yu"
+import "Bool.yu"
+
+
+val Bits : Ty
+let => List(Bool)
+
+
+data Bin1 : Ty
+let bin+ : Bits -> Bin1
+
+
+val bits.Bin1 : Bin1 -> Bits
+let (bin+(bs)) => bs
+
+
+val 1.Bin1 : Bin1
+let => bin+(nil)
+
+
+val 2.Bin1 : Bin1
+let => bin+(false :: nil)
+
+
+val 3.Bin1 : Bin1
+let => bin+(true :: nil)
+
+
+val 4.Bin1 : Bin1
+let => bin+(false :: false :: nil)
+
+
+val 5.Bin1 : Bin1
+let => bin+(true :: false :: nil)
+
+
+val 6.Bin1 : Bin1
+let => bin+(false :: true :: nil)
+
+
+val 7.Bin1 : Bin1
+let => bin+(true :: true :: nil)
+
+
+val 8.Bin1 : Bin1
+let => bin+(false :: false :: false :: nil)
+
+
+val 9.Bin1 : Bin1
+let => bin+(true :: false :: false :: nil)
+
+
+val 10.Bin1 : Bin1
+let => bin+(false :: true :: false :: nil)
+
+
+val _+_\Bin1 : (Bin1, Bin1) -> Bin1
+let => (x, y). bin+(bits.Bin1(x) +aux.Bin1 bits.Bin1(y))
+
+
+val (++_\Bin1) : Bin1 -> Bin1
+let (bin+(bs)) => bin+(++aux.Bin1 bs)
+
+
+val (++aux.Bin1_\List) : Bits -> Bits
+let (nil) => false :: nil
+let (false :: bs) => true :: bs
+let (true :: bs) => false :: ++aux.Bin1 bs
+
+
+val _+aux.Bin1_\List : (Bits, Bits) -> Bits
+let (nil, bs2) => ++aux.Bin1 bs2
+let (bs1, nil) => ++aux.Bin1 bs1
+let (false :: bs1, b2 :: bs2) => b2 :: bs1 +aux.Bin1 bs2
+let (true :: bs1, false :: bs2) => true :: bs1 +aux.Bin1 bs2
+let (true :: bs1, true :: bs2) => false :: ++aux.Bin1 (bs1 +aux.Bin1 bs2)
+
+
+val _*_\Bin1 : (Bin1, Bin1) -> Bin1
+let => (x, y). bin+(bits.Bin1(x) *aux.Bin1 bits.Bin1(y))
+
+
+val _*aux.Bin1_\List : (Bits, Bits) -> Bits
+let (bs1, nil) => bs1
+let (bs1, false :: bs2) => (false :: bs1) *aux.Bin1 bs2
+let (bs1, true :: bs2) => bs1 +aux.Bin1 ((false :: bs1) *aux.Bin1 bs2)
+
+
+val (--_\Bin1) : Bin1 -> Bin1
+let (bin+(b)) => bin+(--aux.Bin1 b)
+
+
+val (--aux.Bin1_\List) : Bits -> Bits
+let (nil) => nil
+let (false :: nil) => nil
+let (false :: bs) => true :: --aux.Bin1 bs
+let (true :: bs) => false :: bs
+
+
+val simpl-op++op--.Bin1
+  : (b : Bool, bs : Bits) ->
+    ++ -- bin+(b :: bs) = bin+(b :: bs)
+let (b, bs) => ap=(simpl-op++op--aux.Bin1(b, bs), bin+)
+
+
+val simpl-op++op--aux.Bin1
+  : (b : Bool, bs : Bits) ->
+    ++aux.Bin1 --aux.Bin1 (b :: bs) = b :: bs
+let (true, bs) => refl
+let (false, nil) => refl
+let (false, b :: bs) =>
+  ap=(simpl-op++op--aux.Bin1(b, bs), (t). false :: t)
+
+
+val simpl-op--op++.Bin1
+  : (b : Bin1) -> -- ++ b = b
+let (bin+(bs)) => ap=(simpl-op--op++aux.Bin1(bs), bin+)
+
+
+val simpl-op--op++aux.Bin1
+  : (bs : Bits) -> --aux.Bin1 ++aux.Bin1 bs = bs
+let (nil) => refl
+let (false :: _) => refl
+let (true :: nil) => refl
+let (true :: true :: bs) =>
+  ap=(simpl-op--op++aux.Bin1(true :: bs), (t). true :: t)
+let (true :: false :: bs) =>
+  ap=(simpl-op--op++aux.Bin1(false :: bs), (t). true :: t)
+
+
+val.. ind.Bin1
+  : (b : Bin1, P : Bin1 -> Ty, P(1.Bin1),
+      (x : Bin1, P(x)) -> P(++ x)) -> P(b)
+let (bin+(nil), P, p1, _) => p1
+let (bin+(b :: bs), P, p1, pi) =>
+  h := ind.Bin1(c, P, p1, pi);
+  resp(simpl-op++op--.Bin1(b, bs), P, pi(c, h))
+where
+  val c : Bin1
+  let => -- bin+(b :: bs)
+end
+
+
+val rec.Bin1[A : Ty] : (b : Bin1, A, (Bin1, A) -> A) -> A
+let (b, a0, ai) => ind.Bin1(b, const(A), a0, ai)
+
+
+data _<_\Bin1 : (Bin1, Bin1) -> Ty
+let len<.Bin1[a : Bool, as : Bits] : 1.Bin1 < bin+(a :: as)
+let false<.Bin1[as : Bits] : bin+(false :: as) < bin+(true :: as)
+let step<.Bin1[a : Bool, as : Bits, b : Bool, bs : Bits]
+  : bin+(as) < bin+(bs) -> bin+(a :: as) < bin+(b :: bs)

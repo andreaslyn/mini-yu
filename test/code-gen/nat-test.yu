@@ -1,0 +1,41 @@
+import "yu/prelude/prelude.yu"
+
+val plus : (Nat, Nat) -> Nat
+let (m, 0) => m
+let (m, ++ n) => plus(++ m, n)
+
+val mul : (Nat, Nat) -> Nat
+let (_, 0) => 0
+let (m, ++ n) => plus(mul(m, n), m)
+
+val 100 : Nat
+let => mul(10, 10)
+
+val 1000 : Nat
+let => mul(100, 10)
+
+val 10000 : Nat
+let => mul(1000, 10)
+
+val N : Nat
+let => mul(10000, 1000)
+
+val.. natToStr : Nat -> Str
+let (0) => mk.Str('0 :: nil)
+let (++ 0) => mk.Str('1 :: nil)
+let (++ ++ 0) => mk.Str('2 :: nil)
+let (++ ++ ++ 0) => mk.Str('3 :: nil)
+let (++ ++ ++ ++ 0) => mk.Str('4 :: nil)
+let (++ ++ ++ ++ ++ 0) => mk.Str('5 :: nil)
+let (++ ++ ++ ++ ++ ++ 0) => mk.Str('6 :: nil)
+let (++ ++ ++ ++ ++ ++ ++ 0) => mk.Str('7 :: nil)
+let (++ ++ ++ ++ ++ ++ ++ ++ 0) => mk.Str('8 :: nil)
+let (++ ++ ++ ++ ++ ++ ++ ++ ++ 0) => mk.Str('9 :: nil)
+let (n) =>
+  q $ r := n divmod(10, isNonzero.Nat);
+  natToStr(q) :+: natToStr(r)
+
+val main : () ->> {}
+let () =>
+  N str println;
+  plus(N, ++ 0) str println
