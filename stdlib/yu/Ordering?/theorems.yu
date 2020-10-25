@@ -1,6 +1,5 @@
 import "Ordering?.yu"
 import "yu/Equivalence?/Equivalence?.yu"
-import "yu/undefined.yu"
 
 
 val leToEqIsReflexive?.Ordering?[A : Ty] :

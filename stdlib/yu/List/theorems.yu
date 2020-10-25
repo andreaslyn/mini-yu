@@ -1,7 +1,6 @@
 import "yu/basic/Equal.yu"
 import "List.yu"
 import "yu/Order/theorems.yu"
-import "yu/undefined.yu"
 
 
 val _nilLeftIdentityOp:+:\_List\Ty[A : Ty]
