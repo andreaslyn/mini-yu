@@ -97,5 +97,3 @@ let => _ rec("lt", "eq", "gt")
 
 val _cmp\Str : (Str, Str) -> Order
 let (s, t) => s list cmp(t list, ordering?.Char)
-
-## TODO Proof that it is ordering.

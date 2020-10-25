@@ -1,14 +1,13 @@
 name:                mini-yu
-version:             0.1.0.0
-github:              "githubuser/mini-yu"
+version:             0.1.1.0
+github:              "andreaslyn/mini-yu"
 license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
-copyright:           "2020 Author name here"
+author:              "Andreas Lynge"
+maintainer:          "andreaslyn@gmail.com"
+copyright:           "2020 Andreas Lynge"
 
 extra-source-files:
 - README.md
-- ChangeLog.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package

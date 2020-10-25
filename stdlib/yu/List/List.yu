@@ -135,9 +135,3 @@ let (nil, _ :: _, _) => lt.Order
 let (_ :: _, nil, _) => gt.Order
 let (x :: xs, y :: ys, C) =>
   C cmp(x, y) rec(lt.Order, xs cmp(ys, C), gt.Order)
-
-
-#{ TODO
-val cmpIsTransitive?.List[A : Ty] :
-  (C : A Ordering?) -> cmpToLe?.Ordering?(_cmp\_List\Ty(_, _, C)) IsTransitive?
-#}

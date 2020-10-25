@@ -1,5 +1,7 @@
 import "yu/basic/Equal.yu"
 import "List.yu"
+import "yu/Order/theorems.yu"
+import "yu/undefined.yu"
 
 
 val _nilLeftIdentityOp:+:\_List\Ty[A : Ty]
@@ -71,3 +73,170 @@ let (x :: xs, X :: Xs) =>
   xs simplRevOp::(x) rew(_ All(P), _) do
   xs rev op:+:PreservesAll(
     x :: nil, xs revPreservesAll(Xs), X :: allNil.List)
+
+
+val cmpIsTransitive?.List[A : Ty] :
+  (C : A Ordering?) -> cmpToLe?.Ordering?(_cmp\_List\Ty(_, _, C)) IsTransitive?
+let (C) => isTrans
+where
+  val R : (A List, A List) -> Bool
+  let => cmpToLe?.Ordering?(_cmp\_List\Ty(_, _, C))
+
+  val isTrans :
+    (xs : A List, ys : A List, zs : A List, ? R(xs, ys), ? R(ys, zs)) ->
+    ? R(xs, zs)
+  let (nil, _, nil, _, _) => refl
+  let (nil, _, _ :: _, _, _) => refl
+  let (_ :: _, nil, _, (), _)
+  let (_ :: _, _ :: _, nil, _, ())
+  let (x :: xs, y :: ys, z :: zs, lxys, lyzs) =>
+    aux(C cmp(x, y), C cmp(y, z), C cmp(x, z),
+      cmpxyGtIsEmpty, cmpyzGtIsEmpty, cmpxyEqToGt, cmpyzEqToGt,
+      composeEqEq, composeEqLt, composeLtEq, composeLtLt)
+  where
+    val aux :
+      (xy : Order, yz : Order, xz : Order,
+        xy = gt.Order -> Empty,
+        yz = gt.Order -> Empty,
+        xy = eq.Order -> ? ~ xs cmp(ys, C) gt?,
+        yz = eq.Order -> ? ~ ys cmp(zs, C) gt?,
+        (? xy eq?, ? yz eq?) -> xz = eq.Order,
+        (? xy eq?, ? yz lt?) -> xz = lt.Order,
+        (? xy lt?, ? yz eq?) -> xz = lt.Order,
+        (? xy lt?, ? yz lt?) -> xz = lt.Order) ->
+      ? ~ xz rec(lt.Order, xs cmp(zs, C), gt.Order) gt?
+    let (gt.Order, _, _, c, _, _, _, _, _, _, _) => c(refl) rec
+    let (_, gt.Order, _, _, c, _, _, _, _, _, _) => c(refl) rec
+    let (eq.Order, eq.Order, xz, _, _, exy, eyz, e, _, _, _) =>
+      e(refl, refl) rewL(
+        (a). ~ a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, _) do
+      isTrans(xs, ys, zs, exy(refl), eyz(refl))
+    let (eq.Order, lt.Order, xz, _, _, _, _, _, e, _, _) =>
+      e(refl, refl) rewL(
+        (a). ~ a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, refl)
+    let (lt.Order, eq.Order, xz, _, _, _, _, _, _, e, _) =>
+      e(refl, refl) rewL(
+        (a). ~ a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, refl)
+    let (lt.Order, lt.Order, xz, _, _, _, _, _, _, _, e) =>
+      e(refl, refl) rewL(
+        (a). ~ a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, refl)
+
+    val cmpxyGtIsEmpty : C cmp(x, y) = gt.Order -> Empty
+    let (e) =>
+      e rew((c).
+        ? ~ c rec(lt.Order, xs cmp(ys, C), gt.Order) gt? -> Empty,
+        (a). case a of () end)(lxys)
+
+    val cmpyzGtIsEmpty : C cmp(y, z) = gt.Order -> Empty
+    let (e) =>
+      e rew((c).
+        ? ~ c rec(lt.Order, ys cmp(zs, C), gt.Order) gt? -> Empty,
+        (a). case a of () end)(lyzs)
+
+    val cmpxyEqToGt : C cmp(x, y) = eq.Order -> ? ~ xs cmp(ys, C) gt?
+    let (e) =>
+      e resp((c). ? ~ c rec(lt.Order, xs cmp(ys, C), gt.Order) gt?, lxys)
+
+    val cmpyzEqToGt : C cmp(y, z) = eq.Order -> ? ~ ys cmp(zs, C) gt?
+    let (e) =>
+      e resp((c). ? ~ c rec(lt.Order, ys cmp(zs, C), gt.Order) gt?, lyzs)
+
+    val composeEqEq :
+      (? C cmp(x, y) eq?, ? C cmp(y, z) eq?) -> C cmp(x, z) = eq.Order
+    let (eqxy, eqyz) =>
+      eqxy' := C cmpEqIsEq?(x, y) resp(? _, eqxy);
+      eqyz' := C cmpEqIsEq?(y, z) resp(? _, eqyz);
+      t := C eqIsTransitive?(x, y, z, eqxy', eqyz');
+      C cmp(x, z) eq?ToOp=(C cmpEqIsEq?(x, z) rew(? _, t))
+
+    val composeEqLt :
+      (? C cmp(x, y) eq?, ? C cmp(y, z) lt?) -> C cmp(x, z) = lt.Order
+    let (eqxy, ltyz) =>
+      eqxy' := C cmpEqIsEq?(x, y) resp(? _, eqxy);
+      ltyz' := C cmpLtIsLt?(y, z) resp(? _, ltyz);
+      t := C leLtToLt?(x, y, z, C eqToLe(x, y, eqxy'), ltyz');
+      C cmp(x, z) lt?ToOp=(C cmpLtIsLt?(x, z) rew(? _, t))
+
+    val composeLtEq :
+      (? C cmp(x, y) lt?, ? C cmp(y, z) eq?) -> C cmp(x, z) = lt.Order
+    let (ltxy, eqyz) =>
+      ltxy' := C cmpLtIsLt?(x, y) resp(? _, ltxy);
+      eqyz' := C cmpEqIsEq?(y, z) resp(? _, eqyz);
+      t := C ltLeToLt?(x, y, z, ltxy', C eqToLe(y, z, eqyz'));
+      C cmp(x, z) lt?ToOp=(C cmpLtIsLt?(x, z) rew(? _, t))
+
+    val composeLtLt :
+      (? C cmp(x, y) lt?, ? C cmp(y, z) lt?) -> C cmp(x, z) = lt.Order
+    let (ltxy, ltyz) =>
+      ltxy' := C cmpLtIsLt?(x, y) resp(? _, ltxy);
+      ltyz' := C cmpLtIsLt?(y, z) resp(? _, ltyz);
+      t := C ltIsTransitive?(x, y, z, ltxy', ltyz');
+      C cmp(x, z) lt?ToOp=(C cmpLtIsLt?(x, z) rew(? _, t))
+  end
+end
+
+val cmpIsCompatible.List[A : Ty] :
+  (C : A Ordering?) -> (xs : A List, ys : A List) ->
+  xs cmp(ys, C) lt? = ys cmp(xs, C) gt?
+let (C) => isCompat
+where
+  val isCompat :
+    (xs : A List, ys : A List) ->
+    xs cmp(ys, C) lt? = ys cmp(xs, C) gt?
+  let (nil, nil) => refl
+  let (_ :: _, nil) => refl
+  let (nil, _ :: _) => refl
+  let (x :: xs, y :: ys) =>
+    aux(C cmp(x, y), C cmp(y, x),
+      ltToGt(x, y, _), gtToLt(x, y, _), eqToEq(x, y, _))
+  where
+    val aux :
+      (xy : Order, yx : Order,
+        ? xy lt? -> yx = gt.Order,
+        ? xy gt? -> yx = lt.Order,
+        ? xy eq? -> yx = eq.Order) ->
+      xy rec(lt.Order, xs cmp(ys, C), gt.Order) lt?
+      = yx rec(lt.Order, ys cmp(xs, C), gt.Order) gt?
+    let (lt.Order, yx, e, _, _) =>
+      e(refl) rewR((a). a rec(lt.Order, ys cmp(xs, C), gt.Order) gt?, refl)
+    let (gt.Order, yx, _, e, _) =>
+      e(refl) rewR((a). a rec(lt.Order, ys cmp(xs, C), gt.Order) gt?, refl)
+    let (eq.Order, yx, _, _, e) =>
+      e(refl) rewR((a). a rec(lt.Order, ys cmp(xs, C), gt.Order) gt?,
+        isCompat(xs, ys))
+
+    val ltToGt : (x : A, y : A, ? C cmp(x, y) lt?) -> C cmp(y, x) = gt.Order
+    let (x, y, ltxy) =>
+      C cmp(y, x) gt?ToOp=\Order(C cmpLtIsGt?(x, y) resp(? _, ltxy))
+
+    val gtToLt : (x : A, y : A, ? C cmp(x, y) gt?) -> C cmp(y, x) = lt.Order
+    let (x, y, gtxy) =>
+      C cmp(y, x) lt?ToOp=\Order(C cmpLtIsGt?(y, x) rew(? _, gtxy))
+
+    val eqToEq : (x : A, y : A, ? C cmp(x, y) eq?) -> C cmp(y, x) = eq.Order
+    let (x, y, eqxy) =>
+      C cmp(y, x) ind(
+        (a). (? a lt? -> Empty, ? a gt? -> Empty) -> a = eq.Order,
+        (f, _). f(refl) rec, (_, _). refl, (_, g). g(refl) rec)(
+        contraLt, contraGt)
+    where
+      val contraLt : ? C cmp(y, x) lt? -> Empty
+      let (ltyx) =>
+        case ! ltToGt(y, x, ltyx) @ C cmp(x, y) eq?ToOp=(eqxy) of () end
+
+      val contraGt : ? C cmp(y, x) gt? -> Empty
+      let (gtyx) =>
+        case ! gtToLt(y, x, gtyx) @ C cmp(x, y) eq?ToOp=(eqxy) of () end
+    end
+  end
+end
+
+
+val ordering?.List[A : Ty] : (C : A Ordering?) -> A List Ordering?
+let (C) =>
+  fromCmp.Ordering?(_cmp(_, _, C),
+    cmpIsTransitive?.List(C), cmpIsCompatible.List(C))
+
+
+val equivalence?.List[A : Ty] : (C : A Ordering?) -> A List Equivalence?
+let (C) => ordering?.List(C) equivalence?

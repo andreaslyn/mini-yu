@@ -48,11 +48,18 @@ doSubstPreTerm vi m (TermLazyFun io t) =
   TermLazyFun io (doSubstPreTerm vi m t)
 doSubstPreTerm vi m (TermArrow io d c) =
   let d' = map substDom d
-      c' = doSubstPreTerm vi m c
+      c' = doSubstPreTerm vi m' c
   in TermArrow io d' c'
   where
+    addMaybeArg :: IntSet -> (Maybe Var, PreTerm) -> IntSet
+    addMaybeArg s (Nothing, _) = s
+    addMaybeArg s (Just v, _) = IntSet.insert (varId v) s
+
+    m' :: SubstMap
+    m' = IntMap.withoutKeys m (foldl addMaybeArg IntSet.empty d)
+
     substDom :: (Maybe Var, PreTerm) -> (Maybe Var, PreTerm)
-    substDom (x, t) = (x, doSubstPreTerm vi m t)
+    substDom (x, t) = (x, doSubstPreTerm vi m' t)
 doSubstPreTerm vi m (TermLazyArrow io t) =
   TermLazyArrow io (doSubstPreTerm vi m t)
 doSubstPreTerm vi m (TermApp io f xs) =

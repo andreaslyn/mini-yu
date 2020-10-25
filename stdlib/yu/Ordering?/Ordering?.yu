@@ -93,6 +93,14 @@ val _leIsTotalPreorder\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelati
   R IsOrdering? -> R le? IsTotalPreorder?
 let (mk.IsOrdering?(isLe, _, _, _)) => isLe
 
+val _leIsTransitive?\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
+  R IsOrdering? -> R le? IsTransitive?
+let (C) => C leIsTotalPreorder 2
+
+val _leIsConnex?\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
+  R IsOrdering? -> R le? IsConnex?
+let (C) => C leIsTotalPreorder 1
+
 val _cmpIsCompatible\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
   R IsOrdering? -> (x : A, y : A) -> R cmp(x, y) = leToCmp.Ordering?(R le?)(x, y)
 let (mk.IsOrdering?(_, isCmp, _, _)) => isCmp
@@ -136,6 +144,15 @@ let (R) => R ordering eq?
 
 val _neq?\_Ordering?\Ty[A : Ty] : A Ordering? -> (A, A) -> Bool
 let (R) => R ordering neq?
+
+
+val _leIsTransitive?\_Ordering?\Ty[A : Ty] :
+  (R : A Ordering?) -> R le? IsTransitive?
+let (R) => R isOrdering? leIsTransitive?
+
+val _leIsConnex?\_Ordering?\Ty[A : Ty] :
+  (R : A Ordering?) -> R le? IsConnex?
+let (R) => R isOrdering? leIsConnex?
 
 
 val _setCmp\_Ordering?\Ty[A : Ty] :

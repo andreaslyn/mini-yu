@@ -815,9 +815,9 @@ writePreTerm im rm (TermImplicitApp True f xs) = do
   writeStr "["
   writeNamedPreTermArgs im rm xs
   writeStr "]"
-writePreTerm im rm (TermImplicitApp False f _) =
-  writePreTerm im rm f
-  --writePreTerm im rm (TermImplicitApp True f xs)
+writePreTerm im rm (TermImplicitApp False f xs) =
+  --writePreTerm im rm f
+  writePreTerm im rm (TermImplicitApp True f xs)
 writePreTerm im rm (TermLazyApp _ f) = do
   let b = hasLowerPrecThanApp f
   when b (writeStr "(")

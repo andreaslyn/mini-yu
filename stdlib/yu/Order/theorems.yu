@@ -19,19 +19,19 @@ let (eq.Order) => refl
 let (gt.Order) => refl
 
 
-val _lt?ToOp=Lt\Order : (c : Order, ? c lt?) -> c = lt.Order
+val _lt?ToOp=\Order : (c : Order, ? c lt?) -> c = lt.Order
 let (lt.Order, _) => refl
 let (eq.Order, ())
 let (gt.Order, ())
 
 
-val _eq?ToOp=Eq\Order : (c : Order, ? c eq?) -> c = eq.Order
+val _eq?ToOp=\Order : (c : Order, ? c eq?) -> c = eq.Order
 let (lt.Order, ())
 let (eq.Order, _) => refl
 let (gt.Order, ())
 
 
-val _gt?ToOp=Gt\Order : (c : Order, ? c gt?) -> c = gt.Order
+val _gt?ToOp=\Order : (c : Order, ? c gt?) -> c = gt.Order
 let (lt.Order, ())
 let (eq.Order, ())
 let (gt.Order, _) => refl
