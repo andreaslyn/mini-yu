@@ -65,7 +65,7 @@ let (++ l, ++ m, ++ n, t1, t2) => cmpIsTransitive?.Nat(l, m, n, t1, t2)
 
 
 val cmpIsCompatible.Nat :
-  (m : Nat, n : Nat) -> m cmp(n) lt? = n cmp(m) gt?
+  (m; n : Nat) -> m cmp(n) lt? = n cmp(m) gt?
 let (0, 0) => refl
 let (0, ++ _) => refl
 let (++ _, 0) => refl

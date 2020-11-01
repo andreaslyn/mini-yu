@@ -83,7 +83,7 @@ let (le, isC $ isT) => (x, y, z, ltxy, ltyz).
       contra(x, y, z, ltxy, ltyz, _))
 where
   val contra :
-    (x : A, y : A, z : A, ? ! le(y, x), ? ! le(z, y), ? le(z, x)) -> Empty
+    (x; y; z : A, ? ! le(y, x), ? ! le(z, y), ? le(z, x)) -> Empty
   let (x, y, z, ltxy, ltyz, lezx) =>
     c := isC(x, y);
     c' := pullOutOp|.Bool[a := le(x, y), b := le(y, x)](c);
@@ -108,7 +108,7 @@ let (R) => (x, y, z, ltxy, ltyz).
 
 
 val _ltLeToLt?\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?, x : A, y : A, z : A,
+  (R : A Ordering?, x; y; z : A,
     ? R lt?(x, y), ? R le?(y, z)) -> ? R lt?(x, z)
 let (R, x, y, z, ltxy, leyz) =>
   R isOrdering? ltIsCompatible(x, z) rew(? _, _) do
@@ -125,7 +125,7 @@ end
 
 
 val _leLtToLt?\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?, x : A, y : A, z : A,
+  (R : A Ordering?, x; y; z : A,
     ? R le?(x, y), ? R lt?(y, z)) -> ? R lt?(x, z)
 let (R, x, y, z, lexy, ltyz) =>
   R isOrdering? ltIsCompatible(x, z) rew(? _, _) do
@@ -142,7 +142,7 @@ end
 
 
 val _cmpEqIsEq?\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?, x : A, y : A) -> R cmp(x, y) eq? = R eq?(x, y)
+  (R : A Ordering?, x; y : A) -> R cmp(x, y) eq? = R eq?(x, y)
 let (R, x, y) =>
   R isOrdering? cmpIsCompatible(x, y) rewL(_ eq?, _) do
   (_ @ ! R isOrdering? eqIsCompatible(x, y)) do
@@ -158,7 +158,7 @@ end
 
 
 val _cmpLtIsLt?\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?, x : A, y : A) -> R cmp(x, y) lt? = R lt?(x, y)
+  (R : A Ordering?, x; y : A) -> R cmp(x, y) lt? = R lt?(x, y)
 let (R, x, y) =>
   R isOrdering? cmpIsCompatible(x, y) rewL(_ lt?, _) do
   (_ @ ! R isOrdering? ltIsCompatible(x, y)) do
@@ -179,7 +179,7 @@ end
 
 
 val _cmpLtIsGt?\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?, x : A, y : A) -> R cmp(x, y) lt? = R cmp(y, x) gt?
+  (R : A Ordering?, x; y : A) -> R cmp(x, y) lt? = R cmp(y, x) gt?
 let (R, x, y) =>
   R isOrdering? cmpIsCompatible(x, y) rewL(_ lt?, _) do
   R isOrdering? cmpIsCompatible(y, x) rewR(_ gt?, _) do
@@ -196,7 +196,7 @@ end
 
 
 val _eqToLe\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?, x : A, y : A, ? R eq?(x, y)) -> ? R le?(x, y)
+  (R : A Ordering?, x; y : A, ? R eq?(x, y)) -> ? R le?(x, y)
 let (R, x, y, eqxy) =>
   eqxy' := R isOrdering? eqIsCompatible(x, y) resp(? _, eqxy);
   pullOutOp&.Bool[a := R le?(x, y), b := R le?(y, x)](eqxy') 1

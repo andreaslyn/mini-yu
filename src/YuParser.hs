@@ -171,13 +171,13 @@ parseDecl = do
       _ <- yuKeyTok TokSquareL
       xs <- varListElem `sepBy1` yuKeyTok TokComma
       _ <- yuKeyTok TokSquareR
-      return xs
+      return (concat xs)
 
-    varListElem :: YuParsec VarListElem
+    varListElem :: YuParsec [VarListElem]
     varListElem = do
-      var <- parseVarOrPrefix
+      vars <- parseVarOrPrefix `sepBy` yuKeyTok TokSemiColon
       ty <- parseTypeSpec
-      return (var, Just ty)
+      return (zip vars (repeat $ Just ty))
 
 parseDataDecl :: YuParsec (Bool, Decl)
 parseDataDecl = impureData <|> pureData
@@ -198,13 +198,22 @@ parseVarListLoc = do
   lo <- yuKeyTok TokParenL
   xs <- varListElem `sepBy` yuKeyTok TokComma
   _ <- yuKeyTok TokParenR
-  return (lo, xs)
+  return (lo, concat xs)
   where
-    varListElem :: YuParsec VarListElem
-    varListElem = do
+    varListElem :: YuParsec [VarListElem]
+    varListElem = try varListElemMany <|> varListElem1
+
+    varListElemMany :: YuParsec [VarListElem]
+    varListElemMany = do
+      vars <- parseVarOrPrefix `sepBy1` yuKeyTok TokSemiColon
+      ty <- optionMaybe parseTypeSpec
+      return (zip vars (repeat ty))
+
+    varListElem1 :: YuParsec [VarListElem]
+    varListElem1 = do
       var <- parseVarOrPrefix
       ty <- optionMaybe parseTypeSpec
-      return (var, ty)
+      return [(var, ty)]
 
 parseValDecl :: YuParsec (Bool, Decl)
 parseValDecl = impureVal <|> pureVal
@@ -360,7 +369,7 @@ parseArrowExpr =
       _ <- yuKeyTok TokParenR
       b <- parseArrowSymbol
       a <- parseDoExpr
-      return (ExprArrow lo b (e : es) a)
+      return (ExprArrow lo b (e ++ concat es) a)
 
     oneNamedParam :: YuParsec Expr
     oneNamedParam = do
@@ -369,19 +378,19 @@ parseArrowExpr =
       _ <- yuKeyTok TokParenR
       b <- parseArrowSymbol
       a <- parseDoExpr
-      return (ExprArrow lo b [e] a)
+      return (ExprArrow lo b e a)
 
-    paramElem :: YuParsec ExprListTypedElem
+    paramElem :: YuParsec [ExprListTypedElem]
     paramElem = try paramElemVar <|> paramElemExpr
 
-    paramElemVar :: YuParsec ExprListTypedElem
+    paramElemVar :: YuParsec [ExprListTypedElem]
     paramElemVar = do
-      v <- parseVarOrPrefix
+      v <- parseVarOrPrefix `sepBy` yuKeyTok TokSemiColon
       ty <- parseTypeSpec
-      return (Right (v, ty))
+      return (zipWith (\x t -> Right (x, t)) v (repeat ty))
 
-    paramElemExpr :: YuParsec ExprListTypedElem
-    paramElemExpr = liftM Left parseExpr
+    paramElemExpr :: YuParsec [ExprListTypedElem]
+    paramElemExpr = liftM (\x -> [Left x]) parseExpr
 
 yuChainl1 :: YuParsec Expr -> YuParsec (Expr -> Expr -> Expr) -> YuParsec Expr
 yuChainl1 p op = do { x <- p; rest x }

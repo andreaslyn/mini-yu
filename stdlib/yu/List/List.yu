@@ -55,7 +55,7 @@ let (_ :: xs, a, 0) => a :: xs
 let (x :: xs, a, ++ n) => x :: xs update!(a, n)
 
 
-val _map\_List\Ty[A : Ty, B : Ty] : (A List, A -> B) -> B List
+val _map\_List\Ty[A; B : Ty] : (A List, A -> B) -> B List
 let (nil, _) => nil
 let (x :: xs, f) => f(x) :: xs map(f)
 
@@ -73,12 +73,12 @@ let (x :: xs, p) =>
   if(p(x)) then((x :: l) $ r) else(l $ (x :: r))
 
 
-val _accum\_List\Ty[A : Ty, B : Ty] : (B List, A, (A, B) -> A) -> A
+val _accum\_List\Ty[A; B : Ty] : (B List, A, (A, B) -> A) -> A
 let (nil, a, _) => a
 let (x :: xs, a, f) => xs accum(f(a, x), f)
 
 
-val _fold\_List\Ty[A : Ty, B : Ty] : (B List, A, (B, A) -> A) -> A
+val _fold\_List\Ty[A; B : Ty] : (B List, A, (B, A) -> A) -> A
 let (nil, a, _) => a
 let (x :: xs, a, f) => f(x, xs fold(a, f))
 
@@ -95,7 +95,7 @@ val _concat\_List\Ty[A : Ty] : (A List List) -> A List
 let (as) => as fold(nil, _:+:_)
 
 
-val _accumScan\_List\Ty[A : Ty, B : Ty] : (A List, B, (B, A) -> B) -> B List
+val _accumScan\_List\Ty[A; B : Ty] : (A List, B, (B, A) -> B) -> B List
 let (xs, y, f) =>
   xs accum(y $ (t : B List). y :: t, (b, a). do
     b' := f(b 1, a);
@@ -103,7 +103,7 @@ let (xs, y, f) =>
   ) 2(nil)
 
 
-val _foldScan\_List\Ty[A : Ty, B : Ty] : (A List, B, (A, B) -> B) -> B List
+val _foldScan\_List\Ty[A; B : Ty] : (A List, B, (A, B) -> B) -> B List
 let (xs, y, f) =>
   xs fold(y $ (y :: nil), (a, b). do
     b' := f(a, b 1);

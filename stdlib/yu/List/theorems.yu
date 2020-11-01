@@ -34,7 +34,7 @@ let (x :: xs, f, mkIsNonempty.List) => mkIsNonempty.List
 
 
 val _simplRevOp::Aux\_List\Ty[A : Ty] :
-  (xs : A List, ys : A List) ->
+  (xs; ys : A List) ->
   xs accum(ys, (a, y). y :: a) = xs accum(nil, (a, y). y :: a) :+: ys
 let (nil, ys) => refl
 let (x :: xs, ys) =>
@@ -49,7 +49,7 @@ let (xs, x) => xs simplRevOp::Aux(x :: nil)
 
 
 val _revDistributesOp:+:\_List\Ty[A : Ty] :
-  (xs : A List, ys : A List) -> (xs :+: ys) rev = ys rev :+: xs rev
+  (xs; ys : A List) -> (xs :+: ys) rev = ys rev :+: xs rev
 let (nil, ys) => ! ys rev nilRightIdentityOp:+:
 let (x :: xs, ys) =>
   (xs :+: ys) simplRevOp::(x) @
@@ -59,7 +59,7 @@ let (x :: xs, ys) =>
 
 
 val _op:+:PreservesAll\_List\Ty[A : Ty, P : A -> Ty] :
-  (xs : A List, ys : A List, xs All(P), ys All(P)) ->
+  (xs; ys : A List, xs All(P), ys All(P)) ->
   (xs :+: ys) All(P)
 let (nil, ys, allNil.List, Ys) => Ys
 let (x :: xs, ys, X :: Xs, Ys) => X :: xs op:+:PreservesAll(ys, Xs, Ys)
@@ -175,7 +175,7 @@ where
 end
 
 val cmpIsCompatible.List[A : Ty] :
-  (C : A Ordering?) -> (xs : A List, ys : A List) ->
+  (C : A Ordering?) -> (xs; ys : A List) ->
   xs cmp(ys, C) lt? = ys cmp(xs, C) gt?
 let (C) => isCompat
 where

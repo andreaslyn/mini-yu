@@ -84,9 +84,9 @@ let (le) => (x, y). le(y, x)
 data _IsOrdering?\_OrderRelation?\Ty[A : Ty] : A OrderRelation? -> Ty
 let mk.IsOrdering?[A : Ty, R : A OrderRelation?] :
   (R le? IsTotalPreorder?,
-   (x : A, y : A) -> R cmp(x, y) = leToCmp.Ordering?(R le?)(x, y),
-   (x : A, y : A) -> R lt?(x, y) = leToLt?.Ordering?(R le?)(x, y),
-   (x : A, y : A) -> R eq?(x, y) = leToEq?.Ordering?(R le?)(x, y)) ->
+   (x; y : A) -> R cmp(x, y) = leToCmp.Ordering?(R le?)(x, y),
+   (x; y : A) -> R lt?(x, y) = leToLt?.Ordering?(R le?)(x, y),
+   (x; y : A) -> R eq?(x, y) = leToEq?.Ordering?(R le?)(x, y)) ->
   R IsOrdering?
 
 val _leIsTotalPreorder\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
@@ -102,15 +102,15 @@ val _leIsConnex?\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
 let (C) => C leIsTotalPreorder 1
 
 val _cmpIsCompatible\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
-  R IsOrdering? -> (x : A, y : A) -> R cmp(x, y) = leToCmp.Ordering?(R le?)(x, y)
+  R IsOrdering? -> (x; y : A) -> R cmp(x, y) = leToCmp.Ordering?(R le?)(x, y)
 let (mk.IsOrdering?(_, isCmp, _, _)) => isCmp
 
 val _ltIsCompatible\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
-  R IsOrdering? -> (x : A, y : A) -> R lt?(x, y) = leToLt?.Ordering?(R le?)(x, y)
+  R IsOrdering? -> (x; y : A) -> R lt?(x, y) = leToLt?.Ordering?(R le?)(x, y)
 let (mk.IsOrdering?(_, _, isLt, _)) => isLt
 
 val _eqIsCompatible\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
-  R IsOrdering? -> (x : A, y : A) -> R eq?(x, y) = leToEq?.Ordering?(R le?)(x, y)
+  R IsOrdering? -> (x; y : A) -> R eq?(x, y) = leToEq?.Ordering?(R le?)(x, y)
 let (mk.IsOrdering?(_, _, _, isEq)) => isEq
 
 
@@ -157,46 +157,46 @@ let (R) => R isOrdering? leIsConnex?
 
 val _setCmp\_Ordering?\Ty[A : Ty] :
   (R : A Ordering?, cmp : (A, A) -> Order,
-    (x : A, y : A) -> cmp(x, y) = R cmp(x, y)) -> A Ordering?
+    (x; y : A) -> cmp(x, y) = R cmp(x, y)) -> A Ordering?
 let (R, cmp, isCmp) =>
   mk.Ordering?(mkRel.Ordering?(R le?, R lt?, R eq?, cmp), _) do
   mk.IsOrdering?(R isOrdering? leIsTotalPreorder, isCmp',
     R isOrdering? ltIsCompatible, R isOrdering? eqIsCompatible)
 where
-  val isCmp' : (x : A, y : A) -> cmp(x, y) = leToCmp.Ordering?(R le?)(x, y)
+  val isCmp' : (x; y : A) -> cmp(x, y) = leToCmp.Ordering?(R le?)(x, y)
   let (x, y) => isCmp(x, y) @ R isOrdering? cmpIsCompatible(x, y)
 end
 
 
 val _setLt\_Ordering?\Ty[A : Ty] :
   (R : A Ordering?, lt : (A, A) -> Bool,
-    (x : A, y : A) -> lt(x, y) = R lt?(x, y)) -> A Ordering?
+    (x; y : A) -> lt(x, y) = R lt?(x, y)) -> A Ordering?
 let (R, lt, isLt) =>
   mk.Ordering?(mkRel.Ordering?(R le?, lt, R eq?, R cmp), _) do
   mk.IsOrdering?(R isOrdering? leIsTotalPreorder,
     R isOrdering? cmpIsCompatible, isLt', R isOrdering? eqIsCompatible)
 where
-  val isLt' : (x : A, y : A) -> lt(x, y) = leToLt?.Ordering?(R le?)(x, y)
+  val isLt' : (x; y : A) -> lt(x, y) = leToLt?.Ordering?(R le?)(x, y)
   let (x, y) => isLt(x, y) @ R isOrdering? ltIsCompatible(x, y)
 end
 
 
 val _setEq\_Ordering?\Ty[A : Ty] :
   (R : A Ordering?, eq : (A, A) -> Bool,
-    (x : A, y : A) -> eq(x, y) = R eq?(x, y)) -> A Ordering?
+    (x; y : A) -> eq(x, y) = R eq?(x, y)) -> A Ordering?
 let (R, eq, isEq) =>
   mk.Ordering?(mkRel.Ordering?(R le?, R lt?, eq, R cmp), _) do
   mk.IsOrdering?(R isOrdering? leIsTotalPreorder,
     R isOrdering? cmpIsCompatible, R isOrdering? ltIsCompatible, isEq')
 where
-  val isEq' : (x : A, y : A) -> eq(x, y) = leToEq?.Ordering?(R le?)(x, y)
+  val isEq' : (x; y : A) -> eq(x, y) = leToEq?.Ordering?(R le?)(x, y)
   let (x, y) => isEq(x, y) @ R isOrdering? eqIsCompatible(x, y)
 end
 
 
 val _setLe\_Ordering?\Ty[A : Ty] :
   (R : A Ordering?, le : (A, A) -> Bool,
-    (x : A, y : A) -> le(x, y) = R le?(x, y)) -> A Ordering?
+    (x; y : A) -> le(x, y) = R le?(x, y)) -> A Ordering?
 let (R, le, isLe) =>
   mk.Ordering?(mkRel.Ordering?(le, R lt?, R eq?, R cmp),
     mk.IsOrdering?(isTP, isCmp, isLt, isEq))
@@ -217,7 +217,7 @@ where
   val isTP : le IsTotalPreorder?
   let => isCon $ isTra
 
-  val isCmp : (x : A, y : A) -> R cmp(x, y) = leToCmp.Ordering?(le)(x, y)
+  val isCmp : (x; y : A) -> R cmp(x, y) = leToCmp.Ordering?(le)(x, y)
   let (x, y) =>
     isLe(x, y) rew(G(_, le(y, x)), _) do
     isLe(y, x) rew(G(R le?(x, y), _), _) do
@@ -227,12 +227,12 @@ where
     let (a, b) => R cmp(x, y) = leToCmpImpl.Ordering?(a, b)
   end
 
-  val isLt : (x : A, y : A) -> R lt?(x, y) = leToLt?.Ordering?(le)(x, y)
+  val isLt : (x; y : A) -> R lt?(x, y) = leToLt?.Ordering?(le)(x, y)
   let (x, y) =>
     isLe(y, x) rew((t). R lt?(x, y) = ! t, _) do
     R isOrdering? ltIsCompatible(x, y)
 
-  val isEq : (x : A, y : A) -> R eq?(x, y) = leToEq?.Ordering?(le)(x, y)
+  val isEq : (x; y : A) -> R eq?(x, y) = leToEq?.Ordering?(le)(x, y)
   let (x, y) =>
     isLe(x, y) rew(G(_, le(y, x)), _) do
     isLe(y, x) rew(G(R le?(x, y), _), _) do
@@ -257,9 +257,9 @@ let => leToLt?.Ordering? @ cmpToLe?.Ordering?
 
 val cmpToLt?IsCompatible.Ordering?[A : Ty] :
   (cmp : (A, A) -> Order,
-    (x : A, y : A) ->
+    (x; y : A) ->
     cmpToLt?.Ordering?(cmp)(x, y) = cmpToGt?.Ordering?(cmp)(y, x)) ->
-  (x : A, y : A) ->
+  (x; y : A) ->
   cmpToLt?.Ordering?(cmp)(x, y) = cmpToLeToLt?.Ordering?(cmp)(x, y)
 let (cmp, isC) => (x, y). isC(x, y) @ ! involutionOp!.Bool
 
@@ -269,9 +269,9 @@ let => leToEq?.Ordering? @ cmpToLe?.Ordering?
 
 val cmpToEq?IsCompatible.Ordering?[A : Ty] :
   (cmp : (A, A) -> Order,
-    (x : A, y : A) ->
+    (x; y : A) ->
     cmpToLt?.Ordering?(cmp)(x, y) = cmpToGt?.Ordering?(cmp)(y, x)) ->
-  (x : A, y : A) ->
+  (x; y : A) ->
   cmpToEq?.Ordering?(cmp)(x, y) = cmpToLeToEq?.Ordering?(cmp)(x, y)
 let (cmp, isC) => (x, y).
   cmp(x, y) notGtIsLtOrEq rew(
@@ -307,9 +307,9 @@ let => leToCmp.Ordering? @ cmpToLe?.Ordering?
 
 val cmpToCmpIsCompatible.Ordering[A : Ty] :
   (cmp : (A, A) -> Order,
-    (x : A, y : A) ->
+    (x; y : A) ->
     cmpToLt?.Ordering?(cmp)(x, y) = cmpToGt?.Ordering?(cmp)(y, x)) ->
-  (x : A, y : A) ->
+  (x; y : A) ->
   cmp(x, y) = cmpToLeToCmp.Ordering?(cmp)(x, y)
 let (cmp, isC) => (x, y).
   (! isC(x, y)) rew((a).
@@ -320,7 +320,7 @@ let (cmp, isC) => (x, y).
 
 val cmpToLeIsConnex?.Ordering?[A : Ty] :
   (cmp : (A, A) -> Order,
-    (x : A, y : A) ->
+    (x; y : A) ->
     cmpToLt?.Ordering?(cmp)(x, y) = cmpToGt?.Ordering?(cmp)(y, x)) ->
   cmpToLe?.Ordering?(cmp) IsConnex?
 let (cmp, isC) => (x, y).
@@ -331,7 +331,7 @@ let (cmp, isC) => (x, y).
 val fromCmp.Ordering?[A : Ty] :
   (cmp : (A, A) -> Order,
     cmpToLe?.Ordering?(cmp) IsTransitive?,
-    (x : A, y : A) ->
+    (x; y : A) ->
     cmpToLt?.Ordering?(cmp)(x, y) = cmpToGt?.Ordering?(cmp)(y, x)) ->
   A Ordering?
 let (cmp, isT, isC) =>

@@ -16,10 +16,10 @@ val _isYes\?_\Ty[A : Ty] : ? A -> Bool
 let => (!_) @ _isNo\?_\Ty
 
 
-val _>>=_\?_\Ty[A : Ty, B : Ty] : (? A, A -> ? B) -> ? B
+val _>>=_\?_\Ty[A; B : Ty] : (? A, A -> ? B) -> ? B
 let (no, _) => no
 let (yes(a), f) => f(a)
 
 
-val _map\?_\Ty[A : Ty, B : Ty] : (? A, A -> B) -> ? B
+val _map\?_\Ty[A; B : Ty] : (? A, A -> B) -> ? B
 let (x, f) => x >>= yes @ f

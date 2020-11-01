@@ -23,12 +23,12 @@ let (nil.Stream, _) => nil.Stream
 let (_ :: xs, ++ n) => xs[] drop!(n)
 
 
-val _accum\_Stream\Ty[A : Ty, B : Ty] : (A Stream, B, (B, A) -> B) -> B
+val _accum\_Stream\Ty[A; B : Ty] : (A Stream, B, (B, A) -> B) -> B
 let (nil.Stream, y, _) => y
 let (x :: xs, y, f) => xs[] accum(f(y, x), f)
 
 
-val _fold\_Stream\Ty[A : Ty, B : Ty] : (A Stream, B, (A, B) -> B) -> B
+val _fold\_Stream\Ty[A; B : Ty] : (A Stream, B, (A, B) -> B) -> B
 let (nil.Stream, y, _) => y
 let (x :: xs, y, f) => f(x, xs[] fold(y, f))
 

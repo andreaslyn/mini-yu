@@ -13,19 +13,19 @@ let (R) => (x : A) -> ? ! R(x, x)
 
 
 val _IsSymmetric?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => (x : A, y : A, ? R(x, y)) -> ? R(y, x)
+let (R) => (x; y : A, ? R(x, y)) -> ? R(y, x)
 
 
 val _IsAsymmetric?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => (x : A, y : A, ? R(x, y)) -> ? ! R(y, x)
+let (R) => (x; y : A, ? R(x, y)) -> ? ! R(y, x)
 
 
 val _IsTransitive?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => (x : A, y : A, z : A, ? R(x, y), ? R(y, z)) -> ? R(x, z)
+let (R) => (x; y; z : A, ? R(x, y), ? R(y, z)) -> ? R(x, z)
 
 
 val _IsConnex?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => (x : A, y : A) -> ? (R(x, y) | R(y, x))
+let (R) => (x; y : A) -> ? (R(x, y) | R(y, x))
 
 
 val _IsPreorder?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
