@@ -9,7 +9,7 @@ extern len : (A : Ty, A List) -> Nat
 
 val main : () ->> {}
 let () =>
-  case ! true
+  case (!_\)(true)
   of false => '1 println
   of true => '0 println
   end;

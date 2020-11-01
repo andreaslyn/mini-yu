@@ -97,48 +97,48 @@ where
       (xy : Order, yz : Order, xz : Order,
         xy = gt.Order -> Empty,
         yz = gt.Order -> Empty,
-        xy = eq.Order -> ? ~ xs cmp(ys, C) gt?,
-        yz = eq.Order -> ? ~ ys cmp(zs, C) gt?,
+        xy = eq.Order -> ? ! xs cmp(ys, C) gt?,
+        yz = eq.Order -> ? ! ys cmp(zs, C) gt?,
         (? xy eq?, ? yz eq?) -> xz = eq.Order,
         (? xy eq?, ? yz lt?) -> xz = lt.Order,
         (? xy lt?, ? yz eq?) -> xz = lt.Order,
         (? xy lt?, ? yz lt?) -> xz = lt.Order) ->
-      ? ~ xz rec(lt.Order, xs cmp(zs, C), gt.Order) gt?
+      ? ! xz rec(lt.Order, xs cmp(zs, C), gt.Order) gt?
     let (gt.Order, _, _, c, _, _, _, _, _, _, _) => c(refl) rec
     let (_, gt.Order, _, _, c, _, _, _, _, _, _) => c(refl) rec
     let (eq.Order, eq.Order, xz, _, _, exy, eyz, e, _, _, _) =>
       e(refl, refl) rewL(
-        (a). ~ a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, _) do
+        (a). ! a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, _) do
       isTrans(xs, ys, zs, exy(refl), eyz(refl))
     let (eq.Order, lt.Order, xz, _, _, _, _, _, e, _, _) =>
       e(refl, refl) rewL(
-        (a). ~ a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, refl)
+        (a). ! a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, refl)
     let (lt.Order, eq.Order, xz, _, _, _, _, _, _, e, _) =>
       e(refl, refl) rewL(
-        (a). ~ a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, refl)
+        (a). ! a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, refl)
     let (lt.Order, lt.Order, xz, _, _, _, _, _, _, _, e) =>
       e(refl, refl) rewL(
-        (a). ~ a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, refl)
+        (a). ! a rec(lt.Order, xs cmp(zs, C), gt.Order) gt?, refl)
 
     val cmpxyGtIsEmpty : C cmp(x, y) = gt.Order -> Empty
     let (e) =>
       e rew((c).
-        ? ~ c rec(lt.Order, xs cmp(ys, C), gt.Order) gt? -> Empty,
+        ? ! c rec(lt.Order, xs cmp(ys, C), gt.Order) gt? -> Empty,
         (a). case a of () end)(lxys)
 
     val cmpyzGtIsEmpty : C cmp(y, z) = gt.Order -> Empty
     let (e) =>
       e rew((c).
-        ? ~ c rec(lt.Order, ys cmp(zs, C), gt.Order) gt? -> Empty,
+        ? ! c rec(lt.Order, ys cmp(zs, C), gt.Order) gt? -> Empty,
         (a). case a of () end)(lyzs)
 
-    val cmpxyEqToGt : C cmp(x, y) = eq.Order -> ? ~ xs cmp(ys, C) gt?
+    val cmpxyEqToGt : C cmp(x, y) = eq.Order -> ? ! xs cmp(ys, C) gt?
     let (e) =>
-      e resp((c). ? ~ c rec(lt.Order, xs cmp(ys, C), gt.Order) gt?, lxys)
+      e resp((c). ? ! c rec(lt.Order, xs cmp(ys, C), gt.Order) gt?, lxys)
 
-    val cmpyzEqToGt : C cmp(y, z) = eq.Order -> ? ~ ys cmp(zs, C) gt?
+    val cmpyzEqToGt : C cmp(y, z) = eq.Order -> ? ! ys cmp(zs, C) gt?
     let (e) =>
-      e resp((c). ? ~ c rec(lt.Order, ys cmp(zs, C), gt.Order) gt?, lyzs)
+      e resp((c). ? ! c rec(lt.Order, ys cmp(zs, C), gt.Order) gt?, lyzs)
 
     val composeEqEq :
       (? C cmp(x, y) eq?, ? C cmp(y, z) eq?) -> C cmp(x, z) = eq.Order

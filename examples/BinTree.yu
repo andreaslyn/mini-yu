@@ -43,8 +43,8 @@ where
   let (leaf.BinTree, yes(x)) => if(od eq?(a, x)) then(no) else(newNode)
   let (l node(x, r), candidate) =>
     if(od lt?(a, x))
-    then(insert(l, candidate) ! (l). yes(l node(x, r)))
-    else(insert(r, yes(x)) ! (r). yes(l node(x, r)))
+    then(insert(l, candidate) >>= (l). yes(l node(x, r)))
+    else(insert(r, yes(x)) >>= (r). yes(l node(x, r)))
 end
 
 
@@ -69,7 +69,7 @@ let => refl
 
 
 val test4 :
-  ? ~ fromList.BinTree[od := ordering?.Nat](2 :: 0 :: 3 :: nil) member(1)
+  ? ! fromList.BinTree[od := ordering?.Nat](2 :: 0 :: 3 :: nil) member(1)
 let => refl
 
 

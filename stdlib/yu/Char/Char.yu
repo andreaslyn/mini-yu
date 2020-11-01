@@ -234,5 +234,5 @@ let => ordering?.Char ge?
 val _=?_\Char : (Char, Char) -> Bool
 let => equivalence?.Char eq?
 
-val _<>?_\Char : (Char, Char) -> Bool
+val _!=?_\Char : (Char, Char) -> Bool
 let => equivalence?.Char neq?

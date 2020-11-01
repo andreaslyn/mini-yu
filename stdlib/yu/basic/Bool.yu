@@ -11,7 +11,7 @@ let (false, P, x, _) => x
 let (true, P, _, y) => y
 
 
-val (~_\Bool) : Bool -> Bool
+val (!_\Bool) : Bool -> Bool
 let (true) => false
 let (false) => true
 
@@ -24,10 +24,6 @@ let (false, b) => b[]
 val _&_\Bool : (Bool, [] -> Bool) -> Bool
 let (false, _) => false
 let (true, b) => b[]
-
-
-val _>>_\Bool : (Bool, Bool) -> Bool
-let (a, b) => ~ a | b
 
 
 data If.Bool : Ty -> Ty

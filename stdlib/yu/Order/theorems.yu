@@ -1,19 +1,19 @@
 import "Order.yu"
 
 
-val _notLtIsEqOrGt\Order : (c : Order) -> ~ c lt? = c eq? | c gt?
+val _notLtIsEqOrGt\Order : (c : Order) -> ! c lt? = c eq? | c gt?
 let (lt.Order) => refl
 let (eq.Order) => refl
 let (gt.Order) => refl
 
 
-val _notEqIsLtOrGt\Order : (c : Order) -> ~ c eq? = c lt? | c gt?
+val _notEqIsLtOrGt\Order : (c : Order) -> ! c eq? = c lt? | c gt?
 let (lt.Order) => refl
 let (eq.Order) => refl
 let (gt.Order) => refl
 
 
-val _notGtIsLtOrEq\Order : (c : Order) -> ~ c gt? = c lt? | c eq?
+val _notGtIsLtOrEq\Order : (c : Order) -> ! c gt? = c lt? | c eq?
 let (lt.Order) => refl
 let (eq.Order) => refl
 let (gt.Order) => refl

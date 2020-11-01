@@ -4,6 +4,6 @@ let in1[A : Ty, B : Ty] : A -> A | B
 let in2[A : Ty, B : Ty] : B -> A | B
 
 
-val _!_\_|_\Ty[A : Ty, B : Ty, C : Ty] : (A | B, B -> A | C) -> A | C
+val _>>=_\_|_\Ty[A : Ty, B : Ty, C : Ty] : (A | B, B -> A | C) -> A | C
 let (in1(x), _) => in1(x)
 let (in2(y), f) => f(y)

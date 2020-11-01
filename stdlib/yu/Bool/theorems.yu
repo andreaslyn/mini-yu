@@ -3,14 +3,14 @@ import "yu/Prod/Prod.yu"
 import "yu/Sum/Sum.yu"
 
 
-val true<>false.Bool : true <> false
+val true!=false.Bool : true != false
 let (())
 
-val false<>true.Bool : false <> true
+val false!=true.Bool : false != true
 let (())
 
 
-val involutionOp~.Bool[b : Bool] : ~ ~ b = b
+val involutionOp!.Bool[b : Bool] : ! ! b = b
 let [b := true] => refl
 let [b := false] => refl
 
@@ -45,22 +45,22 @@ val op=ToOp<->.Bool[b : Bool, c : Bool] : b = c -> ? b <-> ? c
 let (refl) => id $ id
 
 
-val pushInOp~.Bool[b : Bool] : ~ ? b -> ? ~ b
+val pushInOp!.Bool[b : Bool] : ! ? b -> ? ! b
 let [b := true](f) => f(refl) rec
 let [b := false](_) => refl
 
 
-val pullOutOp~.Bool[b : Bool] : ? ~ b -> ~ ? b
+val pullOutOp!.Bool[b : Bool] : ? ! b -> ! ? b
 let [b := true](())
 let [b := false](_) => (e). case e of () end
 
 
-val op~ToOp?false.Bool[b : Bool] : ? ~ b -> ?false b
+val op!ToOp?false.Bool[b : Bool] : ? ! b -> ?false b
 let [b := true](())
 let [b := false](_) => refl
 
 
-val op?falseToOp~.Bool[b : Bool] : ?false b -> ? ~ b
+val op?falseToOp!.Bool[b : Bool] : ?false b -> ? ! b
 let [b := true](())
 let [b := false](_) => refl
 

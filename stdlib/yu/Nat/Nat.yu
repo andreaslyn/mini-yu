@@ -93,7 +93,7 @@ let => ordering?.Nat ge?
 val _=?_\Nat : (Nat, Nat) -> Bool
 let => equivalence?.Nat eq?
 
-val _<>?_\Nat : (Nat, Nat) -> Bool
+val _!=?_\Nat : (Nat, Nat) -> Bool
 let => equivalence?.Nat neq?
 
 

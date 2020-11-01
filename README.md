@@ -2,10 +2,10 @@
 
 Mini Yu is a dependently typed programming language, similar to Agda, Idris, Coq and Lean.
 Mini Yu is a prototype language to experiment with dependently typed language
-features, and runtime implementation.
+features and runtime implementation.
 
-Mini Yu is implemented in Haskell, and compiles source files to C code, which is
-further compiled to machine code with gcc. Mini Yu uses reference counting
+The mini yu compiler is implemented in Haskell. It compiles source files to
+C code, which is further compiled to machine code with gcc. Mini Yu uses reference counting
 as garbage collection strategy, inspired by [Lean 4](https://github.com/leanprover/lean4).
 
 # Building
@@ -14,7 +14,7 @@ In order to build the mini yu source code, you need to be running on
 a Unix system, Mac, Linux, FreeBSD, etc.
 
 Before building, make sure you have [stack](https://docs.haskellstack.org/en/stable/README/)
-version 2 or higher installed on the system. You can obtain version
+version 2.5.1 or higher installed on the system. You can obtain version
 of stack with the command
 ```
 stack --version
@@ -88,8 +88,7 @@ Change the type of customPrint to `Str ->> {}`, and then it will work.
 
 ## Algebraic data types
 
-Mini Yu uses algebraic data types to represent data.
-For example, the natural numbers can be defined with
+Mini Yu has algebraic data types. For example, the natural numbers can be defined with
 ```
 data Nat : Ty
 let 0 : Nat
@@ -131,7 +130,7 @@ There are 3 kinds of operators:
 * postfix operators.
 
 Prefix and infix operators start with an operator symbol, such as `+`, `&` or `!`.
-But, the symbols `\` and `#` are not allowed in identifiers.
+But note that the symbols `\` and `#` are treated specially.
 Postfix operators and regular variable identifiers start with an alphanumeric
 character, such as `A`, `4` or `a`.
 Examples of prefix and infix operator names are `+`, `&&` and `?is-true`.
@@ -197,8 +196,9 @@ is given by the first operator symbol. The infix operator precedence table is:
 ^ @        (right associative)
 * / %      (left associative)
 $ | &      (right associative)
-+ - ? !    (left associative)
-< > = : ~  (right associative)
++ -        (left associative)
+= : ? !    (right associative)
+< > ~      (left associative)
 ```
 The operators in the top has higher precedence than those in
 the bottom, so infix `+` is left associative and has lower
@@ -216,7 +216,7 @@ right associative.
 
 ## Lazy evaluation
 
-By default, mini yu evaluates function arguments strictly,
+By default, mini yu evaluates function arguments eagerly,
 but it is possible to mark arguments as lazy. For example,
 in the definition of addition of booleans, it is often desired
 to have the second argument evaluated only when the first
@@ -258,7 +258,7 @@ let (++ n) => 0 :: 0.Vec(n)
 
 ## Importing and standard library
 
-Importing in mini yu works like copying the file and pasting it in.
+Importing files in mini yu works like copying the file and pasting it in.
 There is, however, detection to avoid importing the same file twice.
 
 Mini Yu comes with a standard library with some basic functionality.

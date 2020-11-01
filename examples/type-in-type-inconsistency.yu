@@ -29,7 +29,7 @@ let (a, m.M(I, f)) => & ((i : I). a = f(i))
 
 
 val _<!_\M : (M, M) -> Ty
-let (a, b) => ~ (a <- b)
+let (a, b) => ! (a <- b)
 
 
 val R : M

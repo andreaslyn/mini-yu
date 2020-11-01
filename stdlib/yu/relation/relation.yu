@@ -9,7 +9,7 @@ let (R) => (x : A) -> R(x, x)
 
 
 val _IsIrreflexive\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => (x : A) -> ~ R(x, x)
+let (R) => (x : A) -> ! R(x, x)
 
 
 val _IsSymmetric\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
@@ -17,7 +17,7 @@ let (R) => (x : A, y : A, R(x, y)) -> R(y, x)
 
 
 val _IsAsymmetric\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => (x : A, y : A, R(x, y)) -> ~ R(y, x)
+let (R) => (x : A, y : A, R(x, y)) -> ! R(y, x)
 
 
 val _IsAntisymmetric\_->_[A : Ty] : ((A, A) -> Ty) -> Ty

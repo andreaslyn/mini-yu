@@ -46,7 +46,7 @@ val _update?\_List\Ty[A : Ty] : (A List, A, Nat) -> ? A List
 let (nil, _, _) => no
 let (_ :: xs, a, 0) => yes(a :: xs)
 let (x :: xs, a, ++ n) =>
-  xs update?(a, n) ! (xs'). yes(x :: xs')
+  xs update?(a, n) >>= (xs'). yes(x :: xs')
 
 
 val _update!\_List\Ty[A : Ty] : (A List, A, Nat) -> A List

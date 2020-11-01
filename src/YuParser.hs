@@ -39,6 +39,9 @@ yuOpTok idx = do
   where
     getVar t =
       case idx of
+        6 -> case tokType t of
+                TokOp6 s -> Just (tokLoc t, '_' : s ++ "_")
+                _ -> Nothing
         5 -> case tokType t of
                 TokOp5 s -> Just (tokLoc t, '_' : s ++ "_")
                 _ -> Nothing
@@ -63,6 +66,7 @@ yuPreOpTok = do
   where
     getVar t =
       case tokType t of
+        TokOp6 s -> Just (tokLoc t, s ++ "_")
         TokOp5 s -> Just (tokLoc t, s ++ "_")
         TokOp4 s -> Just (tokLoc t, s ++ "_")
         TokOp3 s -> Just (tokLoc t, s ++ "_")
@@ -86,6 +90,7 @@ yuPreOpTok' = do
   where
     getVar t =
       case tokType t of
+        TokOp6 s -> Just (tokLoc t, s)
         TokOp5 s -> Just (tokLoc t, s)
         TokOp4 s -> Just (tokLoc t, s)
         TokOp3 s -> Just (tokLoc t, s)
@@ -321,7 +326,7 @@ parseArrowExpr =
   where
     parseAppExprArrow :: YuParsec Expr
     parseAppExprArrow = do
-      e <- parseOp5Expr
+      e <- parseOp6Expr
       a <- optionMaybe $ do
             x <- parseArrowSymbol
             y <- parseDoExpr
@@ -400,6 +405,15 @@ yuChainr1 p op = scan
       case y0 of
         Nothing -> do { y <- scan; return (f x y) }
         Just y -> return (f x y)
+
+parseOp6Expr :: YuParsec Expr
+parseOp6Expr =
+  parseOp5Expr `yuChainl1` op6
+  where
+    op6 :: YuParsec (Expr -> Expr -> Expr)
+    op6 = do
+      v <- yuOpTok 6
+      return (\e1 e2 -> ExprApp (ExprVar v) [e1, e2])
 
 parseOp5Expr :: YuParsec Expr
 parseOp5Expr =
@@ -646,7 +660,16 @@ parseCaseExpr = do
       return e
 
 parsePattern :: YuParsec ParsePattern
-parsePattern = parsePatternOp5
+parsePattern = parsePatternOp6
+
+parsePatternOp6 :: YuParsec ParsePattern
+parsePatternOp6 =
+  parsePatternOp5 `chainl1` op6
+  where
+    op6 :: YuParsec (ParsePattern -> ParsePattern -> ParsePattern)
+    op6 = do
+      v <- yuOpTok 6
+      return (\p1 p2 -> ParsePatternApp (ParsePatternVar v) [p1, p2])
 
 parsePatternOp5 :: YuParsec ParsePattern
 parsePatternOp5 =

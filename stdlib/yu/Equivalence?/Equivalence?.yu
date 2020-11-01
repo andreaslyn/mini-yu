@@ -12,7 +12,7 @@ let (mk.Equivalence?(R, _)) => R
 
 
 val _neq?\_Equivalence?\Ty[A : Ty] : A Equivalence? -> (A, A) -> Bool
-let (E) => (x, y). ~ E eq?(x, y)
+let (E) => (x, y). ! E eq?(x, y)
 
 
 val _isEquivalence\_Equivalence?\Ty[A : Ty] :

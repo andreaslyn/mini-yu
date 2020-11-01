@@ -27,7 +27,7 @@ let => ordering?.Bool equivalence?
 val _=?_\Bool : (Bool, Bool) -> Bool
 let => equivalence?.Bool eq?
 
-val _<>?_\Bool : (Bool, Bool) -> Bool
+val _!=?_\Bool : (Bool, Bool) -> Bool
 let => equivalence?.Bool neq?
 
 val _<?_\Bool : (Bool, Bool) -> Bool

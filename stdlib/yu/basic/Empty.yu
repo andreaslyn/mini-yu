@@ -5,7 +5,7 @@ data Empty : Ty
 let ()
 
 
-val (~_\Ty) : Ty -> Ty
+val (!_\Ty) : Ty -> Ty
 let (A) => A -> Empty
 
 

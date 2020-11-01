@@ -78,21 +78,21 @@ val leToLtIsTransitive?.Ordering?[A : Ty] :
   (le : (A, A) -> Bool, le IsTotalPreorder?) ->
   leToLt?.Ordering?(le) IsTransitive?
 let (le, isC $ isT) => (x, y, z, ltxy, ltyz).
-  le(z, x) ind((b). (? b -> Empty) -> ? ~ b,
+  le(z, x) ind((b). (? b -> Empty) -> ? ! b,
     const(refl), (c). c(refl) rec)(
       contra(x, y, z, ltxy, ltyz, _))
 where
   val contra :
-    (x : A, y : A, z : A, ? ~ le(y, x), ? ~ le(z, y), ? le(z, x)) -> Empty
+    (x : A, y : A, z : A, ? ! le(y, x), ? ! le(z, y), ? le(z, x)) -> Empty
   let (x, y, z, ltxy, ltyz, lezx) =>
     c := isC(x, y);
     c' := pullOutOp|.Bool[a := le(x, y), b := le(y, x)](c);
     case c'
     of in2(leyx) =>
-      case ! leyx @ op~ToOp?false.Bool(ltxy) of () end
+      case ! leyx @ op!ToOp?false.Bool(ltxy) of () end
     of in1(lexy) =>
       lezy := isT(z, x, y, lezx, lexy);
-      case ! lezy @ op~ToOp?false.Bool(ltyz) of () end
+      case ! lezy @ op!ToOp?false.Bool(ltyz) of () end
     end
 end
 
@@ -112,14 +112,14 @@ val _ltLeToLt?\_Ordering?\Ty[A : Ty] :
     ? R lt?(x, y), ? R le?(y, z)) -> ? R lt?(x, z)
 let (R, x, y, z, ltxy, leyz) =>
   R isOrdering? ltIsCompatible(x, z) rew(? _, _) do
-  R le?(z, x) ind((b). (? b -> Empty) -> ? ~ b, const(refl),
+  R le?(z, x) ind((b). (? b -> Empty) -> ? ! b, const(refl),
     (c). c(refl) rec)(contra)
 where
   val contra : ? R le?(z, x) -> Empty
   let (lezx) =>
     a := R leIsTransitive?(y, z, x, leyz, lezx);
     ltxy' := R isOrdering? ltIsCompatible(x, y) resp(? _, ltxy);
-    b := op~ToOp?false.Bool[b := R le?(y, x)](ltxy');
+    b := op!ToOp?false.Bool[b := R le?(y, x)](ltxy');
     case ! a @ b of () end
 end
 
@@ -129,14 +129,14 @@ val _leLtToLt?\_Ordering?\Ty[A : Ty] :
     ? R le?(x, y), ? R lt?(y, z)) -> ? R lt?(x, z)
 let (R, x, y, z, lexy, ltyz) =>
   R isOrdering? ltIsCompatible(x, z) rew(? _, _) do
-  R le?(z, x) ind((b). (? b -> Empty) -> ? ~ b, const(refl),
+  R le?(z, x) ind((b). (? b -> Empty) -> ? ! b, const(refl),
     (c). c(refl) rec)(contra)
 where
   val contra : ? R le?(z, x) -> Empty
   let (lezx) =>
     a := R leIsTransitive?(z, x, y, lezx, lexy);
     ltyz' := R isOrdering? ltIsCompatible(y, z) resp(? _, ltyz);
-    b := op~ToOp?false.Bool[b := R le?(z, y)](ltyz');
+    b := op!ToOp?false.Bool[b := R le?(z, y)](ltyz');
     case ! a @ b of () end
 end
 
@@ -162,15 +162,15 @@ val _cmpLtIsLt?\_Ordering?\Ty[A : Ty] :
 let (R, x, y) =>
   R isOrdering? cmpIsCompatible(x, y) rewL(_ lt?, _) do
   (_ @ ! R isOrdering? ltIsCompatible(x, y)) do
-  leToCmpLtIsOp~(R le?(x, y), R le?(y, x), _) (c).
+  leToCmpLtIsOp!(R le?(x, y), R le?(y, x), _) (c).
     case pullOutOp|.Bool[a := R le?(x, y), b := R le?(y, x)](R leIsConnex?(x, y))
-    of in1(h) => case ! h @ op~ToOp?false.Bool(c) of () end
+    of in1(h) => case ! h @ op!ToOp?false.Bool(c) of () end
     of in2(h) => h
     end
 where
-  val leToCmpLtIsOp~ :
-    (a : Bool, b : Bool, ? ~ a -> ? b) ->
-    leToCmpImpl.Ordering?(a, b) lt? = ~ b
+  val leToCmpLtIsOp! :
+    (a : Bool, b : Bool, ? ! a -> ? b) ->
+    leToCmpImpl.Ordering?(a, b) lt? = ! b
   let (false, false, c) => case c(refl) of () end
   let (false, true, _) => refl
   let (true, false, _) => refl

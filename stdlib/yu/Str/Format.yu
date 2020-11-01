@@ -11,7 +11,7 @@ let nilPreFormat.Str : PreFormat.Str
 let errorPreFormat.Str : PreFormat.Str
 
 
-val _!!_\PreFormat.Str :
+val _map\PreFormat.Str :
   (PreFormat.Str, PreFormat.Str -> PreFormat.Str) -> PreFormat.Str
 let (errorPreFormat.Str, _) => errorPreFormat.Str
 let (p, f) => f(p)
@@ -19,13 +19,13 @@ let (p, f) => f(p)
 
 val listPreFormat.Str : Char List -> PreFormat.Str
 let (nil) => nilPreFormat.Str
-let ('% :: 'n :: cs) => listPreFormat.Str(cs) !! natPreFormat.Str
-let ('% :: 's :: cs) => listPreFormat.Str(cs) !! strPreFormat.Str
-let ('% :: 'c :: cs) => listPreFormat.Str(cs) !! charPreFormat.Str
-let ('% :: 'b :: cs) => listPreFormat.Str(cs) !! boolPreFormat.Str
-let ('% :: '% :: cs) => listPreFormat.Str(cs) !! constPreFormat.Str('%, _)
+let ('% :: 'n :: cs) => listPreFormat.Str(cs) map(natPreFormat.Str)
+let ('% :: 's :: cs) => listPreFormat.Str(cs) map(strPreFormat.Str)
+let ('% :: 'c :: cs) => listPreFormat.Str(cs) map(charPreFormat.Str)
+let ('% :: 'b :: cs) => listPreFormat.Str(cs) map(boolPreFormat.Str)
+let ('% :: '% :: cs) => listPreFormat.Str(cs) map(constPreFormat.Str('%, _))
 let ('% :: _ :: cs) => errorPreFormat.Str
-let (c :: cs) => listPreFormat.Str(cs) !! constPreFormat.Str(c, _)
+let (c :: cs) => listPreFormat.Str(cs) map(constPreFormat.Str(c, _))
 
 
 val _preFormat\Str : Str -> PreFormat.Str

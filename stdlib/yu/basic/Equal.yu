@@ -39,11 +39,11 @@ val _resp\_=_\[A : Ty, a1 : A, a2 : A]
 let (refl, _, x) => x
 
 
-val _<>_\[A : Ty, B : Ty] : (A, B) -> Ty
-let (a, b) => ~ (a = b)
+val _!=_\[A : Ty, B : Ty] : (A, B) -> Ty
+let (a, b) => ! (a = b)
 
 
-val _sym<>\_=_\[A : Ty, B : Ty, a : A, b : B] : a <> b -> b <> a
+val _sym!=\_=_\[A : Ty, B : Ty, a : A, b : B] : a != b -> b != a
 let (e) => e @ (!_\_=_\)
 
 

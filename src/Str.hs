@@ -10,6 +10,7 @@ module Str
   , isOp3Char
   , isOp4Char
   , isOp5Char
+  , isOp6Char
   , isGeneralWordChar
   , isOperatorChar
   , isOperator
@@ -19,6 +20,7 @@ module Str
   , isInfixOp3
   , isInfixOp4
   , isInfixOp5
+  , isInfixOp6
   , isPostfixOp
   , isPrefixOp
   , isRightAssocInfixOp
@@ -102,10 +104,13 @@ isOp3Char :: Char -> Bool
 isOp3Char c = elem c "$|&"
 
 isOp4Char :: Char -> Bool
-isOp4Char c = elem c "+-?!"
+isOp4Char c = elem c "+-"
 
 isOp5Char :: Char -> Bool
-isOp5Char c = elem c "<>=:~"
+isOp5Char c = elem c "=:~?!"
+
+isOp6Char :: Char -> Bool
+isOp6Char c = elem c "<>~"
 
 isInfixOp :: String -> Bool
 isInfixOp "_" = False
@@ -116,7 +121,12 @@ isRightAssocInfixOp :: String -> Bool
 isRightAssocInfixOp s = isInfixOp5 s || isInfixOp3 s || isInfixOp1 s
 
 isLeftAssocInfixOp :: String -> Bool
-isLeftAssocInfixOp s = isInfixOp2 s || isInfixOp4 s
+isLeftAssocInfixOp s = isInfixOp2 s || isInfixOp4 s || isInfixOp6 s
+
+isInfixOp6 :: String -> Bool
+isInfixOp6 s
+  | isInfixOp s = assert (length s > 1) (isOp6Char (head (drop 1 s)))
+  | True = False
 
 isInfixOp5 :: String -> Bool
 isInfixOp5 s

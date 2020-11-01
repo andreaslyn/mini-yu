@@ -870,6 +870,12 @@ writeBinaryApp ::
   ImplicitMap -> RefMap -> String ->
   PreTerm -> PreTerm -> PreTerm -> ToString ()
 writeBinaryApp im rm na _f x1 x2
+  | Str.isInfixOp6 na = do
+    let b1 = hasLowerPrecThanInfixOp6 x1
+    when b1 (writeStr "(") >> writePreTerm im rm x1 >> when b1 (writeStr ")")
+    writeStr " " >> writeStr (takeOperatorStr na) >> writeStr " "
+    let b2 = hasLowerPrecThanInfixOp5 x2
+    when b2 (writeStr "(") >> writePreTerm im rm x2 >> when b2 (writeStr ")")
   | Str.isInfixOp5 na = do
     let b1 = hasLowerPrecThanInfixOp4 x1
     when b1 (writeStr "(") >> writePreTerm im rm x1 >> when b1 (writeStr ")")
@@ -1230,9 +1236,26 @@ hasLowerPrecThanInfixOp4 (TermApp io (TermImplicitApp False t _) xs) =
 hasLowerPrecThanInfixOp4 t = hasLowerPrecThanInfixOp5 t
 
 hasLowerPrecThanInfixOp5 :: PreTerm -> Bool
-hasLowerPrecThanInfixOp5 (TermFun _ _ _ _) = True
-hasLowerPrecThanInfixOp5 (TermImplicitApp False (TermFun _ _ _ _) _) = True
-hasLowerPrecThanInfixOp5 (TermLazyFun _ _) = True
-hasLowerPrecThanInfixOp5 (TermLazyArrow _ _) = True
-hasLowerPrecThanInfixOp5 (TermArrow _ _ _) = True
-hasLowerPrecThanInfixOp5 _ = False
+hasLowerPrecThanInfixOp5 t@(TermApp _ (TermVar _ v) [_, _])
+  | Str.isInfixOp6 (varName v) = True
+  | True = hasLowerPrecThanInfixOp4 t
+hasLowerPrecThanInfixOp5 t@(TermApp _ (TermCtor v _) [_, _])
+  | Str.isInfixOp6 (varName v) = True
+  | True = hasLowerPrecThanInfixOp4 t
+hasLowerPrecThanInfixOp5 t@(TermApp _ (TermData v) [_, _])
+  | Str.isInfixOp6 (varName v) = True
+  | True = hasLowerPrecThanInfixOp4 t
+hasLowerPrecThanInfixOp5 t@(TermApp _ (TermRef v _) [_, _])
+  | Str.isInfixOp6 (varName v) = True
+  | True = hasLowerPrecThanInfixOp4 t
+hasLowerPrecThanInfixOp5 (TermApp io (TermImplicitApp False t _) xs) =
+  hasLowerPrecThanInfixOp5 (TermApp io t xs)
+hasLowerPrecThanInfixOp5 t = hasLowerPrecThanInfixOp6 t
+
+hasLowerPrecThanInfixOp6 :: PreTerm -> Bool
+hasLowerPrecThanInfixOp6 (TermFun _ _ _ _) = True
+hasLowerPrecThanInfixOp6 (TermImplicitApp False (TermFun _ _ _ _) _) = True
+hasLowerPrecThanInfixOp6 (TermLazyFun _ _) = True
+hasLowerPrecThanInfixOp6 (TermLazyArrow _ _) = True
+hasLowerPrecThanInfixOp6 (TermArrow _ _ _) = True
+hasLowerPrecThanInfixOp6 _ = False

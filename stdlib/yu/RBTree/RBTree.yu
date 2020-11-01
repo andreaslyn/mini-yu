@@ -89,5 +89,5 @@ val test.RBTree : do
   ? do
     f(xs) member(1) & f(xs) member(2) & f(xs) member(3) &
     f(xs) member(4) & f(xs) member(5) & f(xs) member(6) &
-    ~ f(xs) member(0) & ~ f(xs) member(7)
+    ! f(xs) member(0) & ! f(xs) member(7)
 let => refl

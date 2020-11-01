@@ -18,7 +18,7 @@ import Scanner (Scanner, scanOnly, anyChar8, lookAheadChar8)
 import Control.Monad
 import Loc
 import Str (quote, errorMsg, isOp1Char, isOp2Char, isOp3Char,
-            isOp4Char, isOp5Char, isGeneralWordChar)
+            isOp4Char, isOp5Char, isOp6Char, isGeneralWordChar)
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Strict
 import Control.Monad.IO.Class
@@ -27,10 +27,11 @@ data TokType =
     TokVar String
   | TokStringLit String
   | TokOp1 String --  ^ @        (right associative)
-  | TokOp2 String --  * / \ %    (left associative)
+  | TokOp2 String --  * / %      (left associative)
   | TokOp3 String --  $ | &      (right associative)
-  | TokOp4 String --  + - ? !    (left associative)
-  | TokOp5 String --  < > = : ~  (right associative)
+  | TokOp4 String --  + -        (left associative)
+  | TokOp5 String --  = : ? !    (right associative)
+  | TokOp6 String --  < > ~      (left associative)
   | TokDo
   | TokImport
   | TokWhere
@@ -81,6 +82,7 @@ tokTypeString t =
     TokOp3 s -> s
     TokOp4 s -> s
     TokOp5 s -> s
+    TokOp6 s -> s
     TokStringLit s -> "\"" ++ s ++ "\""
     TokDo -> "do"
     TokImport -> "import"
@@ -229,7 +231,7 @@ makeWordTok s lo
   | isOp3Char (head s) = return (tok (TokOp3 s) lo)
   | isOp4Char (head s) = return (tok (TokOp4 s) lo)
   | isOp5Char (head s) = return (tok (TokOp5 s) lo)
-  | isOp5Char (head s) = return (tok (TokOp5 s) lo)
+  | isOp6Char (head s) = return (tok (TokOp6 s) lo)
   | otherwise = return (tok (TokVar s) lo)
 
 skipRestOfLine :: SScanner ()
