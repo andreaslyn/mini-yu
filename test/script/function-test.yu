@@ -3,8 +3,8 @@ data Nat : Ty
 let 0 : Nat
 let (+1_\Nat) : Nat -> Nat
 
-data Unit : Ty
-let unit : Unit
+data Unit' : Ty
+let unit' : Unit'
 
 val nat-id : Nat -> Nat
 let (n) => n
@@ -13,17 +13,17 @@ val nat-id' : Nat -> Nat
 let (0) => 0
 let (+1(n)) => +1(n)
 
-val unit-id : Unit -> Unit
+val unit-id : Unit' -> Unit'
 let (x) => x
 
-val unit-id' : Unit -> Unit
+val unit-id' : Unit' -> Unit'
+let (unit') => unit'
+
+val id-real-unit : Unit -> Unit
+let (x) => x
+
+val id-real-unit' : Unit -> Unit
 let (unit) => unit
-
-val id-real-unit : {} -> {}
-let (x) => x
-
-val id-real-unit' : {} -> {}
-let ([]) => []
 
 data NatList : Ty
 let nnil : NatList
@@ -62,7 +62,7 @@ let ()
 val empty-id : Empty -> Empty
 let (e) => e
 
-val empty-match : Empty -> {}
+val empty-match : Empty -> Unit
 let (())
 
 data DepEmpty : Empty -> Ty
@@ -164,32 +164,32 @@ let unif-ctor : unif(Ty, (?_), none)
 
 val test :
   Id(Ty,
-    (n : Nat, v : Vec({}, +1(+1(m))), m : Nat) -> Vec(Nat, n) -> ?(Interleave(+1(n), m, n)),
-    (naa : Nat, Vec({}, +1(+1(m2))), m2 : Nat) -> Vec(Nat, naa) -> ?(Interleave(+1(naa), m2, naa)))
-let => refl(Ty, (n : Nat, v : Vec({}, +1(+1(m))), m : Nat) -> Vec(Nat, n) -> ?(Interleave(+1(n), m, n)))
+    (n : Nat, v : Vec(Unit, +1(+1(m))), m : Nat) -> Vec(Nat, n) -> ?(Interleave(+1(n), m, n)),
+    (naa : Nat, Vec(Unit, +1(+1(m2))), m2 : Nat) -> Vec(Nat, naa) -> ?(Interleave(+1(naa), m2, naa)))
+let => refl(Ty, (n : Nat, v : Vec(Unit, +1(+1(m))), m : Nat) -> Vec(Nat, n) -> ?(Interleave(+1(n), m, n)))
 
 val seq-norm-test : Nat -> Nat
 let (0) =>
   test1(0); test2(+1(0), 0); plus(+1(0), +1(+1(0)))
 where
-  val test1 : Nat -> {}
-  let (0) => []
-  let (_) => []
+  val test1 : Nat -> Unit
+  let (0) => unit
+  let (_) => unit
 
-  val test2 : (Nat, Nat) -> {}
+  val test2 : (Nat, Nat) -> Unit
   let (+1(n), 0) => test1(0)
-  let (_, _) => []
+  let (_, _) => unit
 end
 let (+1 n) =>
   test2(0, 0); plus(+1(0), seq-norm-test(n))
 where
-  val test1' : Nat -> {}
-  let (0) => []
-  let (_) => []
+  val test1' : Nat -> Unit
+  let (0) => unit
+  let (_) => unit
 
-  val test2 : (Nat, Nat) -> {}
+  val test2 : (Nat, Nat) -> Unit
   let (+1(n), 0) => test1'(0)
-  let (_, _) => []
+  let (_, _) => unit
 end
 
 val test-seq0 : Id(Nat, +1(+1(+1(0))), seq-norm-test(0))
@@ -200,15 +200,15 @@ let => refl(Nat, +1(+1(+1(+1(0)))))
 
 val seq-norm-test2 : Nat -> Nat
 let (0) =>
-  [] := test1(0); x := test2(+1(0), 0); plus(+1(0), +1(0))
+  unit := test1(0); x := test2(+1(0), 0); plus(+1(0), +1(0))
 where
-  val test1 : Nat -> {}
-  let (0) => []
-  let (_) => []
+  val test1 : Nat -> Unit
+  let (0) => unit
+  let (_) => unit
 
-  val test2 : (Nat, Nat) -> {}
+  val test2 : (Nat, Nat) -> Unit
   let (+1(n), 0) => test1(0)
-  let (_, _) => []
+  let (_, _) => unit
 end
 let (+1 x) =>
   mkNatPair(m, n) := test2(0, 0); plus(plus(m, n), seq-norm-test2(x))

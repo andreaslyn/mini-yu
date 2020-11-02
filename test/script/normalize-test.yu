@@ -96,11 +96,11 @@ let (_, _, _, _, e1, e2) =>
 
 data Empty : Ty let ()
 
-val test-empty : Empty -> {}
+val test-empty : Empty -> Unit
 let (e) =>
   case e of () end
 
-val test-empty' : Empty -> {}
+val test-empty' : Empty -> Unit
 let (e) =>
   case e
   of e => case e of () end
@@ -109,8 +109,8 @@ let (e) =>
 data Any : Ty
 let any : (A : Ty, A) -> Any
 
-val test-escape : {}
+val test-escape : Unit
 let =>
   a := any(Nat, 0);
   _ := (any(X, x) := a; refl(_, _) := refl(X, x); a);
-  []
+  unit

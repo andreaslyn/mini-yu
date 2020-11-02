@@ -13,6 +13,6 @@ end
 
 
 #{
-val main : () ->> {}
+val main : () ->> Unit
 let () => primesLessThan(10 * 10) str(_str, ", ") println
 #}

@@ -44,7 +44,7 @@ To get started, here is the Hello World program in Mini Yu:
 import "yu/prelude.yu"
 
 ## Function main is the program entry point:
-val main : () ->> {}
+val main : () ->> Unit
 let () => "Hello, World!" println
 ```
 Note that line comments start with `##`.
@@ -60,10 +60,10 @@ mini yu to optimize the program. This will produce a binary
 file called `hello-world.yu.exe`, which prints `Hello, World!`
 when executed.
 
-The type of `main` is effectful function type `() ->> {}`, which is
+The type of `main` is effectful function type `() ->> Unit`, which is
 indicating that the `main` function has no arguments `()`, is
-effectful `->>`, and codomain (return type) is unit `{}`.
-Unit `{}` is similar to `void` in C and Java.
+effectful `->>`, and codomain (return type) is `Unit`.
+`Unit` is similar to `void` in C and Java.
 The effectful arrow type `->>` allows us to apply the `println`
 operator and print `Hello, World!` to the standard output device.
 
@@ -78,13 +78,13 @@ function. Mini Yu will not accept the following program
 ```
 import "yu/prelude.yu"
 
-val customPrint : Str -> {}
+val customPrint : Str -> Unit
 let (s) => s println
 
-val main : () ->> {}
+val main : () ->> Unit
 let () => customPrint("Hello, World")
 ```
-Change the type of customPrint to `Str ->> {}`, and then it will work.
+Change the type of customPrint to `Str ->> Unit`, and then it will work.
 
 ## Algebraic data types
 

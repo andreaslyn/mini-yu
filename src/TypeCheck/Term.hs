@@ -89,7 +89,7 @@ data CaseTree =
       (Maybe ([Var], CaseTree)) -- Catch all case.
   | CaseEmpty Int
   | CaseUnit
-      Int      -- Which argument of type {} to pattern match on.
+      Int      -- Which argument of type Unit to pattern match on.
       ([Var], CaseTree) -- Next case tree.
   deriving Show
 

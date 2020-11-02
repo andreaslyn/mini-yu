@@ -1,11 +1,85 @@
 import "yu/prelude/prelude.yu"
 
-val main : () ->> {}
-let () => x := lazy-print1[]; y := lazy-print1[]; z := lazy-print2[]; 'lf print
+val boolToAscii : Bool -> Char
+let (true) => '1
+let (false) => '0
+
+val (!'_\Bool) : Bool -> Bool
+let (true) => false
+let (false) => true
+
+val nat-package : Bool -> Bool
+let (true) => even(plus(1, 1))
 where
-  val lazy-print1 : [] ->> {}
+  val 1 : Nat
+  let => ++(0)
+
+  val 2 : Nat
+  let => ++(1)
+
+  val plus : (Nat, Nat) -> Nat
+  let (m, n) => aux(n)
+  where
+    val aux : Nat -> Nat
+    let (0) => m
+    let (++(n)) => ++(aux(n))
+  end
+
+  val even : Nat -> Bool
+  let (0) => true
+  let (++(0)) => false
+  let (++(++(n))) => even(n)
+end
+let (b) => odd[](plus(1, plus(1, 1)))
+where
+  val 1 : Nat
+  let => ++(0)
+
+  val 2 : Nat
+  let => ++(1)
+
+  val plus : (Nat, Nat) -> Nat
+  let (m, n) => aux(n)
+  where
+    val aux : Nat -> Nat
+    let (0) => m
+    let (++(n)) => ++(aux(n))
+  end
+
+  val.. even : [] -> Nat -> Bool
+  let =>
+    o := odd;
+    []. (n).
+      case n
+      of 0 => !'(b)
+      of ++(n) => o[](n)
+      end
+
+  val.. odd : [] -> Nat -> Bool
+  let => []. (
+    e := even[];
+    (n).
+      case n
+      of 0 => b
+      of ++(n) => e(n)
+      end
+  )
+end
+
+val main : () ->> Unit
+let () =>
+  boolToAscii(nat-package(true)) print;
+  boolToAscii(nat-package(false)) print;
+  'lf print;
+  "\n" print;
+  x := lazy-print1[];
+  y := lazy-print1[];
+  z := lazy-print2[];
+  "" println
+where
+  val lazy-print1 : [] ->> Unit
   let => '1 println
 
-  val lazy-print2 : [] ->> {}
+  val lazy-print2 : [] ->> Unit
   let => '2 println
 end

@@ -2,40 +2,40 @@ import "yu/Str/Str.yu"
 
 
 ## TODO When effects are implemented, this should be effectful, since it may fail.
-extern _print\Char : Char ->> {}
+extern _print\Char : Char ->> Unit
 
-val _println\Char : Char ->> {}
+val _println\Char : Char ->> Unit
 let (c) => c print; 'lf print
 
 
-val _print\Str : Str ->> {}
+val _print\Str : Str ->> Unit
 let (str) => aux(str list)
 where
-  val aux : Char List ->> {}
-  let (nil) => []
+  val aux : Char List ->> Unit
+  let (nil) => unit
   let (c :: cs) => c print; aux(cs)
 end
 
-val _println\Str : Str ->> {}
+val _println\Str : Str ->> Unit
 let (s) => s print; 'lf print
 
 
-val _print\Bool : Bool ->> {}
+val _print\Bool : Bool ->> Unit
 let (b) => b str print
 
-val _println\Bool : Bool ->> {}
+val _println\Bool : Bool ->> Unit
 let (b) => b print; 'lf print
 
 
-val _print\Nat : Nat ->> {}
+val _print\Nat : Nat ->> Unit
 let (n) => n str print
 
-val _println\Nat : Nat ->> {}
+val _println\Nat : Nat ->> Unit
 let (n) => n print; 'lf print
 
 
-val _print\_List\Ty[A : Ty] : (A List, A -> Str, Str) ->> {}
+val _print\_List\Ty[A : Ty] : (A List, A -> Str, Str) ->> Unit
 let (xs, f, s) => xs str(f, s) print
 
-val _println\_List\Ty[A : Ty] : (A List, A -> Str, Str) ->> {}
+val _println\_List\Ty[A : Ty] : (A List, A -> Str, Str) ->> Unit
 let (xs, f, s) => xs print(f, s); 'lf print

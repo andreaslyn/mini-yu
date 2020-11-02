@@ -64,6 +64,8 @@ stdRuntimePath = "runtime"
 isKeyword :: String -> Bool
 isKeyword s
   | s == "Ty" = True
+  | s == "Unit" = True
+  | s == "unit" = True
   | isStrictKeyword s = True
   | True = False
 

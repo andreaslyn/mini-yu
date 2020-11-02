@@ -38,7 +38,7 @@ let (strPreFormat.Str(p)) => Str -> p Format
 let (charPreFormat.Str(p)) => Char -> p Format
 let (boolPreFormat.Str(p)) => Bool -> p Format
 let (constPreFormat.Str(_, p)) => p Format
-let (errorPreFormat.Str) => {}
+let (errorPreFormat.Str) => Unit
 let (nilPreFormat.Str) => Str
 
 
@@ -48,7 +48,7 @@ let (strPreFormat.Str(p), a) => (s). formatAccum.Str(p, (t). a(s :+: t))
 let (charPreFormat.Str(p), a) => (c). formatAccum.Str(p, (t). a(c str :+: t))
 let (boolPreFormat.Str(p), a) => (b). formatAccum.Str(p, (t). a(b str :+: t))
 let (constPreFormat.Str(c, p), a) => formatAccum.Str(p, (t). a(c str :+: t))
-let (errorPreFormat.Str, _) => []
+let (errorPreFormat.Str, _) => unit
 let (nilPreFormat.Str, a) => a("")
 
 

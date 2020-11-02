@@ -4,7 +4,7 @@ extern char-id : Char -> Char
 
 extern str-id : Str -> Str
 
-val main : () ->> {}
+val main : () ->> Unit
 let () =>
   char-id('0) print; char-id('lf) print;
   char-id('tab) print; char-id('A) print; char-id('a) println;

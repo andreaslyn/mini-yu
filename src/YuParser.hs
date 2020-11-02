@@ -80,7 +80,10 @@ yuPostfixOpTok = do
   return (lo, '_' : op)
   where
     keyTok :: YuParsec (Loc, String)
-    keyTok = yuKeyTok TokTy >>= \lo -> return (lo, "Ty")
+    keyTok =
+          (yuKeyTok TokTy >>= \lo -> return (lo, "Ty"))
+      <|> (yuKeyTok TokUnitTy >>= \lo -> return (lo, "Unit"))
+      <|> (yuKeyTok TokUnitElem >>= \lo -> return (lo, "unit"))
 
 yuPreOpTok' :: YuParsec (Loc, String)
 yuPreOpTok' = do
@@ -331,7 +334,7 @@ parseDoOrFunOr e = try tryParseDoOrFun <|> e
 
 parseArrowExpr :: YuParsec Expr
 parseArrowExpr =
-  try zeroParams <|> try manyParams <|> try oneNamedParam <|> parseAppExprArrow
+  try lazyParam <|> try zeroParams <|> try manyParams <|> try oneNamedParam <|> parseAppExprArrow
   where
     parseAppExprArrow :: YuParsec Expr
     parseAppExprArrow = do
@@ -342,10 +345,15 @@ parseArrowExpr =
             return (x, y)
       case a of
         Nothing -> return e
-        Just (b, a') ->
-          case e of
-            ExprUnitElem lo -> return (ExprLazyArrow lo b a')
-            _ -> return (ExprArrow (exprLoc e) b [Left e] a')
+        Just (b, a') -> return (ExprArrow (exprLoc e) b [Left e] a')
+
+    lazyParam :: YuParsec Expr
+    lazyParam = do
+      lo <- yuKeyTok TokSquareL
+      _ <- yuKeyTok TokSquareR
+      b <- parseArrowSymbol
+      a <- parseDoExpr
+      return (ExprLazyArrow lo b a)
 
     zeroParams :: YuParsec Expr
     zeroParams = do
@@ -575,14 +583,12 @@ parseExprLeaf =
 
 parseExprUnitElem :: YuParsec Expr
 parseExprUnitElem = do
-  lo <- yuKeyTok TokSquareL
-  _ <- yuKeyTok TokSquareR
+  lo <- yuKeyTok TokUnitElem
   return (ExprUnitElem lo)
 
 parseExprUnitTy :: YuParsec Expr
 parseExprUnitTy = do
-  lo <- yuKeyTok TokCurlyL
-  _ <- yuKeyTok TokCurlyR
+  lo <- yuKeyTok TokUnitTy
   return (ExprUnitTy lo)
 
 parseExprTy :: YuParsec Expr
@@ -827,8 +833,7 @@ parsePatternLeaf = patStr <|> patUnit <|> patVar <|> patPat
 
     patUnit :: YuParsec ParsePattern
     patUnit = do
-      lo <- yuKeyTok TokSquareL
-      _ <- yuKeyTok TokSquareR
+      lo <- yuKeyTok TokUnitElem
       return (ParsePatternUnit lo)
 
     patStr :: YuParsec ParsePattern

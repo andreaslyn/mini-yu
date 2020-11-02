@@ -45,6 +45,8 @@ data TokType =
   | TokCase
   | TokOf
   | TokTy
+  | TokUnitTy
+  | TokUnitElem
   | TokPeriod
   | TokColon
   | TokColonEq
@@ -97,6 +99,8 @@ tokTypeString t =
     TokCase -> "case"
     TokOf -> "of"
     TokTy -> "Ty"
+    TokUnitTy -> "Unit"
+    TokUnitElem -> "unit"
     TokPeriod -> "."
     TokColon -> ":"
     TokColonEq -> ":="
@@ -220,6 +224,8 @@ makeWordTok s lo
   | s == "val.." = return (tok TokValDotDot lo)
   | s == ":=" = return (tok TokColonEq lo)
   | s == "Ty" = return (tok TokTy lo)
+  | s == "Unit" = return (tok TokUnitTy lo)
+  | s == "unit" = return (tok TokUnitElem lo)
   | s == "." = return (tok TokPeriod lo)
   | s == "->" = return (tok TokDashGreater lo)
   | s == "->>" = return (tok TokDashGreaterIo lo)

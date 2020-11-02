@@ -48,7 +48,7 @@ where
   let (a, x :: xs) => aux(x :: a, xs)
 end
 
-val main : () ->> {}
+val main : () ->> Unit
 let () =>
   xs := gen-list(10000000);
   case listFirstAndLast(reverse'(reverse'(xs)))

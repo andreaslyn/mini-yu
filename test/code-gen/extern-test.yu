@@ -7,7 +7,7 @@ extern (!_\) : Bool ->> Bool
 extern len : (A : Ty, A List) -> Nat
 
 
-val main : () ->> {}
+val main : () ->> Unit
 let () =>
   case (!_\)(true)
   of false => '1 println

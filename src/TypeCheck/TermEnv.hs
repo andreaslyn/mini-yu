@@ -834,8 +834,8 @@ writePreTerm _ _ (TermVar _ v) = do
   when pre (writeStr ")")
   --writeStr "."
   --writeStr (show (varId v))
-writePreTerm _ _ TermUnitElem = writeStr "[]"
-writePreTerm _ _ TermUnitTy = writeStr "{}"
+writePreTerm _ _ TermUnitElem = writeStr "unit"
+writePreTerm _ _ TermUnitTy = writeStr "Unit"
 writePreTerm _ _ TermTy = writeStr "Ty"
 writePreTerm _ _ TermEmpty = writeStr "()"
 writePreTerm im rm (TermCase e ct) = writeCaseTree im rm [Right e] ct

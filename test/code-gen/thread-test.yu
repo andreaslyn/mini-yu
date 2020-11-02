@@ -2,9 +2,9 @@ import "yu/parallel/parallel.yu"
 import "yu/print/print.yu"
 
 
-val printResult : Str | {} ->> {}
+val printResult : Str | Unit ->> Unit
 let (in1(msg)) => ("error: " :+: msg) println
-let (in2([])) => "ok" println
+let (in2(unit)) => "ok" println
 
 
 val 100 : Nat
@@ -14,18 +14,18 @@ val 10000 : Nat
 let => 100 * 100
 
 
-val spawnLoop : Nat ->> ([] -> Str | {}) List
+val spawnLoop : Nat ->> ([] -> Str | Unit) List
 let (0) => nil
 let (++ n) =>
   parallel'((). n str println) :: spawnLoop(n)
 
 
-val _foreach\_List\Ty[A : Ty] : (A List, A ->> {}) ->> {}
-let (nil, _) => []
+val _foreach\_List\Ty[A : Ty] : (A List, A ->> Unit) ->> Unit
+let (nil, _) => unit
 let (x :: xs, f) => f(x); xs foreach(f)
 
 
-val main : () ->> {}
+val main : () ->> Unit
 let () =>
   t1 := parallel' (). ('t :: '1 :: nil.Str) println;
   t2 := parallel' (). ('t :: '2 :: nil.Str) println;

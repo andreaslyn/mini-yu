@@ -22,7 +22,7 @@ where
 end
 
 val test2 : (X : Ty, m : Nat, n : Nat) -> Nat
-let (_, 0, n) => len(replicaten([]))
+let (_, 0, n) => len(replicaten(unit))
 where
   val replicaten[A : Ty] : A -> List(A)
   let (a) => replicate(n, a)

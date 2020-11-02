@@ -25,5 +25,5 @@ let => refl[]
 val test-lazy-absurd : LazyId(2)[](3) -> (A : Ty, A) -> A
 let (())
 
-val test : case 0[] of 0[] => Ty of p[](_)[] => {} end
-let => {}
+val test : case 0[] of 0[] => Ty of p[](_)[] => Unit end
+let => Unit

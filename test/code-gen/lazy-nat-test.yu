@@ -98,7 +98,7 @@ let (n0) =>
     end
   end
 
-val main : () ->> {}
+val main : () ->> Unit
 let () =>
   lnatToStr(N) println;
   lnatToStr(plus(N, succ(zero))) println

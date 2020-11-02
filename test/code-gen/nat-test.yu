@@ -35,7 +35,7 @@ let (n) =>
   q $ r := n divmod(10, isNonzero.Nat);
   natToStr(q) :+: natToStr(r)
 
-val main : () ->> {}
+val main : () ->> Unit
 let () =>
   N str println;
   plus(N, ++ 0) str println

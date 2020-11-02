@@ -177,7 +177,7 @@ let (cmp, x1 :: x2 :: xs) =>
   end
 
 
-val main : () ->> {}
+val main : () ->> Unit
 let () =>
   ms := gen-list(mN);
   case is-ordered(_<=_, msort(ms, _<=_))

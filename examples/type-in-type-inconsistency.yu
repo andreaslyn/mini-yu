@@ -17,7 +17,7 @@ let => m.M(Empty, _rec)
 
 
 val 1.M : M
-let => m.M({}, const(0.M))
+let => m.M(Unit, const(0.M))
 
 
 val 2.M : M

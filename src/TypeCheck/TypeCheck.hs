@@ -2354,9 +2354,9 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
       im <- Env.getImplicitMap
       rm <- Env.getRefMap
       if hasImplicitApp || hasApp
-      then err lo (Fatal $ "expected " ++ quote na
-                           ++ " to be constructor of\n"
-                           ++ preTermToString im rm defaultExprIndent ty)
+      then err lo (Recoverable $ "expected " ++ quote na
+                               ++ " to be constructor of\n"
+                               ++ preTermToString im rm defaultExprIndent ty)
       else do
         v <- insertNonblankFreshVariable (lo, na) ty
         return (IntMap.empty, Pattern {patternPre = PatternVar v,

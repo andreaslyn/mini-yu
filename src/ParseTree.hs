@@ -58,7 +58,7 @@ type VarListElem = ((Loc, String), Maybe Expr)
 
 type OptWhereClause = Maybe [Def]
 
--- I should have just treated x = y as an expression of type {},
+-- I should have just treated x = y as an expression of type Unit,
 -- and when it is an absurd pattern, such as
 --   () = z
 --   ctor(x, ()) = z'
@@ -223,7 +223,7 @@ writePattern (ParsePatternApp p ps) = writePattern p >> writePatternArgs ps
 writePattern (ParsePatternImplicitApp p ps) =
   writePattern p >> writePatternImplicitArgs ps
 writePattern (ParsePatternLazyApp p) = writePattern p >> writeStr "[]"
-writePattern (ParsePatternUnit _) = writeStr "[]"
+writePattern (ParsePatternUnit _) = writeStr "unit"
 writePattern (ParsePatternEmpty _) = writeStr "()"
 writePattern (ParsePatternVar (_, v)) = writeStr v
 
@@ -260,8 +260,8 @@ writeExprListTyped es = do
 
 writeExpr :: Expr -> ToString ()
 writeExpr (ExprTy _) = writeStr "Ty"
-writeExpr (ExprUnitElem _) = writeStr "[]"
-writeExpr (ExprUnitTy _) = writeStr "{}"
+writeExpr (ExprUnitElem _) = writeStr "unit"
+writeExpr (ExprUnitTy _) = writeStr "Unit"
 writeExpr (ExprFun _ vs e) = do
   writeStr "("
   writeVarList vs

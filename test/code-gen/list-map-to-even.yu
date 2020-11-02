@@ -32,5 +32,5 @@ let (ns) =>
 val test : Nat
 let => count-evens(evens(make-list(30'000)))
 
-val main : () ->> {}
+val main : () ->> Unit
 let () => test str println

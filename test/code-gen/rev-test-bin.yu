@@ -33,7 +33,7 @@ where
   let (a, x :: xs) => aux(x :: a, xs)
 end
 
-val main : () ->> {}
+val main : () ->> Unit
 let () =>
   xs := gen-list(1000000.Bin);
   case rev'(rev'(xs))

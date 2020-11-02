@@ -56,7 +56,7 @@ end
 val sreverse[A : Ty] : ([] -> A Stream) -> [] -> A Stream
 let (s) => sreverse'(s[])
 
-val main : () ->> {}
+val main : () ->> Unit
 let () =>
   xs := gen-stream(10000000);
   #{ Out of memory

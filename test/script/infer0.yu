@@ -1,16 +1,16 @@
 
-val test1 : {}
-let => ((x). x)([])
+val test1 : Unit
+let => ((x). x)(unit)
 
-val test2 : {}
-let => ((x, y). unit-id(x))([], Ty)
+val test2 : Unit
+let => ((x, y). unit-id(x))(unit, Ty)
 where
-  val unit-id : {} -> {}
-  let ([]) => []
+  val unit-id : Unit -> Unit
+  let (unit) => unit
 end
 
-val test3 : {}
-let => ((x). ([] := x; []))([])
+val test3 : Unit
+let => ((x). (unit := x; unit))(unit)
 
 data Id[A : Ty] : (A, A) -> Ty
 let refl[A : Ty, a : A] : Id(a, a)

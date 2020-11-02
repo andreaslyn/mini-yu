@@ -3,7 +3,7 @@ import "operations.yu"
 
 data _IsMonoid\Ty : Ty -> Ty
 let is.Monoid[A : Ty] :
-  (op : (A, A) -> A, unit : A, op IsAssociative, op HasUnit(unit)) -> A IsMonoid
+  (op : (A, A) -> A, unt : A, op IsAssociative, op HasUnit(unt)) -> A IsMonoid
 
 
 val _op\_IsMonoid\Ty[A : Ty] : A IsMonoid -> (A, A) -> A

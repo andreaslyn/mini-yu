@@ -92,5 +92,5 @@ let (n, a0, ai) => ind.Bin0(n, const(A), a0, ai)
 
 val _<_\Bin0 : (Bin0, Bin0) -> Ty
 let (_, 0.Bin0) => Empty
-let (0.Bin0, pos.Bin0(_)) => {}
+let (0.Bin0, pos.Bin0(_)) => Unit
 let (pos.Bin0(a), pos.Bin0(b)) => a < b

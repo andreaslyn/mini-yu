@@ -52,7 +52,7 @@ let (refl(succ(_))) => refl(x)
 
 data my-new-id[A : Ty] : A -> A -> Ty
 let my-new-id-ctor1[A : Ty] : (x : A) -> do (y : A) -> do my-new-id(x)(y)
-let my-new-id-ctor2[A : Ty] : do [] := []; (x : A) -> (y : A) -> my-new-id(x)(y)
+let my-new-id-ctor2[A : Ty] : do unit := unit; (x : A) -> (y : A) -> my-new-id(x)(y)
 let my-new-id-refl[A : Ty] : (x : A) -> my-new-id(x)(x)
 
 val test-my-new-id[n : Nat] : my-new-id(n)(plus(zero)(n)) -> Nat

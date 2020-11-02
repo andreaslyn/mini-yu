@@ -8,15 +8,15 @@ let (strPreFormat.Str(p)) => Str ->> p Printf
 let (charPreFormat.Str(p)) => Char ->> p Printf
 let (boolPreFormat.Str(p)) => Bool ->> p Printf
 let (constPreFormat.Str(_, p)) => p Printf
-let (errorPreFormat.Str) => {}
-let (nilPreFormat.Str) => {}
+let (errorPreFormat.Str) => Unit
+let (nilPreFormat.Str) => Unit
 
 
 val _Printf\Str : Str -> Ty
 let (s) => s preFormat Printf
 
 
-val printfAccum.print : (p : PreFormat.Str, () ->> {}) ->> p Printf
+val printfAccum.print : (p : PreFormat.Str, () ->> Unit) ->> p Printf
 let (natPreFormat.Str(p), a) =>
   (n). printfAccum.print(p, (). do a(); n print) 
 let (strPreFormat.Str(p), a) =>
@@ -27,12 +27,12 @@ let (boolPreFormat.Str(p), a) =>
   (b). printfAccum.print(p, (). do a(); b print)
 let (constPreFormat.Str(c, p), a) =>
   printfAccum.print(p, (). do a(); c print)
-let (errorPreFormat.Str, _) => []
+let (errorPreFormat.Str, _) => unit
 let (nilPreFormat.Str, a) => a()
 
 
 val _printf\PreFormat.Str : (p : PreFormat.Str) ->> p Printf
-let (p) => printfAccum.print(p, (). [])
+let (p) => printfAccum.print(p, (). unit)
 
 
 val _printf\Str : (s : Str) ->> s Printf

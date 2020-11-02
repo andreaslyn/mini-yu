@@ -1,6 +1,6 @@
 import "yu/print/print.yu"
 
-val main : () ->> {}
+val main : () ->> Unit
 let () =>
   test-io-in-case1(true);
   test-io-in-case2(true);
@@ -15,92 +15,92 @@ let () =>
   test-io-application1(true);
   test-io-lambda(true)
 
-val test-io-in-case1 : Bool ->> {}
-let (true) => []
+val test-io-in-case1 : Bool ->> Unit
+let (true) => unit
 let (false) => 'A print
 
-val test-io-in-case2 : Bool ->> {}
+val test-io-in-case2 : Bool ->> Unit
 let (b) =>
   case b
-  of true => []
+  of true => unit
   of false => 'B print
   end
 
-val test-io-in-case3 : Bool ->> {}
+val test-io-in-case3 : Bool ->> Unit
 let (b) =>
   case b
-  of true => []
-  of false => []
+  of true => unit
+  of false => unit
   end
 
-val test-io-in-lambda1 : Bool ->> {}
+val test-io-in-lambda1 : Bool ->> Unit
 let => (_). 'A print
 
-val test-io-in-lambda2 : Bool ->> {}
+val test-io-in-lambda2 : Bool ->> Unit
 let => (b).
   case b
   of true => 'A print
   of false => 'B print
   end
 
-val test-io-in-lambda3 : Bool ->> {}
-let => (_). []
+val test-io-in-lambda3 : Bool ->> Unit
+let => (_). unit
 
-val test-pass-io-fun1 : () ->> {}
+val test-pass-io-fun1 : () ->> Unit
 let () => take-io(test-io-in-case1)
 
-val test-pass-io-fun2 : Bool ->> {}
+val test-pass-io-fun2 : Bool ->> Unit
 let (b) =>
   take-io(case b
           of true => test-io-in-case1
           of false => test-io-in-case3
           end)
 
-val test-coerce-io-fun1 : () ->> {}
+val test-coerce-io-fun1 : () ->> Unit
 let () => take-io(dummy)
 where
-  val dummy : Bool -> {}
-  let (_) => []
+  val dummy : Bool -> Unit
+  let (_) => unit
 end
 
-val take-io : (Bool ->> {}) ->> {}
+val take-io : (Bool ->> Unit) ->> Unit
 let (f) => f(true)
 
-val test-coerce-io-fun2 : () ->> {}
+val test-coerce-io-fun2 : () ->> Unit
 let () => take-higher-io(dummy)
 where
-  val dummy : (Bool ->> {}) -> {}
-  let (_) => []
+  val dummy : (Bool ->> Unit) -> Unit
+  let (_) => unit
 end
 
-val take-higher-io : ((Bool ->> {}) ->> {}) ->> {}
+val take-higher-io : ((Bool ->> Unit) ->> Unit) ->> Unit
 let (f) => f(test-io-in-case1)
 
-val test-io-application1 : Bool ->> {}
+val test-io-application1 : Bool ->> Unit
 let (b) => dummy(test-io-in-lambda2(b))
 where
-  val dummy : {} -> {}
-  let ([]) => []
+  val dummy : Unit -> Unit
+  let (unit) => unit
 end
 
-val test-io-lambda : Bool ->> {}
+val test-io-lambda : Bool ->> Unit
 let (b) =>
   ((b : Bool). case b of true => 'A print of false => 'B print end)(b)
 
 val test-effect-type1 : Bool ->> Ty
 let (true) => 'A print; Bool
-let (b) => test-io-lambda(b); {}
+let (b) => test-io-lambda(b); Unit
 
 val test-effect-type2 : (b : Bool) ->> Ty
 let (b) =>
-  (Bool, test-effect-type1(b)) -> ('A print; {})
+  (Bool, test-effect-type1(b)) -> ('A print; Unit)
 
-val test-effect-type3 : {} ->> {}
-let ([]) =>
+val test-effect-type3 : Unit ->> Unit
+let (unit) =>
   f := (x : const[B := (_). Bool ->> Ty](Bool)(test-effect-type2)). x;
   case f(true)
-  of true => []
-  of false => 'F print; []
+  of true => unit
+  of false => 'F print; unit
   end
 where
   val const[A : Ty, B : A -> Ty] : (a : A) -> B(a) -> A
