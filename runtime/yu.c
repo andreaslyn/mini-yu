@@ -191,12 +191,10 @@ yur_Ref *yu_undefined_doundefined(yur_Ref *x) {
 }
 
 
-yur_Ref *yu_depFunext_doEqual(yur_Ref *B2, yur_Ref *B1,
-    yur_Ref *A2, yur_Ref *A1, yur_Ref *r, yur_Ref *g, yur_Ref *f) {
-  yur_unref(B2);
-  yur_unref(B1);
-  yur_unref(A2);
-  yur_unref(A1);
+yur_Ref *yu_funext_doEqual(yur_Ref *B, yur_Ref *A,
+    yur_Ref *r, yur_Ref *g, yur_Ref *f) {
+  yur_unref(B);
+  yur_unref(A);
   yur_unref(r);
   yur_unref(g);
   yur_Ref *x = yur_build(1, 0);
