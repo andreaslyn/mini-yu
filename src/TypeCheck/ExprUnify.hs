@@ -24,6 +24,8 @@ import qualified Data.IntSet as IntSet
 import Data.Maybe (fromJust)
 import Control.Exception (assert)
 
+--import Debug.Trace (trace)
+
 type ExprUnifResult m = ExceptT String (TypeCheckT m) SubstMap
 
 tcExprSubstUnify :: Monad m => Loc -> PreTerm -> PreTerm -> ExprT m ()
@@ -46,9 +48,9 @@ tcExprUnify lo t1 t2 = do
       rm <- lift Env.getRefMap
       return $
         "expected expression to have type\n"
-        ++ preTermToString im rm defaultExprIndent (preTermNormalize rm t1')
+        ++ preTermToString im rm defaultExprIndent t1'
         ++ "\nbut type is\n"
-        ++ preTermToString im rm defaultExprIndent (preTermNormalize rm t2')
+        ++ preTermToString im rm defaultExprIndent t2'
 
 runExprUnifResult :: Monad m =>
   Loc -> Bool -> ExprT m String -> PreTerm -> PreTerm -> ExprT m ()

@@ -1238,16 +1238,16 @@ hasLowerPrecThanInfixOp4 t = hasLowerPrecThanInfixOp5 t
 hasLowerPrecThanInfixOp5 :: PreTerm -> Bool
 hasLowerPrecThanInfixOp5 t@(TermApp _ (TermVar _ v) [_, _])
   | Str.isInfixOp6 (varName v) = True
-  | True = hasLowerPrecThanInfixOp4 t
+  | True = hasLowerPrecThanInfixOp6 t
 hasLowerPrecThanInfixOp5 t@(TermApp _ (TermCtor v _) [_, _])
   | Str.isInfixOp6 (varName v) = True
-  | True = hasLowerPrecThanInfixOp4 t
+  | True = hasLowerPrecThanInfixOp6 t
 hasLowerPrecThanInfixOp5 t@(TermApp _ (TermData v) [_, _])
   | Str.isInfixOp6 (varName v) = True
-  | True = hasLowerPrecThanInfixOp4 t
+  | True = hasLowerPrecThanInfixOp6 t
 hasLowerPrecThanInfixOp5 t@(TermApp _ (TermRef v _) [_, _])
   | Str.isInfixOp6 (varName v) = True
-  | True = hasLowerPrecThanInfixOp4 t
+  | True = hasLowerPrecThanInfixOp6 t
 hasLowerPrecThanInfixOp5 (TermApp io (TermImplicitApp False t _) xs) =
   hasLowerPrecThanInfixOp5 (TermApp io t xs)
 hasLowerPrecThanInfixOp5 t = hasLowerPrecThanInfixOp6 t
