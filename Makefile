@@ -20,13 +20,22 @@ else
 	PROF :=
 endif
 
+.PHONY: mini-yu
+mini-yu: $(EXE_PATH)
+
+.PHONY: config
+config:
+	mkdir -p mimalloc/out
+	cmake -Hmimalloc -Bmimalloc/out
+
+all: config mini-yu
+
 .PHONY: $(EXE_PATH)
 $(EXE_PATH): $(LIBMIMALLOC)
 	@PATH="$(PATH):$(INSTALL_PATH)" stack install $(PROF) $(PEDANT) $(FAST) --local-bin-path "$(INSTALL_PATH)"
 
+.PHONY: $(EXE_PATH)
 $(LIBMIMALLOC):
-	mkdir -p mimalloc/out
-	cmake -Hmimalloc -Bmimalloc/out
 	$(MAKE) -C mimalloc/out
 
 .PHONY: base_clean

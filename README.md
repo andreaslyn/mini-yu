@@ -14,21 +14,27 @@ In order to build the mini yu source code, you need to be running on
 a Unix system, Mac, Linux, FreeBSD, etc.
 
 Before building, make sure you have [stack](https://docs.haskellstack.org/en/stable/README/)
-version 2.5.1 or higher installed on the system. You can obtain version
+version >= 2.5.1 installed on the system. You can obtain version
 of stack with the command
 ```
 stack --version
 ```
-To build mini yu, go to the project root and enter the two commands
+If you have an older version of stack, then it may be possible to
+upgrade with the command
+```
+stack upgrade
+```
+To build mini yu, go to the project root and enter the commands
 ```
 git submodule update --init
+make config
 make
 ```
-This will clone [mimalloc](https://github.com/microsoft/mimalloc),
-which mini yu uses as memory allocator. The `make` command builds
-the Mini Yu compiler.
+This will clone the [mimalloc](https://github.com/microsoft/mimalloc)
+submodule, which mini yu uses as memory allocator. The `make` commands
+will configure and build the project.
 
-Once the build has finished, the `yuc` executable in the project root
+When the build has finished, the `yuc` executable in the project root
 can be used to compile mini yu source code. The next section describes
 how to get started.
 
@@ -117,7 +123,7 @@ let (m, succ(n)) => succ(plus(m, n))
 ```
 And transitivity of identity
 ```
-val trans[A : Ty, x : A, y : A, z : A] : (Id(x, y), Id(y, z)) -> Id(x, z)
+val trans[A : Ty, x; y; z : A] : (Id(x, y), Id(y, z)) -> Id(x, z)
 let (refl, p) => p
 ```
 
