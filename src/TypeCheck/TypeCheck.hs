@@ -2052,15 +2052,10 @@ makeTermApp subst flo ty f' args = do
       let aploop uniCod cat as = applyArgsLoop uniCod cat domVars c' False IntMap.empty False as
       (su, ps, io') <- aploop True True args''
                        `catchRecoverable`
-                       (\_ ->
-                        aploop False True args''
-                        `catchRecoverable`
-                        (\_ ->
-                         aploop True True (reverse args'')
-                         `catchRecoverable`
                          (\_ ->
-                          aploop False True (reverse args'')
-                          `catchRecoverable` (\_ -> aploop False False args''))))
+                            aploop False True args''
+                              `catchRecoverable`
+                                (\_ -> aploop False False args''))
       let ps' = map snd (sortOn fst ps)
       let c = substPreTerm su c'
       let e = TermApp io (termPre f') ps'
