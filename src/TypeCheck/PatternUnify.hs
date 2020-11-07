@@ -74,6 +74,14 @@ patternUnify2NoNormalize newPatternIds t1 t2 = do
   boundIds <- lift Env.getNextVarId
   patUnifWithBoundIds False newPatternIds boundIds t1 t2
 
+canAppUnify :: PreTerm -> Bool
+canAppUnify (TermApp _ f _) = canAppUnify f
+canAppUnify (TermLazyApp _ f) = canAppUnify f
+canAppUnify (TermImplicitApp _ f _) = canAppUnify f
+canAppUnify (TermData _) = True
+canAppUnify (TermCtor _ _) = True
+canAppUnify _ = False
+
 patUnifWithBoundIds :: Monad m =>
   Bool -> VarId -> VarId -> PreTerm -> PreTerm -> PatUnifResult m
 patUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do

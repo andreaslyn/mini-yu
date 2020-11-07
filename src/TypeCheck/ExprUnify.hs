@@ -72,6 +72,15 @@ runExprUnifResult lo normalize msgPrefix t1 t2 = do
         let m' = if m /= "" then p ++ "\n" ++ m else p
         lift (err lo (Recoverable m'))
 
+canAppUnify :: PreTerm -> Bool
+canAppUnify (TermApp _ f _) = canAppUnify f
+canAppUnify (TermLazyApp _ f) = canAppUnify f
+canAppUnify (TermImplicitApp _ f _) = canAppUnify f
+canAppUnify (TermData _) = True
+canAppUnify (TermCtor _ _) = True
+canAppUnify (TermVar False _) = True
+canAppUnify _ = False
+
 exprUnifWithBoundIds :: Monad m =>
   Bool -> VarId -> PreTerm -> PreTerm -> ExprUnifResult m
 exprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
