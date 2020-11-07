@@ -2049,12 +2049,18 @@ makeTermApp subst flo ty f' args = do
       let args' = dependencyOrderArgs (preTermVars r) d' args
       let args'' = map (\(i, (v, p), e) -> (i, Left (v, p, e))) args'
       let domVars = getDomVars d'
-      (su, ps, io') <- applyArgsLoop domVars c' False IntMap.empty False args''
+      let aploop uniCod cat as = applyArgsLoop uniCod cat domVars c' False IntMap.empty False as
+      (su, ps, io') <- aploop True True args''
+                       `catchRecoverable`
+                       (\_ ->
+                        aploop False True args''
                         `catchRecoverable`
-                            (\_ -> do
-                                    _ <- applyArgs False args''
-                                    _ <- unifyType domVars c' IntMap.empty
-                                    error "expected applyArgs or unifyType to throw error")
+                        (\_ ->
+                         aploop True True (reverse args'')
+                         `catchRecoverable`
+                         (\_ ->
+                          aploop False True (reverse args'')
+                          `catchRecoverable` (\_ -> aploop False False args''))))
       let ps' = map snd (sortOn fst ps)
       let c = substPreTerm su c'
       let e = TermApp io (termPre f') ps'
@@ -2073,22 +2079,26 @@ makeTermApp subst flo ty f' args = do
         Nothing -> return ()
 
     applyArgsLoop :: Monad m =>
-      IntSet -> PreTerm -> Bool -> SubstMap -> Bool ->
+      Bool -> Bool -> IntSet -> PreTerm -> Bool -> SubstMap -> Bool ->
       [(Int, Either (Maybe Var, PreTerm, Expr) PreTerm)] ->
       ExprT m (SubstMap, [(Int, PreTerm)], Bool)
-    applyArgsLoop domVars cod unified su io as = do
-      unifyType domVars cod su `catchRecoverable` (\_ -> return ())
+    applyArgsLoop uniCod cat domVars cod unified su io as = do
+      when uniCod $
+        unifyType domVars cod su
+          `catchRecoverable` (\msg -> if not cat
+                                      then throwError (Recoverable msg)
+                                      else return ())
       case projArgs as of
         Just xs -> return (su, xs, io)
         Nothing -> do
-          (progress, su', as', io') <- applyArgs True as
+          (progress, su', as', io') <- applyArgs cat as
           if progress
           then
-            applyArgsLoop domVars cod unified (IntMap.union su su') (io || io') as'
+            applyArgsLoop uniCod cat domVars cod unified (IntMap.union su su') (io || io') as'
           else
             if unified
             then throwError (Recoverable "")
-            else applyArgsLoop domVars cod True su io as
+            else applyArgsLoop uniCod cat domVars cod True su io as
       where
         projArgs :: 
           [(Int, Either (Maybe Var, PreTerm, Expr) PreTerm)] ->

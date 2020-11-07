@@ -21,7 +21,7 @@ import Data.Foldable (foldlM)
 import Control.Monad.Except
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
-import Data.Maybe (fromJust)
+import Data.Maybe (isJust, fromJust)
 import Control.Exception (assert)
 
 --import Debug.Trace (trace)
@@ -354,30 +354,43 @@ exprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
     doUnifyVarApp t1@(TermApp io1 f1 as1) t2@(TermApp io2 f2 as2) =
       case varBaseVars f1 as1 of
         Just (v1, vs1) ->
-          case varBaseVars f2 as2 of
-            Just (v2, vs2) -> do
-              rm <- lift Env.getRefMap
-              if preTermListsEqual rm as1 as2
-                 || varId v1 == varId v2 -- To allow empty subst map
-                                         -- when the terms are equal.
-              then doUnifyVarApp f1 f2
-              else
-                if varId v1 > varId v2
-                then do
-                  f2' <- lift (makeFunWithVarSubst io2 vs1 t2)
-                  doUnifyVarApp f1 f2'
-                else do
-                  f1' <- lift (makeFunWithVarSubst io1 vs2 t1)
-                  doUnifyVarApp f1' f2
-            Nothing -> do
-              f2' <- lift (makeFunWithVarSubst io2 vs1 t2)
-              doUnifyVarApp f1 f2'
+          tryUnifyAll `catchError` \_ -> do
+            case varBaseVars f2 as2 of
+              Just (v2, vs2) -> do
+                rm <- lift Env.getRefMap
+                if preTermListsEqual rm as1 as2
+                   || varId v1 == varId v2 -- To allow empty subst map
+                                           -- when the terms are equal.
+                then doUnifyVarApp f1 f2
+                else
+                  if varId v1 > varId v2
+                  then do
+                    f2' <- lift (makeFunWithVarSubst io2 vs1 t2)
+                    doUnifyVarApp f1 f2'
+                  else do
+                    f1' <- lift (makeFunWithVarSubst io1 vs2 t1)
+                    doUnifyVarApp f1' f2
+              Nothing -> do
+                f2' <- lift (makeFunWithVarSubst io2 vs1 t2)
+                doUnifyVarApp f1 f2'
         Nothing ->
           case varBaseVars f2 as2 of
-            Just (_, vs2) -> do
-              f1' <- lift (makeFunWithVarSubst io1 vs2 t1)
-              doUnifyVarApp f1' f2
+            Just (_, vs2) ->
+              tryUnifyAll `catchError` \_ -> do
+                f1' <- lift (makeFunWithVarSubst io1 vs2 t1)
+                doUnifyVarApp f1' f2
             Nothing -> throwError ""
+      where
+        tryUnifyAll :: Monad m => ExprUnifResult m 
+        tryUnifyAll
+          | length as1 == length as2
+            && ((all (isJust . varBaseTerm) as1 && isJust (varBaseTerm f1))
+               || (all (isJust . varBaseTerm) as2 && isJust (varBaseTerm f2))) = do
+              s1 <- doUnifyVarApp f1 f2
+              foldlM (\s (a1, a2)->
+                        doUnifyVarApp a1 a2 >>= mergeExprUnifMaps boundIds s
+                     ) s1 (zip as1 as2) 
+          | True = throwError ""
     doUnifyVarApp (TermApp io f1 as1) t2 =
       case varBaseVars f1 as1 of
         Nothing -> throwError ""
