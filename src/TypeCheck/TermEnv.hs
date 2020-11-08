@@ -19,6 +19,7 @@ module TypeCheck.TermEnv
   , preTermProjArgs
   , preTermToString
   , prePatternToString
+  , preTermTryProjectType
   , caseTreeToString
   )
 where
@@ -653,6 +654,52 @@ makePatternArgSubst ((a, (Just v, _)) : xs) =
 preTermExistsVar :: RefMap -> (VarId -> Bool) -> PreTerm -> Bool
 preTermExistsVar rm p t =
   not (IntSet.null (IntSet.filter p (preTermVars rm t)))
+
+preTermTryProjectType :: ImplicitMap -> RefMap -> PreTerm -> Maybe PreTerm
+preTermTryProjectType im rm (TermLazyApp _ f) = do
+  ty <- preTermTryProjectType im rm f
+  (cod, _) <- preTermLazyCod rm ty
+  return cod
+preTermTryProjectType im rm (TermImplicitApp _ f xs) = do
+  ty <- preTermTryProjectType im rm f
+  is <- case f of
+          TermData v -> return (Env.forceLookupImplicitMap (varId v) im)
+          TermCtor v _ -> return (Env.forceLookupImplicitMap (varId v) im)
+          TermRef v _ -> return (Env.forceLookupImplicitMap (varId v) im)
+          _ -> Nothing
+  let !() = assert (length is == length xs) ()
+  let su = foldl addSubst IntMap.empty (zip is xs)
+  return (substPreTerm su ty)
+  where
+    addSubst :: SubstMap -> ((Var, PreTerm), (VarName, PreTerm)) -> SubstMap
+    addSubst s ((v, _), (_, t)) = IntMap.insert (varId v) t s
+preTermTryProjectType im rm (TermApp _ f xs) = do
+  ty <- preTermTryProjectType im rm f
+  (dom, cod, _) <- preTermDomCod rm ty
+  let !() = assert (length dom == length xs) ()
+  let su = foldl addSubst IntMap.empty (zip dom xs)
+  return (substPreTerm su cod)
+  where
+    addSubst :: SubstMap -> ((Maybe Var, PreTerm), PreTerm) -> SubstMap
+    addSubst s ((Nothing, _), _) = s
+    addSubst s ((Just v, _), t) = IntMap.insert (varId v) t s
+preTermTryProjectType _ rm (TermData v) = do
+  fmap (termTy . fst) (IntMap.lookup (varId v) rm)
+preTermTryProjectType _ rm (TermCtor v _) =
+  fmap (termTy . fst) (IntMap.lookup (varId v) rm)
+preTermTryProjectType _ rm (TermRef v _) = 
+  fmap (termTy . fst) (IntMap.lookup (varId v) rm)
+preTermTryProjectType _ _ (TermArrow _ _ _) = Just TermTy
+preTermTryProjectType _ _ (TermLazyArrow _ _) = Just TermTy
+preTermTryProjectType _ _ TermUnitElem = Just TermUnitTy
+preTermTryProjectType _ _ TermUnitTy = Just TermTy
+preTermTryProjectType _ _ TermTy = Just TermTy
+preTermTryProjectType _ rm (TermVar _ v) =
+  fmap (termTy . fst) (IntMap.lookup (varId v) rm)
+preTermTryProjectType _ _ (TermCase _ _) = Nothing
+preTermTryProjectType _ _ TermEmpty = Nothing
+preTermTryProjectType _ _ (TermFun _ _ _ _) = Nothing
+preTermTryProjectType _ _ (TermLazyFun _ _) = Nothing
 
 ----------------- Pretty printing -------------------------------
 

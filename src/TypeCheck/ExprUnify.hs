@@ -392,13 +392,21 @@ exprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
       where
         tryUnifyAll :: Monad m => ExprUnifResult m 
         tryUnifyAll
-          | length as1 == length as2
-            && ((all (isJust . varBaseTerm) as1 && isJust (varBaseTerm f1))
-               || (all (isJust . varBaseTerm) as2 && isJust (varBaseTerm f2))) = do
-              s1 <- doUnifyVarApp f1 f2
-              foldlM (\s (a1, a2)->
-                        doUnifyVarApp a1 a2 >>= mergeExprUnifMaps boundIds s
-                     ) s1 (zip as1 as2) 
+        {- Something like this should work:
+          | length as1 == length as2 = do
+              im <- lift Env.getImplicitMap
+              rm <- lift Env.getRefMap
+              let t1 = preTermTryProjectType im rm f1
+              let t2 = preTermTryProjectType im rm f2
+              case (t1, t2) of
+                (Just t1', Just t2') -> do
+                  when (not (preTermsEqual rm t1' t2')) (throwError "")
+                  s1 <- doUnifyVarApp f1 f2
+                  foldlM (\s (a1, a2)->
+                            eunify2 a1 a2 >>= mergeExprUnifMaps boundIds s
+                         ) s1 (zip as1 as2) 
+                _ -> throwError ""
+        -}
           | True = throwError ""
     doUnifyVarApp (TermApp io f1 as1) t2 =
       case varBaseVars f1 as1 of
