@@ -1,0 +1,158 @@
+import "yu/prelude.yu"
+
+
+data _IsMonad\_->_ : (Ty -> Ty) -> Ty
+let isMonad[M : Ty -> Ty] : (
+  (A, A : Ty) -> M(A),
+  (M(A), [] -> A -> M(B), A : Ty, B : Ty) -> M(B)
+) -> M IsMonad
+
+
+val _pure\_IsMonad\_->_[A : Ty, M : Ty -> Ty] : M IsMonad -> A -> M(A)
+let (isMonad(r, _)) => r(_, A)
+
+
+val _bind\_IsMonad\_->_[A; B : Ty, M : Ty -> Ty] :
+  (M IsMonad, M(A)) -> ([] -> A -> M(B)) -> M(B)
+let (isMonad(_, b), a) => (f). b(a, f, A, B)
+
+
+data _IsEffect\_->_ : ((Ty, Ty -> Ty) -> Ty) -> Ty
+let isEffect[E : (Ty, Ty -> Ty) -> Ty] : (
+  (M(A), A : Ty, M : Ty -> Ty, M IsMonad) -> E(A, M),
+  (M : Ty -> Ty, M IsMonad) -> E(_, M) IsMonad
+) -> E IsEffect
+
+
+val _lift\_IsEffect\_->_[E : (Ty, Ty -> Ty) -> Ty, A : Ty, M : Ty -> Ty] :
+  (E IsEffect, M IsMonad) -> M(A) -> E(A, M)
+let (isEffect(l, _), isM) => (a). l(a, A, M, isM)
+
+
+val _isMonad\_IsEffect\_->_[E : (Ty, Ty -> Ty) -> Ty, M : Ty -> Ty] :
+  (E IsEffect, M IsMonad) -> E(_, M) IsMonad
+let (isEffect(_, m), isM) => m(M, isM)
+
+
+data Effect : Ty
+let mkEffect[E : (Ty, Ty -> Ty) -> Ty] : E IsEffect -> Effect
+
+
+val _Ty\Effect : Effect -> (Ty, Ty -> Ty) -> Ty
+let (mkEffect[E := E](_)) => E
+
+
+val _isEffect\Effect : (E : Effect) -> E Ty IsEffect
+let (mkEffect(x)) => x
+
+
+val _lift\Effect[A : Ty, M : Ty -> Ty] :
+  (E : Effect, M IsMonad) -> M(A) -> E Ty(A, M)
+let (E, isM) => E isEffect lift(isM)
+
+
+val _isMonad\Effect[M : Ty -> Ty] :
+  (E : Effect, M IsMonad) -> E Ty(_, M) IsMonad
+let (E, isM) => E isEffect isMonad(isM)
+
+
+val _StateE\Ty : (Ty, Ty -> Ty, Ty) -> Ty
+let (A, F, S) => S -> F(S & A)
+
+
+val stateEIsMonad[S : Ty, M : Ty -> Ty] :
+  M IsMonad -> _ StateE\Ty(M, S) IsMonad
+let (isM) => isMonad(pure, bind)
+where
+  val pure : (A, A : Ty) -> A StateE(M, S)
+  let (a, A) => (s). isM pure(s $ a)
+
+  val bind : (A StateE(M, S), [] -> A -> B StateE(M, S), A; B : Ty) -> B StateE(M, S)
+  let (x, f, A, B) =>
+    (s). isM bind(x(s)) (y). f[](y 2)(y 1)
+end
+
+
+val stateEIsEffect[S : Ty] : _ StateE\Ty(_, S) IsEffect
+let => isEffect(lift, (M, isM). stateEIsMonad(isM))
+where
+  val lift : (M(A), A : Ty, M : Ty -> Ty, M IsMonad) -> A StateE(M, S)
+  let (x, A, M, isM) => (s). isM bind(x) (x'). isM pure(s $ x')
+end
+
+
+val get.StateE[S : Ty, M : Ty -> Ty] :
+  M IsMonad -> S StateE(M, S)
+let (isM) => (s). isM pure(s $ s)
+
+
+val put.StateE[S : Ty, M : Ty -> Ty] :
+  (S, M IsMonad) -> Unit StateE(M, S)
+let (s, isM) => (_). isM pure(s $ unit)
+
+
+val stateE : Ty -> Effect
+let (S) => mkEffect(stateEIsEffect[S := S])
+
+
+val _OptionE\Ty : (Ty, Ty -> Ty) -> Ty
+let (A, F) => F(? A)
+
+
+val no.OptionE[A : Ty, M : Ty -> Ty] : M IsMonad -> A OptionE(M)
+let (isM) => isM pure(no)
+
+
+val optionEIsMonad[M : Ty -> Ty] :
+  M IsMonad -> _ OptionE\Ty(M) IsMonad
+let (isM) => isMonad(pure, bind)
+where
+  val pure : (A, A : Ty) -> A OptionE(M)
+  let (a, A) => isM pure(yes(a))
+
+  val bind : (A OptionE(M), [] -> A -> B OptionE(M), A; B : Ty) -> B OptionE(M)
+  let (x, f, A, B) =>
+    isM bind(x) (x').
+    case x'
+    of no => isM pure(no)
+    of yes(a) => f[](a)
+    end
+end
+
+
+val optionEIsEffect : _OptionE\Ty IsEffect
+let => isEffect(lift, (M, isM). optionEIsMonad(isM))
+where
+  val lift : (M(A), A : Ty, M : Ty -> Ty, M IsMonad) -> A OptionE(M)
+  let (x, A, M, isM) => isM bind(x) do isM pure @ yes
+end
+
+
+val optionE : Effect
+let => mkEffect(optionEIsEffect)
+
+
+val idIsMonad : id IsMonad
+let => isMonad(_:!_, bind)
+where
+  val bind : (A, [] -> A -> B, A; B : Ty) -> B
+  let (x, f, A, B) => f[](x)
+end
+
+
+val _composeE\_List\Ty : Effect List -> Ty -> Ty
+let (nil) => id
+let (E :: Es) => E Ty(_, Es composeE)
+
+
+val _composeEIsMonad\_List\Ty : (Es : Effect List) -> Es composeE IsMonad
+let (nil) => idIsMonad
+let (E :: Es) => E isMonad(Es composeEIsMonad)
+
+
+val test : (stateE(Nat) :: optionE :: nil) composeE(Unit)
+let =>
+  stateE(Nat) isMonad((optionE :: nil) composeEIsMonad)
+  bind(put.StateE(10, (optionE :: nil) composeEIsMonad)) (_). do
+  stateE(Nat) lift((optionE :: nil) composeEIsMonad) do
+  no.OptionE(nil composeEIsMonad)
