@@ -320,7 +320,7 @@ callRel p a = do
     unifyTypes b = do
       im <- lift (lift Env.getImplicitMap)
       rm <- lift (lift Env.getRefMap)
-      case (getTermPatternType im rm p, getTermPatternType im rm b) of
+      case (preTermGetAlphaType im rm IntMap.empty p, preTermGetAlphaType im rm IntMap.empty b) of
         (Just pty, Just aty) -> do
           newids <- lift (lift Env.getNextVarId)
           un <- lift (lift (runExceptT (patternUnify2 newids pty aty)))
@@ -542,51 +542,6 @@ caseTreeCatchAllCallSet x xs' (Just (is, ct)) = do
 
 newEnvCallSet :: SubstMap -> [PreTerm] -> [PreTerm]
 newEnvCallSet s as = map (substPreTerm s) as
-
-getTermPatternType :: ImplicitMap -> RefMap -> PreTerm -> Maybe PreTerm
-getTermPatternType im rm (TermLazyApp _ f) = do
-  ty <- getTermPatternType im rm f
-  (cod, _) <- preTermLazyCod rm ty
-  return cod
-getTermPatternType im rm (TermImplicitApp _ f xs) = do
-  ty <- getTermPatternType im rm f
-  is <- case f of
-          TermData v -> return (Env.forceLookupImplicitMap (varId v) im)
-          TermCtor v _ -> return (Env.forceLookupImplicitMap (varId v) im)
-          TermRef v _ -> return (Env.forceLookupImplicitMap (varId v) im)
-          _ -> Nothing
-  let !() = assert (length is == length xs) ()
-  let su = foldl addSubst IntMap.empty (zip is xs)
-  return (substPreTerm su ty)
-  where
-    addSubst :: SubstMap -> ((Var, PreTerm), (VarName, PreTerm)) -> SubstMap
-    addSubst s ((v, _), (_, t)) = IntMap.insert (varId v) t s
-getTermPatternType im rm (TermApp _ f xs) = do
-  ty <- getTermPatternType im rm f
-  (dom, cod, _) <- preTermDomCod rm ty
-  let !() = assert (length dom == length xs) ()
-  let su = foldl addSubst IntMap.empty (zip dom xs)
-  return (substPreTerm su cod)
-  where
-    addSubst :: SubstMap -> ((Maybe Var, PreTerm), PreTerm) -> SubstMap
-    addSubst s ((Nothing, _), _) = s
-    addSubst s ((Just v, _), t) = IntMap.insert (varId v) t s
-getTermPatternType _ rm (TermData v) = do
-  fmap (termTy . fst) (IntMap.lookup (varId v) rm)
-getTermPatternType _ rm (TermCtor v _) =
-  fmap (termTy . fst) (IntMap.lookup (varId v) rm)
-getTermPatternType _ rm (TermRef v _) = 
-  fmap (termTy . fst) (IntMap.lookup (varId v) rm)
-getTermPatternType _ _ (TermArrow _ _ _) = Just TermTy
-getTermPatternType _ _ (TermLazyArrow _ _) = Just TermTy
-getTermPatternType _ _ TermUnitElem = Just TermUnitTy
-getTermPatternType _ _ TermUnitTy = Just TermTy
-getTermPatternType _ _ TermTy = Just TermTy
-getTermPatternType _ _ (TermVar _ _) = Nothing
-getTermPatternType _ _ (TermCase _ _) = Nothing
-getTermPatternType _ _ TermEmpty = Nothing
-getTermPatternType _ _ (TermFun _ _ _ _) = Nothing
-getTermPatternType _ _ (TermLazyFun _ _) = Nothing
 
 listRemoveIdx :: Int -> [a] -> (a, [a])
 listRemoveIdx 0 (x:xs) = (x, xs)
