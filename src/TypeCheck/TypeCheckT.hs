@@ -15,7 +15,7 @@ module TypeCheck.TypeCheckT
   ) where
 
 import Loc (Loc)
-import TypeCheck.Env (EnvT)
+import qualified TypeCheck.Env as Env
 import TypeCheck.Term
 import Control.Monad.State
 import Control.Monad.Reader
@@ -33,7 +33,7 @@ typeCheckErrMsg (Fatal s) = s
 typeCheckErrMsg (Recoverable s) = s
 
 type TypeCheckT m =
-  EnvT (StateT (Set FilePath) (ReaderT FilePath (ExceptT TypeCheckErr m)))
+  Env.EnvT (StateT (Set FilePath) (ReaderT FilePath (ExceptT TypeCheckErr m)))
 
 err :: Monad m => Loc -> TypeCheckErr -> TypeCheckT m a
 err lo msg = do
@@ -66,8 +66,9 @@ modifyExprSubst f = modify (\(s, x) -> (f s, x))
 putExprSubst :: Monad m => SubstMap -> ExprT m ()
 putExprSubst s = modifyExprSubst (const s)
 
-impMapInsert ::  Monad m => VarId -> Loc -> String -> ExprT m ()
-impMapInsert i lo msg =
+impMapInsert :: Monad m => VarId -> PreTerm -> Loc -> String -> ExprT m ()
+impMapInsert i t lo msg = do
+  lift (Env.forceInsertImplicitVar i t)
   modify (\(s, ImpMap m p) ->
               (s, ImpMap (IntMap.insert i (lo, msg) m) p))
 

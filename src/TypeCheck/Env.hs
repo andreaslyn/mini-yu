@@ -37,6 +37,10 @@ module TypeCheck.Env
   , withDepth
   , getDepth
   , getNextVarId
+  , ImplicitVarMap
+  , getImplicitVarMap
+  , forceInsertImplicitVar
+  , clearImplicitVarMap
   )
 where
 
@@ -65,11 +69,14 @@ type ScopeMap = Map.Map VarName VarStatus
 
 data Env = Env ScopeMap (Maybe Env) deriving Show
 
+type ImplicitVarMap = IntMap.IntMap PreTerm
+
 data EnvSt = EnvSt
   { env :: Env
   , nextVarId :: VarId
   , nextRefId :: VarId
   , refMap :: RefMap
+  , implicitVarMap :: ImplicitVarMap
   , externSet :: ExternSet
   , implicitMap :: ImplicitMap
   , dataCtorMap :: DataCtorMap }
@@ -98,6 +105,7 @@ emptyCtxSt =
     , nextVarId = 0
     , nextRefId = 0
     , refMap = IntMap.empty
+    , implicitVarMap = IntMap.empty
     , externSet = IntSet.empty
     , implicitMap = IntMap.empty
     , dataCtorMap = IntMap.empty }
@@ -112,6 +120,9 @@ runEnvT s =
 getRefMap :: Monad m => EnvT m RefMap
 getRefMap = fmap refMap get
 
+getImplicitVarMap :: Monad m => EnvT m ImplicitVarMap
+getImplicitVarMap = fmap implicitVarMap get
+
 getExternSet :: Monad m => EnvT m ExternSet
 getExternSet = fmap externSet get
 
@@ -123,6 +134,9 @@ getDataCtorMap = fmap dataCtorMap get
 
 modifyRefMap :: Monad m => (RefMap -> RefMap) -> EnvT m ()
 modifyRefMap f = modify (\s -> s{refMap = f (refMap s)})
+
+modifyImplicitVarMap :: Monad m => (ImplicitVarMap -> ImplicitVarMap) -> EnvT m ()
+modifyImplicitVarMap f = modify (\s -> s{implicitVarMap = f (implicitVarMap s)})
 
 modifyExternSet :: Monad m => (ExternSet -> ExternSet) -> EnvT m ()
 modifyExternSet f = modify (\s -> s{externSet = f (externSet s)})
@@ -305,6 +319,12 @@ forceInsertRef lo na isPure i t = do
               , refMetaName = na
               }
   modifyRefMap (IntMap.insert i (t, meta))
+
+forceInsertImplicitVar :: Monad m => VarId -> PreTerm -> EnvT m ()
+forceInsertImplicitVar i t = modifyImplicitVarMap (IntMap.insert i t)
+
+clearImplicitVarMap :: Monad m => EnvT m ()
+clearImplicitVarMap = modifyImplicitVarMap (\_ -> IntMap.empty)
 
 forceInsertImplicit ::
   Monad m => VarId -> Implicits -> EnvT m ()

@@ -19,7 +19,7 @@ module TypeCheck.TermEnv
   , preTermProjArgs
   , preTermToString
   , prePatternToString
-  , preTermTryProjectType
+  , preTermGetAlphaType
   , caseTreeToString
   )
 where
@@ -35,8 +35,9 @@ import Data.Maybe (fromJust, isJust, isNothing)
 import Control.Exception (assert)
 import Control.Monad.Trans.State
 import Control.Monad.Writer
+import Control.Applicative ((<|>))
 --import Data.List (sortOn, intercalate)
-import Data.List (sortOn)
+import Data.List (sortOn, findIndex)
 import qualified Str
 
 import Debug.Trace (trace)
@@ -655,13 +656,13 @@ preTermExistsVar :: RefMap -> (VarId -> Bool) -> PreTerm -> Bool
 preTermExistsVar rm p t =
   not (IntSet.null (IntSet.filter p (preTermVars rm t)))
 
-preTermTryProjectType :: ImplicitMap -> RefMap -> PreTerm -> Maybe PreTerm
-preTermTryProjectType im rm (TermLazyApp _ f) = do
-  ty <- preTermTryProjectType im rm f
+preTermGetAlphaType :: ImplicitMap -> RefMap -> Env.ImplicitVarMap -> PreTerm -> Maybe PreTerm
+preTermGetAlphaType im rm iv (TermLazyApp _ f) = do
+  ty <- preTermGetAlphaType im rm iv f
   (cod, _) <- preTermLazyCod rm ty
   return cod
-preTermTryProjectType im rm (TermImplicitApp _ f xs) = do
-  ty <- preTermTryProjectType im rm f
+preTermGetAlphaType im rm iv (TermImplicitApp _ f xs) = do
+  ty <- preTermGetAlphaType im rm iv f
   is <- case f of
           TermData v -> return (Env.forceLookupImplicitMap (varId v) im)
           TermCtor v _ -> return (Env.forceLookupImplicitMap (varId v) im)
@@ -673,8 +674,8 @@ preTermTryProjectType im rm (TermImplicitApp _ f xs) = do
   where
     addSubst :: SubstMap -> ((Var, PreTerm), (VarName, PreTerm)) -> SubstMap
     addSubst s ((v, _), (_, t)) = IntMap.insert (varId v) t s
-preTermTryProjectType im rm (TermApp _ f xs) = do
-  ty <- preTermTryProjectType im rm f
+preTermGetAlphaType im rm iv (TermApp _ f xs) = do
+  ty <- preTermGetAlphaType im rm iv f
   (dom, cod, _) <- preTermDomCod rm ty
   let !() = assert (length dom == length xs) ()
   let su = foldl addSubst IntMap.empty (zip dom xs)
@@ -683,23 +684,74 @@ preTermTryProjectType im rm (TermApp _ f xs) = do
     addSubst :: SubstMap -> ((Maybe Var, PreTerm), PreTerm) -> SubstMap
     addSubst s ((Nothing, _), _) = s
     addSubst s ((Just v, _), t) = IntMap.insert (varId v) t s
-preTermTryProjectType _ rm (TermData v) = do
+preTermGetAlphaType _ rm _ (TermData v) = do
   fmap (termTy . fst) (IntMap.lookup (varId v) rm)
-preTermTryProjectType _ rm (TermCtor v _) =
+preTermGetAlphaType _ rm _ (TermCtor v _) =
   fmap (termTy . fst) (IntMap.lookup (varId v) rm)
-preTermTryProjectType _ rm (TermRef v _) = 
+preTermGetAlphaType _ rm _ (TermRef v _) = 
   fmap (termTy . fst) (IntMap.lookup (varId v) rm)
-preTermTryProjectType _ _ (TermArrow _ _ _) = Just TermTy
-preTermTryProjectType _ _ (TermLazyArrow _ _) = Just TermTy
-preTermTryProjectType _ _ TermUnitElem = Just TermUnitTy
-preTermTryProjectType _ _ TermUnitTy = Just TermTy
-preTermTryProjectType _ _ TermTy = Just TermTy
-preTermTryProjectType _ rm (TermVar _ v) =
-  fmap (termTy . fst) (IntMap.lookup (varId v) rm)
-preTermTryProjectType _ _ (TermCase _ _) = Nothing
-preTermTryProjectType _ _ TermEmpty = Nothing
-preTermTryProjectType _ _ (TermFun _ _ _ _) = Nothing
-preTermTryProjectType _ _ (TermLazyFun _ _) = Nothing
+preTermGetAlphaType _ _ iv (TermVar _ v) = IntMap.lookup (varId v) iv
+preTermGetAlphaType im rm iv (TermLazyFun io f) =
+  fmap (TermLazyArrow io) (preTermGetAlphaType im rm iv f)
+preTermGetAlphaType im rm iv (TermFun [] io (Just _) (CaseLeaf vs _ f _)) = do
+  ds <- mapM (inferVarAlphaType im rm iv f) vs
+  fmap (TermArrow io (zip (map Just vs) ds)) (preTermGetAlphaType im rm iv f)
+preTermGetAlphaType _ _ _ (TermArrow _ _ _) = Just TermTy
+preTermGetAlphaType _ _ _ (TermLazyArrow _ _) = Just TermTy
+preTermGetAlphaType _ _ _ TermUnitElem = Just TermUnitTy
+preTermGetAlphaType _ _ _ TermUnitTy = Just TermTy
+preTermGetAlphaType _ _ _ TermTy = Just TermTy
+preTermGetAlphaType _ _ _ (TermFun _ _ _ _) = Nothing
+preTermGetAlphaType _ _ _ (TermCase _ _) = Nothing
+preTermGetAlphaType _ _ _ TermEmpty = Nothing
+
+preTermIsThisVar :: Var -> PreTerm -> Bool
+preTermIsThisVar v (TermVar False w) = varId v == varId w
+preTermIsThisVar _ _ = False
+
+inferVarAlphaType :: ImplicitMap -> RefMap -> Env.ImplicitVarMap -> PreTerm -> Var -> Maybe PreTerm
+inferVarAlphaType im rm iv (TermLazyApp _ f) v = inferVarAlphaType im rm iv f v
+inferVarAlphaType im rm iv (TermImplicitApp _ f xs) v = do
+  inferVarAlphaType im rm iv f v
+  <|> (findIndex (preTermIsThisVar v . snd) xs >>= getFromArgs)
+  where
+    getFromArgs :: Int -> Maybe PreTerm
+    getFromArgs i = do
+      is <- case f of
+              TermData x -> return (Env.forceLookupImplicitMap (varId x) im)
+              TermCtor x _ -> return (Env.forceLookupImplicitMap (varId x) im)
+              TermRef x _ -> return (Env.forceLookupImplicitMap (varId x) im)
+              _ -> Nothing
+      let !() = assert (length is == length xs) ()
+      Just (snd (is !! i))
+inferVarAlphaType im rm iv (TermApp _ f xs) v = do
+  inferVarAlphaType im rm iv f v
+  <|> (findIndex (preTermIsThisVar v) xs >>= getFromArgs)
+  where
+    getFromArgs :: Int -> Maybe PreTerm
+    getFromArgs i = do
+      t <- preTermGetAlphaType im rm iv f
+      case t of
+        TermArrow _ d _ -> do
+          let !() = assert (length d == length xs) ()
+          Just (snd (d !! i))
+        _ -> error "expected type of applied term to be arrow"
+inferVarAlphaType im rm iv (TermLazyFun _ f) v =
+  inferVarAlphaType im rm iv f v
+inferVarAlphaType im rm iv (TermFun _ _ _ (CaseLeaf _ _ f _)) v = do
+  inferVarAlphaType im rm iv f v
+inferVarAlphaType _ _ _ (TermData _) _ = Nothing
+inferVarAlphaType _ _ _ (TermCtor _ _) _ = Nothing
+inferVarAlphaType _ _ _ (TermRef _ _) _ = Nothing
+inferVarAlphaType _ _ _ (TermVar _ _) _ = Nothing
+inferVarAlphaType _ _ _ (TermArrow _ _ _) _ = Nothing
+inferVarAlphaType _ _ _ (TermLazyArrow _ _) _ = Nothing
+inferVarAlphaType _ _ _ TermUnitElem _ = Nothing
+inferVarAlphaType _ _ _ TermUnitTy _ = Nothing
+inferVarAlphaType _ _ _ TermTy _ = Nothing
+inferVarAlphaType _ _ _ (TermFun _ _ _ _) _ = Nothing
+inferVarAlphaType _ _ _ (TermCase _ _) _ = Nothing
+inferVarAlphaType _ _ _ TermEmpty _ = Nothing
 
 ----------------- Pretty printing -------------------------------
 

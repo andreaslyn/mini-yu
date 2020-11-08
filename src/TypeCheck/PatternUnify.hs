@@ -19,7 +19,6 @@ import TypeCheck.TypeCheckT
 import TypeCheck.Term
 import TypeCheck.TermEnv
 import TypeCheck.SubstMap
-import TypeCheck.UnifyCommon
 
 import Data.Foldable (foldlM)
 import Control.Monad.Except
@@ -310,7 +309,7 @@ patUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
     makeNewVarIds (i:is) = do
       (vs, su) <- makeNewVarIds is
       i' <- Env.freshVarId
-      let v = TermVar False (mkVar i' "_")
+      let v = TermVar False (mkVar i' ('#' : varName i))
       let vs' = v : vs
       let su' = IntMap.insert (varId i) v su
       return (vs', su')
@@ -568,6 +567,13 @@ patUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
         ++ preTermToString im r defaultExprIndent t1 ++ "\n"
         ++ "with\n"
         ++ preTermToString im r defaultExprIndent t2
+
+makeFunWithVarSubst :: Monad m => Bool -> [Var] -> PreTerm -> TypeCheckT m PreTerm
+makeFunWithVarSubst isIo vs t = do
+  vs' <- mapM (\v -> fmap (flip mkVar (varName v)) Env.freshVarId) vs
+  let su = IntMap.fromList (zip (map varId vs) (map (TermVar False) vs'))
+  let ct = CaseLeaf vs' isIo (substPreTerm su t) []
+  return (TermFun [] isIo (Just (length vs)) ct)
 
 mergePatUnifMaps :: Monad m =>
   VarId -> VarId -> SubstMap -> SubstMap -> PatUnifResult m

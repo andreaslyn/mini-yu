@@ -27,7 +27,7 @@ import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import TypeCheck.SubstMap
-import Data.List (find, sortOn, isPrefixOf)
+import Data.List (find, sortOn, sortBy, isPrefixOf)
 import Data.Foldable (foldlM, foldrM)
 import System.Directory
   (getCurrentDirectory, setCurrentDirectory, canonicalizePath,
@@ -308,7 +308,10 @@ tcInitProgram compiling stdImport prog = do
     checkPositivity _ = return ()
 
 tcProgram :: MonadIO m => FilePath -> Program -> TypeCheckT m [RefVar]
-tcProgram _ ([], defs) = tcDefsToVars IntMap.empty defs
+tcProgram _ ([], defs) = do
+  rs <- tcDefsToVars IntMap.empty defs
+  Env.clearImplicitVarMap
+  return rs
 tcProgram stdImport ((lo, ina) : imps, defs) = do
   cf <- ask
   let cd = takeDirectory cf
@@ -1579,10 +1582,10 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
           return (mkTerm a aty False)
 
     getImplicit :: Monad m => (Var, PreTerm) -> ExprT m (Var, PreTerm)
-    getImplicit (v, _) = do
+    getImplicit (v, vt) = do
       i <- lift Env.freshVarId
       let v' = mkVar i ('.' : varName v)
-      impMapInsert i lo $
+      impMapInsert i vt lo $
         "unable to infer implicit argument " ++ varName v
       return (v, TermVar True v')
 doTcExpr _ subst _ ty (ExprFun lo as body) = do
@@ -1643,7 +1646,7 @@ doTcExpr _ subst _ ty (ExprFun lo as body) = do
     insertImplicit ((vlo, vna), Nothing) = do
       i <- lift Env.freshVarId
       let e = TermVar True (mkVar i ('.' : vna ++ ".Ty"))
-      impMapInsert i vlo $ "unable to infer type of " ++ quote vna
+      impMapInsert i TermTy vlo $ "unable to infer type of " ++ quote vna
       return (Just e)
     insertImplicit (_, Just _) = return Nothing
 
@@ -2046,16 +2049,22 @@ makeTermApp subst flo ty f' args = do
                   (Fatal $
                     "expected " ++ show (length d') ++ " argument(s), "
                     ++ "but given " ++ show (length args)))
-      let args' = dependencyOrderArgs (preTermVars r) d' args
-      let args'' = map (\(i, (v, p), e) -> (i, Left (v, p, e))) args'
+      iv <- lift Env.getImplicitVarMap
+      let args0 = dependencyOrderArgsWithOrder
+                    appOrdering
+                    (preTermVars r . fst)
+                    (map (\(x, y) ->
+                      (x, (y, getAppArgumentWeight r iv y))) d')
+                    args
+      let args1 = map (\(i, (v, (p, _)), e) -> (i, Left (v, p, e))) args0
       let domVars = getDomVars d'
       let aploop uniCod cat as = applyArgsLoop uniCod cat domVars c' False IntMap.empty False as
-      (su, ps, io') <- aploop True True args''
+      (su, ps, io') <- aploop True True args1
                        `catchRecoverable`
                          (\_ ->
-                            aploop False True args''
+                            aploop False True args1
                               `catchRecoverable`
-                                (\_ -> aploop False False args''))
+                                (\_ -> aploop False False args1))
       let ps' = map snd (sortOn fst ps)
       let c = substPreTerm su c'
       let e = TermApp io (termPre f') ps'
@@ -2150,6 +2159,86 @@ makeTermApp subst flo ty f' args = do
       (idx, Right t) : substArgs r m xs
     substArgs r m ((idx, Left (v, p, e)) : xs) =
       (idx, Left (v, substPreTerm m p, e)) : substArgs r m xs
+
+appOrdering :: (PreTerm, (Int, Int)) -> (PreTerm, (Int, Int)) -> Ordering
+appOrdering (_, n1) (_, n2) = compare n1 n2
+
+getAppArgumentWeight ::
+  RefMap -> Env.ImplicitVarMap -> PreTerm -> (Int, Int)
+getAppArgumentWeight rm iv t =
+  let t' = preTermNormalize rm t
+      s = IntSet.size (getAppliedImplicits IntSet.empty rm t')
+      u = IntSet.size (unappliedImplicits t')
+  in (s, -u)
+  where
+    unappliedImplicits :: PreTerm -> IntSet
+    unappliedImplicits p =
+      IntSet.filter (flip IntMap.member iv) (preTermVars rm p)
+
+getAppliedImplicits :: IntSet -> RefMap -> PreTerm -> IntSet
+getAppliedImplicits vis rm (TermLazyApp _ f) =
+  getAppliedImplicits vis rm f
+getAppliedImplicits vis rm (TermImplicitApp _ f xs) =
+  IntSet.union
+    (getAppliedImplicits vis rm f)
+    (foldl (\a x ->
+      IntSet.union a $ getAppliedImplicits vis rm (snd x)) IntSet.empty xs)
+getAppliedImplicits vis rm (TermApp _ (TermVar True v) xs) =
+  IntSet.insert
+    (varId v)
+    (foldl (\a x ->
+      IntSet.union a $ getAppliedImplicits vis rm x) IntSet.empty xs)
+getAppliedImplicits vis rm (TermApp _ f xs) = do
+  IntSet.union
+    (getAppliedImplicits vis rm f)
+    (foldl (\a x ->
+      IntSet.union a $ getAppliedImplicits vis rm x) IntSet.empty xs)
+getAppliedImplicits vis rm (TermLazyFun _ f) =
+  getAppliedImplicits vis rm f
+getAppliedImplicits _ _ (TermData _) = IntSet.empty
+getAppliedImplicits _ _ (TermCtor _ _) = IntSet.empty
+getAppliedImplicits vis rm (TermRef v s) =
+  if IntSet.member (varId v) vis
+  then IntSet.empty
+  else
+    let t0 = IntMap.lookup (varId v) rm
+    in case t0 of
+        Nothing -> IntSet.empty
+        Just (t, _) ->
+          let t' = substPreTerm s (termPre t)
+          in getAppliedImplicits (IntSet.insert (varId v) vis) rm t'
+getAppliedImplicits vis rm (TermArrow _ d c) =
+  IntSet.union
+    (getAppliedImplicits vis rm c)
+    (foldl (\a x ->
+      IntSet.union a $ getAppliedImplicits vis rm (snd x)) IntSet.empty d)
+getAppliedImplicits vis rm (TermLazyArrow _ c) =
+  getAppliedImplicits vis rm c
+getAppliedImplicits vis rm (TermFun _ _ _ ct) =
+  getAppliedImplicitsCaseTree vis rm ct
+getAppliedImplicits vis rm (TermCase t ct) =
+  IntSet.union
+    (getAppliedImplicits vis rm t)
+    (getAppliedImplicitsCaseTree vis rm ct)
+getAppliedImplicits _ _ (TermVar _ _) = IntSet.empty
+getAppliedImplicits _ _ TermUnitElem = IntSet.empty
+getAppliedImplicits _ _ TermUnitTy = IntSet.empty
+getAppliedImplicits _ _ TermTy = IntSet.empty
+getAppliedImplicits _ _ TermEmpty = IntSet.empty
+
+getAppliedImplicitsCaseTree ::
+  IntSet -> RefMap -> CaseTree -> IntSet
+getAppliedImplicitsCaseTree vis rm (CaseLeaf _ _ te _) =
+  getAppliedImplicits vis rm te
+getAppliedImplicitsCaseTree vis rm (CaseUnit _ (_, ct)) =
+  getAppliedImplicitsCaseTree vis rm ct
+getAppliedImplicitsCaseTree vis rm (CaseNode _ m d) =
+  let d' = case d of
+            Nothing -> IntSet.empty
+            Just (_, ct) -> getAppliedImplicitsCaseTree vis rm ct
+  in IntMap.foldl (\a (_, x) ->
+      IntSet.union a $ getAppliedImplicitsCaseTree vis rm x) d' m
+getAppliedImplicitsCaseTree _ _ (CaseEmpty _) = IntSet.empty
 
 tcPattern :: Monad m =>
   VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
@@ -2545,3 +2634,55 @@ dependencyOrderArgs = \f ps es -> do
         else
           let (vs', n, ps') = findNextFreeParam vs ps
           in (vs', n, x : ps')
+
+dependencyOrderArgsWithOrder ::
+  (t -> t -> Ordering) -> (t -> VarIdSet) -> [(Maybe Var, t)] -> [a] ->
+  [(Int, (Maybe Var, t), a)]
+dependencyOrderArgsWithOrder = \order f ps es -> do
+  let vs = paramVars ps
+  let ps' = zipParamVars f 0 ps es
+  doRearrange order vs ps'
+  where
+    paramVars :: [(Maybe Var, t)] -> VarIdSet
+    paramVars [] = IntSet.empty
+    paramVars ((Nothing, _) : ps) = paramVars ps
+    paramVars ((Just v, _) : ps) = IntSet.insert (varId v) (paramVars ps)
+
+    zipParamVars ::
+      (t -> VarIdSet) -> Int -> [(Maybe Var, t)] -> [a] ->
+      [(Int, (Maybe Var, t, VarIdSet), a)]
+    zipParamVars _ _ [] [] = []
+    zipParamVars f idx ((v, p) : ps) (e : es) =
+      (idx, (v, p, f p), e) : zipParamVars f (idx + 1) ps es
+    zipParamVars _ _ _ _ = error "unreachable case"
+
+    doRearrange :: (t -> t -> Ordering) -> VarIdSet ->
+                   [(Int, (Maybe Var, t, VarIdSet), a)] ->
+                   [(Int, (Maybe Var, t), a)]
+    doRearrange _ _ [] = []
+    doRearrange order vs ps =
+      let fs0 = findFreeIndices 0 vs ps
+          fs = sortBy (\x y -> order (snd x) (snd y)) fs0
+          (vs', n, ps') = nextFreeParamAt (fst (head fs)) vs ps
+      in n : doRearrange order vs' ps'
+
+    nextFreeParamAt ::
+      Int -> VarIdSet -> [(Int, (Maybe Var, t, VarIdSet), a)] ->
+      (VarIdSet, (Int, (Maybe Var, t), a),
+        [(Int, (Maybe Var, t, VarIdSet), a)])
+    nextFreeParamAt _ _ [] = error "is there a cyclic parm dependency?"
+    nextFreeParamAt 0 vs ((idx, (v, p, _), e) : ps) =
+      case v of
+        Nothing -> (vs, (idx, (v, p), e), ps)
+        Just v' -> (IntSet.delete (varId v') vs, (idx, (v, p), e), ps)
+    nextFreeParamAt i vs (x : ps) =
+      let (vs', n, ps') = nextFreeParamAt (i-1) vs ps
+      in (vs', n, x : ps')
+
+    findFreeIndices ::
+      Int -> VarIdSet -> [(Int, (Maybe Var, t, VarIdSet), a)] -> [(Int, t)]
+    findFreeIndices _ _ [] = []
+    findFreeIndices idx vs ((_, (_, p, is), _) : ps) =
+      if IntSet.disjoint vs is
+        then (idx, p) : findFreeIndices (idx + 1) vs ps
+        else findFreeIndices (idx + 1) vs ps

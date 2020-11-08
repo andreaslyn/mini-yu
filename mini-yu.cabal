@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b535f0e4fb60d4ec79a5a0737cbc9be2fcf9d52ba320c7f64c0449203f7172f5
+-- hash: c9a3404d51de851e27e4399bed788bf1b446b1be8b65fd4347a982ca5a2efe31
 
 name:           mini-yu
 version:        0.1.3.0
@@ -42,7 +42,6 @@ library
       TypeCheck.TerminationCheck
       TypeCheck.TypeCheck
       TypeCheck.TypeCheckT
-      TypeCheck.UnifyCommon
       YuParser
       YuScanner
   other-modules:

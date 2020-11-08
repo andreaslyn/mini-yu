@@ -15,16 +15,18 @@ import TypeCheck.TypeCheckT
 import TypeCheck.Term
 import TypeCheck.TermEnv
 import TypeCheck.SubstMap
-import TypeCheck.UnifyCommon
 
 import Data.Foldable (foldlM)
 import Control.Monad.Except
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
-import Data.Maybe (isJust, fromJust)
+import Data.Maybe (fromJust)
 import Control.Exception (assert)
 
---import Debug.Trace (trace)
+import Debug.Trace (trace)
+
+_useTrace :: String -> a -> a
+_useTrace = trace
 
 type ExprUnifResult m = ExceptT String (TypeCheckT m) SubstMap
 
@@ -317,7 +319,7 @@ exprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
     makeNewVarIds (i:is) = do
       (vs, su) <- makeNewVarIds is
       i' <- Env.freshVarId
-      let v = TermVar False (mkVar i' "_")
+      let v = TermVar False (mkVar i' ('#' : varName i))
       let vs' = v : vs
       let su' = IntMap.insert (varId i) v su
       return (vs', su')
@@ -392,22 +394,26 @@ exprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
       where
         tryUnifyAll :: Monad m => ExprUnifResult m 
         tryUnifyAll
-        {- Something like this should work:
           | length as1 == length as2 = do
               im <- lift Env.getImplicitMap
               rm <- lift Env.getRefMap
-              let t1 = preTermTryProjectType im rm f1
-              let t2 = preTermTryProjectType im rm f2
-              case (t1, t2) of
-                (Just t1', Just t2') -> do
-                  when (not (preTermsEqual rm t1' t2')) (throwError "")
-                  s1 <- doUnifyVarApp f1 f2
-                  foldlM (\s (a1, a2)->
-                            eunify2 a1 a2 >>= mergeExprUnifMaps boundIds s
-                         ) s1 (zip as1 as2) 
-                _ -> throwError ""
-        -}
+              iv <- lift Env.getImplicitVarMap
+              if typesEqual im rm iv f1 f2
+              then recUnify
+              else throwError ""
           | True = throwError ""
+          where
+            recUnify = do
+              s1 <- doUnifyVarApp f1 f2
+              foldlM (\s (a1, a2)->
+                        eunify2 a1 a2 >>= mergeExprUnifMaps boundIds s
+                     ) s1 (zip as1 as2) 
+            typesEqual im rm iv x y = 
+              let s = preTermGetAlphaType im rm iv x
+                  t = preTermGetAlphaType im rm iv y
+              in case (s, t) of
+                  (Just s', Just t') -> preTermsEqual rm s' t'
+                  _ -> False
     doUnifyVarApp (TermApp io f1 as1) t2 =
       case varBaseVars f1 as1 of
         Nothing -> throwError ""
@@ -513,6 +519,13 @@ exprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
                    ++ preTermToString im r defaultExprIndent t1 ++ "\n"
                    ++ "with\n"
                    ++ preTermToString im r defaultExprIndent t2
+
+makeFunWithVarSubst :: Monad m => Bool -> [Var] -> PreTerm -> TypeCheckT m PreTerm
+makeFunWithVarSubst isIo vs t = do
+  vs' <- mapM (\v -> fmap (flip mkVar (varName v)) Env.freshVarId) vs
+  let su = IntMap.fromList (zip (map varId vs) (map (TermVar False) vs'))
+  let ct = CaseLeaf vs' isIo (substPreTerm su t) []
+  return (TermFun [] isIo (Just (length vs)) ct)
 
 mergeExprUnifMaps :: Monad m =>
   VarId -> SubstMap -> SubstMap -> ExprUnifResult m
