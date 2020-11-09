@@ -484,7 +484,10 @@ preTermFinalCod = \r t -> doPreTermFinalCod (preTermNormalize r t)
 
 preTermDomCod ::
   RefMap -> PreTerm -> Maybe ([(Maybe Var, PreTerm)], PreTerm, Bool)
-preTermDomCod = \r t -> doPreTermDomCod (preTermNormalize r t)
+preTermDomCod = \r t ->
+  case t of
+    TermArrow io d c -> Just (d, c, io)
+    _ -> doPreTermDomCod (preTermNormalize r t)
   where
     doPreTermDomCod ::
       PreTerm -> Maybe ([(Maybe Var, PreTerm)], PreTerm, Bool)
@@ -492,7 +495,10 @@ preTermDomCod = \r t -> doPreTermDomCod (preTermNormalize r t)
     doPreTermDomCod _ = Nothing
 
 preTermLazyCod :: RefMap -> PreTerm -> Maybe (PreTerm, Bool)
-preTermLazyCod = \r t -> doPreTermLazyCod (preTermNormalize r t)
+preTermLazyCod = \r t ->
+  case t of
+    TermLazyArrow io c -> Just (c, io)
+    _ -> doPreTermLazyCod (preTermNormalize r t)
   where
     doPreTermLazyCod :: PreTerm -> Maybe (PreTerm, Bool)
     doPreTermLazyCod (TermLazyArrow io c) = Just (c, io)
@@ -811,7 +817,7 @@ writePreTerm im rm (TermFun imps _ (Just n) ct) = do
 writePreTerm im rm (TermLazyFun _ f) =
   writeStr "[]. " >> writePreTerm im rm f
 writePreTerm im rm (TermArrow io d c) = do
-  optNamedListWithParens rm d (writeOptNamedPreTermList im rm d)
+  optNamedListWithParens d (writeOptNamedPreTermList im rm d)
   if io
     then writeStr " ->> "
     else writeStr " -> "
@@ -1198,19 +1204,19 @@ writeNameList (v:vs) =
   writeStr v >> writeStr ", " >> writeNameList vs
 
 optNamedListWithParens ::
-  RefMap -> [(Maybe Var, PreTerm)] -> ToString () -> ToString ()
-optNamedListWithParens _ [] s = writeStr "(" >> s >> writeStr ")"
-optNamedListWithParens rm [(v, ty)] s =
+  [(Maybe Var, PreTerm)] -> ToString () -> ToString ()
+optNamedListWithParens [] s = writeStr "(" >> s >> writeStr ")"
+optNamedListWithParens [(v, ty)] s =
   if isJust v || needParen then writeStr "(" >> s >> writeStr ")" else s
   where
     needParen :: Bool
-    needParen = case preTermNormalize rm ty of
+    needParen = case ty of
                   TermArrow _ _ _ -> True
                   TermLazyArrow _ _ -> True
                   TermFun _ _ _ _ -> True
                   TermLazyFun _ _ -> True
                   _ -> False
-optNamedListWithParens _ (_:_) s = writeStr "(" >> s >> writeStr ")"
+optNamedListWithParens (_:_) s = writeStr "(" >> s >> writeStr ")"
 
 writeOptNamedPreTermList ::
   ImplicitMap -> RefMap -> [(Maybe Var, PreTerm)] -> ToString ()

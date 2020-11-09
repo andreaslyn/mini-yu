@@ -83,7 +83,16 @@ canAppUnify _ = False
 
 patUnifWithBoundIds :: Monad m =>
   Bool -> VarId -> VarId -> PreTerm -> PreTerm -> PatUnifResult m
-patUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
+patUnifWithBoundIds False newPatternIds boundIds t1 t2 =
+  doPatUnifWithBoundIds False newPatternIds boundIds t1 t2
+patUnifWithBoundIds True newPatternIds boundIds t1 t2 =
+  catchError
+    (doPatUnifWithBoundIds False newPatternIds boundIds t1 t2)
+    (\_ -> doPatUnifWithBoundIds True newPatternIds boundIds t1 t2)
+
+doPatUnifWithBoundIds :: Monad m =>
+  Bool -> VarId -> VarId -> PreTerm -> PreTerm -> PatUnifResult m
+doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
   r <- lift Env.getRefMap
   --im0 <- lift Env.getImplicitMap
   --let !_ = trace ("pattern unify " ++ preTermToString im0 r t1 ++ " with " ++ preTermToString im0 r t2) ()

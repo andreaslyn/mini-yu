@@ -1,0 +1,34 @@
+
+val _:!_\Ty : (A, A : Ty) -> A
+let (a, A) => a
+
+
+data Nat : Ty
+let 0 : Nat
+let (++_\Nat) : Nat -> Nat
+
+
+val _+_\Nat : (Nat, Nat) -> Nat
+let (m, 0) => m
+let (m, ++ n) => ++ m + n
+
+
+val Const-Unit : Nat -> Ty
+let (0) => Unit
+let (++ _) => Unit
+
+
+val test-id[F : Nat -> Ty, m : Nat, n : Nat] : F(m + n) -> F(m + n)
+let (x) => x
+
+
+val use-test[n : Nat] : Const-Unit(n + 0) -> Const-Unit(n + 0)
+let (x) => test-id(x)
+
+
+data _&_\Ty : (Ty, Ty) -> Ty
+let _$_\[A : Ty, B : Ty] : (A, B) -> A & B
+
+
+val use-test-pair : Const-Unit(0 + ++ 0) & Const-Unit(++ 0 + ++ 0) -> Const-Unit(0)
+let (a $ b) => unit := test-id(a); test-id(b)

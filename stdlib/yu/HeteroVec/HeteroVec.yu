@@ -2,7 +2,7 @@ import "yu/Vec/Vec.yu"
 
 
 data _Vec\_->_[A : Ty, n : Nat] : (A -> Ty, A Vec(n)) -> Ty
-let nil.HeteroVec[A : Ty, P : A -> Ty] : P Vec(nil.Vec[A := A])
+let nil.HeteroVec[A : Ty, P : A -> Ty] : P Vec(nil.Vec)
 let _::_\_Vec\_->_[A : Ty, P : A -> Ty, n : Nat, x : A, xs : A Vec(n)] :
   (P(x), P Vec(xs)) -> P Vec(x :: xs)
 

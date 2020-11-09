@@ -2102,7 +2102,10 @@ makeTermApp subst flo ty f' args = do
           else
             if unified
             then throwError (Recoverable "")
-            else applyArgsLoop uniCod cat domVars cod True su io as
+            else do
+              when (not uniCod) $
+                catchRecoverable (unifyType domVars cod su) (\_ -> return ())
+              applyArgsLoop uniCod cat domVars cod True su io as
       where
         projArgs :: 
           [(Int, Either (Maybe Var, PreTerm, Expr) PreTerm)] ->

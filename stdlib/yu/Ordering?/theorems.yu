@@ -6,7 +6,7 @@ val leToEqIsReflexive?.Ordering?[A : Ty] :
   (le : (A, A) -> Bool, le IsTotalPreorder?) ->
   leToEq?.Ordering?(le) IsReflexive?
 let (le, isC $ _) => (x).
-  case pullOutOp|.Bool[a := le(x, x), b := le(x, x)](isC(x, x))
+  case pullOutOp|.Bool(isC(x, x))
   of in1(h) => h rew((t). ? (t & t), refl)
   of in2(h) => h rew((t). ? (t & t), refl)
   end
@@ -23,7 +23,7 @@ val leToEqIsSymmetric?.Ordering?[A : Ty] :
   (le : (A, A) -> Bool, le IsTotalPreorder?) ->
   leToEq?.Ordering?(le) IsSymmetric?
 let (le, isLe) => (x, y, eqxy). do
-  b := pullOutOp&.Bool[a := le(x, y), b := le(y, x)](eqxy);
+  b := pullOutOp&.Bool(eqxy);
   pushInOp&.Bool(b 2 $ b 1)
 
 
@@ -39,8 +39,8 @@ val leToEqIsTransitive?.Ordering?[A : Ty] :
   (le : (A, A) -> Bool, le IsTotalPreorder?) ->
   leToEq?.Ordering?(le) IsTransitive?
 let (le, _ $ isT) => (x, y, z, eqxy, eqyz). do
-  eqxy' := pullOutOp&.Bool[a := le(x, y), b := le(y, x)](eqxy);
-  eqyz' := pullOutOp&.Bool[a := le(y, z), b := le(z, y)](eqyz);
+  eqxy' := pullOutOp&.Bool(eqxy);
+  eqyz' := pullOutOp&.Bool(eqyz);
   l := isT(x, y, z, eqxy' 1, eqyz' 1);
   r := isT(z, y, x, eqyz' 2, eqxy' 2);
   pushInOp&.Bool(l $ r)
@@ -86,7 +86,7 @@ where
     (x; y; z : A, ? ! le(y, x), ? ! le(z, y), ? le(z, x)) -> Empty
   let (x, y, z, ltxy, ltyz, lezx) =>
     c := isC(x, y);
-    c' := pullOutOp|.Bool[a := le(x, y), b := le(y, x)](c);
+    c' := pullOutOp|.Bool(c);
     case c'
     of in2(leyx) =>
       case ! leyx @ op!ToOp?false.Bool(ltxy) of () end
@@ -119,7 +119,7 @@ where
   let (lezx) =>
     a := R leIsTransitive?(y, z, x, leyz, lezx);
     ltxy' := R isOrdering? ltIsCompatible(x, y) resp(? _, ltxy);
-    b := op!ToOp?false.Bool[b := R le?(y, x)](ltxy');
+    b := op!ToOp?false.Bool(ltxy');
     case ! a @ b of () end
 end
 
@@ -136,7 +136,7 @@ where
   let (lezx) =>
     a := R leIsTransitive?(z, x, y, lezx, lexy);
     ltyz' := R isOrdering? ltIsCompatible(y, z) resp(? _, ltyz);
-    b := op!ToOp?false.Bool[b := R le?(z, y)](ltyz');
+    b := op!ToOp?false.Bool(ltyz');
     case ! a @ b of () end
 end
 
@@ -163,7 +163,7 @@ let (R, x, y) =>
   R isOrdering? cmpIsCompatible(x, y) rewL(_ lt?, _) do
   (_ @ ! R isOrdering? ltIsCompatible(x, y)) do
   leToCmpLtIsOp!(R le?(x, y), R le?(y, x), _) (c).
-    case pullOutOp|.Bool[a := R le?(x, y), b := R le?(y, x)](R leIsConnex?(x, y))
+    case pullOutOp|.Bool(R leIsConnex?(x, y))
     of in1(h) => case ! h @ op!ToOp?false.Bool(c) of () end
     of in2(h) => h
     end
@@ -199,4 +199,4 @@ val _eqToLe\_Ordering?\Ty[A : Ty] :
   (R : A Ordering?, x; y : A, ? R eq?(x, y)) -> ? R le?(x, y)
 let (R, x, y, eqxy) =>
   eqxy' := R isOrdering? eqIsCompatible(x, y) resp(? _, eqxy);
-  pullOutOp&.Bool[a := R le?(x, y), b := R le?(y, x)](eqxy') 1
+  pullOutOp&.Bool(eqxy') 1

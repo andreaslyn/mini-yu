@@ -75,17 +75,21 @@ runExprUnifResult lo normalize msgPrefix t1 t2 = do
         lift (err lo (Recoverable m'))
 
 canAppUnify :: PreTerm -> Bool
-canAppUnify (TermApp _ f _) = canAppUnify f
-canAppUnify (TermLazyApp _ f) = canAppUnify f
-canAppUnify (TermImplicitApp _ f _) = canAppUnify f
-canAppUnify (TermData _) = True
-canAppUnify (TermCtor _ _) = True
-canAppUnify (TermVar False _) = True
-canAppUnify _ = False
+canAppUnify (TermVar True _) = False
+canAppUnify _ = True
 
 exprUnifWithBoundIds :: Monad m =>
   Bool -> VarId -> PreTerm -> PreTerm -> ExprUnifResult m
-exprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
+exprUnifWithBoundIds False boundIds t1 t2 =
+  doExprUnifWithBoundIds False boundIds t1 t2
+exprUnifWithBoundIds True boundIds t1 t2 =
+  catchError
+    (doExprUnifWithBoundIds False boundIds t1 t2)
+    (\_ -> doExprUnifWithBoundIds True boundIds t1 t2)
+
+doExprUnifWithBoundIds :: Monad m =>
+  Bool -> VarId -> PreTerm -> PreTerm -> ExprUnifResult m
+doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
   r <- lift Env.getRefMap
   --i0 <- lift Env.getImplicitMap
   --let !_ = trace ("expr unify " ++ preTermToString i0 r (preTermNormalize r t1) ++ " with " ++ preTermToString i0 r (preTermNormalize r t2)) ()
@@ -363,9 +367,9 @@ exprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
     doUnifyVarApp (TermApp _ f1 []) (TermApp _ f2 []) =
       doUnifyVarApp f1 f2
     doUnifyVarApp t1@(TermApp io1 f1 as1) t2@(TermApp io2 f2 as2) =
-      case varBaseVars f1 as1 of
-        Just (v1, vs1) ->
-          tryUnifyAll `catchError` \_ -> do
+      tryUnifyAll `catchError` \_ -> do
+        case varBaseVars f1 as1 of
+          Just (v1, vs1) ->
             case varBaseVars f2 as2 of
               Just (v2, vs2) -> do
                 rm <- lift Env.getRefMap
@@ -384,13 +388,12 @@ exprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
               Nothing -> do
                 f2' <- lift (makeFunWithVarSubst io2 vs1 t2)
                 doUnifyVarApp f1 f2'
-        Nothing ->
-          case varBaseVars f2 as2 of
-            Just (_, vs2) ->
-              tryUnifyAll `catchError` \_ -> do
+          Nothing ->
+            case varBaseVars f2 as2 of
+              Just (_, vs2) -> do
                 f1' <- lift (makeFunWithVarSubst io1 vs2 t1)
                 doUnifyVarApp f1' f2
-            Nothing -> throwError ""
+              Nothing -> throwError ""
       where
         tryUnifyAll :: Monad m => ExprUnifResult m 
         tryUnifyAll

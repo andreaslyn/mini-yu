@@ -4,7 +4,7 @@ Mini Yu is a dependently typed programming language, similar to Agda, Idris, Coq
 Mini Yu is a prototype language to experiment with dependently typed language
 features and runtime implementation.
 
-The mini yu compiler is implemented in Haskell. It compiles source files to
+The mini yu compiler is implemented in Haskell. It compiles mini yu source code to
 C code, which is further compiled to machine code with gcc. Mini Yu uses reference counting
 as garbage collection strategy, inspired by [Lean 4](https://github.com/leanprover/lean4).
 
@@ -90,7 +90,7 @@ let (s) => s println
 val main : () ->> Unit
 let () => customPrint("Hello, World")
 ```
-Change the type of customPrint to `Str ->> Unit`, and then it will work.
+Change the type of `customPrint` to `Str ->> Unit`, and then it will work.
 
 ## Algebraic data types
 
@@ -135,13 +135,13 @@ There are 3 kinds of operators:
 * infix operators,
 * postfix operators.
 
-Prefix and infix operators start with an operator symbol, such as `+`, `&` or `!`.
-But note that the symbols `\` and `#` are treated specially.
-Postfix operators and regular variable identifiers start with an alphanumeric
-character, such as `A`, `4` or `a`.
-Examples of prefix and infix operator names are `+`, `&&` and `?is-true`.
-Examples of postfix operator names and variable identifiers are
-`length`, `Size` and `is-even?`.
+Prefix and infix operators start with an operator symbol, such as `+`,
+`&`, `!`, `=`, etc. But note that the symbols `\` and `#` are treated
+specially, not regarded as operator symbols. Postfix operators and
+regular variable identifiers start with an alphanumeric character,
+such as `A`, `4`, `a`. Examples of prefix and infix operator names
+are `+`, `&&` and `?is-true`. Examples of postfix operator names and
+variable identifiers are `length`, `Size` and `is-even?`.
 
 We can for example define the natural numbers by using a prefix operator `++` for
 the successor constructor,
@@ -189,15 +189,14 @@ val _+_\Bool : (Bool, Bool) -> Bool
 let (true, b) => true
 let (false, b) => b
 ```
-For left associative infix operators, such at `+`,
-mini yu uses the type of the first argument to determine which
-operator to apply. So `true + x` applies `_+_\Bool` and
-`1 + y` applies `_+_\Nat`.
+For left associative infix operators, such at `+`, mini yu uses the
+type of the first argument to determine which operator to apply. So
+`true + x` applies `_+_\Bool` and `1 + y` applies `_+_\Nat`.
 
 ### Details on operator precedence
 
-The associativity and operator precedence of infix operators
-is given by the first operator symbol. The infix operator precedence table is:
+The associativity and operator precedence of infix operators is given
+by the first operator symbol. The infix operator precedence table is:
 ```
 ^ @        (right associative)
 * / %      (left associative)
@@ -206,44 +205,42 @@ $ | &      (right associative)
 = : ? !    (right associative)
 < > ~      (left associative)
 ```
-The operators in the top has higher precedence than those in
-the bottom, so infix `+` is left associative and has lower
-precedence than infix `*`.
+The operators in the top has higher precedence than those in the
+bottom, so infix `+` is left associative and has lower precedence
+than infix `*`.
 
-For right associative operators, mini yu uses the second
-argument to determine which operator to apply,
-and the type of the first argument of both prefix and postfix
-operators is used by mini yu to determine which operator to apply.
+For right associative operators, mini yu uses the second argument to
+determine which operator to apply, and the type of the first argument
+of both prefix and postfix operators is used by mini yu to determine
+which operator to apply.
 
-Note that these associativity and precedence rules do no apply to
-the few built-in operators, such as `=>`, `->` and `:`. For example
+Note that these associativity and precedence rules do no apply to the
+few built-in operators, such as `=>`, `->` and `:`. For example
 function type `->` has lower precedence than infix `<`, and `->` is
 right associative.
 
 ## Lazy evaluation
 
-By default, mini yu evaluates function arguments eagerly,
-but it is possible to mark arguments as lazy. For example,
-in the definition of addition of booleans, it is often desired
-to have the second argument evaluated only when the first
-argument is false. This can be achieved with
+By default, mini yu evaluates function arguments eagerly, but it is
+possible to mark arguments as lazy. For example, in the definition of
+addition of booleans, it is often desired to have the second argument
+evaluated only when the first argument is false. This can be achieved with
 ```
 val _+_\Bool : (Bool, [] -> Bool) -> Bool
 let (true, b) => true
 let (false, b) => b[]
 ```
-The `[] -> Bool` is the lazy `Bool` type. It evaluates
-the second argument only when the first argument is `false`.
-Syntactic sugar allows us to apply functions in the same way when
-arguments are lazy as when they are strict. So we can write
-`true + false`, and it will desugar into
+The `[] -> Bool` is the lazy `Bool` type. It evaluates the second argument
+only when the first argument is `false`. Syntactic sugar allows us to
+apply functions in the same way when arguments are lazy as when they
+are strict. So we can write `true + false`, and it will desugar into
 ```
 true + ([]. false)
 ```
 
 ## Dependent types
 
-Let us define vector data type as a postfix operator on `Ty`,
+Let us define the vector data type as a postfix operator on `Ty`,
 ```
 data _Vec\Ty : (Ty, Nat) -> Ty
 let nil.Vec[A : Ty] : A Vec(0)
@@ -280,8 +277,8 @@ library. Other import strings are relative to the importing file, so
 ```
 import "functionality.yu"
 ```
-will search for a file named `functionality.yu` located in the same directory
-as the current/importing file.
+will search for a file named `functionality.yu` located in the same
+directory as the current/importing file.
 
 ## More examples
 
