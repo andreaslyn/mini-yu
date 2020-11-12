@@ -95,5 +95,16 @@ val _str\Order : Order -> Str
 let => _ rec("lt", "eq", "gt")
 
 
+val _str\?_\Ty[A : Ty] : (? A, A -> Str) -> Str
+let (no, _) => "no"
+let (yes(a), f) => "yes(" :+: f(a) :+: ")"
+
+
+val _str\&_\_->_[A : Ty, B : A -> Ty] :
+  (& B, A -> Str, (B(a), a : A) -> Str) -> Str
+let (a $ b, f, g) =>
+  "(" :+: f(a) :+: ") & (" :+: g(b, a) :+: ")"
+
+
 val _cmp\Str : (Str, Str) -> Order
 let (s, t) => s list cmp(t list, ordering?.Char)

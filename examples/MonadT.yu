@@ -150,7 +150,7 @@ let (nil) => idIsMonad
 let (E :: Es) => E isMonad(Es composeEIsMonad)
 
 
-val test : (stateE(Nat) :: optionE :: nil) composeE(Unit)
+val test.MonadT : (stateE(Nat) :: optionE :: nil) composeE(Unit)
 let =>
   stateE(Nat) isMonad((optionE :: nil) composeEIsMonad)
   bind(put.StateE(10, (optionE :: nil) composeEIsMonad)) (_). do

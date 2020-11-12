@@ -544,8 +544,13 @@ parseAppExpr = do
     parsePostfixDoOrFun :: Expr -> YuParsec Expr
     parsePostfixDoOrFun e = do
       op <- yuPostfixOpTok
+      imps <- optionMaybe appSquare
       a <- tryParseDoOrFun
-      return (ExprApp (ExprVar op) [e, a])
+      case imps of
+        Nothing ->
+          return (ExprApp (ExprVar op) [e, a])
+        Just imps' -> 
+          return (ExprApp (ExprImplicitApp (ExprVar op) imps') [e, a])
 
     parseAppNormal :: Expr -> YuParsec Expr
     parseAppNormal e = do
