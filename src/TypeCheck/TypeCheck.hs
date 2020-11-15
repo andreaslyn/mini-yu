@@ -1422,8 +1422,7 @@ tcExpr subst ty e = do
   rm <- lift Env.getRefMap
   case preTermLazyCod rm ty of
     Nothing -> exprCheck ty
-    Just (cod, io) ->
-      exprCheckLazy io cod `catchRecoverable` (\_ -> exprCheck ty)
+    Just (cod, io) -> exprCheckLazy io cod
   where
     exprCheck :: Monad m => PreTerm -> ExprT m Term
     exprCheck expectedTy = do
@@ -1436,14 +1435,15 @@ tcExpr subst ty e = do
 
     exprCheckLazy :: Monad m => Bool -> PreTerm -> ExprT m Term
     exprCheckLazy io expectedTy = do
-      e' <- doTcExpr False subst Nothing (Just expectedTy) e
-      rm <- lift Env.getRefMap
-      when (isJust (preTermLazyCod rm (termTy e'))) (throwError (Recoverable ""))
-      tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
-      su <- getExprSubst
-      let se = TermLazyFun io (substPreTerm su (termPre e'))
-      let st = TermLazyArrow io (substPreTerm su expectedTy)
-      return (mkTerm se st False)
+      case e of
+        ExprLazyFun _ _ -> exprCheck ty
+        _ -> do
+          e' <- doTcExpr False subst Nothing (Just expectedTy) e
+          tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
+          su <- getExprSubst
+          let se = TermLazyFun io (substPreTerm su (termPre e'))
+          let st = TermLazyArrow io (substPreTerm su expectedTy)
+          return (mkTerm se st False)
 
 doTcExprSubst :: Monad m =>
   Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) -> Expr -> ExprT m Term
@@ -2056,58 +2056,75 @@ makeTermApp subst flo ty f' args = do
                     (map (\((x, y), e) ->
                       (x, (y, getAppOrderingWeight r iv y e))) (zip d' args))
                     args
-      let args1 = map (\(i, (v, (p, _)), e) -> (i, Left (v, p, e, TermEmpty))) args0
+      let args1 = map (\(i, (v, (p, w)), e) -> (i, Left (v, p, w, e, TermEmpty))) args0
       let domVars = getDomVars d'
       let aploop uniCod cat as = applyArgsLoop uniCod cat domVars c' False IntMap.empty False as
       (su, ps, io') <- aploop True True args1
-                       `catchRecoverable`
-                         (\_ -> aploop False False args1)
       let ps' = map snd (sortOn fst ps)
       let c = substPreTerm su c'
       let e = TermApp io (termPre f') ps'
       return (mkTerm e c (termIo f' || io || io'))
   where
-    unifyType :: Monad m => IntSet -> PreTerm -> SubstMap -> ExprT m ()
-    unifyType domVars cod su = do
+    unifyType :: Monad m => IntSet -> (Int, Int, Int) -> PreTerm -> SubstMap -> ExprT m ()
+    unifyType domVars w cod su = do
       case ty of
         Just ty' -> do
           let cod' = substPreTerm su cod
-          rm <- lift Env.getRefMap
-          let fs = preTermVars rm cod'
-          if IntSet.null (IntSet.intersection fs domVars)
-          then tcExprSubstUnify flo ty' cod'
-          else return ()
+          cw <- uniWeight cod'
+          if w < cw
+          then return ()
+          else do
+            rm <- lift Env.getRefMap
+            let fs = preTermVars rm cod'
+            if IntSet.null (IntSet.intersection fs domVars)
+            then tcExprSubstUnify flo ty' cod'
+            else return ()
         Nothing -> return ()
+      where
+        uniWeight :: Monad m => PreTerm -> ExprT m (Int, Int, Int)
+        uniWeight t = do
+          rm <- lift Env.getRefMap
+          iv <- lift Env.getImplicitVarMap
+          let (y, z) = getAppAlphaArgumentWeight rm iv t
+          return (0, y, z)
 
     applyArgsLoop :: Monad m =>
       Bool -> Bool -> IntSet -> PreTerm -> Bool -> SubstMap -> Bool ->
-      [(Int, Either (Maybe Var, PreTerm, Expr, PreTerm) PreTerm)] ->
+      [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)] ->
       ExprT m (SubstMap, [(Int, PreTerm)], Bool)
     applyArgsLoop uniCod cat domVars cod unified su io as = do
-      unified <- if unified
-                 then return True
-                 else
-                  if uniCod
-                  then
-                    (unifyType domVars cod su >> return True)
-                      `catchRecoverable` (\msg -> return False)
-                  else return False
+      unified' <- if unified
+                  then return True
+                  else
+                    if uniCod
+                    then
+                      let fw = firstWeight as in
+                      (unifyType domVars fw cod su >> return True)
+                        `catchRecoverable` (\_ -> return False)
+                    else return False
       case projArgs as of
         Just xs -> return (su, xs, io)
         Nothing -> do
           (progress, su', as', io') <- applyArgs cat as
           if progress
           then
-            applyArgsLoop uniCod cat domVars cod unified (IntMap.union su su') (io || io') as'
+            applyArgsLoop uniCod cat domVars cod unified' (IntMap.union su su') (io || io') as'
           else
-            lift (err flo (Recoverable "failed unifying function argument"))
+            if not cat
+            then lift (err flo (Recoverable "failed unifying function argument"))
+            else applyArgsLoop uniCod False domVars cod unified' su io as
       where
         projArgs :: 
-          [(Int, Either (Maybe Var, PreTerm, Expr, PreTerm) PreTerm)] ->
+          [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)] ->
           Maybe [(Int, PreTerm)]
         projArgs [] = Just []
         projArgs ((idx, Right t) : xs) = fmap ((idx, t) :) (projArgs xs)
         projArgs ((_, Left _) : _) = Nothing
+
+        firstWeight :: [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)] -> (Int, Int, Int)
+        firstWeight ((_, Right _) : xs) = firstWeight xs
+        firstWeight ((_, Left (_, _, w, _, _)) : _) = w
+        firstWeight [] = (0, 0, 0)
 
     getDomVars :: [(Maybe Var, PreTerm)] -> IntSet
     getDomVars [] = IntSet.empty
@@ -2115,19 +2132,19 @@ makeTermApp subst flo ty f' args = do
     getDomVars ((Just v, _) : vs) = IntSet.insert (varId v) (getDomVars vs)
 
     applyArgs :: Monad m =>
-      Bool -> [(Int, Either (Maybe Var, PreTerm, Expr, PreTerm) PreTerm)] ->
+      Bool -> [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)] ->
       ExprT m
-        (Bool, SubstMap, [(Int, Either (Maybe Var, PreTerm, Expr, PreTerm) PreTerm)], Bool)
+        (Bool, SubstMap, [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)], Bool)
     applyArgs _ [] = return (False, IntMap.empty, [], False)
     applyArgs cat ((idx, Right t) : xs) = do
       (progress, m, xs', io) <- applyArgs cat xs
       return (progress, m, (idx, Right t) : xs', io)
-    applyArgs cat ((idx, Left (Nothing, p, e, prevTy)) : xs) = do
-      (e', eio) <- applyTc cat p e prevTy
+    applyArgs cat ((idx, Left (Nothing, p, w, e, prevTy)) : xs) = do
+      (e', eio) <- applyTc cat p w e prevTy
       (progress, su, es', io) <- applyArgs cat xs
       return (progress || isRight e', su, (idx, e') : es', io || eio)
-    applyArgs cat ((idx, Left (Just v, p, e, prevTy)) : xs) = do
-      (e', eio) <- applyTc cat p e prevTy
+    applyArgs cat ((idx, Left (Just v, p, w, e, prevTy)) : xs) = do
+      (e', eio) <- applyTc cat p w e prevTy
       r <- lift Env.getRefMap
       let xs' = case e' of
                   Right e'' -> substArgs r (IntMap.singleton (varId v) e'') xs
@@ -2138,7 +2155,7 @@ makeTermApp subst flo ty f' args = do
                   Left _ -> su
       return (progress || isRight e', su', (idx, e') : es', io || eio)
 
-    applyTc True p e prevTy = do
+    applyTc True p weight e prevTy = do
       isu <- getExprSubst
       let p' = substPreTerm isu p
       rm <- lift Env.getRefMap
@@ -2148,9 +2165,9 @@ makeTermApp subst flo ty f' args = do
          && not (preTermsAlphaEqual rm p' prevTy)
       then
         fmap (\d -> (Right (termPre d), termIo d)) (tcExpr subst p' e)
-          `catchRecoverable` (\_ -> return (Left (Nothing, p, e, p'), False))
-      else return (Left (Nothing, p, e, p'), False)
-    applyTc False p e _ = do
+          `catchRecoverable` (\_ -> return (Left (Nothing, p, weight, e, p'), False))
+      else return (Left (Nothing, p, weight, e, p'), False)
+    applyTc False p _ e _ = do
       isu <- getExprSubst
       let p' = substPreTerm isu p
       fmap (\d -> (Right (termPre d), termIo d)) (tcExpr subst p' e)
@@ -2173,13 +2190,13 @@ makeTermApp subst flo ty f' args = do
 
     substArgs ::
       RefMap -> SubstMap ->
-      [(Int, Either (Maybe Var, PreTerm, Expr, PreTerm) PreTerm)] ->
-      [(Int, Either (Maybe Var, PreTerm, Expr, PreTerm) PreTerm)]
+      [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)] ->
+      [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)]
     substArgs _ _ [] = []
     substArgs r m ((idx, Right t) : xs) =
       (idx, Right t) : substArgs r m xs
-    substArgs r m ((idx, Left (v, p, e, prevTy)) : xs) =
-      (idx, Left (v, substPreTerm m p, e, prevTy)) : substArgs r m xs
+    substArgs r m ((idx, Left (v, p, w, e, prevTy)) : xs) =
+      (idx, Left (v, substPreTerm m p, w, e, prevTy)) : substArgs r m xs
 
 getAppOrderingWeight ::
   RefMap -> Env.ImplicitVarMap -> PreTerm -> Expr -> (Int, Int, Int)
@@ -2188,15 +2205,15 @@ getAppOrderingWeight rm iv ty e =
       (y, z) = getAppAlphaArgumentWeight rm iv ty'
   in (funWeight ty' e, y, z)
   where
-    funWeight (TermArrow _ d c) (ExprFun _ ps e) =
-      foldl (\b ((_, x), (_, t)) ->
+    funWeight (TermArrow _ d c) (ExprFun _ ps b) =
+      foldl (\n ((_, x), (_, t)) ->
               if isNothing t
-              then b + IntSet.size (allImplicits x)
-              else b
+              then n + IntSet.size (allImplicits x)
+              else n
             ) 0 (zip d ps)
-      + funWeight c e
-    funWeight (TermLazyArrow _ c) (ExprLazyFun _ e) = funWeight c e
-    funWeight (TermLazyArrow _ c) e = funWeight c e
+      + funWeight c b
+    funWeight (TermLazyArrow _ c) (ExprLazyFun _ b) = funWeight c b
+    funWeight (TermLazyArrow _ c) b = funWeight c b
     funWeight _ _ = 0
 
     allImplicits :: PreTerm -> IntSet

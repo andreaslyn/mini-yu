@@ -6,11 +6,11 @@ extern parallel'.parallel : (A : Ty, () ->> A) ->> [] -> Str | A
 
 
 val parallel'[A : Ty] : (() ->> A) ->> [] -> Str | A
-let (x) => parallel'.parallel(A, x)
+let (x) => parallel'.parallel(A, x)[]
 
 
 extern parallel.parallel : (A : Ty, () -> A) -> [] -> Str | A
 
 
 val parallel[A : Ty] : ([] -> A) -> [] -> Str | A
-let (x) => parallel.parallel(A, (). x[])
+let (x) => parallel.parallel(A, (). x[])[]

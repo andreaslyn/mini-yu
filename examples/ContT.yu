@@ -14,7 +14,7 @@ let (isMonad(r, _)) => r(_, A)
 
 val _bind\_IsMonad\_->_[A; B : Ty, M : Ty -> Ty] :
   (M IsMonad, M(A)) -> ([] -> A -> M(B)) -> M(B)
-let (isMonad(_, b), a) => (f). b(a, f, A, B)
+let (isMonad(_, b), a) => (f). b(a, f[], A, B)
 
 
 val idIsMonad : id IsMonad
@@ -52,7 +52,7 @@ let (x, f) => contT (k). x ap (a). f[](a) ap(k)
 
 val contTIsMonad[R : Ty, M : Ty -> Ty, isM : M IsMonad] :
   _ ContT\Ty(R, M, isM) IsMonad
-let => isMonad((a, A). pure.ContT(a), (x, f, A, B). x >>= f)
+let => isMonad((a, A). pure.ContT(a), (x, f, A, B). x >>= f[])
 
 
 val _lift\_IsMonad\_->_[A; R : Ty, M : Ty -> Ty] :

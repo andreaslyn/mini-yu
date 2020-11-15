@@ -240,5 +240,5 @@ let => refl(Nat, lazy-0[])
 val higher-lazy : ([] -> [] -> Nat, [] -> Nat) -> [] -> Nat
 let (f, g) => []. plus(f[][], g[])
 
-val test-higher-lazy : Id(Nat, +1(+1(0)), higher-lazy([]. []. +1(+1(0)), lazy-0)[])
-let => refl(Nat, higher-lazy([]. []. +1(+1(0)), lazy-0)[])
+val test-higher-lazy : Id(Nat, +1(+1(0)), higher-lazy([]. []. +1(+1(0)), lazy-0[])[])
+let => refl(Nat, higher-lazy([]. []. +1(+1(0)), lazy-0[])[])

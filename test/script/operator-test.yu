@@ -84,7 +84,7 @@ let => _@_\(inc, inc2)
 
 val _+'_\Nat : ([] -> Nat, Nat) -> Nat
 let (n, 0) => n[]
-let (n, ++ m) => ++ (n +' m)
+let (n, ++ m) => ++ (n[] +' m)
 
 val inc4 : Nat -> Nat
 let (n) => 4 +' n

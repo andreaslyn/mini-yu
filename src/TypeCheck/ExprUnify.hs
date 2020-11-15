@@ -75,9 +75,30 @@ runExprUnifResult lo normalize msgPrefix t1 t2 = do
         let m' = if m /= "" then p ++ "\n" ++ m else p
         lift (err lo (Recoverable m'))
 
-canAppUnify :: PreTerm -> Bool
-canAppUnify (TermVar True _) = False
-canAppUnify _ = True
+canAppUnifyBase :: PreTerm -> Bool
+canAppUnifyBase (TermVar True _) = False
+canAppUnifyBase (TermVar False _) = True
+canAppUnifyBase (TermData _) = True
+canAppUnifyBase (TermCtor _ _) = True
+canAppUnifyBase (TermRef _ _) = True
+canAppUnifyBase (TermApp _ f _) = preTermIsRigid f
+canAppUnifyBase (TermLazyApp _ f) = preTermIsRigid f
+canAppUnifyBase (TermImplicitApp _ f _) = preTermIsRigid f
+canAppUnifyBase (TermLazyFun _ f) = preTermIsRigid f
+canAppUnifyBase (TermFun _ _ _ (CaseLeaf _ _ f _)) = preTermIsRigid f
+canAppUnifyBase (TermFun _ _ _ _) = False
+canAppUnifyBase (TermCase _ _) = False
+canAppUnifyBase (TermArrow _ _ _) = False
+canAppUnifyBase (TermLazyArrow _ _) = False
+canAppUnifyBase TermUnitElem = False
+canAppUnifyBase TermUnitTy = False
+canAppUnifyBase TermTy = False
+canAppUnifyBase TermEmpty = False
+
+canAppUnify :: RefMap -> PreTerm -> PreTerm -> Bool
+canAppUnify rm t1 t2 =
+  (canAppUnifyBase t1 && canAppUnifyBase t2)
+  || preTermsAlphaEqual rm t1 t2
 
 exprUnifWithBoundIds :: Monad m =>
   Bool -> VarId -> PreTerm -> PreTerm -> ExprUnifResult m
@@ -228,40 +249,41 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
             ++ "to regular lazy type\n"
             ++ preTermToString im r0 defaultExprIndent (TermLazyArrow io1 c1)
       else eunify2 c1 c2
-    eunify2NotVar t1@(TermApp _ f1 x1) t2@(TermApp _ f2 x2) =
-      if canAppUnify f1 && canAppUnify f2
+    eunify2NotVar t1@(TermApp _ f1 x1) t2@(TermApp _ f2 x2) = do
+      rm <- lift Env.getRefMap
+      if canAppUnify rm f1 f2
       then do
-        r <- lift Env.getRefMap
         im <- lift Env.getImplicitMap
         s1 <- eunify2 f1 f2
         if length x1 /= length x2
           then throwError $
                   "unable to unify\n"
-                  ++ preTermToString im r defaultExprIndent t1 ++ "\n"
+                  ++ preTermToString im rm defaultExprIndent t1 ++ "\n"
                   ++ "with\n"
-                  ++ preTermToString im r defaultExprIndent t2 ++ "\n"
+                  ++ preTermToString im rm defaultExprIndent t2 ++ "\n"
                   ++ "different arities"
           else eunify (zip x1 x2) s1
       else unifyAlpha t1 t2
-    eunify2NotVar t1@(TermImplicitApp _ f1 x1) t2@(TermImplicitApp _ f2 x2) =
-      if canAppUnify f1 && canAppUnify f2
+    eunify2NotVar t1@(TermImplicitApp _ f1 x1) t2@(TermImplicitApp _ f2 x2) = do
+      rm <- lift Env.getRefMap
+      if canAppUnify rm f1 f2
       then do
         s1 <- eunify2 f1 f2
-        r <- lift Env.getRefMap
         im <- lift Env.getImplicitMap
         if length x1 /= length x2
           then throwError $
                   "unable to unify\n"
-                  ++ preTermToString im r defaultExprIndent t1 ++ "\n"
+                  ++ preTermToString im rm defaultExprIndent t1 ++ "\n"
                   ++ "with\n"
-                  ++ preTermToString im r defaultExprIndent t2 ++ "\n"
+                  ++ preTermToString im rm defaultExprIndent t2 ++ "\n"
                   ++ "different implicit arities"
           else do
             let z = map (\(a, b) -> (snd a, snd b)) (zip x1 x2)
             eunify z s1
       else unifyAlpha t1 t2
-    eunify2NotVar t1@(TermLazyApp _ f1) t2@(TermLazyApp _ f2) =
-      if canAppUnify f1 && canAppUnify f2
+    eunify2NotVar t1@(TermLazyApp _ f1) t2@(TermLazyApp _ f2) = do
+      rm <- lift Env.getRefMap
+      if canAppUnify rm f1 f2
         then eunify2 f1 f2
         else unifyAlpha t1 t2
     eunify2NotVar (TermCtor v1 _) (TermCtor v2 _) =

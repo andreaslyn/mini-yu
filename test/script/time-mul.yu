@@ -44,5 +44,5 @@ let (m, +(n)) => plus(mul(m, n), m)
 data NatId : (Nat, Nat) -> Ty
 let refl[n : Nat] : NatId(n, n)
 
-val test-eq : NatId(mul(10, mul(10, 10)), mul(10, mul(10, 10)))
+val test-eq : NatId(mul(10, mul(9, 10)), mul(10, mul(10, 9)))
 let => refl

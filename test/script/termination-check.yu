@@ -39,5 +39,5 @@ let (nils[]) => 0
 let ((x :: xs)[]) =>
   case xs[]
   of nils[] => x[]
-  of (y :: ys)[] => last-nat'.Stream((y :: ys)[])
+  of (y :: ys)[] => last-nat'.Stream((y[] :: ys[])[])
   end
