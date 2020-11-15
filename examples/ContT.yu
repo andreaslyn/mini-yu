@@ -248,6 +248,36 @@ where
 end
 
 
+#{
+val _HandlerFun\_->_ : (Ty -> Ty, Ty) -> Ty
+let (Sig, R) =>
+  (Sig(A), A : Ty, as : _Handle\_->_ Vec, A -> R Ef(as)) -> R Ef(as)
+
+val _handle\_Handler\_->_[R : Ty, Sig : Ty -> Ty, as : _Handle\_->_ Vec]
+  (Sig Handler(R), (a : Sig Handle) -> A Ef(a :: as)) ->
+  A -> R Ef(Rs)
+where
+  Sig Handle ≅ R $ do (B : Ty, Sig(B)) -> B Ef(a :: as)
+and
+  A Ef(nil) ≅ id
+  A Ef(a :: as) ≅ A ContT(a 1, _ Ef(as), efIsMonad)
+
+Need an apply operation:
+  _ap[A : Ty, Sig : Ty -> Ty] :
+    (a : Sig Handle, Sig(A), as Has(a)) -> A Ef(as)
+which requires lifting through _ContT\Ty a number of times.
+#}
+
+
+#{
+Solution to slowness:
+  * Need to give arrows with implicit domain a high weight.
+  * Need to rewrite applt loop, which that it will run just
+    apply args and unify codomain once it has lower weight
+    than next argument (and no variable from domain).
+#}
+
+
 val main : () ->> Unit
 let () =>
   partialPlusWithStateEffect(2, 0) str((p). p str(_str, (x, _). x str)) println;

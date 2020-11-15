@@ -2105,7 +2105,7 @@ makeTermApp subst flo ty f' args = do
       case projArgs as of
         Just xs -> return (su, xs, io)
         Nothing -> do
-          (progress, su', as', io') <- applyArgs cat as
+          (progress, su', as', io') <- applyArgs False as
           if progress
           then
             applyArgsLoop uniCod cat domVars cod unified' (IntMap.union su su') (io || io') as'

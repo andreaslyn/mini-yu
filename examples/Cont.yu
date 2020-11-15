@@ -138,12 +138,6 @@ let (getOp, k, A, B) => (s). k(s)(s)
 let (putOp(x), k, A, B) => (_). k(unit)(x)
 
 
-val handle[A; B : Ty, M; Sig : Ty -> Ty] :
-  ((Sig(A) -> B Cont(M(A))) -> A Cont(M(A)), M Handler(Sig)) -> A Cont(M(A))
-let (c, h) =>
-  cont (k : A -> M(A)). c((a : Sig(A)). cont (f). h(a, f, A, B)) ap(k)
-
-
 val main : () ->> Unit
 let () =>
   example6(3) println;
