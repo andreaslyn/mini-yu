@@ -21,6 +21,7 @@ import Control.Monad.Except
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import Data.Maybe (fromJust)
+import Data.List (sortOn)
 import Control.Exception (assert)
 
 import Debug.Trace (trace)
@@ -98,17 +99,35 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
   else eunify2 t1 t2
   where
     eunify :: Monad m => [(PreTerm, PreTerm)] -> SubstMap -> ExprUnifResult m
-    eunify termPairs = \su0 -> do
-      (msg, rest, subst) <- doEunify termPairs su0
-      if null rest
-      then return subst
-      else
-        if length rest == length termPairs
-        then throwError msg
-        else do
-          rest' <- lift (substPairs rest subst)
-          eunify rest' subst
+    eunify = \ps su -> do
+      rm <- lift Env.getRefMap
+      iv <- lift Env.getImplicitVarMap
+      let ps' = sortOn snd (map (addOrder rm iv) ps)
+      startEunify (map fst ps') su
       where
+        addOrder ::
+          RefMap -> Env.ImplicitVarMap ->
+          (PreTerm, PreTerm) -> ((PreTerm, PreTerm), (Int, Int))
+        addOrder rm iv (x, y) =
+          let w1 = getAppAlphaArgumentWeight rm iv x
+              w2 = getAppAlphaArgumentWeight rm iv y
+          in ((x, y), min w1 w2)
+
+        startEunify :: Monad m =>
+          [(PreTerm, PreTerm)] -> SubstMap -> ExprUnifResult m
+        startEunify termPairs = \su0 -> do
+          (msg, rest, subst) <- doEunify termPairs su0
+          if null rest
+          then return subst
+          else throwError msg
+          {-
+            if length rest == length termPairs
+            then throwError msg
+            else do
+              rest' <- lift (substPairs rest subst)
+              eunify rest' subst
+          -}
+
         doEunify :: Monad m =>
           [(PreTerm, PreTerm)] -> SubstMap ->
           ExceptT String (TypeCheckT m) (String, [(PreTerm, PreTerm)], SubstMap)

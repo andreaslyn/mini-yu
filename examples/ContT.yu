@@ -120,7 +120,7 @@ val _runStateHandler\_IsMonad\_->_[A; S : Ty, M : Ty -> Ty]
     M(S & A)
 let (isM, s) => (c).
     isM bind(
-      stateHandler handle[M := M](c)
+      stateHandler handle(c)
       ap (a). isM pure (s). isM pure(s $ a)) (f).
     f(s)
 
@@ -157,7 +157,7 @@ let (isM) => (c). partialHandler handle(c) ap(isM pure @ yes)
 val testPartialEffect : (Nat, Nat) -> ? Nat
 let (x, y) =>
   idIsMonad runPartialHandler (pa).
-  partialHandler handle[M := id] (pa).
+  partialHandler handle (pa).
   get(pa, x) >>= (x).
   get(pa, y) >>= (y).
   pure.ContT(x)
@@ -209,14 +209,24 @@ val plusPartialWithStateEffect : (Nat, Nat) -> Nat & ? Nat
 let (m, n) =>
   idIsMonad runStateHandler(0) (st).
   contTIsMonad runPartialHandler (pa).
-  get(pa, lift, m) >>= (m).
-  contTIsMonad lift(st(Unit, putOp(m))) >>= (_).
-  get(pa, lift, n) >>= (n).
-  contTIsMonad lift(st(Nat, getOp)) >>= (m).
-  contTIsMonad lift(st(Unit, putOp(m + n))) >>= (_).
-  contTIsMonad lift(st(Nat, getOp)) >>= (r).
-  pure.ContT(r)
+    work(st, pa)
 where
+  val work :
+    (st : StateSigna(Nat) Ef(Nat -> Nat & ? Nat, id, idIsMonad),
+     pa : PartialSigna Ef(? Nat,
+            _ ContT(Nat -> Nat & ? Nat, id, idIsMonad), contTIsMonad)) ->
+    RetM(Nat, Nat,
+      _ ContT(? Nat, _ ContT(Nat -> Nat & ? Nat, id, idIsMonad), contTIsMonad),
+      contTIsMonad)
+  let (st, pa) =>
+    get(pa, lift, m) >>= (m).
+    contTIsMonad lift(st(Unit, putOp(m))) >>= (_).
+    get(pa, lift, n) >>= (n).
+    contTIsMonad lift(st(Nat, getOp)) >>= (m).
+    contTIsMonad lift(st(Unit, putOp(m + n))) >>= (_).
+    contTIsMonad lift(st(Nat, getOp)) >>= (r).
+    pure.ContT(r)
+
   val Lift : (Ty, M : Ty -> Ty, M IsMonad) -> Ty
   let (A, M, isM) =>
     (X : Ty, X ContT(? A, M, isM)) ->

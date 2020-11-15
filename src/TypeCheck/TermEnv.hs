@@ -21,6 +21,7 @@ module TypeCheck.TermEnv
   , prePatternToString
   , preTermGetAlphaType
   , caseTreeToString
+  , getAppAlphaArgumentWeight
   )
 where
 
@@ -758,6 +759,82 @@ inferVarAlphaType _ _ _ TermTy _ = Nothing
 inferVarAlphaType _ _ _ (TermFun _ _ _ _) _ = Nothing
 inferVarAlphaType _ _ _ (TermCase _ _) _ = Nothing
 inferVarAlphaType _ _ _ TermEmpty _ = Nothing
+
+getAppAlphaArgumentWeight ::
+  RefMap -> Env.ImplicitVarMap -> PreTerm -> (Int, Int)
+getAppAlphaArgumentWeight rm iv t =
+  let p = getAppliedImplicits IntSet.empty rm t
+      a = IntSet.difference (allImplicits t) p
+  in (IntSet.size p, - IntSet.size a)
+  where
+    allImplicits :: PreTerm -> IntSet
+    allImplicits p =
+      IntSet.filter (flip IntMap.member iv) (preTermVars rm p)
+
+getAppliedImplicits :: IntSet -> RefMap -> PreTerm -> IntSet
+getAppliedImplicits vis rm (TermLazyApp _ f) =
+  getAppliedImplicits vis rm f
+getAppliedImplicits vis rm (TermImplicitApp _ f xs) =
+  IntSet.union
+    (getAppliedImplicits vis rm f)
+    (foldl (\a x ->
+      IntSet.union a $ getAppliedImplicits vis rm (snd x)) IntSet.empty xs)
+getAppliedImplicits vis rm (TermApp _ (TermVar True v) xs) =
+  IntSet.insert
+    (varId v)
+    (foldl (\a x ->
+      IntSet.union a $ getAppliedImplicits vis rm x) IntSet.empty xs)
+getAppliedImplicits vis rm (TermApp _ f xs) = do
+  IntSet.union
+    (getAppliedImplicits vis rm f)
+    (foldl (\a x ->
+      IntSet.union a $ getAppliedImplicits vis rm x) IntSet.empty xs)
+getAppliedImplicits vis rm (TermLazyFun _ f) =
+  getAppliedImplicits vis rm f
+getAppliedImplicits _ _ (TermData _) = IntSet.empty
+getAppliedImplicits _ _ (TermCtor _ _) = IntSet.empty
+getAppliedImplicits vis rm (TermRef v s) =
+  if IntSet.member (varId v) vis
+  then IntSet.empty
+  else
+    let t0 = IntMap.lookup (varId v) rm
+    in case t0 of
+        Nothing -> IntSet.empty
+        Just (t, _) ->
+          let t' = substPreTerm s (termPre t)
+          in getAppliedImplicits (IntSet.insert (varId v) vis) rm t'
+getAppliedImplicits vis rm (TermArrow _ d c) =
+  IntSet.union
+    (getAppliedImplicits vis rm c)
+    (foldl (\a x ->
+      IntSet.union a $ getAppliedImplicits vis rm (snd x)) IntSet.empty d)
+getAppliedImplicits vis rm (TermLazyArrow _ c) =
+  getAppliedImplicits vis rm c
+getAppliedImplicits vis rm (TermFun _ _ _ ct) =
+  getAppliedImplicitsCaseTree vis rm ct
+getAppliedImplicits vis rm (TermCase t ct) =
+  IntSet.union
+    (getAppliedImplicits vis rm t)
+    (getAppliedImplicitsCaseTree vis rm ct)
+getAppliedImplicits _ _ (TermVar _ _) = IntSet.empty
+getAppliedImplicits _ _ TermUnitElem = IntSet.empty
+getAppliedImplicits _ _ TermUnitTy = IntSet.empty
+getAppliedImplicits _ _ TermTy = IntSet.empty
+getAppliedImplicits _ _ TermEmpty = IntSet.empty
+
+getAppliedImplicitsCaseTree ::
+  IntSet -> RefMap -> CaseTree -> IntSet
+getAppliedImplicitsCaseTree vis rm (CaseLeaf _ _ te _) =
+  getAppliedImplicits vis rm te
+getAppliedImplicitsCaseTree vis rm (CaseUnit _ (_, ct)) =
+  getAppliedImplicitsCaseTree vis rm ct
+getAppliedImplicitsCaseTree vis rm (CaseNode _ m d) =
+  let d' = case d of
+            Nothing -> IntSet.empty
+            Just (_, ct) -> getAppliedImplicitsCaseTree vis rm ct
+  in IntMap.foldl (\a (_, x) ->
+      IntSet.union a $ getAppliedImplicitsCaseTree vis rm x) d' m
+getAppliedImplicitsCaseTree _ _ (CaseEmpty _) = IntSet.empty
 
 ----------------- Pretty printing -------------------------------
 
