@@ -764,11 +764,8 @@ getAppAlphaArgumentWeight ::
   RefMap -> Env.ImplicitVarMap -> PreTerm -> (Int, Int)
 getAppAlphaArgumentWeight rm iv t =
   let p = getAppliedImplicits IntSet.empty rm t
-      e = case t of
-            TermArrow _ _ _ -> 100
-            _ -> 0
       a = IntSet.difference (allImplicits t) p
-  in (e + IntSet.size p, - IntSet.size a)
+  in (IntSet.size p, - IntSet.size a)
   where
     allImplicits :: PreTerm -> IntSet
     allImplicits p =

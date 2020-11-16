@@ -17,7 +17,6 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Except
 import Data.Maybe (isJust, isNothing, fromJust)
-import Data.Either (isRight)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.IntSet (IntSet)
@@ -2056,10 +2055,9 @@ makeTermApp subst flo ty f' args = do
                     (map (\((x, y), e) ->
                       (x, (y, getAppOrderingWeight r iv y e))) (zip d' args))
                     args
-      let args1 = map (\(i, (v, (p, w)), e) -> (i, Left (v, p, w, e, TermEmpty))) args0
+      let args1 = map (\(i, (v, (p, w)), e) -> (i, v, p, w, e)) args0
       let domVars = getDomVars d'
-      let aploop uniCod cat as = applyArgsLoop uniCod cat domVars c' False IntMap.empty False as
-      (su, ps, io') <- aploop True True args1
+      (su, ps, io') <- applyArgs domVars False c' IntMap.empty args1
       let ps' = map snd (sortOn fst ps)
       let c = substPreTerm su c'
       let e = TermApp io (termPre f') ps'
@@ -2088,137 +2086,92 @@ makeTermApp subst flo ty f' args = do
           let (y, z) = getAppAlphaArgumentWeight rm iv t
           return (0, y, z)
 
-    applyArgsLoop :: Monad m =>
-      Bool -> Bool -> IntSet -> PreTerm -> Bool -> SubstMap -> Bool ->
-      [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)] ->
-      ExprT m (SubstMap, [(Int, PreTerm)], Bool)
-    applyArgsLoop uniCod cat domVars cod unified su io as = do
-      unified' <- if unified
-                  then return True
-                  else
-                    if uniCod
-                    then
-                      let fw = firstWeight as in
-                      (unifyType domVars fw cod su >> return True)
-                        `catchRecoverable` (\_ -> return False)
-                    else return False
-      case projArgs as of
-        Just xs -> return (su, xs, io)
-        Nothing -> do
-          (progress, su', as', io') <- applyArgs False as
-          if progress
-          then
-            applyArgsLoop uniCod cat domVars cod unified' (IntMap.union su su') (io || io') as'
-          else
-            if not cat
-            then lift (err flo (Recoverable "failed unifying function argument"))
-            else applyArgsLoop uniCod False domVars cod unified' su io as
-      where
-        projArgs :: 
-          [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)] ->
-          Maybe [(Int, PreTerm)]
-        projArgs [] = Just []
-        projArgs ((idx, Right t) : xs) = fmap ((idx, t) :) (projArgs xs)
-        projArgs ((_, Left _) : _) = Nothing
-
-        firstWeight :: [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)] -> (Int, Int, Int)
-        firstWeight ((_, Right _) : xs) = firstWeight xs
-        firstWeight ((_, Left (_, _, w, _, _)) : _) = w
-        firstWeight [] = (0, 0, 0)
-
     getDomVars :: [(Maybe Var, PreTerm)] -> IntSet
     getDomVars [] = IntSet.empty
     getDomVars ((Nothing, _) : vs) = getDomVars vs
     getDomVars ((Just v, _) : vs) = IntSet.insert (varId v) (getDomVars vs)
 
     applyArgs :: Monad m =>
-      Bool -> [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)] ->
-      ExprT m
-        (Bool, SubstMap, [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)], Bool)
-    applyArgs _ [] = return (False, IntMap.empty, [], False)
-    applyArgs cat ((idx, Right t) : xs) = do
-      (progress, m, xs', io) <- applyArgs cat xs
-      return (progress, m, (idx, Right t) : xs', io)
-    applyArgs cat ((idx, Left (Nothing, p, w, e, prevTy)) : xs) = do
-      (e', eio) <- applyTc cat p w e prevTy
-      (progress, su, es', io) <- applyArgs cat xs
-      return (progress || isRight e', su, (idx, e') : es', io || eio)
-    applyArgs cat ((idx, Left (Just v, p, w, e, prevTy)) : xs) = do
-      (e', eio) <- applyTc cat p w e prevTy
+      IntSet -> Bool -> PreTerm -> SubstMap ->
+      [(Int, Maybe Var, PreTerm, (Int, Int, Int), Expr)] ->
+      ExprT m (SubstMap, [(Int, PreTerm)], Bool)
+    applyArgs _ _ _ su [] = return (su, [], False)
+    applyArgs domVars unified cod su ((idx, Nothing, p, w, e) : xs) = do
+      unified' <- unifyCod domVars unified w cod su
+      (e', eio) <- applyTc p w e
+      (su', es', io) <- applyArgs domVars unified' cod su xs
+      return (su', (idx, e') : es', io || eio)
+    applyArgs domVars unified cod su ((idx, Just v, p, w, e) : xs) = do
+      unified' <- unifyCod domVars unified w cod su
+      (e', eio) <- applyTc p w e
       r <- lift Env.getRefMap
-      let xs' = case e' of
-                  Right e'' -> substArgs r (IntMap.singleton (varId v) e'') xs
-                  Left _ -> xs
-      (progress, su, es', io) <- applyArgs cat xs'
-      let su' = case e' of
-                  Right e'' -> IntMap.insert (varId v) e'' su
-                  Left _ -> su
-      return (progress || isRight e', su', (idx, e') : es', io || eio)
+      let xs' = substArgs r (IntMap.singleton (varId v) e') xs
+      let su' = IntMap.insert (varId v) e' su
+      (su'', es', io) <- applyArgs domVars unified' cod su' xs'
+      return (su'', (idx, e') : es', io || eio)
 
-    applyTc True p weight e prevTy = do
+    unifyCod :: Monad m =>
+      IntSet -> Bool -> (Int, Int, Int) -> PreTerm -> SubstMap -> ExprT m Bool
+    unifyCod domVars unified weight cod su = do
+      if unified
+      then return True
+      else (unifyType domVars weight cod su >> return True)
+              `catchRecoverable` (\_ -> return False)
+
+    applyTc p _ e = do
       isu <- getExprSubst
       let p' = substPreTerm isu p
-      rm <- lift Env.getRefMap
-      im <- lift Env.getImplicitMap
-      iv <- lift Env.getImplicitVarMap
-      if canUnifyType im rm iv (preTermNormalize rm p') e
-         && not (preTermsAlphaEqual rm p' prevTy)
-      then
-        fmap (\d -> (Right (termPre d), termIo d)) (tcExpr subst p' e)
-          `catchRecoverable` (\_ -> return (Left (Nothing, p, weight, e, p'), False))
-      else return (Left (Nothing, p, weight, e, p'), False)
-    applyTc False p _ e _ = do
-      isu <- getExprSubst
-      let p' = substPreTerm isu p
-      fmap (\d -> (Right (termPre d), termIo d)) (tcExpr subst p' e)
-
-    canUnifyType :: ImplicitMap -> RefMap -> Env.ImplicitVarMap -> PreTerm -> Expr -> Bool
-    canUnifyType im rm iv (TermArrow _ d c) (ExprFun _ ps e) =
-      foldl (\b ((_, x), (_, t)) ->
-              b && (isJust t || IntSet.null (allImplicits x))
-            ) True (zip d ps)
-      && canUnifyType im rm iv c e
-      where
-        allImplicits :: PreTerm -> IntSet
-        allImplicits p =
-          IntSet.filter (flip IntMap.member iv) (preTermVars rm p)
-    canUnifyType im rm iv (TermLazyArrow _ c) (ExprLazyFun _ e) =
-      canUnifyType im rm iv c e
-    canUnifyType im rm iv (TermLazyArrow _ c) e =
-      canUnifyType im rm iv c e
-    canUnifyType _ _ _ _ _ = True
+      fmap (\d -> (termPre d, termIo d)) (tcExpr subst p' e)
 
     substArgs ::
       RefMap -> SubstMap ->
-      [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)] ->
-      [(Int, Either (Maybe Var, PreTerm, (Int, Int, Int), Expr, PreTerm) PreTerm)]
+      [(Int, Maybe Var, PreTerm, (Int, Int, Int), Expr)] ->
+      [(Int, Maybe Var, PreTerm, (Int, Int, Int), Expr)]
     substArgs _ _ [] = []
-    substArgs r m ((idx, Right t) : xs) =
-      (idx, Right t) : substArgs r m xs
-    substArgs r m ((idx, Left (v, p, w, e, prevTy)) : xs) =
-      (idx, Left (v, substPreTerm m p, w, e, prevTy)) : substArgs r m xs
+    substArgs r m ((idx, v, p, w, e) : xs) =
+      (idx, v, substPreTerm m p, w, e) : substArgs r m xs
 
 getAppOrderingWeight ::
   RefMap -> Env.ImplicitVarMap -> PreTerm -> Expr -> (Int, Int, Int)
 getAppOrderingWeight rm iv ty e =
   let ty' = preTermNormalize rm ty
       (y, z) = getAppAlphaArgumentWeight rm iv ty'
-  in (funWeight ty' e, y, z)
+  in (IntSet.size (funWeight ty' e), y, z)
   where
-    funWeight (TermArrow _ d c) (ExprFun _ ps b) =
-      foldl (\n ((_, x), (_, t)) ->
-              if isNothing t
-              then n + IntSet.size (allImplicits x)
-              else n
-            ) 0 (zip d ps)
-      + funWeight c b
-    funWeight (TermLazyArrow _ c) (ExprLazyFun _ b) = funWeight c b
-    funWeight (TermLazyArrow _ c) b = funWeight c b
-    funWeight _ _ = 0
-
     allImplicits :: PreTerm -> IntSet
     allImplicits p =
       IntSet.filter (flip IntMap.member iv) (preTermVars rm p)
+
+    funWeight :: PreTerm -> Expr -> IntSet
+    funWeight (TermArrow _ d _) (ExprVar (_, n))
+      | isOperator n && not ('\\' `elem` n) =
+          foldl (\s (_, x) ->
+                  IntSet.union s (allImplicits x)
+                ) IntSet.empty d
+    funWeight (TermArrow _ d _)
+        (ExprApp (ExprVar (_, n)) (ExprVar (_, "_") : _))
+      | (isPrefixOp n || isPostfixOp n || isLeftAssocInfixOp n)
+            && not ('\\' `elem` n) =
+          foldl (\s (_, x) ->
+                  IntSet.union s (allImplicits x)
+                ) IntSet.empty d
+    funWeight (TermArrow _ d _)
+        (ExprApp (ExprVar (_, n)) (_ : ExprVar (_, "_") : _))
+      | isRightAssocInfixOp n && not ('\\' `elem` n) =
+          foldl (\s (_, x) ->
+                  IntSet.union s (allImplicits x)
+                ) IntSet.empty d
+    funWeight (TermArrow _ d c) (ExprFun _ ps b) =
+      let s0 = foldl (\s ((_, x), (_, t)) ->
+                        if isNothing t
+                        then IntSet.union s (allImplicits x)
+                        else s
+                     ) IntSet.empty (zip d ps)
+          s1 = funWeight c b
+      in IntSet.union s0 s1
+    funWeight (TermLazyArrow _ c) (ExprLazyFun _ b) = funWeight c b
+    funWeight (TermLazyArrow _ c) b = funWeight c b
+    funWeight _ _ = IntSet.empty
 
 appOrdering ::
   (PreTerm, (Int, Int, Int)) -> (PreTerm, (Int, Int, Int)) -> Ordering

@@ -269,15 +269,6 @@ which requires lifting through _ContT\Ty a number of times.
 #}
 
 
-#{
-Solution to slowness:
-  * Need to give arrows with implicit domain a high weight.
-  * Need to rewrite applt loop, which that it will run just
-    apply args and unify codomain once it has lower weight
-    than next argument (and no variable from domain).
-#}
-
-
 val main : () ->> Unit
 let () =>
   partialPlusWithStateEffect(2, 0) str((p). p str(_str, (x, _). x str)) println;
