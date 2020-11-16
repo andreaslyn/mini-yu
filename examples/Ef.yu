@@ -1,0 +1,128 @@
+import "yu/prelude.yu"
+
+
+#{
+val _HandlerFun\_->_ : (Ty -> Ty, Ty) -> Ty
+let (Sig, R) =>
+  (Sig(A), A : Ty, as : _Handle\_->_ Vec, A -> R Ef(as)) -> R Ef(as)
+
+val _handle\_Handler\_->_[R : Ty, Sig : Ty -> Ty, as : _Handle\_->_ Vec]
+  (Sig Handler(R), (a : Sig Handle) -> A Ef(a :: as)) ->
+  A -> R Ef(as)
+where
+  Sig Handle ≅ R $ do (B : Ty, Sig(B)) -> B Ef(a :: as)
+and
+  A Ef(nil) ≅ id
+  A Ef(a :: as) ≅ A ContT(a 1, _ Ef(as), efIsMonad)
+
+A ~ a :: as
+
+Need an apply operation:
+  _ap[A : Ty, Sig : Ty -> Ty] :
+    (a : Sig Handle, Sig(A), as Has(a)) -> A Ef(as)
+which requires lifting through _ContT\Ty a number of times.
+#}
+
+
+data _IsMonad\_->_ : (Ty -> Ty) -> Ty
+let isMonad[M : Ty -> Ty] : (
+  (A, A : Ty) -> M(A),
+  (M(A), [] -> A -> M(B), A : Ty, B : Ty) -> M(B)
+) -> M IsMonad
+
+
+val _pure\_IsMonad\_->_[A : Ty, M : Ty -> Ty] : M IsMonad -> A -> M(A)
+let (isMonad(r, _)) => r(_, A)
+
+
+val _bind\_IsMonad\_->_[A; B : Ty, M : Ty -> Ty] :
+  (M IsMonad, M(A)) -> ([] -> A -> M(B)) -> M(B)
+let (isMonad(_, b), a) => (f). b(a, f[], A, B)
+
+
+val idIsMonad : id IsMonad
+let => isMonad(_:!_, bind)
+where
+  val bind : (A, [] -> A -> B, A; B : Ty) -> B
+  let (x, f, A, B) => f[](x)
+end
+
+
+data _ContT\Ty : (Ty, Ty, M : Ty -> Ty, M IsMonad) -> Ty
+let contT[A; R : Ty, M : Ty -> Ty, isM : M IsMonad] :
+  ((A -> M(R)) -> M(R)) -> A ContT(R, M, isM)
+
+
+val _ap\_ContT\Ty[A; R : Ty, M : Ty -> Ty, isM : M IsMonad] :
+  (A ContT(R, M, isM), A -> M(R)) -> M(R)
+let (contT(c), k) => c(k)
+
+
+val pure.ContT[A; R : Ty, M : Ty -> Ty, isM : M IsMonad] :
+  A -> A ContT(R, M, isM)
+let (a) => contT (k). k(a)
+
+
+val _>>=_\_ContT\Ty[A; B; R : Ty, M : Ty -> Ty, isM : M IsMonad] :
+  (A ContT(R, M, isM), [] -> A -> B ContT(R, M, isM)) -> B ContT(R, M, isM)
+let (x, f) => contT (k). x ap (a). f[](a) ap(k)
+
+
+val contTIsMonad[R : Ty, M : Ty -> Ty, isM : M IsMonad] :
+  _ ContT\Ty(R, M, isM) IsMonad
+let => isMonad((a, A). pure.ContT(a), (x, f, A, B). x >>= f[])
+
+
+val _lift\_IsMonad\_->_[A; R : Ty, M : Ty -> Ty] :
+  (isM : M IsMonad, M(A)) -> A ContT(R, M, isM)
+let (isM, x) => contT (k). isM bind(x)([]. k)
+
+
+data _List\_->_[A : Ty] : (A -> Ty, A List) -> Ty
+let nil.HeteroList[A : Ty, P : A -> Ty] : P List(nil)
+let _::_\_List\_->_[A : Ty, P : A -> Ty, x : A, xs : A List] :
+  (P(x), P List(xs)) -> P List(x :: xs)
+
+
+data _Ef\_->_ : (Ty -> Ty) -> Ty
+let mkEf[Sig : Ty -> Ty] : Ty -> Sig Ef
+
+
+val _Ty\_Ef\_->_[Sig : Ty -> Ty] : Sig Ef -> Ty
+let (mkEf(R)) => R
+
+
+val Computation[rs : (Ty -> Ty) List] :
+  _Ef List\_->_(rs) -> & (M : Ty -> Ty). M IsMonad
+let (nil.HeteroList) => id $ idIsMonad
+let (p :: ps) =>
+  M $ isM := Computation(ps);
+  _ ContT(p Ty, M, isM) $ contTIsMonad
+
+
+val pure.Computation[rs : (Ty -> Ty) List, A : Ty] :
+  (ps : _Ef List\_->_(rs)) -> A -> Computation(ps) 1(A)
+let (ps) => Computation(ps) 2 pure
+
+
+val bind.Computation[rs : (Ty -> Ty) List, A; B : Ty] :
+  (ps : _Ef List\_->_(rs)) ->
+  Computation(ps) 1(A) ->
+  ([] -> A -> Computation(ps) 1(B)) ->
+  Computation(ps) 1(B)
+let (ps) => Computation(ps) 2 bind(_)
+
+
+data _~_\Ty[rs : (Ty -> Ty) List] :
+  (Ty, _Ef List\_->_(rs)) -> Ty
+let mkComp[rs : (Ty -> Ty) List, ps : _Ef List\_->_(rs), A : Ty] :
+  Computation(ps) 1(A) -> A ~ ps
+
+
+val pure.Comp[A : Ty, rs : (Ty -> Ty) List, ps : _Ef List\_->_(rs)] :
+  A -> A ~ ps
+let => mkComp @ pure.Computation(ps)
+
+
+##val compIsMonad[rs : (Ty -> Ty) List, ps : _Ef List\_->_(rs)] :
+##  (_ ~ ps) IsMonad

@@ -109,7 +109,7 @@ isOp4Char :: Char -> Bool
 isOp4Char c = elem c "+-"
 
 isOp5Char :: Char -> Bool
-isOp5Char c = elem c "=:~?!"
+isOp5Char c = elem c "=:?!"
 
 isOp6Char :: Char -> Bool
 isOp6Char c = elem c "<>~"

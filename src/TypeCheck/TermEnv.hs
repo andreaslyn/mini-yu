@@ -761,15 +761,41 @@ inferVarAlphaType _ _ _ (TermCase _ _) _ = Nothing
 inferVarAlphaType _ _ _ TermEmpty _ = Nothing
 
 getAppAlphaArgumentWeight ::
-  RefMap -> Env.ImplicitVarMap -> PreTerm -> (Int, Int)
+  RefMap -> Env.ImplicitVarMap -> PreTerm -> (Int, Int, Int)
 getAppAlphaArgumentWeight rm iv t =
   let p = getAppliedImplicits IntSet.empty rm t
-      a = IntSet.difference (allImplicits t) p
-  in (IntSet.size p, - IntSet.size a)
+      a = IntSet.difference allImplicits p
+  in (IntSet.size p, -rigidImplicits, IntSet.size a - rigidImplicits)
   where
-    allImplicits :: PreTerm -> IntSet
-    allImplicits p =
-      IntSet.filter (flip IntMap.member iv) (preTermVars rm p)
+    allImplicits :: IntSet
+    allImplicits = IntSet.filter (flip IntMap.member iv) (preTermVars rm t)
+
+    rigidImplicits :: Int
+    rigidImplicits =
+      case doRigidImplicits t of
+        Nothing -> 0
+        Just s -> IntSet.size s
+
+    doRigidImplicits :: PreTerm -> Maybe IntSet
+    doRigidImplicits (TermVar True v) = Just (IntSet.singleton (varId v))
+    doRigidImplicits (TermLazyApp _ f) = doRigidImplicits f
+    doRigidImplicits (TermApp _ f xs) = do
+      f' <- doRigidImplicits f
+      Just $ foldl (\a x ->
+                      case doRigidImplicits x of
+                        Nothing -> IntSet.empty
+                        Just s -> IntSet.union a s
+                   ) f' xs
+    doRigidImplicits (TermImplicitApp _ f xs) = do
+      doRigidImplicits (TermApp False f (map snd xs))
+    doRigidImplicits (TermCtor _ _) = Just IntSet.empty
+    doRigidImplicits (TermData _) = Just IntSet.empty
+    doRigidImplicits (TermLazyArrow _ c) = doRigidImplicits c
+    doRigidImplicits (TermArrow _ _ _) = Just IntSet.empty
+    doRigidImplicits TermUnitElem = Just IntSet.empty
+    doRigidImplicits TermUnitTy = Just IntSet.empty
+    doRigidImplicits TermTy = Just IntSet.empty
+    doRigidImplicits _ = Nothing
 
 getAppliedImplicits :: IntSet -> RefMap -> PreTerm -> IntSet
 getAppliedImplicits vis rm (TermLazyApp _ f) =

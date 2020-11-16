@@ -81,11 +81,11 @@ canAppUnifyBase (TermVar False _) = True
 canAppUnifyBase (TermData _) = True
 canAppUnifyBase (TermCtor _ _) = True
 canAppUnifyBase (TermRef _ _) = True
-canAppUnifyBase (TermApp _ f _) = preTermIsRigid f
-canAppUnifyBase (TermLazyApp _ f) = preTermIsRigid f
-canAppUnifyBase (TermImplicitApp _ f _) = preTermIsRigid f
-canAppUnifyBase (TermLazyFun _ f) = preTermIsRigid f
-canAppUnifyBase (TermFun _ _ _ (CaseLeaf _ _ f _)) = preTermIsRigid f
+canAppUnifyBase (TermApp _ f _) = canAppUnifyBase f
+canAppUnifyBase (TermLazyApp _ f) = canAppUnifyBase f
+canAppUnifyBase (TermImplicitApp _ f _) = canAppUnifyBase f
+canAppUnifyBase (TermLazyFun _ f) = canAppUnifyBase f
+canAppUnifyBase (TermFun _ _ _ (CaseLeaf _ _ f _)) = canAppUnifyBase f
 canAppUnifyBase (TermFun _ _ _ _) = False
 canAppUnifyBase (TermCase _ _) = False
 canAppUnifyBase (TermArrow _ _ _) = False
@@ -128,7 +128,7 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
       where
         addOrder ::
           RefMap -> Env.ImplicitVarMap ->
-          (PreTerm, PreTerm) -> ((PreTerm, PreTerm), (Int, Int))
+          (PreTerm, PreTerm) -> ((PreTerm, PreTerm), (Int, Int, Int))
         addOrder rm iv (x, y) =
           let w1 = getAppAlphaArgumentWeight rm iv x
               w2 = getAppAlphaArgumentWeight rm iv y

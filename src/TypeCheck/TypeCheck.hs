@@ -2063,28 +2063,28 @@ makeTermApp subst flo ty f' args = do
       let e = TermApp io (termPre f') ps'
       return (mkTerm e c (termIo f' || io || io'))
   where
-    unifyType :: Monad m => IntSet -> (Int, Int, Int) -> PreTerm -> SubstMap -> ExprT m ()
+    unifyType :: Monad m => IntSet -> (Int, Int, Int, Int) -> PreTerm -> SubstMap -> ExprT m Bool
     unifyType domVars w cod su = do
       case ty of
         Just ty' -> do
           let cod' = substPreTerm su cod
           cw <- uniWeight cod'
           if w < cw
-          then return ()
+          then return False
           else do
             rm <- lift Env.getRefMap
             let fs = preTermVars rm cod'
             if IntSet.null (IntSet.intersection fs domVars)
-            then tcExprSubstUnify flo ty' cod'
-            else return ()
-        Nothing -> return ()
+            then (tcExprSubstUnify flo ty' cod' >> return True)
+            else return False
+        Nothing -> return True
       where
-        uniWeight :: Monad m => PreTerm -> ExprT m (Int, Int, Int)
+        uniWeight :: Monad m => PreTerm -> ExprT m (Int, Int, Int, Int)
         uniWeight t = do
           rm <- lift Env.getRefMap
           iv <- lift Env.getImplicitVarMap
-          let (y, z) = getAppAlphaArgumentWeight rm iv t
-          return (0, y, z)
+          let (x, y, z) = getAppAlphaArgumentWeight rm iv t
+          return (0, x, y, z)
 
     getDomVars :: [(Maybe Var, PreTerm)] -> IntSet
     getDomVars [] = IntSet.empty
@@ -2093,7 +2093,7 @@ makeTermApp subst flo ty f' args = do
 
     applyArgs :: Monad m =>
       IntSet -> Bool -> PreTerm -> SubstMap ->
-      [(Int, Maybe Var, PreTerm, (Int, Int, Int), Expr)] ->
+      [(Int, Maybe Var, PreTerm, (Int, Int, Int, Int), Expr)] ->
       ExprT m (SubstMap, [(Int, PreTerm)], Bool)
     applyArgs _ _ _ su [] = return (su, [], False)
     applyArgs domVars unified cod su ((idx, Nothing, p, w, e) : xs) = do
@@ -2111,12 +2111,12 @@ makeTermApp subst flo ty f' args = do
       return (su'', (idx, e') : es', io || eio)
 
     unifyCod :: Monad m =>
-      IntSet -> Bool -> (Int, Int, Int) -> PreTerm -> SubstMap -> ExprT m Bool
+      IntSet -> Bool -> (Int, Int, Int, Int) -> PreTerm -> SubstMap -> ExprT m Bool
     unifyCod domVars unified weight cod su = do
       if unified
       then return True
-      else (unifyType domVars weight cod su >> return True)
-              `catchRecoverable` (\_ -> return False)
+      else unifyType domVars weight cod su
+            `catchRecoverable` (\_ -> return False)
 
     applyTc p _ e = do
       isu <- getExprSubst
@@ -2125,18 +2125,18 @@ makeTermApp subst flo ty f' args = do
 
     substArgs ::
       RefMap -> SubstMap ->
-      [(Int, Maybe Var, PreTerm, (Int, Int, Int), Expr)] ->
-      [(Int, Maybe Var, PreTerm, (Int, Int, Int), Expr)]
+      [(Int, Maybe Var, PreTerm, (Int, Int, Int, Int), Expr)] ->
+      [(Int, Maybe Var, PreTerm, (Int, Int, Int, Int), Expr)]
     substArgs _ _ [] = []
     substArgs r m ((idx, v, p, w, e) : xs) =
       (idx, v, substPreTerm m p, w, e) : substArgs r m xs
 
 getAppOrderingWeight ::
-  RefMap -> Env.ImplicitVarMap -> PreTerm -> Expr -> (Int, Int, Int)
+  RefMap -> Env.ImplicitVarMap -> PreTerm -> Expr -> (Int, Int, Int, Int)
 getAppOrderingWeight rm iv ty e =
   let ty' = preTermNormalize rm ty
-      (y, z) = getAppAlphaArgumentWeight rm iv ty'
-  in (IntSet.size (funWeight ty' e), y, z)
+      (x, y, z) = getAppAlphaArgumentWeight rm iv ty'
+  in (IntSet.size (funWeight ty' e), x, y, z)
   where
     allImplicits :: PreTerm -> IntSet
     allImplicits p =
@@ -2174,7 +2174,7 @@ getAppOrderingWeight rm iv ty e =
     funWeight _ _ = IntSet.empty
 
 appOrdering ::
-  (PreTerm, (Int, Int, Int)) -> (PreTerm, (Int, Int, Int)) -> Ordering
+  (PreTerm, (Int, Int, Int, Int)) -> (PreTerm, (Int, Int, Int, Int)) -> Ordering
 appOrdering (_, n1) (_, n2) = compare n1 n2
 
 tcPattern :: Monad m =>
