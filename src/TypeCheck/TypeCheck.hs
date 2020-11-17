@@ -2136,42 +2136,56 @@ getAppOrderingWeight ::
 getAppOrderingWeight rm iv ty e =
   let ty' = preTermNormalize rm ty
       (x, y, z) = getAppAlphaArgumentWeight rm iv ty'
-  in (IntSet.size (funWeight ty' e), x, y, z)
+  in (funWeight ty' e, x, y, z)
   where
     allImplicits :: PreTerm -> IntSet
     allImplicits p =
       IntSet.filter (flip IntMap.member iv) (preTermVars rm p)
 
-    funWeight :: PreTerm -> Expr -> IntSet
-    funWeight (TermArrow _ d _) (ExprVar (_, n))
+    funWeight :: PreTerm -> Expr -> Int
+    funWeight t@(TermArrow _ _ _) x = IntSet.size (funImplicits t x)
+    funWeight t@(TermLazyArrow _ _) x = IntSet.size (funImplicits t x)
+    funWeight _ x@(ExprLazyFun _ _) = funWeightNoType x
+    funWeight _ x@(ExprFun _ _ _) = funWeightNoType x
+    funWeight t x = IntSet.size (funImplicits t x)
+
+    funImplicits :: PreTerm -> Expr -> IntSet
+    funImplicits (TermArrow _ d _) (ExprVar (_, n))
       | isOperator n && not ('\\' `elem` n) =
           foldl (\s (_, x) ->
                   IntSet.union s (allImplicits x)
                 ) IntSet.empty d
-    funWeight (TermArrow _ d _)
+    funImplicits (TermArrow _ d _)
         (ExprApp (ExprVar (_, n)) (ExprVar (_, "_") : _))
       | (isPrefixOp n || isPostfixOp n || isLeftAssocInfixOp n)
             && not ('\\' `elem` n) =
           foldl (\s (_, x) ->
                   IntSet.union s (allImplicits x)
                 ) IntSet.empty d
-    funWeight (TermArrow _ d _)
+    funImplicits (TermArrow _ d _)
         (ExprApp (ExprVar (_, n)) (_ : ExprVar (_, "_") : _))
       | isRightAssocInfixOp n && not ('\\' `elem` n) =
           foldl (\s (_, x) ->
                   IntSet.union s (allImplicits x)
                 ) IntSet.empty d
-    funWeight (TermArrow _ d c) (ExprFun _ ps b) =
+    funImplicits (TermArrow _ d c) (ExprFun _ ps b) =
       let s0 = foldl (\s ((_, x), (_, t)) ->
                         if isNothing t
                         then IntSet.union s (allImplicits x)
                         else s
                      ) IntSet.empty (zip d ps)
-          s1 = funWeight c b
+          s1 = funImplicits c b
       in IntSet.union s0 s1
-    funWeight (TermLazyArrow _ c) (ExprLazyFun _ b) = funWeight c b
-    funWeight (TermLazyArrow _ c) b = funWeight c b
-    funWeight _ _ = IntSet.empty
+    funImplicits (TermLazyArrow _ c) (ExprLazyFun _ b) = funImplicits c b
+    funImplicits (TermLazyArrow _ c) b = funImplicits c b
+    funImplicits _ _ = IntSet.empty
+
+    funWeightNoType :: Expr -> Int
+    funWeightNoType (ExprLazyFun _ x) = funWeightNoType x
+    funWeightNoType (ExprFun _ ps x) =
+      funWeightNoType x + foldl (\a (_, t) ->
+                            if isNothing t then a + 1 else a) 0 ps
+    funWeightNoType _ = 0
 
 appOrdering ::
   (PreTerm, (Int, Int, Int, Int)) -> (PreTerm, (Int, Int, Int, Int)) -> Ordering
@@ -2366,10 +2380,33 @@ doTcPattern _ _ newpids ty (ParsePatternLazyApp f) = do
                        patternTy = cod}
       return (fsu, p)
 doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
-  na <- if not (isOperator na0) || '\\' `elem` na0
-          then return na0
-          else getDataCtorMatching
-  x <- Env.lookup na
+  (x, na) <- if not (isOperator na0) || '\\' `elem` na0
+             then fmap (\x -> (x, na0)) (Env.lookup na0)
+             else do
+              (dn, na) <- getDataCtorMatching
+              case dn of
+                Nothing -> fmap (\x -> (x, na)) (Env.lookup na)
+                Just dn' -> do
+                  let na1 = operandConcat na0 dn'
+                  x1 <- Env.lookup na1
+                  if isJust x1
+                  then do
+                    x2 <- Env.lookup (na0 ++ "\\")
+                    if isJust x2
+                    then do
+                      im <- Env.getImplicitMap
+                      rm <- Env.getRefMap
+                      err lo (Fatal $
+                                "multiple candidates for constructor "
+                                ++ quote na0 ++ "of type\n"
+                                ++ preTermToString im rm defaultExprIndent ty)
+                    else return (x1, na1)
+                  else do
+                    let na2 = na0 ++ "\\"
+                    x2 <- Env.lookup na2
+                    if isJust x2
+                    then return (x2, na2)
+                    else fmap (\x -> (x, na)) (Env.lookup na)
   case x of
     Just (StatusTerm (Term {termPre = TermCtor v did, termTy = ty'})) -> do
       checkCtorType v did ty'
@@ -2393,21 +2430,23 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
         return (IntMap.empty, Pattern {patternPre = PatternVar v,
                                        patternTy = ty})
   where
-    getDataCtorMatching :: Monad m => TypeCheckT m VarName
+    getDataCtorMatching :: Monad m => TypeCheckT m (Maybe VarName, VarName)
     getDataCtorMatching = do
       cs <- getDataCtors
       case cs of
-        Nothing -> return na0
-        Just cs' ->
+        Nothing -> return (Nothing, na0)
+        Just (d, cs') ->
           case filter (isPrefixOf na0) (map varName cs') of
-            [m] -> return m
-            _ -> return na0
+            [m] -> return (Just d, m)
+            _ -> return (Just d, na0)
 
-    getDataCtors :: Monad m => TypeCheckT m (Maybe [Var])
+    getDataCtors :: Monad m => TypeCheckT m (Maybe (VarName, [Var]))
     getDataCtors = do
       rm <- Env.getRefMap
       case preTermCodRootType rm ty of
-        Just (TermData d, _) -> fmap Just (Env.forceLookupDataCtor (varId d))
+        Just (TermData d, _) -> do
+          c <- Env.forceLookupDataCtor (varId d)
+          return (Just (varName d, c))
         _ -> return Nothing
 
     ctorFromVarStatus :: Monad m => VarStatus -> TypeCheckT m (Var, VarId, PreTerm)
@@ -2451,7 +2490,7 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
     getImplicit :: Monad m => (Var, PreTerm) -> TypeCheckT m (Var, PrePattern)
     getImplicit (v, _) = do
       i <- Env.freshVarId
-      let v' = mkVar i ('.' : varName v)
+      let v' = mkVar i (varName v ++ "." ++ na0)
       return (v, PatternVar v')
 doTcPattern _ _ newpids ty (ParsePatternEmpty lo) = do
   verifyIsEmptyType lo newpids ty

@@ -60,6 +60,12 @@ val _lift\_IsMonad\_->_[A; R : Ty, M : Ty -> Ty] :
 let (isM, x) => contT (k). isM bind(x)([]. k)
 
 
+val callcc[A; R : Ty, M : Ty -> Ty, isM : M IsMonad] :
+  (((A, B : Ty) -> B ContT(R, M, isM)) -> A ContT(R, M, isM)) ->
+  A ContT(R, M, isM) 
+let (c) => contT (k). c((a, B). contT (_). k(a)) ap(k)
+
+
 val example6 : Nat -> Bool
 let (x) =>
   _eval do
@@ -120,8 +126,7 @@ val _runStateHandler\_IsMonad\_->_[A; S : Ty, M : Ty -> Ty]
     M(S & A)
 let (isM, s) => (c).
     isM bind(
-      stateHandler handle(c)
-      ap (a). isM pure (s). isM pure(s $ a)) (f).
+      stateHandler handle(c) ap (a). isM pure (s). isM pure(s $ a)) (f).
     f(s)
 
 
@@ -248,6 +253,58 @@ where
 end
 
 
+data ChoiceSigna : Ty -> Ty
+let decideOp : ChoiceSigna(Bool)
+
+
+val choiceHandler[A : Ty, M : Ty -> Ty, isM : M IsMonad] :
+  ChoiceSigna Handler(A List, M, isM)
+let => mkHandler(hand)
+where
+  val hand : ChoiceSigna HandlerFun(A List, M)
+  let (decideOp, _, k) =>
+    isM bind(k(true)) (x).
+    isM bind(k(false)) (y).
+    isM pure(x :+: y)
+end
+
+
+val _runChoiceHandler\_IsMonad\_->_[A : Ty, M : Ty -> Ty] :
+  (isM : M IsMonad) ->
+  (ChoiceSigna Ef(A List, M, isM) -> A ContT(A List, M, isM)) ->
+  M(A List)
+let (isM) => (c). choiceHandler handle(c) ap(isM pure @ (_ :: nil))
+
+#{
+with choose_all c1 handle
+with choose_all c2 handle
+let x = (if c1# decide () then 10 else 20) in
+let y = (if c2# decide () then 0 else 5) in
+x - y
+#}
+
+val testChoice1 : Nat List List
+let =>
+  idIsMonad runChoiceHandler (c1).
+  contTIsMonad runChoiceHandler (c2).
+  contTIsMonad lift(c1(Bool, decideOp)) >>= (b1). do
+  x := if(b1) then(10) else(10 + 10);
+  c2(Bool, decideOp) >>= (b2). do
+  y := if(b2) then(0) else(5);
+  pure.ContT(x - y)
+
+
+val testChoice2 : Nat List List
+let =>
+  idIsMonad runChoiceHandler (c2).
+  contTIsMonad runChoiceHandler (c1).
+  c1(Bool, decideOp) >>= (b1). do
+  x := if(b1) then(10) else(10 + 10);
+  contTIsMonad lift(c2(Bool, decideOp)) >>= (b2). do
+  y := if(b2) then(0) else(5);
+  pure.ContT(x - y)
+
+
 val main : () ->> Unit
 let () =>
   partialPlusWithStateEffect(2, 0) str((p). p str(_str, (x, _). x str)) println;
@@ -255,4 +312,6 @@ let () =>
   partialPlusWithStateEffect(2, 2) str((p). p str(_str, (x, _). x str)) println;
   plusPartialWithStateEffect(2, 0) str(_str, (x, _). x str(_str)) println;
   plusPartialWithStateEffect(0, 2) str(_str, (x, _). x str(_str)) println;
-  plusPartialWithStateEffect(2, 2) str(_str, (x, _). x str(_str)) println
+  plusPartialWithStateEffect(2, 2) str(_str, (x, _). x str(_str)) println;
+  ("[" :+: testChoice1 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
+  ("[" :+: testChoice2 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println
