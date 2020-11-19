@@ -142,9 +142,12 @@ val pure.Comp[ps : EfList, A : Ty] : A -> A ~ ps
 let => mk.Comp @ const @ pure.PreComp
 
 
-val _>>=_\_~_\Ty[ps : EfList, A; B : Ty] :
-  (A ~ ps, A -> B ~ ps) -> B ~ ps
+val _>>=_\_~_\Ty[ps : EfList, A; B : Ty] : (A ~ ps, A -> B ~ ps) -> B ~ ps
 let (c, f) => mk.Comp (s). bind.PreComp(c pr(s))(_ pr(s) @ f)
+
+
+val _:>>_\_~_\Ty[ps : EfList, A; B : Ty] : (A ~ ps, [] -> B ~ ps) -> B ~ ps
+let (x, y) => x >>= (_). y[]
 
 
 val _IsMonad~\_IsEfList\EfList[ps : EfList] : ps IsEfList -> (_ ~ ps) IsMonad\_->_
@@ -221,45 +224,37 @@ let (s) => (c).
   handle(stateHandler, (a). pure.Comp (s). pure.Comp(s $ a), c) >>= (f). f(s)
 
 
-val partialPlusWithStateEffect : (ps : EfList, Nat, Nat) -> ? (Nat & Nat) ~ ps
-let (ps, m, n) =>
-  runPartialHandler (pa).
-  runStateHandler(0) (st). do
-  h0 := here.Has;
-  h1 := here.Has there;
-  get(pa, h1, m) >>= (m).
-  st lift(putOp(m), h0) >>= (_).
-  get(pa, h1, n) >>= (n).
-  st lift(getOp, h0) >>= (m).
-  st lift(putOp(m + n), h0) >>= (_).
-  st lift(getOp, h0) >>= (r).
+val partialStatePlus[ps : EfList,
+    st : StateSigna(Nat) Ef, pa : PartialSigna Ef] :
+  (ps Has(st), ps Has(pa), Nat, Nat) -> Nat ~ ps
+let (hst, hpa, m, n) =>
+  check(m) :>>
+  st lift(putOp(m), hst) :>>
+  check(n) :>>
+  st lift(getOp, hst) >>= (m).
+  st lift(putOp(m + n), hst) :>>
+  st lift(getOp, hst) >>= (r).
   pure.Comp(r)
 where
-  val get[qs : EfList] : (pa : PartialSigna Ef, qs Has(pa), x : Nat) -> Nat ~ qs
-  let (pa, h, x) => if(x =? 0) then(pa lift(failOp, h)) else(pure.Comp(x))
+  val check : Nat -> Unit ~ ps
+  let (x) => if(x =? 0) then(pa lift(failOp, hpa)) else(pure.Comp(unit))
 end
 
 
-val plusPartialWithStateEffect : (ps : EfList, Nat, Nat) -> Nat & ? Nat ~ ps
-let (ps, m, n) =>
-  runStateHandler(0) (st). runPartialHandler (pa). work(st, pa)
-where
-  val work :
-    (st : StateSigna(Nat) Ef, pa : PartialSigna Ef) ->
-    Nat ~ pa :: st :: ps
-  let (st, pa) =>
-    h1 := here.Has there;
-    get(pa, here.Has, m) >>= (m).
-    st lift(putOp(m), h1) >>= (_).
-    get(pa, here.Has, n) >>= (n).
-    st lift(getOp, h1) >>= (m).
-    st lift(putOp(m + n), h1) >>= (_).
-    st lift(getOp, h1) >>= (r).
-    pure.Comp(r)
+val partialPlusWithStateEffect : (Nat, Nat) -> ? (Nat & Nat)
+let (m, n) =>
+  _eval do
+  runPartialHandler (pa).
+  runStateHandler(0) (st).
+  partialStatePlus(here.Has, here.Has there, m, n)
 
-  val get[qs : EfList] : (pa : PartialSigna Ef, qs Has(pa), x : Nat) -> Nat ~ qs
-  let (pa, h, x) => if(x =? 0) then(pa lift(failOp, h)) else(pure.Comp(x))
-end
+
+val plusPartialWithStateEffect : (Nat, Nat) -> Nat & ? Nat
+let (m, n) =>
+  _eval do
+  runStateHandler(0) (st).
+  runPartialHandler (pa).
+  partialStatePlus(here.Has there, here.Has, m, n)
 
 
 data ChoiceSigna : Ty -> Ty
@@ -307,19 +302,11 @@ let () =>
   testPartialEffect(2, 0) str(_str) println;
   testPartialEffect(0, 2) str(_str) println;
   testPartialEffect(2, 2) str(_str) println;
-  partialPlusWithStateEffect(nil.EfList, 2, 0) eval
-    str((p). p str(_str, (x, _). x str)) println;
-  partialPlusWithStateEffect(nil.EfList, 0, 2) eval
-    str((p). p str(_str, (x, _). x str)) println;
-  partialPlusWithStateEffect(nil.EfList, 2, 2) eval
-    str((p). p str(_str, (x, _). x str)) println;
-  plusPartialWithStateEffect(nil.EfList, 2, 0) eval
-    str(_str, (x, _). x str(_str)) println;
-  plusPartialWithStateEffect(nil.EfList, 0, 2) eval
-    str(_str, (x, _). x str(_str)) println;
-  plusPartialWithStateEffect(nil.EfList, 2, 2) eval
-    str(_str, (x, _). x str(_str)) println;
-  ("[" :+: testChoice1 str((xs).
-    "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
-  ("[" :+: testChoice2 str((xs).
-    "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println
+  partialPlusWithStateEffect(2, 0) str((p). p str(_str, (x, _). x str)) println;
+  partialPlusWithStateEffect(0, 2) str((p). p str(_str, (x, _). x str)) println;
+  partialPlusWithStateEffect(2, 2) str((p). p str(_str, (x, _). x str)) println;
+  plusPartialWithStateEffect(2, 0) str(_str, (x, _). x str(_str)) println;
+  plusPartialWithStateEffect(0, 2) str(_str, (x, _). x str(_str)) println;
+  plusPartialWithStateEffect(2, 2) str(_str, (x, _). x str(_str)) println;
+  ("[" :+: testChoice1 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
+  ("[" :+: testChoice2 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println
