@@ -21,7 +21,7 @@ val _>>=_\_Cont\Ty[A; B; R : Ty] : (A Cont(R), A -> B Cont(R)) -> B Cont(R)
 let (x, f) => cont (k). x ap (a). f(a) ap(k)
 
 
-val example6 : Nat -> Bool
+val example1.Cont : Nat -> Bool
 let (x) =>
   _eval do
   timesThree(x) >>= (y). do
@@ -120,7 +120,7 @@ let (m, n) =>
   get.State >>= put.State @ (n + _)
 
 
-val callcc[A; B; R : Ty] : ((A -> B Cont(R)) -> A Cont(R)) -> A Cont(R)
+val callcc.Cont[A; B; R : Ty] : ((A -> B Cont(R)) -> A Cont(R)) -> A Cont(R)
 let (f) => cont (k). f((a). cont (c). k(a)) ap(k)
 
 
@@ -140,8 +140,8 @@ let (putOp(x), k, A, B) => (_). k(unit)(x)
 
 val main : () ->> Unit
 let () =>
-  example6(3) println;
-  example6(4) println;
+  example1.Cont(3) println;
+  example1.Cont(4) println;
   testPartial(2, 0) str(_str) println;
   testPartial(0, 2) str(_str) println;
   testPartial(2, 2) str(_str) println;

@@ -1,29 +1,6 @@
 import "yu/prelude.yu"
 
 
-#{
-val _HandlerFun\_->_ : (Ty -> Ty, Ty) -> Ty
-let (Sig, R) =>
-  (Sig(A), A : Ty, as : _Handle\_->_ Vec, A -> R Ef(as)) -> R Ef(as)
-
-val _handle\_Handler\_->_[R : Ty, Sig : Ty -> Ty, as : _Handle\_->_ Vec]
-  (Sig Handler(R), (a : Sig Handle) -> A Ef(a :: as)) ->
-  A -> R Ef(as)
-where
-  Sig Handle ≅ R $ do (B : Ty, Sig(B)) -> B Ef(a :: as)
-and
-  A Ef(nil) ≅ id
-  A Ef(a :: as) ≅ A ContT(a 1, _ Ef(as), efIsMonad)
-
-A ~ a :: as
-
-Need an apply operation:
-  _ap[A : Ty, Sig : Ty -> Ty] :
-    (a : Sig Handle, Sig(A), as Has(a)) -> A Ef(as)
-which requires lifting through _ContT\Ty a number of times.
-#}
-
-
 data _IsMonad\_->_ : (Ty -> Ty) -> Ty
 let isMonad[M : Ty -> Ty] : (
   (A, A : Ty) -> M(A),

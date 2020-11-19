@@ -60,25 +60,10 @@ val _lift\_IsMonad\_->_[A; R : Ty, M : Ty -> Ty] :
 let (isM, x) => contT (k). isM bind(x)([]. k)
 
 
-val callcc[A; R : Ty, M : Ty -> Ty, isM : M IsMonad] :
+val callcc.ContT[A; R : Ty, M : Ty -> Ty, isM : M IsMonad] :
   (((A, B : Ty) -> B ContT(R, M, isM)) -> A ContT(R, M, isM)) ->
   A ContT(R, M, isM) 
 let (c) => contT (k). c((a, B). contT (_). k(a)) ap(k)
-
-
-val example6 : Nat -> Bool
-let (x) =>
-  _eval do
-  timesThree(x) >>= (y). do
-  greaterThanTen(y) >>= (z). do
-  pure.ContT(z)
-where
-  val timesThree[R : Ty] : Nat -> Nat ContT(R, id, idIsMonad)
-  let (x) => contT (k). k(3 * x)
-
-  val greaterThanTen[R : Ty] : Nat -> Bool ContT(R, id, idIsMonad)
-  let (y) => contT (k). k (10 <? y)
-end
 
 
 val _HandlerFun\_->_ : (Ty -> Ty, Ty, Ty -> Ty) -> Ty
