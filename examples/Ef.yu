@@ -204,7 +204,7 @@ let (x, y) =>
   pure.Comp(x + y)
 where
   val get : (pa : PartialSigna Ef, Nat) -> Nat ~ pa :: nil.EfList
-  let (pa, x) => if(x =? 0) then(pa lift(failOp, here.Has)) else(pure.Comp(x))
+  let (pa, n) => if(n =? 0) then(pa lift(failOp, here.Has)) else(pure.Comp(n))
 end
 
 
@@ -273,28 +273,31 @@ val runChoiceHandler[A : Ty, ps : EfList] :
 let (c) => handle(choiceHandler, pure.Comp @ (_ :: nil), c)
 
 
+val testChoice[ps : EfList,
+    c1 : ChoiceSigna Ef, c2 : ChoiceSigna Ef] :
+  (ps Has(c1), ps Has(c2)) -> Nat ~ ps
+let (h1, h2) =>
+  c1 lift(decideOp, h1) >>= (b1). do
+  x := if(b1) then(10) else(10 + 10);
+  c2 lift(decideOp, h2) >>= (b2). do
+  y := if(b2) then(0) else(5);
+  pure.Comp(x - y)
+
+
 val testChoice1 : Nat List List
 let =>
   _eval do
   runChoiceHandler (c1).
   runChoiceHandler (c2).
-  c1 lift(decideOp, here.Has there) >>= (b1). do
-  x := if(b1) then(10) else(10 + 10);
-  c2 lift(decideOp, here.Has) >>= (b2). do
-  y := if(b2) then(0) else(5);
-  pure.Comp(x - y)
+  testChoice(here.Has there, here.Has)
 
 
 val testChoice2 : Nat List List
 let =>
   _eval do
-  runChoiceHandler (c2).
   runChoiceHandler (c1).
-  c1 lift(decideOp, here.Has) >>= (b1). do
-  x := if(b1) then(10) else(10 + 10);
-  c2 lift(decideOp, here.Has there) >>= (b2). do
-  y := if(b2) then(0) else(5);
-  pure.Comp(x - y)
+  runChoiceHandler (c2).
+  testChoice(here.Has, here.Has there)
 
 
 val main : () ->> Unit
