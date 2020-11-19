@@ -184,7 +184,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
         updateArrowMap :: Monad m =>
           SubstMap -> ((Maybe Var, PreTerm), (Maybe Var, PreTerm)) ->
           PatUnifResult m
-        updateArrowMap _ ((Nothing, _), (Nothing, _)) = return IntMap.empty
+        updateArrowMap m ((Nothing, _), (Nothing, _)) = return m
         updateArrowMap m ((Just n, _), (Nothing, _)) = do
           i <- lift Env.freshVarId
           return (IntMap.insert (varId n)

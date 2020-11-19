@@ -46,6 +46,11 @@ val _rec\Nat[A : Ty] : (Nat, A, (Nat, A) -> A) -> A
 let (n, p0, pi) => n ind(const(A), p0, pi)
 
 
+val (--_\Nat) : Nat -> Nat
+let (0) => 0
+let (++ n) => n
+
+
 val _+_\Nat : (Nat, Nat) -> Nat
 let (m, 0) => m
 let (m, ++ n) => ++ m + n

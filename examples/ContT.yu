@@ -275,13 +275,6 @@ val _runChoiceHandler\_IsMonad\_->_[A : Ty, M : Ty -> Ty] :
   M(A List)
 let (isM) => (c). choiceHandler handle(c) ap(isM pure @ (_ :: nil))
 
-#{
-with choose_all c1 handle
-with choose_all c2 handle
-let x = (if c1# decide () then 10 else 20) in
-let y = (if c2# decide () then 0 else 5) in
-x - y
-#}
 
 val testChoice1 : Nat List List
 let =>
