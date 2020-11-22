@@ -500,13 +500,6 @@ parseAppExpr = do
       <|> try (parseAppSquare e)
       <|> return e
 
-    appParen1 :: YuParsec [Expr]
-    appParen1 = do
-      _ <- yuKeyTok TokParenL
-      args <- parseExprSeq `sepBy1` yuKeyTok TokComma
-      _ <- yuKeyTok TokParenR
-      return args
-
     appParen :: YuParsec [Expr]
     appParen = do
       _ <- yuKeyTok TokParenL
@@ -525,21 +518,22 @@ parseAppExpr = do
     parsePostfixNormal e = do
       op <- yuPostfixOpTok
       imps <- optionMaybe appSquare
-      args <- optionMaybe appParen1
-      let args' = case args of
-                    Nothing -> []
-                    Just as -> as
+      args <- optionMaybe appParen
+      let (f, args') = case args of
+                        Nothing -> (id, [])
+                        Just [] -> (\x -> ExprApp x [], [])
+                        Just as -> (id, as)
       case imps of
         Nothing ->
-          parseApp (ExprApp (ExprVar op) (e : args'))
+          parseApp (f $ ExprApp (ExprVar op) (e : args'))
         Just [] ->
           if null args'
           then
-            parseApp (ExprLazyApp (ExprApp (ExprVar op) [e]))
+            parseApp (f $ ExprLazyApp (ExprApp (ExprVar op) [e]))
           else
-            parseApp (ExprApp (ExprLazyApp (ExprApp (ExprVar op) [e])) args')
+            parseApp (f $ ExprApp (ExprLazyApp (ExprApp (ExprVar op) [e])) args')
         Just imps' ->
-          parseApp (ExprApp (ExprImplicitApp (ExprVar op) imps') (e : args'))
+          parseApp (f $ ExprApp (ExprImplicitApp (ExprVar op) imps') (e : args'))
 
     parsePostfixDoOrFun :: Expr -> YuParsec Expr
     parsePostfixDoOrFun e = do
@@ -759,13 +753,6 @@ parsePatternApp = parsePatternLeaf >>= parseApp
                   else parseApp (ParsePatternImplicitApp p args))
       <|> return p
 
-    appParen1 :: YuParsec [ParsePattern]
-    appParen1 = do
-      _ <- yuKeyTok TokParenL
-      args <- parsePattern `sepBy1` yuKeyTok TokComma
-      _ <- yuKeyTok TokParenR
-      return args
-
     appParen :: YuParsec [ParsePattern]
     appParen = do
       _ <- yuKeyTok TokParenL
@@ -784,25 +771,26 @@ parsePatternApp = parsePatternLeaf >>= parseApp
     appPostfix p = do
       op <- yuPostfixOpTok
       imps <- optionMaybe appSquare
-      args <- optionMaybe appParen1
-      let args' = case args of
-                    Nothing -> []
-                    Just as -> as
+      args <- optionMaybe appParen
+      let (f, args') = case args of
+                        Nothing -> (id, [])
+                        Just [] -> (\x -> ParsePatternApp x [], [])
+                        Just as -> (id, as)
       case imps of
         Nothing ->
-          parseApp (ParsePatternApp (ParsePatternVar op) (p : args'))
+          parseApp (f $ ParsePatternApp (ParsePatternVar op) (p : args'))
         Just [] ->
           if null args'
           then
-            parseApp (ParsePatternLazyApp
+            parseApp (f $ ParsePatternLazyApp
                           (ParsePatternApp (ParsePatternVar op) [p]))
           else
-            parseApp (ParsePatternApp
-                        (ParsePatternLazyApp
-                          (ParsePatternApp (ParsePatternVar op) [p])) args')
+            parseApp (f $ ParsePatternApp
+                          (ParsePatternLazyApp
+                            (ParsePatternApp (ParsePatternVar op) [p])) args')
         Just imps' ->
-          parseApp (ParsePatternApp
-                    (ParsePatternImplicitApp (ParsePatternVar op) imps') (p : args'))
+          parseApp (f $ ParsePatternApp
+                        (ParsePatternImplicitApp (ParsePatternVar op) imps') (p : args'))
 
     parseArg :: YuParsec ((Loc, String), ParsePattern)
     parseArg = do

@@ -27,6 +27,11 @@ import qualified Data.IntSet as IntSet
 import Data.Maybe (fromJust)
 import Control.Exception (assert)
 
+import Debug.Trace (trace)
+
+_useTrace :: String -> a -> a
+_useTrace = trace
+
 data PatUnifError = UnifyUnable String | UnifyAbsurd String
 
 type PatUnifResult m = ExceptT PatUnifError (TypeCheckT m) SubstMap
@@ -95,7 +100,7 @@ doPatUnifWithBoundIds :: Monad m =>
 doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
   r <- lift Env.getRefMap
   --im0 <- lift Env.getImplicitMap
-  --let !_ = trace ("pattern unify " ++ preTermToString im0 r t1 ++ " with " ++ preTermToString im0 r t2) ()
+  --let !() = trace ("pattern unify " ++ preTermToString im0 r 0 t1 ++ " with " ++ preTermToString im0 r 0 t2) ()
   if withNormalize
   then punify2 (preTermNormalize r t1) (preTermNormalize r t2)
   else punify2 t1 t2

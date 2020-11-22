@@ -2237,11 +2237,10 @@ makePatternApp flo newpids ty (fsu, f') pargs = do
             "expected " ++ show (length dom0) ++ " argument(s), "
             ++ "but given " ++ show (length pargs)))
       let (fcod, _) = preTermFinalCod r cod
-      un <- runExceptT (patternUnify2 newpids fcod ty)
-      let dom' = case un of
-                  Left _ -> dom0
-                  Right dsu -> map (\(d, t) -> (d, substPreTerm dsu t)) dom0
-      let args = dependencyOrderArgs (preTermVars r) dom' pargs
+      dsu <- tcPatternUnify newpids flo fcod ty
+      let dsubts = \(d, t) -> (d, substPreTerm dsu t)
+      let args0 = dependencyOrderArgs (preTermVars r) dom0 pargs
+      let args = map (\(i, d, a) -> (i, dsubts d, a)) args0
       (tsu, bsu, ps) <- tcPatternArgs newpids IntMap.empty fsu args
       let c = substPreTerm tsu cod
       r0 <- Env.getRefMap
@@ -2294,10 +2293,8 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
                               ++ "\nto implicit argument(s)")
   tys0 <- Env.forceLookupImplicit (varId v)
   let (fcod, _) = preTermFinalCod rm (patternTy f')
-  un <- runExceptT (patternUnify2 newpids fcod ty)
-  let tys = case un of
-              Left _ -> tys0
-              Right dsu -> map (\(d, t) -> (d, substPreTerm dsu t)) tys0
+  dsu <- tcPatternUnify newpids (patternLoc f) fcod ty
+  let tys = map (\(d, t) -> (d, substPreTerm dsu t)) tys0
   pnames <- getImplicitNames (Set.fromList (map (varName . fst) tys)) Set.empty pargs
   let ias' = Map.fromList ias
   let su = foldl (\m (i, _) ->
@@ -2318,7 +2315,8 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
                                   fromJust (Map.lookup x pmap) : a2)
                             else (a1, a2)
                         ) ([], []) ias
-  let args = dependencyOrderArgs (preTermVars rm) z pargs'
+  let args0 = dependencyOrderArgs (preTermVars rm) (map (\(n, d) -> (Just n, d)) tys0) pargs'
+  let args = map (\(d, (i, _, a)) -> (i, d, a)) (zip z args0)
   (tsu, bsu, ps) <- tcPatternArgs newpids IntMap.empty fsu args
   let pt = patternTy f'
   let c = substPreTerm tsu pt

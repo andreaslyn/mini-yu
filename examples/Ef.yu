@@ -30,7 +30,7 @@ let contT[A; R : Ty, M : Ty -> Ty] :
   ((A -> M(R)) -> M(R)) -> A ContT(R, M)
 
 
-val _ap\_ContT\Ty[A; R : Ty, M : Ty -> Ty] : (A ContT(R, M), A -> M(R)) -> M(R)
+val _finally\_ContT\Ty[A; R : Ty, M : Ty -> Ty] : (A ContT(R, M), A -> M(R)) -> M(R)
 let (contT(c), k) => c(k)
 
 
@@ -40,7 +40,7 @@ let (a) => contT (k). k(a)
 
 val _>>=_\_ContT\Ty[A; B; R : Ty, M : Ty -> Ty]:
   (A ContT(R, M), A -> B ContT(R, M)) -> B ContT(R, M)
-let (x, f) => contT (k). x ap (a). f(a) ap(k)
+let (x, f) => contT (k). x finally (a). f(a) finally(k)
 
 
 val contTIsMonad[R : Ty, M : Ty -> Ty] : _ ContT\Ty(R, M) IsMonad
@@ -53,22 +53,11 @@ let (isM, x) => contT do isM bind(x)
 
 
 data _Ef\_->_ : (Ty -> Ty) -> Ty
-let mk.Ef[R : Ty, Sig; M : Ty -> Ty] :
-  ((A : Ty, Sig(A)) -> A ContT(R, M)) -> Sig Ef
+let mk.Ef[Sig : Ty -> Ty] : Ty -> Sig Ef
 
 
 val _Ty\_Ef\_->_[Sig : Ty -> Ty] : Sig Ef -> Ty
-let (mk.Ef[R := R](_)) => R
-
-
-val _Monad\_Ef\_->_[Sig : Ty -> Ty] : Sig Ef -> Ty -> Ty
-let (mk.Ef[M := M](_)) => M
-
-
-data _List\_->_[A : Ty] : (A -> Ty, A List) -> Ty
-let nil.HeteroList[A : Ty, P : A -> Ty] : P List(nil)
-let _::_\_List\_->_[A : Ty, P : A -> Ty, x : A, xs : A List] :
-  (P(x), P List(xs)) -> P List(x :: xs)
+let (mk.Ef(R)) => R
 
 
 data EfList : Ty
@@ -76,7 +65,7 @@ let nil.EfList : EfList
 let _::_\EfList[Sig : Ty -> Ty] : (Sig Ef, EfList) -> EfList
 
 
-val _tail\EfList : EfList -> EfList
+val _tail!\EfList : EfList -> EfList
 let (nil.EfList) => nil.EfList
 let (_ :: ps) => ps
 
@@ -108,34 +97,34 @@ val isMonad.PreComp[ps : EfList] : ps PreComp IsMonad
 let => isMonad((a, A). pure.PreComp(a), (x, f, A, B). bind.PreComp(x)(f))
 
 
-data _IsEfList\EfList : EfList -> Ty
-let nil.IsEfList : nil.EfList IsEfList
-let _cons\_IsEfList\EfList[Sig : Ty -> Ty, ps : EfList] :
-  (ps IsEfList, p : Sig Ef, p Monad = ps PreComp) -> (p :: ps) IsEfList
-
-
-val _Monad=\_IsEfList\EfList[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
-  (p :: ps) IsEfList -> p Monad = ps PreComp
-let (_ cons(_, e))=> e
+data _CompDom\EfList : EfList -> Ty
+let nil.CompDom : nil.EfList CompDom
+let _::_\_CompDom\EfList[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
+  ((A : Ty, Sig(A)) -> A ContT(p Ty, ps PreComp), ps CompDom) -> (p :: ps) CompDom
 
 
 data _~_\Ty : (Ty, EfList) -> Ty
-let mk.Comp[ps : EfList, A : Ty] : (ps IsEfList -> ps PreComp(A)) -> A ~ ps
+let mk.Comp[ps : EfList, A : Ty] : (ps CompDom -> ps PreComp(A)) -> A ~ ps
 
 
-val _tail\_IsEfList\EfList[ps : EfList] : ps IsEfList -> ps tail IsEfList
-let (nil.IsEfList) => nil.IsEfList
-let (ss cons(_, _)) => ss
+val _head\_CompDom\EfList[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
+  (p :: ps) CompDom -> (A : Ty, Sig(A)) -> A ContT(p Ty, ps PreComp)
+let (h :: _) => h
 
 
-val _pr\_~_\Ty[ps : EfList, A : Ty] : (A ~ ps, ps IsEfList) -> ps PreComp(A)
+val _tail!\_CompDom\EfList[ps : EfList] : ps CompDom -> ps tail! CompDom
+let (nil.CompDom) => nil.CompDom
+let (_ :: ds) => ds
+
+
+val _pr\_~_\Ty[ps : EfList, A : Ty] : (A ~ ps, ps CompDom) -> ps PreComp(A)
 let (mk.Comp(c), s) => c(s)
 
 
-val _ap\_~_\Ty[ps : EfList, A; R : Ty, Sig : Ty -> Ty,
-    h : (B : Ty, Sig(B)) -> B ContT(R, ps PreComp)] :
-  (A ~ mk.Ef(h) :: ps, A -> R ~ ps) -> R ~ ps
-let (c, f) => mk.Comp((s). c pr(s cons(mk.Ef(h), refl)) ap(_ pr(s) @ f))
+val _ap\_~_\Ty[ps : EfList, A; R : Ty, Sig : Ty -> Ty] :
+  (A ~ mk.Ef[Sig := Sig](R) :: ps, A -> R ~ ps,
+    h : (B : Ty, Sig(B)) -> B ContT(R, ps PreComp)) -> R ~ ps
+let (c, f, h) => mk.Comp (s). c pr(h :: s) finally(_ pr(s) @ f)
 
 
 val pure.Comp[ps : EfList, A : Ty] : A -> A ~ ps
@@ -150,7 +139,7 @@ val _:>>_\_~_\Ty[ps : EfList, A; B : Ty] : (A ~ ps, [] -> B ~ ps) -> B ~ ps
 let (x, y) => x >>= (_). y[]
 
 
-val _IsMonad~\_IsEfList\EfList[ps : EfList] : ps IsEfList -> (_ ~ ps) IsMonad\_->_
+val _IsMonad~\_CompDom\EfList[ps : EfList] : ps CompDom -> (_ ~ ps) IsMonad\_->_
 let (s) => isMonad((a, A). pure.Comp(a), (x, f, A, B). x >>= f)
 
 
@@ -162,11 +151,11 @@ val handle[ps : EfList, A; R : Ty, Sig : Ty -> Ty] :
   (Sig Handler(R, ps), A -> R ~ ps, (p : Sig Ef) -> A ~ p :: ps) -> R ~ ps
 let (h, k, c) =>
   mk.Comp (s).
-  c(mk.Ef (B, x). contT (f). h(B, x, mk.Comp @ const @ f) pr(s)) ap(k) pr(s)
+  c(mk.Ef(R)) ap(k, (B, x). contT (f). h(B, x, mk.Comp @ const @ f) pr(s)) pr(s)
 
 
 val _eval\_~_\Ty[R : Ty] : R ~ nil.EfList -> R
-let (mk.Comp(c)) => c(nil.IsEfList)
+let (mk.Comp(c)) => c(nil.CompDom)
 
 
 data PartialSigna : Ty -> Ty
@@ -182,17 +171,12 @@ val runPartialHandler[A : Ty, ps : EfList] :
 let (c) => handle(partialHandler, pure.Comp @ yes, c)
 
 
-val _ap\_Ef\_->_[Sig : Ty -> Ty, A : Ty] :
-  (p : Sig Ef, Sig(A)) -> A ContT(p Ty, p Monad)
-let (mk.Ef(c), x) => c(A, x)
-
-
 val _lift\_Ef\_->_[ps : EfList, A : Ty, Sig : Ty -> Ty] :
     (p : Sig Ef, Sig(A), ps Has(p)) -> A ~ ps
 let (p, op, here.Has) =>
-  mk.Comp (s). s Monad= resp(A ContT(p Ty, _) ,p ap(op))
+  mk.Comp (s). s head(A, op)
 let (p, op, s' there) =>
-  mk.Comp (s). isMonad.PreComp lift(p lift(op, s') pr(s tail))
+  mk.Comp (s). isMonad.PreComp lift(p lift(op, s') pr(s tail!))
 
 
 val testPartialEffect : (Nat, Nat) -> ? Nat
@@ -295,9 +279,29 @@ let =>
 val testChoice2 : Nat List List
 let =>
   _eval do
-  runChoiceHandler (c1).
   runChoiceHandler (c2).
+  runChoiceHandler (c1).
   testChoice(here.Has, here.Has there)
+
+
+val testChoice3 : Nat List
+let =>
+  _eval do
+  runChoiceHandler (c).
+  testChoice(here.Has, here.Has)
+
+
+data IOSigna : Ty -> Ty
+let printOp : Str -> IOSigna(Unit)
+
+
+val ioHandler[A : Ty] : IOSigna Handler(() ->> A, nil.EfList)
+let (_, printOp(s), k) => pure.Comp (). k(s print) eval()
+
+
+val runIOHandler[A : Ty] :
+  ((io : IOSigna Ef) -> A ~ io :: nil.EfList) ->> A
+let (c) => handle(ioHandler, pure.Comp @ (a). ((). a) :! (() ->> A), c) eval()
 
 
 val main : () ->> Unit
@@ -312,4 +316,5 @@ let () =>
   plusPartialWithStateEffect(0, 2) str(_str, (x, _). x str(_str)) println;
   plusPartialWithStateEffect(2, 2) str(_str, (x, _). x str(_str)) println;
   ("[" :+: testChoice1 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
-  ("[" :+: testChoice2 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println
+  ("[" :+: testChoice2 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
+  ("[" :+: testChoice3 str(_str, ",") :+: "]") println

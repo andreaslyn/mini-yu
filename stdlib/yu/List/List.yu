@@ -135,3 +135,9 @@ let (nil, _ :: _, _) => lt.Order
 let (_ :: _, nil, _) => gt.Order
 let (x :: xs, y :: ys, C) =>
   C cmp(x, y) rec(lt.Order, xs cmp(ys, C), gt.Order)
+
+
+data _Has\_List\Ty[A : Ty] : (A List, A) -> Ty
+let here.List[A : Ty, xs : A List, x : A] : (x :: xs) Has(x)
+let _there\_Has\_List\Ty[A : Ty, xs : A List, x; y : A] :
+  xs Has(x) -> (y :: xs) Has(x)
