@@ -1638,6 +1638,8 @@ doTcExpr _ subst _ ty (ExprFun lo as body) = do
                         (CaseLeaf (map fst dom') bodyIo (termPre body') [])
             let mdom = map (\(d1, d2) -> (Just d1, d2)) dom'
             let fty = TermArrow io mdom cod'
+            isu <- getExprSubst
+            tcExprUnify lo ty' (substPreTerm isu fty)
             return (mkTerm fte fty False)
   where
     insertImplicit :: Monad m =>

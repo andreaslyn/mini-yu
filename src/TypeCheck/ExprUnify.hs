@@ -2,6 +2,7 @@
 
 module TypeCheck.ExprUnify
   ( ExprUnifResult
+  , tcExprUnify
   , tcExprSubstUnify
   , runExprUnifResult
   , mergeExprUnifMaps
