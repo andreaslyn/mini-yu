@@ -1,0 +1,14 @@
+There is a bug with unification of function body type, such that the
+bound variables can be unified with implicit variables:
+
+data _~~_\Ty : (Ty, Ty) -> Ty
+let mk~[A; B : Ty] : (A, B) -> A ~~ B
+
+val test[A; B; C : Ty] : (A -> B ~~ C) -> Unit
+let (f) => unit
+
+data Forget : Ty -> Ty
+let mkForget : (A : Ty) -> Forget(A)
+
+val try : Unit
+let => test((A). mk~(unit, mkForget(A)))
