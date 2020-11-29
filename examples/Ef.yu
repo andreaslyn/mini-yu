@@ -171,12 +171,15 @@ val runPartialHandler[A : Ty, ps : EfList] :
 let (c) => handle(partialHandler, pure.Comp @ yes, c)
 
 
-val _lift\_Ef\_->_[ps : EfList, A : Ty, Sig : Ty -> Ty] :
+val _lift\_~_\Ty[A : Ty, Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
+  A ~ ps -> A ~ p :: ps
+let (c) => mk.Comp (s). isMonad.PreComp lift(c pr(s tail!))
+
+
+val _apply\_Ef\_->_[ps : EfList, A : Ty, Sig : Ty -> Ty] :
     (p : Sig Ef, Sig(A), ps Has(p)) -> A ~ ps
-let (p, op, here.Has) =>
-  mk.Comp (s). s head(A, op)
-let (p, op, s' there) =>
-  mk.Comp (s). isMonad.PreComp lift(p lift(op, s') pr(s tail!))
+let (p, op, here.Has) => mk.Comp (s). s head(A, op)
+let (p, op, s' there) => p apply(op, s') lift
 
 
 val testPartialEffect : (Nat, Nat) -> ? Nat
@@ -188,7 +191,7 @@ let (x, y) =>
   pure.Comp(x + y)
 where
   val get : (pa : PartialSigna Ef, Nat) -> Nat ~ pa :: nil.EfList
-  let (pa, n) => if(n =? 0) then(pa lift(failOp, here.Has)) else(pure.Comp(n))
+  let (pa, n) => if(n =? 0) then(pa apply(failOp, here.Has)) else(pure.Comp(n))
 end
 
 
@@ -213,15 +216,15 @@ val partialStatePlus[ps : EfList,
   (ps Has(st), ps Has(pa), Nat, Nat) -> Nat ~ ps
 let (hst, hpa, m, n) =>
   check(m) :>>
-  st lift(putOp(m), hst) :>>
+  st apply(putOp(m), hst) :>>
   check(n) :>>
-  st lift(getOp, hst) >>= (m).
-  st lift(putOp(m + n), hst) :>>
-  st lift(getOp, hst) >>= (r).
+  st apply(getOp, hst) >>= (m).
+  st apply(putOp(m + n), hst) :>>
+  st apply(getOp, hst) >>= (r).
   pure.Comp(r)
 where
   val check : Nat -> Unit ~ ps
-  let (x) => if(x =? 0) then(pa lift(failOp, hpa)) else(pure.Comp(unit))
+  let (x) => if(x =? 0) then(pa apply(failOp, hpa)) else(pure.Comp(unit))
 end
 
 
@@ -261,9 +264,9 @@ val testChoice[ps : EfList,
     c1 : ChoiceSigna Ef, c2 : ChoiceSigna Ef] :
   (ps Has(c1), ps Has(c2)) -> Nat ~ ps
 let (h1, h2) =>
-  c1 lift(decideOp, h1) >>= (b1). do
+  c1 apply(decideOp, h1) >>= (b1). do
   x := if(b1) then(10) else(10 + 10);
-  c2 lift(decideOp, h2) >>= (b2). do
+  c2 apply(decideOp, h2) >>= (b2). do
   y := if(b2) then(0) else(5);
   pure.Comp(x - y)
 
@@ -304,6 +307,42 @@ val runIOHandler[A : Ty] :
 let (c) => handle(ioHandler, pure.Comp @ (a). ((). a) :! (() ->> A), c) eval()
 
 
+val decr[ps : EfList, st : StateSigna(Nat) Ef, pa : PartialSigna Ef] :
+  (ps Has(st), ps Has(pa)) -> Unit ~ ps
+let (hst, hpa) =>
+  st apply(getOp, hst) >>= (x).
+  case x
+  of 0 => pa apply(failOp, hpa)
+  of ++ x => st apply(putOp(x), hst)
+  end
+
+
+val tripleDecr[ps : EfList, st : StateSigna(Nat) Ef, pa : PartialSigna Ef] :
+  (ps Has(st), ps Has(pa)) -> Unit ~ ps
+let (hst, hpa) =>
+  decr(hst, hpa) :>>
+  runPartialHandler((pa).
+    decr(hst there, here.Has) :>>
+    decr(hst there, here.Has)
+  ) >>= const(pure.Comp(unit))
+
+
+val doubleDecrStPa : Nat & ? Unit
+let =>
+  _eval do
+  runStateHandler(2) (st).
+  runPartialHandler (pa).
+  tripleDecr(here.Has there, here.Has)
+
+
+val doubleDecrPaSt : ? (Nat & Unit)
+let =>
+  _eval do
+  runPartialHandler (pa).
+  runStateHandler(2) (st).
+  tripleDecr(here.Has, here.Has there)
+
+
 val main : () ->> Unit
 let () =>
   testPartialEffect(2, 0) str(_str) println;
@@ -317,4 +356,6 @@ let () =>
   plusPartialWithStateEffect(2, 2) str(_str, (x, _). x str(_str)) println;
   ("[" :+: testChoice1 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
   ("[" :+: testChoice2 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
-  ("[" :+: testChoice3 str(_str, ",") :+: "]") println
+  ("[" :+: testChoice3 str(_str, ",") :+: "]") println;
+  doubleDecrStPa str(_str, (x, _). x str((_). "unit")) println;
+  doubleDecrPaSt str(_ str(_str, (_, _). "unit")) println
