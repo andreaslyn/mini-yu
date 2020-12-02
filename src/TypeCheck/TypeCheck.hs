@@ -1587,7 +1587,12 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
       impMapInsert i vt lo $
         "unable to infer implicit argument " ++ varName v
       return (v, TermVar True v')
-doTcExpr _ subst _ ty (ExprFun lo as body) = do
+doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
+ if isTrial && length as > 0
+ then return (mkTerm TermEmpty
+              (TermArrow False
+                  [(Just (mkVar 0 ""), TermEmpty)] TermEmpty) False)
+ else
   scope $ do
     case ty of
       Nothing -> do
@@ -1951,7 +1956,7 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
                 doTcExprSubst False (IntMap.union su subst) Nothing e
               Just ty' ->
                 tcExpr (IntMap.union su subst) (substPreTerm su ty') e
-        checkNoVariableEscape (patternLoc p) (patternPre p') (termTy b)
+        checkNoVariableEscape (patternLoc p) p' (termTy b)
         return (b, patternToTriple p')
       return (patternLoc p, tr, Just e')
     doCheckCase newpids t p Nothing _ =
@@ -1963,10 +1968,12 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
     patternToTriple p = [((Nothing, False), p)]
 
     checkNoVariableEscape ::
-      Monad m => Loc -> PrePattern -> PreTerm -> ExprT m ()
+      Monad m => Loc -> Pattern -> PreTerm -> ExprT m ()
     checkNoVariableEscape plo p t = do
-      let vp = prePatternVars p
       rm <- lift Env.getRefMap
+      let vp = IntSet.difference
+                (prePatternVars (patternPre p))
+                (preTermVars rm (patternTy p))
       let vt = preTermVars rm t
       let s = IntSet.intersection vp vt
       when (not (IntSet.null s))
