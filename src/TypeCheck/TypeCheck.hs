@@ -1983,7 +1983,7 @@ doTcExprApp :: Monad m =>
   Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) ->
   Maybe PreTerm -> Expr -> [Expr] -> ExprT m Term
 doTcExprApp isTrial subst operandArg ty f args = do
-  f' <- doTcExprSubst isTrial subst operandArg f
+  f' <- doTcExprSubst False subst operandArg f
   if not isTrial
   then doMakeTermApp f'
   else do
