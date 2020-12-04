@@ -268,6 +268,22 @@ where
 end
 
 
+val _handle'\_Handled\_->_[A : Ty, Sig : Ty -> Ty,
+    Sigs : (Ty -> Ty) List, F : (Ty, EfList) -> Ty, ps : EfList] :
+  (Sig Handled(F, Sigs), ps HasSignas(Sigs),
+    A ~ mk.Ef[Sig := Sig](F(A, ps)) :: ps) ->
+  F(A, ps) ~ ps
+let (mkHandledSig.Ef(ha, fn, sc), hs, c) =>
+  mk.Comp (s). do
+  f := (X, x). contT (f). ha(ps, hs, A, X, x, mk.Comp @ const @ f) pr(s);
+  hd := mkHandled.Ef[p := p](f, hs, mkHandledSig.Ef(ha, fn, sc), A $ refl);
+  c ap(fn(ps, hs, A, _), hd) pr(s)
+where
+  val p : Sig Ef
+  let => mk.Ef(F(A, ps))
+end
+
+
 val _eval\_~_\Ty[R : Ty] : R ~ nil.EfList -> R
 let (mk.Comp(c)) => c(nil.CompDom)
 
@@ -543,19 +559,56 @@ val _scope\_Handled\_->_[A; R : Ty, Sig : Ty -> Ty,
     (ts : EfList, ts HasSignas(ps Signas)) -> A ~ ts,
     (qs : EfList, F(A, qs)) -> R ~ qs) ->
   R ~ ps
-let (hd, hs, k, r) => mk.Comp (ds). handleAll(hs, ds, k, r)
+let (hd, hs, k, r) => mk.Comp (ds). undefined ## handleAll(hs, ds)
 where
-  val handleAll[A : Ty, ps : EfList] :
-    (ps Has(p), ps CompDom,
-      (ts : EfList, ts HasSignas(ps Signas)) -> A ~ ts,
-      (qs : EfList, F(A, qs)) -> R ~ qs) -> ps PreComp(R)
-  let (here.Has[ps := ps'], ds, k, r) =>
-    c := hd(ps' Signas)
-         handle(ps' hasSignas, (p). k(p :: ps', ps' hasSignas cons))
-         pr(ds tail!);
-    isMonad.PreComp lift(c) >>= (c).
-    r(ps', c) lift pr(ds)
-  let (hs there[q := q, ps := ps'], ds, k, r) =>
+  val RetComp[ps : EfList] : (ps Has(p), ps CompDom) -> Ty -> Ty
+  let (here.Has[ps := ps'], _) => (A). F(A, ps')
+  let (h there[ps := ps'], d :: ds) => (A). d Ret(RetComp(h, ds)(A), ps')
+
+  val RetComp0[ps : EfList] : (ps Has(p), ps CompDom) -> Ty -> Ty
+  let (here.Has, _) => id
+  let (h there, _ :: ds) => RetComp(h, ds)
+
+  val HandEfList[ps : EfList] : ps Has(p) -> EfList
+  let (here.Has[ps := ps']) => ps'
+  let (h there) => HandEfList(h)
+
+  val HandSig[ps : EfList] : ps Has(p) -> Ty -> Ty
+  let (here.Has[Sig := Sig]) => Sig
+  let (h there[Sigq := Sig]) => Sig
+
+  val PreGen[ps : EfList] :
+    (ps Has(p), ps CompDom, Ty) -> &(qs : EfList). Ty & qs HasSignas(ps Signas)
+  let (here.Has[ps := ps'], _, R) =>
+    (mk.Ef(F(R, ps')) :: ps') $ F(R, ps') $ ps' hasSignas cons
+  let (hs there[q := q, ps := ps'], d :: ds, R) =>
+    (mk.Ef(d Ret(g 2 1, g 1)) :: g 1) $ d Ret(g 2 1, g 1) $ g 2 2 cons
+  where
+    val g : &(qs : EfList). Ty & qs HasSignas(ps' Signas)
+    let => PreGen(hs, ds, R)
+  end
+
+  val handleAll[B : Ty, ps : EfList] :
+    (hs : ps Has(p), ds : ps CompDom) ->
+    B ~ PreGen(hs, ds, B) 1 -> ps PreComp(RetComp(hs, ds)(B))
+  let (here.Has[ps := ps'], ds) => (a). do
+    c := hd(ps' Signas) handle'(ps' hasSignas, a) pr(ds tail!);
+    isMonad.PreComp lift(c)
+  let (hs there[q := mk.Ef[Sig := Sigq](_), ps := ps'], d :: ds) =>
+    (a : B ~ PreGen(hs there, d :: ds, B) 1). do
+    contT do
+    R' $ isRet := d retIsRet;
+    isRet rew((X). (R -> ps' PreComp(X)) -> ps' PreComp(X), _) (f). do
+    h := d handled handle'(undefined, a);
+    r := handleAll(hs, ds);
+    a' := r(h);
+    d handled scoper(ps', d hasSignas, R', R,
+      undefined, mk.Comp @ const @ f)
+    pr(ds)
+
+
+#{
+  let (hs there[q := q, ps := ps'], ds, r) =>
     contT do
       dh := ds head;
       R' $ isRet := dh retIsRet;
@@ -574,6 +627,7 @@ where
         r);
       dh handled scoper(ps', dh hasSignas, R', R, undefined, mk.Comp @ const @ f)
       pr(ds tail!)
+#}
 end
 
 
