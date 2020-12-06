@@ -16,3 +16,8 @@ let (_ $ b) => b
 val pair=.DProd[A : Ty, B : A -> Ty, x; y : A, r : B(x), s : B(y)] :
   (x = y, r = s) -> (x $ r) = (y $ s)
 let (refl, refl) => refl
+
+
+val _mapD\&_\_->_[X : Ty, A; B : X -> Ty] :
+  (& A, (x : X, A(x)) -> B(x)) -> & B
+let (x $ a, f) => x $ f(x, a)

@@ -371,47 +371,34 @@ val tripleDecr2' : (TripPa2, TripSt2) -> TripComp2(Str)
 let (pa, st) =>
   decr2(pa, st) >>= (_).
   (
+    contT (stk).
+    pure.ContT (s0).
     (
-      contT (stk).
-      pure.ContT (s0). do
-      defaultSt := (A : Ty, a : A). s0 $ a;
-      ## (((X : Ty, X) -> R(X),                                 ## default
-      ##    (qs : EfList, (S -> S & A ~ qs) ~ qs) -> R(A) ~ qs) ## convert handler result using s0
-      ##     -> R(A) ~ ps,                                      ## final result
-      ##    A -> (S -> S & A ~ ps) ~ ps                         ## continuation (stk)
-      ## ) -> (S -> S & A ~ ps) ~ ps
-      ## where R(A) => S & A.
-      (
-        contT (pak). do
-        defaultPa := (A : Ty, a : A). yes(a);
-        h := ( idIsMonad runPartialHandler (pa').
-               ( contTIsMonad runStateHandler(s0) (st'). do
-                 decr2' :=
-                  st'(Nat, getOp) >>= (x).
-                  case x
-                  of 0 => contTIsMonad lift(pa'(Unit, failOp))
-                  of ++ x => st'(Unit, putOp(x))
-                  end;
-                 decr2' >>= (_).
-                 decr2' >>= (_).
-                 pure.ContT("end of decr")
-               )
-             ) :! ? (Nat & Str);
-        ## In general we will be inside a continuation monad:
-        ## h >>= (h).
-        ## But in this case it is just the identity monad:
-        idIsMonad bind(h) (h).
-        case h
-        of no => pak(defaultSt(? Str, no))
-        of yes(x) => pak(x map(yes))
-        end
-      ) >>= (x). stk(x 2) >>= (k). k(x 1)
-    ) >>= (m).
-    case m
-    of no => pure.ContT("catch")
-    of yes(s) => pure.ContT(s)
-    end
-  )
+      contT (pak). do
+      h := ( idIsMonad runPartialHandler (pa').
+             ( contTIsMonad runStateHandler(s0) (st'). do
+               decr2' :=
+                st'(Nat, getOp) >>= (x).
+                case x
+                of 0 => contTIsMonad lift(pa'(Unit, failOp))
+                of ++ x => st'(Unit, putOp(x))
+                end;
+               decr2' >>= (_).
+               decr2' >>= (_).
+               pure.ContT("end of decr")
+             )
+           ) :! ? (Nat & Str);
+      ## In general we will be inside a continuation monad:
+      ## h >>= (h).
+      ## But in this case it is just the identity monad:
+      idIsMonad bind(h) do (h).
+      case h
+      of no => pak(s0 $ "catch block")
+      of yes(x) => pak(x)
+      end ## (? M(A), M IsMonad, default : A -> M(A))
+          ## where default => s0 $ _
+    ) >>= (x). stk(x 2) >>= (k). k(x 1)
+  ) >>= pure.ContT
 
 
 val runTripleDecr2 : Nat -> ? (Nat & Str)

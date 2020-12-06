@@ -5,4 +5,8 @@ operand type, and memoise all operand types inferred on the way. It
 will not be necessary to search under binders, since functions and
 arrows are base cases for this operand type search.
 
-TypeCheck.hs: TODO: Should not use na0 when user has given name!
+TypeCheck.hs: In doTcPattern getImplicit:
+Should not use na0 when user has given explicit name to the implicit.
+
+Debug test/BUG.yu    (compile with -c)
+Debug test/BUG2.yu   non-exhaustive pattern

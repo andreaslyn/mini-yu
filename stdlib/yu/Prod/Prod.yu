@@ -8,3 +8,7 @@ let (A, B) => & const[B := A](B)
 
 val _<->_\Ty : (Ty, Ty) -> Ty
 let (A, B) => (A -> B) & (B -> A)
+
+
+val _map\&_\_->_[X; A; B : Ty] : (X & A, A -> B) -> X & B
+let (x $ a, f) => x $ f(a)
