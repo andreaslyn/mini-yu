@@ -609,26 +609,52 @@ let =>
 
 
 val tripleDecr2[ps : EfList] :
-  (pa : PartialSigna Ef, st : StateSigna(Nat) Ef) ->
-  Str ~ st :: pa :: ps
-let (pa, st) =>
-  decr(here.Has, here.Has there) :>>
-  mk.Comp (ds : (st :: pa :: ps) CompDom). do
-  dst :: ds := ds;
+  (pa : PartialSigna Ef, st : StateSigna(Nat) Ef, ch : ChoiceSigna Ef) ->
+  Str ~ ch :: st :: pa :: ps
+let (pa, st, ch) =>
+  ch apply(decideOp, here.Has) >>= (b).
+  if(! b) then(pure.Comp("no choice")) else do
+  decr(here.Has there, here.Has there there) :>>
+  mk.Comp (ds : (ch :: st :: pa :: ps) CompDom). do
+  dch :: ds := ds;
   ( contT do
-    Rst $ stIsRet := dst retIsRet;
-    stIsRet
-    rew((X). (? Str -> (pa :: ps) PreComp(X)) -> (pa :: ps) PreComp(X), _)
-    (stk : ? Str -> (pa :: ps) PreComp(dst Ret(Rst, pa :: ps))). do
-    stk' := mk.Comp @ const[B := (pa :: ps) CompDom] @ stk;
-    stScope[A := ? Str, R := Rst](dst, handlePaSt(dst), stk')
-    pr(ds)
+    Rch $ chIsRet := dch retIsRet;
+    chIsRet
+    rew((X). (? Str -> (st :: pa :: ps) PreComp(X)) ->
+                       (st :: pa :: ps) PreComp(X), _)
+    (chk : ? Str -> (st :: pa :: ps) PreComp(dch Ret(Rch, st :: pa :: ps))). do
+    chk' := mk.Comp @ const[B := (st :: pa :: ps) CompDom] @ chk;
+    ( chScope(ds, dch, _, chk') (chIsF, defaultCh, transCh). do
+      mk.Comp (ds : (st :: pa :: ps) CompDom). do
+      dst :: ds := ds;
+      ( contT do
+        Rst $ stIsRet := dst retIsRet;
+        stIsRet
+        rew((X). (dch ScopeRet(? Str) -> (pa :: ps) PreComp(X)) -> (pa :: ps) PreComp(X), _)
+        (stk : dch ScopeRet(? Str) -> (pa :: ps) PreComp(dst Ret(Rst, pa :: ps))). do
+        stk' := mk.Comp @ const[B := (pa :: ps) CompDom] @ stk;
+        stScope[R := Rst](dst, handlePaSt(dch, dst, chIsF, defaultCh, transCh), stk')
+        pr(ds)
+      )
+    ) pr(ds)
   ) >>= (m).
   case m
   of no => pure.ContT("catch")
   of yes(s) => pure.ContT(s)
   end
 where
+  val chScope[R; A : Ty, ch : ChoiceSigna Ef, ps : EfList] :
+    (ps CompDom,
+      dch : ch Handled(ps),
+      (dch ScopeRet IsFunctor,
+        (X : Ty, X) -> dch ScopeRet(X),
+        (qs : EfList, B : Ty, dch Ret(B, qs) ~ qs) -> dch ScopeRet(B) ~ qs) ->
+        dch ScopeRet(A) ~ ps,
+      A -> dch Ret(R, ps) ~ ps) ->
+    dch Ret(R, ps) ~ ps
+  let (ds, dch, c, chk) =>
+    dch handled scoper(ps, dch signasIsSignas(ps hasSignas), R, A, c, chk)
+
   ## This is the new scoper:
   val stScope[R; A : Ty, st : StateSigna(Nat) Ef, ps : EfList] :
     (dst : st Handled(ps),
@@ -642,12 +668,15 @@ where
     dst handled scoper(ps, dst signasIsSignas(ps hasSignas), R, A, c, stk)
 
   val handlePaSt :
-    (dst : st Handled(pa :: ps)) ->
+    (dch : ch Handled(st :: pa :: ps), dst : st Handled(pa :: ps),
+      dch ScopeRet IsFunctor,
+      (X : Ty, X) -> dch ScopeRet(X),
+      (qs : EfList, B : Ty, dch Ret(B, qs) ~ qs) -> dch ScopeRet(B) ~ qs) ->
     (dst ScopeRet IsFunctor,
       (X : Ty, X) -> dst ScopeRet(X),
       (qs : EfList, B : Ty, dst Ret(B, qs) ~ qs) -> dst ScopeRet(B) ~ qs) ->
-    dst ScopeRet(? Str) ~ pa :: ps
-  let (dst) => (isF, defaultSt, trans). do
+    dst ScopeRet(dch ScopeRet(? Str)) ~ pa :: ps
+  let (dch, dst, chIsF, defaultCh, transCh) => (isF, defaultSt, trans). do
     mk.Comp (ds : (pa :: ps) CompDom). do
     dpa :: ds := ds;
     Rpa $ paIsRet := dpa retIsRet;
@@ -656,12 +685,16 @@ where
     rew((X). (F(? Str) -> ps PreComp(X)) -> ps PreComp(X), _)
     (pak : F(? Str) -> ps PreComp(dpa Ret(Rpa, ps))). do
     h := ( runPartialHandler (pa'). ## User given "catch" function
-           trans(pa' :: ps, Str,
+           trans(pa' :: ps, dch ScopeRet(Str),
              dst handled handle(
               dst signasIsSignas((pa' :: ps) hasSignas), _) (st'). do
-             decr(here.Has, here.Has there) :>>
-             decr(here.Has, here.Has there) :>>
-             pure.Comp("end of decr")
+             transCh(st' :: pa' :: ps, Str,
+               dch handled handle(
+                dch signasIsSignas((st' :: pa' :: ps) hasSignas), _) (ch'). do
+               decr(here.Has there, here.Has there there) :>>
+               decr(here.Has there, here.Has there there) :>>
+               pure.Comp("end of decr")
+             )
            )
          ) :! (? F(Str) ~ ps);
     ## I do not need to know Nat & _.
@@ -669,24 +702,25 @@ where
     ## defaultSt : (X : Ty, X) -> F(X).
     bind.PreComp(h pr(ds)) (h : ? F(Str)). do
     case h
-    of no => pak(defaultSt(? Str, no))
-    of yes(x) => pak(isF map(x, yes))
+    of no => pak(defaultSt(dch ScopeRet(? Str), defaultCh(? Str, no)))
+    of yes(x) => pak(isF map(x, chIsF map(_, yes)))
     end ## User given catch handler.
         ## There are other ways to solve this,
         ## but works for now.
   where
     val F : Ty -> Ty
-    let => dst ScopeRet
+    let => dst ScopeRet @ dch ScopeRet
   end
 end
 
 
-val tripleDecr2PaSt : Nat -> ? (Nat & Str)
+val tripleDecr2PaSt : Nat -> ? (Nat & Str List)
 let (n) =>
   _eval do
   runPartialHandler (pa).
   runStateHandler(n) (st).
-  tripleDecr2(pa, st)
+  runChoiceHandler (ch).
+  tripleDecr2(pa, st, ch)
 
 
 val testIOPartial[ps : EfList, io : IOSigna Ef] : ps Has(io) -> Unit ~ ps
@@ -713,8 +747,8 @@ let () =>
   ("[" :+: testChoice3 str(_str, ",") :+: "]") println;
   tripleDecrStPa str(_str, (x, _). x str((_). "unit")) println;
   tripleDectPaSt str(_ str(_str, (_, _). "unit")) println;
-  tripleDecr2PaSt(0) str(_ str(_str, (x, _). x)) println;
-  tripleDecr2PaSt(1) str(_ str(_str, (x, _). x)) println;
-  tripleDecr2PaSt(2) str(_ str(_str, (x, _). x)) println;
-  tripleDecr2PaSt(3) str(_ str(_str, (x, _). x)) println;
-  tripleDecr2PaSt(4) str(_ str(_str, (x, _). x)) println
+  tripleDecr2PaSt(0) str(_ str(_str, (x, _). x str(id, ", "))) println;
+  tripleDecr2PaSt(1) str(_ str(_str, (x, _). x str(id, ", "))) println;
+  tripleDecr2PaSt(2) str(_ str(_str, (x, _). x str(id, ", "))) println;
+  tripleDecr2PaSt(3) str(_ str(_str, (x, _). x str(id, ", "))) println;
+  tripleDecr2PaSt(4) str(_ str(_str, (x, _). x str(id, ", "))) println
