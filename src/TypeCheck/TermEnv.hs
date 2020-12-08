@@ -1296,9 +1296,16 @@ writeNamedPreTermArgs im rm (p:ps) = do
 
 writeVarList :: [Var] -> ToString ()
 writeVarList [] = return ()
-writeVarList [v] = writeStr (varName v)
-writeVarList (v:vs) =
-  writeStr (varName v) >> writeStr ", " >> writeVarList vs
+writeVarList [v] = do
+  writeStr (varName v)
+  --writeStr "."
+  --writeStr (show (varId v))
+writeVarList (v:vs) = do
+  writeStr (varName v)
+  --writeStr "."
+  --writeStr (show (varId v))
+  writeStr ", "
+  writeVarList vs
 
 writeNameList :: [VarName] -> ToString ()
 writeNameList [] = return ()

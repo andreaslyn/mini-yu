@@ -203,8 +203,21 @@ lookupTermCtor i = do
   fmap (fromJust . IntMap.lookup i . ctorMap) get
 
 updateTermVar :: Te.Var -> Var -> StM ()
-updateTermVar v x =
+updateTermVar v x = do
   modify (\st -> st {varMap = IntMap.insert (Te.varId v) x (varMap st)})
+
+localUpdateTermVars :: [Te.Var] -> [Var] -> StM a -> StM a
+localUpdateTermVars vs xs e = do
+  m <- fmap varMap get
+  let xs' = map (\v -> IntMap.lookup (Te.varId v) m) vs
+  mapM_ (uncurry updateTermVar) (zip vs xs)
+  e' <- e
+  mapM_ (\(v, x) ->
+            case x of
+              Nothing -> return ()
+              Just x' -> updateTermVar v x'
+        ) (zip vs xs')
+  return e'
 
 lookupTermVar :: Te.Var -> StM Var
 lookupTermVar i =
@@ -477,12 +490,12 @@ irExpr Te.TermEmpty = error "cannot generate empty term!"
 irCaseTree :: [Var] -> Te.CaseTree -> StM Expr
 irCaseTree xs (Te.CaseLeaf vs _ te ws) = do
   let !() = assert (length xs == length vs) ()
-  mapM_ (\(v, x) -> updateTermVar v x) (zip vs xs)
-  w <- irProgram False ws
-  e <- irExpr te
-  if null w
-    then return e
-    else return (Where e w)
+  localUpdateTermVars vs xs $ do
+    w <- irProgram False ws
+    e <- irExpr te
+    if null w
+      then return e
+      else return (Where e w)
 irCaseTree xs (Te.CaseNode idx m d) = do
   let (x, xs') = removeIdx idx xs
   let ctors = IntMap.toList m
@@ -505,9 +518,9 @@ irCaseTree xs (Te.CaseNode idx m d) = do
   return (Case x allCases)
 irCaseTree xs (Te.CaseUnit idx (vs, ct)) = do
   let (x, xs') = removeIdx idx xs
-  mapM_ (\v -> updateTermVar v x) vs
-  ct' <- irCaseTree xs' ct
-  return (Case x [(0, 0, ct')])
+  localUpdateTermVars vs (repeat x) $ do
+    ct' <- irCaseTree xs' ct
+    return (Case x [(0, 0, ct')])
 irCaseTree xs (Te.CaseEmpty idx) = do
   let (x, _) = removeIdx idx xs
   return (Case x [])
@@ -516,31 +529,31 @@ makeCtorCase ::
   Bool -> Var -> [Var] -> (Te.VarId, ([Te.Var], Te.CaseTree)) ->
   StM (Te.VarId, (CtorId, FieldCnt, Expr))
 makeCtorCase makeProjects x xs' (i, (vs, ct)) = do
-  mapM_ (\v -> updateTermVar v x) vs
-  t <- lookupRef i
-  rm <- getRefMap
-  i' <- lookupTermCtor i
-  is <- lookupImplicit i
-  let dataType = TE.preTermCodRootType rm (Te.termTy t)
-  let dataId = case dataType of
-                Just (Te.TermData dv, _) -> dv
-                _ -> error "expected type of ctor to be a data type"
-  case concatDom rm is (Te.termTy t) of
-    Nothing -> do
-      c <- irCaseTree xs' ct
-      return (Te.varId dataId, (prCtor i', 0, c))
-    Just dom ->
-      if makeProjects
-      then do
-        ys0 <- makeFunRVars snd dom
-        (ys, p) <- makeProjs 0 dataId (zip ys0 dom)
-        c <- irCaseTree (ys ++ xs') ct
-        let dom' = filter (\(_, dty) -> isRelevantTy rm dty) dom
-        return (Te.varId dataId, (prCtor i', length dom', p c))
-      else do
+  localUpdateTermVars vs (repeat x) $ do
+    t <- lookupRef i
+    rm <- getRefMap
+    i' <- lookupTermCtor i
+    is <- lookupImplicit i
+    let dataType = TE.preTermCodRootType rm (Te.termTy t)
+    let dataId = case dataType of
+                  Just (Te.TermData dv, _) -> dv
+                  _ -> error "expected type of ctor to be a data type"
+    case concatDom rm is (Te.termTy t) of
+      Nothing -> do
         c <- irCaseTree xs' ct
-        let dom' = filter (\(_, dty) -> isRelevantTy rm dty) dom
-        return (Te.varId dataId, (prCtor i', length dom', c))
+        return (Te.varId dataId, (prCtor i', 0, c))
+      Just dom ->
+        if makeProjects
+        then do
+          ys0 <- makeFunRVars snd dom
+          (ys, p) <- makeProjs 0 dataId (zip ys0 dom)
+          c <- irCaseTree (ys ++ xs') ct
+          let dom' = filter (\(_, dty) -> isRelevantTy rm dty) dom
+          return (Te.varId dataId, (prCtor i', length dom', p c))
+        else do
+          c <- irCaseTree xs' ct
+          let dom' = filter (\(_, dty) -> isRelevantTy rm dty) dom
+          return (Te.varId dataId, (prCtor i', length dom', c))
   where
     makeProjs ::
       Int -> Te.Var -> [(RVar, (a, Te.PreTerm))] ->
