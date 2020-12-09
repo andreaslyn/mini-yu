@@ -99,7 +99,8 @@ getProjectPath = do
 run :: ProgramOptions -> IO ()
 run opts = do
   verifyProgramOptions opts
-  tc <- runTT (optionCompile opts || optionAssembly opts)
+  tc <- runTT (optionVerboseErrors opts)
+              (optionCompile opts || optionAssembly opts)
               (projectRootPath opts ++ "/stdlib/") (argumentFileName opts)
   case tc of
     Left msg -> hPutStrLn stderr msg
@@ -112,6 +113,7 @@ data ProgramOptions = ProgramOptions
   , optionPrintHighLevelIR :: Bool
   , optionPrintBaseIR :: Bool
   , optionPrintRefCountIR :: Bool
+  , optionVerboseErrors :: Bool
   , projectRootPath :: FilePath
   , argumentFileName :: FilePath
   , argumentGccOptions :: [FilePath]
@@ -126,7 +128,7 @@ verifyProgramOptions opts
   | True = return ()
 
 makeProgramOptions ::
-  Bool -> Bool -> Bool -> Bool -> Bool -> Bool ->
+  Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool ->
   FilePath -> [FilePath] -> ProgramOptions
 makeProgramOptions
   optCompile
@@ -135,6 +137,7 @@ makeProgramOptions
   optPrintHighLevelIR
   optPrintBaseIR
   optPrintRefCountIR
+  optVerboseErrors
   argFileName
   argGccOptions
   = ProgramOptions
@@ -144,6 +147,7 @@ makeProgramOptions
     , optionPrintHighLevelIR = optPrintHighLevelIR
     , optionPrintBaseIR = optPrintBaseIR
     , optionPrintRefCountIR = optPrintRefCountIR
+    , optionVerboseErrors = optVerboseErrors
     , argumentFileName = argFileName
     , argumentGccOptions = argGccOptions
     , projectRootPath = ""
@@ -163,6 +167,8 @@ cmdParser = makeProgramOptions
     `Ar.Descr` "print second intermediate representation"
   `Ar.andBy` ArPa.FlagParam ArPa.Long "print-ref-count-ir" id
     `Ar.Descr` "print reference counted intermediate representation"
+  `Ar.andBy` ArPa.FlagParam ArPa.Long "verbose" id
+    `Ar.Descr` "print error message verbosely"
   `Ar.andBy` reqPos "file"
     `Ar.Descr` "the mini-yu source code file"
   `Ar.andBy` posArgs "gcc files" [] (\xs x -> xs ++ [x])
