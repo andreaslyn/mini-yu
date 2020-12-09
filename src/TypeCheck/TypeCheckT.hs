@@ -33,11 +33,11 @@ typeCheckErrMsg (Fatal s) = s
 typeCheckErrMsg (Recoverable s) = s
 
 type TypeCheckT m =
-  Env.EnvT (StateT (Set FilePath) (ReaderT FilePath (ExceptT TypeCheckErr m)))
+  Env.EnvT (StateT (Set FilePath) (ReaderT (Bool, FilePath) (ExceptT TypeCheckErr m)))
 
 err :: Monad m => Loc -> TypeCheckErr -> TypeCheckT m a
 err lo msg = do
-  f <- ask
+  (_, f) <- ask
   case msg of
     Fatal msg' ->
       throwError (Fatal (f ++ ":" ++ show lo ++ ": " ++ msg'))
@@ -68,7 +68,7 @@ putExprSubst s = modifyExprSubst (const s)
 
 impMapInsert :: Monad m => VarId -> PreTerm -> Loc -> String -> ExprT m ()
 impMapInsert i t lo msg = do
-  lift (Env.forceInsertImplicitVar i t)
+  lift (Env.insertImplicitVarCurrentScope i t)
   modify (\(s, ImpMap m p) ->
               (s, ImpMap (IntMap.insert i (lo, msg) m) p))
 

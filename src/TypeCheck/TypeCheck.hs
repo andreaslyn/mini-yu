@@ -50,14 +50,14 @@ _useIntercalate = intercalate
 
 runTypeCheckT ::
   MonadIO m =>
-  Bool -> FilePath -> FilePath -> Program ->
+  Bool -> Bool -> FilePath -> FilePath -> Program ->
   m (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
-runTypeCheckT compiling stdImport file prog = do
+runTypeCheckT verbose compiling stdImport file prog = do
   r <- runExceptT
         (runReaderT
           (evalStateT
             (Env.runEnvT (tcInitProgram compiling stdImport prog))
-              (Set.singleton file)) file)
+              (Set.singleton file)) (verbose, file))
   case r of
     Left e -> return (Left (typeCheckErrMsg e))
     Right x -> return (Right x)
@@ -69,9 +69,9 @@ importFilePath stdImport p
 
 runTT ::
   MonadIO m =>
-  Bool -> FilePath -> FilePath ->
+  Bool -> Bool -> FilePath -> FilePath ->
   m (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
-runTT compiling stdImport file = do
+runTT verbose compiling stdImport file = do
   file' <- importFilePath stdImport file
   isf <- liftIO (doesFileExist file')
   if not isf
@@ -84,7 +84,7 @@ runTT compiling stdImport file = do
       prog <- runParse file'
       case prog of
         Left e -> return (Left e)
-        Right prog' -> runTypeCheckT compiling stdImport file' prog'
+        Right prog' -> runTypeCheckT verbose compiling stdImport file' prog'
 
 varStatusTerm :: Monad m => VarStatus -> TypeCheckT m Term
 varStatusTerm (StatusTerm te) = return te
@@ -92,10 +92,10 @@ varStatusTerm (StatusUnknownCtor subst depth n d) =
   Env.withDepth depth (tcDataDefCtorLookup subst n d)
 varStatusTerm (StatusUnknownRef subst depth d) =
   Env.withDepth depth (tcDef subst False d)
-varStatusTerm (StatusUnknownVar subst depth (lo, na) e) =
+varStatusTerm (StatusUnknownVar subst depth (lo, na) i e) =
   case e of
     Nothing -> err lo $ Fatal ("cannot determine type of variable " ++ quote na)
-    Just e' -> Env.withDepth depth (tcVar subst (lo, na) e')
+    Just e' -> Env.withDepth depth (tcVar subst (lo, na) i e')
 varStatusTerm (StatusInProgress _ (lo, na)) =
   err lo $ Fatal (quote na ++ " has cyclic type")
 
@@ -127,10 +127,10 @@ insertUnknownRef subst d = do
     _ -> return ()
 
 insertUnknownVar :: Monad m =>
-  SubstMap -> (Loc, VarName) -> Maybe Expr -> TypeCheckT m ()
-insertUnknownVar subst (lo, na) e = do
+  SubstMap -> (Loc, VarName) -> VarId -> Maybe Expr -> TypeCheckT m ()
+insertUnknownVar subst (lo, na) i e = do
   depth <- Env.getDepth
-  let s = StatusUnknownVar subst depth (lo, na) e
+  let s = StatusUnknownVar subst depth (lo, na) i e
   if na == "_"
     then
       return ()
@@ -160,8 +160,12 @@ updateToStatusTerm na te = do
   when (isNothing x) (error $ "expected in-progress or term env status of " ++ quote na)
 
 insertNonblankFreshVariable :: Monad m => (Loc, VarName) -> PreTerm -> TypeCheckT m Var
-insertNonblankFreshVariable (lo, na) te = do
+insertNonblankFreshVariable na te = do
   i <- Env.freshVarId
+  insertNonblankVariable na i te
+
+insertNonblankVariable :: Monad m => (Loc, VarName) -> VarId -> PreTerm -> TypeCheckT m Var
+insertNonblankVariable (lo, na) i te = do
   let v = mkVar i na
   let v' = TermVar False v
   let y = StatusTerm (mkTerm v' te False)
@@ -246,16 +250,14 @@ checkMainExists = do
     Nothing ->
       err (Loc.loc 1 1) (Fatal $ "missing " ++ quote "main" ++ " function")
     Just (StatusTerm t) -> do
-      im <- Env.getImplicitMap
       rm <- Env.getRefMap
       case preTermNormalize rm (termTy t) of
         TermArrow True [] TermUnitTy -> checkBody (termPre t)
-        _ -> 
+        _ -> do
+          ss <- preTermToStringT defaultExprIndent (TermArrow True [] TermUnitTy)
           err (Loc.loc 1 1)
             (Fatal $
-              "expected type of " ++ quote "main" ++ " to be\n"
-              ++ preTermToString im rm defaultExprIndent
-                    (TermArrow True [] TermUnitTy))
+              "expected type of " ++ quote "main" ++ " to be\n" ++ ss)
     Just _ -> error "unexpected status of main function"
   where
     checkBody :: Monad m => PreTerm -> TypeCheckT m ()
@@ -312,7 +314,7 @@ tcProgram _ ([], defs) = do
   Env.clearImplicitVarMap
   return rs
 tcProgram stdImport ((lo, ina) : imps, defs) = do
-  cf <- ask
+  (verbose, cf) <- ask
   let cd = takeDirectory cf
   liftIO (setCurrentDirectory cd)
   ina' <- fmap FilePath.normalise (importFilePath stdImport ina)
@@ -329,7 +331,7 @@ tcProgram stdImport ((lo, ina) : imps, defs) = do
       case prog of
         Left e -> throwError (Fatal e)
         Right prog' -> do
-          vs <- local (const ina') (tcProgram stdImport prog')
+          vs <- local (const (verbose, ina')) (tcProgram stdImport prog')
           fmap (++vs) (tcProgram stdImport (imps, defs))
 
 tcDefsToVars :: Monad m => SubstMap -> [Def] -> TypeCheckT m [RefVar]
@@ -349,10 +351,8 @@ tcDefsToVars subst defs = do
     extractDefVar (Term {termPre = (TermData v)}) = return (RefData v)
     extractDefVar (Term {termPre = (TermCtor v _)}) = return (RefCtor v)
     extractDefVar t = do
-      im <- Env.getImplicitMap
-      rm <- Env.getRefMap
-      error $ "unexpected def term: "
-              ++ preTermToString im rm 0 (termPre t)
+      ss <- preTermToStringT defaultExprIndent (termPre t)
+      error $ "unexpected def term: " ++ ss
 
 tcDefs :: Monad m => SubstMap -> [Def] -> TypeCheckT m [Term]
 tcDefs subst defs =
@@ -460,9 +460,8 @@ tcDataAndCtors subst isPure d ctors = do
           Env.forceInsertRef (declLoc d) (declName d) isPure (varId v) dt
           return dt
         _ -> do
-          im <- Env.getImplicitMap
-          error $ "expected " ++ preTermToString im rm 0 (termPre dt)
-                  ++ " to be a data type"
+          ss <- preTermToStringT 0 (termPre dt)
+          error $ "expected " ++ ss ++ " to be a data type"
     Right (imps, ty) -> do
       let (fcod, hasIo) = preTermFinalCod rm (termPre ty)
       when hasIo
@@ -619,7 +618,8 @@ doTcDecl subst isCtor (Decl (lo, na) impls ty) = do
       error "expected implicit argument to have a type spec (@1)"
     insertUnknownImplicit ((vlo, vna), Just e) = do
       checkVarNameValid (vlo, vna)
-      insertUnknownVar subst (vlo, vna) (Just e)
+      i <- Env.freshVarId
+      insertUnknownVar subst (vlo, vna) i (Just e)
 
     checkImplicit :: Monad m =>
       VarListElem -> TypeCheckT m (Var, PreTerm)
@@ -668,14 +668,13 @@ checkOperandTypeString (nlo, na) (Just ss) = do
     isKeyOperandType "_->_" = True
     isKeyOperandType _ = False
 
-tcVar :: Monad m => SubstMap -> (Loc, VarName) -> Expr -> TypeCheckT m Term
-tcVar subst (lo, na) e = do
+tcVar :: Monad m => SubstMap -> (Loc, VarName) -> VarId -> Expr -> TypeCheckT m Term
+tcVar subst (lo, na) i e = do
   t <- markInProgress False (lo, na)
   case t of
     Nothing -> do
       ty <- evalTcExpr subst TermTy e
       verifyNoIoEscapeFromType lo na ty
-      i <- Env.freshVarId
       let v = mkTerm (TermVar False (mkVar i na)) (termPre ty) False
       updateToStatusTerm na v
       return v
@@ -692,7 +691,7 @@ tcDataDefCtorLookup subst (dlo, dna) d = do
           Just (StatusUnknownCtor _ _ _ _) ->
             error ("ctor " ++ quote dna
                    ++ " was expected to be data type")
-          Just (StatusUnknownVar _ _ _ _) ->
+          Just (StatusUnknownVar _ _ _ _ _) ->
             error ("variable " ++ quote dna
                    ++ " was expected to be data type")
           Just (StatusTerm t) ->
@@ -1594,11 +1593,12 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
                   [(Just (mkVar 0 ""), TermEmpty)] TermEmpty) False)
  else
   scope $ do
+    as' <- mapM (\a -> fmap ((,) a) (lift Env.freshVarId)) as
     case ty of
       Nothing -> do
         implicits <- mapM insertImplicit as
-        ats <- mapM insertUnknownUntypedParam (zip as implicits)
-        dom' <- mapM checkParam (zip as ats)
+        ats <- mapM insertUnknownUntypedParam (zip as' implicits)
+        dom' <- mapM checkParam (zip as' ats)
         body' <- doTcExpr False subst Nothing Nothing body
         let io = termIo body'
         let fte = TermFun [] io (Just (length dom'))
@@ -1611,8 +1611,8 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
         case preTermDomCod rm ty' of
           Nothing -> do
             implicits <- mapM insertImplicit as
-            ats <- mapM insertUnknownUntypedParam (zip as implicits)
-            dom' <- mapM checkParam (zip as ats)
+            ats <- mapM insertUnknownUntypedParam (zip as' implicits)
+            dom' <- mapM checkParam (zip as' ats)
             body' <- doTcExpr False subst Nothing Nothing body
             let io = termIo body'
             let fte = TermFun [] io (Just (length dom'))
@@ -1622,15 +1622,15 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             tcExprSubstUnify lo ty' fty
             return (mkTerm fte fty False)
           Just (dom, cod, io) -> do
-            when (length dom /= length as)
+            when (length dom /= length as')
               (lift $ err lo (Fatal $
                                "expected " ++ show (length dom)
                                ++ " argument(s), but function has "
-                               ++ show (length as)))
-            mapM_ insertUnknownTypedParam as
+                               ++ show (length as')))
+            mapM_ insertUnknownTypedParam as'
             rm0 <- lift Env.getRefMap
-            let as' = dependencyOrderArgs (preTermVars rm0) dom as
-            (su0, dom0) <- insertTypedParams IntMap.empty as'
+            let bs = dependencyOrderArgs (preTermVars rm0) dom as'
+            (su0, dom0) <- insertTypedParams IntMap.empty bs
             let dom' = map snd (sortOn fst dom0)
             let cod' = substPreTerm su0 cod
             body' <- tcExpr subst cod' body
@@ -1657,25 +1657,24 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
     insertImplicit (_, Just _) = return Nothing
 
     insertUnknownUntypedParam :: Monad m =>
-      (VarListElem, Maybe PreTerm) -> ExprT m (Maybe (Var, PreTerm))
-    insertUnknownUntypedParam (((vlo, vna), Nothing), Just e) = do
-      v <- lift (insertNonblankFreshVariable (vlo, vna) e)
+      ((VarListElem, VarId), Maybe PreTerm) -> ExprT m (Maybe (Var, PreTerm))
+    insertUnknownUntypedParam ((((vlo, vna), Nothing), i), Just e) = do
+      v <- lift (insertNonblankVariable (vlo, vna) i e)
       return (Just (v, e))
-    insertUnknownUntypedParam (((vlo, vna), Just e), _) = do
-      lift (insertUnknownVar subst (vlo, vna) (Just e))
+    insertUnknownUntypedParam ((((vlo, vna), Just e), i), _) = do
+      lift (insertUnknownVar subst (vlo, vna) i (Just e))
       return Nothing
     insertUnknownUntypedParam _ = error "unexpected case"
 
     checkParam :: Monad m =>
-      (VarListElem, Maybe (Var, PreTerm)) -> ExprT m (Var, PreTerm)
-    checkParam ((_, Nothing), Nothing) =
+      ((VarListElem, VarId), Maybe (Var, PreTerm)) -> ExprT m (Var, PreTerm)
+    checkParam (((_, Nothing), _), Nothing) =
       error "expected function explicit type or implicit type"
-    checkParam ((_, Nothing), Just x) = return x
-    checkParam (((vlo, vna), Just e), _)
+    checkParam (((_, Nothing), _), Just x) = return x
+    checkParam ((((vlo, vna), Just e), i), _)
       | vna == "_" = do
           e' <- tcExpr subst TermTy e
           lift (verifyNoIoEscapeFromType vlo vna e')
-          i <- lift Env.freshVarId
           let v = mkVar i "_"
           return (v, termPre e')
       | True = do
@@ -1684,7 +1683,6 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             Nothing -> do
               e' <- tcExpr subst TermTy e
               lift (verifyNoIoEscapeFromType vlo vna e')
-              i <- lift Env.freshVarId
               let v = mkVar i vna
               lift $ updateToStatusTerm vna
                         (mkTerm (TermVar False v) (termPre e') False)
@@ -1694,17 +1692,17 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             _ ->
               error $ "not a variable term " ++ quote vna
 
-    insertUnknownTypedParam :: Monad m => VarListElem -> ExprT m ()
-    insertUnknownTypedParam ((vlo, vna), Nothing) =
-      lift (insertUnknownVar subst (vlo, vna) Nothing)
-    insertUnknownTypedParam ((vlo, vna), Just e) =
-      lift (insertUnknownVar subst (vlo, vna) (Just e))
+    insertUnknownTypedParam :: Monad m => (VarListElem, VarId) -> ExprT m ()
+    insertUnknownTypedParam (((vlo, vna), Nothing), i) =
+      lift (insertUnknownVar subst (vlo, vna) i Nothing)
+    insertUnknownTypedParam (((vlo, vna), Just e), i) =
+      lift (insertUnknownVar subst (vlo, vna) i (Just e))
 
     insertTypedParams :: Monad m =>
-      SubstMap -> [(Int, (Maybe Var, PreTerm), VarListElem)] ->
+      SubstMap -> [(Int, (Maybe Var, PreTerm), (VarListElem, VarId))] ->
       ExprT m (SubstMap, [(Int, (Var, PreTerm))])
     insertTypedParams su [] = return (su, [])
-    insertTypedParams su ((idx, (v, t), ((vlo, vna), e)) : xs) = do
+    insertTypedParams su ((idx, (v, t), (((vlo, vna), e), i)) : xs) = do
       pa <- if vna == "_"
               then return Nothing
               else lift (markInProgress False (vlo, vna))
@@ -1722,7 +1720,6 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
           -- Should not implicit coerce to lazy here, since the
           -- thing of type t' is a function parameter (variable).
           tcExprSubstUnify (exprLoc e') t' t0
-      i <- lift Env.freshVarId
       let var = mkVar i vna
       let tvar = TermVar False var
       when (vna /= "_")
@@ -1762,8 +1759,9 @@ doTcExpr _ subst _ _ (ExprArrow _ io dom cod) = do
   where
     insertUnknownParam :: Monad m => ExprListTypedElem -> ExprT m ()
     insertUnknownParam (Left _) = return ()
-    insertUnknownParam (Right ((vlo, vna), e)) =
-      lift (insertUnknownVar subst (vlo, vna) (Just e))
+    insertUnknownParam (Right ((vlo, vna), e)) = do
+      i <- lift Env.freshVarId
+      lift (insertUnknownVar subst (vlo, vna) i (Just e))
 
     checkParam :: Monad m =>
       ExprListTypedElem -> ExprT m (Maybe Var, PreTerm, Bool)
@@ -1814,17 +1812,16 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
   if isTrial && isJust opn
   then return (mkTerm TermEmpty (termTy f') False)
   else do
-    im <- lift Env.getImplicitMap
-    rm <- lift Env.getRefMap
     (r, v, ias) <- case termPre f' of
                     TermImplicitApp False r@(TermRef v _) a -> return (r, v, a)
                     TermImplicitApp False r@(TermData v) a -> return (r, v, a)
                     TermImplicitApp False r@(TermCtor v _) a -> return (r, v, a)
-                    _ -> lift (err (exprLoc f) (
-                                Recoverable $
+                    _ -> do
+                      ss <- lift $ preTermToStringT defaultExprIndent (termPre f')
+                      lift (err (exprLoc f) (
+                              Recoverable $
                                 "cannot apply term\n"
-                                ++ preTermToString im rm defaultExprIndent (termPre f')
-                                ++ "\nto implicit argument(s)"))
+                                ++ ss ++ "\nto implicit argument(s)"))
     tys <- lift (Env.forceLookupImplicit (varId v))
     let ias' = Map.fromList ias
     let su = foldl (\m (i, _) ->
@@ -1891,13 +1888,12 @@ doTcExpr isTrial subst _ _ (ExprLazyApp e) = do
     doMakeLazyApp :: Monad m => Term -> ExprT m Term
     doMakeLazyApp e' = do
       rm <- lift Env.getRefMap
-      im <- lift Env.getImplicitMap
       case preTermLazyCod rm (termTy e') of
-        Nothing ->
+        Nothing -> do
+          ss <- lift $ preTermToStringT defaultExprIndent (termTy e')
           lift $ err (exprLoc e) (Recoverable $
             "expected expression to have lazy function type, "
-            ++ "but type is\n"
-            ++ preTermToString im rm defaultExprIndent (termTy e'))
+            ++ "but type is\n" ++ ss)
         Just (ty', io) -> do
           return (mkTerm (TermLazyApp io (termPre e')) ty' (termIo e' || io))
 doTcExpr _ subst _ ty (ExprSeq (Left e1) e2) =
@@ -1945,8 +1941,7 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
         (su, p') <- lift (tcPattern newpids t p)
         isu0 <- getExprSubst
         let isu1 = IntMap.restrictKeys su (IntMap.keysSet isu0)
-        boundids <- lift Env.getNextVarId
-        isu <- lift (runExceptT (mergeExprUnifMaps boundids isu0 isu1))
+        isu <- lift (runExceptT (mergeExprUnifMaps isu0 isu1))
         case isu of
           Right x -> putExprSubst x
           Left msg -> lift (err (exprLoc e)
@@ -2042,15 +2037,14 @@ makeTermApp :: Monad m =>
   Maybe PreTerm -> Term -> [Expr] -> ExprT m Term
 makeTermApp subst flo ty f' args = do
   r <- lift Env.getRefMap
-  im <- lift Env.getImplicitMap
   let dc = preTermDomCod r (termTy f')
   case dc of
-    Nothing ->
+    Nothing -> do
+      ss <- lift $ preTermToStringT defaultExprIndent (termTy f')
       lift $ err flo
         (Recoverable $
           "expected expression to have function type, "
-          ++ "but type is\n"
-          ++ preTermToString im r defaultExprIndent (termTy f'))
+          ++ "but type is\n" ++ ss)
     Just (d', c', io) -> do
       when (length d' /= length args)
         (lift $ err flo
@@ -2204,15 +2198,12 @@ tcPattern :: Monad m =>
   VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
 tcPattern newpids ty p = do
   (su, p')  <- doTcPattern False False newpids ty p
-  im <- Env.getImplicitMap
   rm <- Env.getRefMap
   --let !() = trace ("type: " ++ preTermToString im rm 0 (patternTy p')) ()
-  when (patternPreCanApply (patternPre p')
-        && isArrowType rm (patternTy p'))
+  when (patternPreCanApply (patternPre p') && isArrowType rm (patternTy p')) $ do
+    pp <- prePatternToStringT defaultExprIndent (patternPre p')
     (err (patternLoc p) (Fatal $
-      "pattern\n"
-      ++ prePatternToString im rm defaultExprIndent (patternPre p')
-      ++ "\nis missing argument(s)"))
+      "pattern\n" ++ pp ++ "\nis missing argument(s)"))
   return (su, p')
   where
     isArrowType :: RefMap -> PreTerm -> Bool
@@ -2227,17 +2218,16 @@ makePatternApp :: Monad m =>
   TypeCheckT m (SubstMap, Pattern)
 makePatternApp flo newpids ty (fsu, f') pargs = do
   r <- Env.getRefMap
-  im <- Env.getImplicitMap
-  when (not $ patternPreCanApply (patternPre f'))
-    (err flo (Recoverable $
-      "unable to match pattern with inferred type\n"
-      ++ preTermToString im r defaultExprIndent (patternTy f')))
+  when (not $ patternPreCanApply (patternPre f')) $ do
+    ss <- preTermToStringT defaultExprIndent (patternTy f')
+    err flo (Recoverable $
+      "unable to match pattern with inferred type\n" ++ ss)
   let dc = preTermDomCod r (patternTy f')
   case dc of
-    Nothing ->
+    Nothing -> do
+      ss <- preTermToStringT defaultExprIndent (patternTy f')
       err flo (Recoverable $
-        "unable to match pattern with inferred type\n"
-        ++ preTermToString im r defaultExprIndent (patternTy f'))
+        "unable to match pattern with inferred type\n" ++ ss)
     Just (dom0, cod, io) -> do
       let !() = assert (not io) ()
       when (length dom0 /= length pargs)
@@ -2291,15 +2281,14 @@ doTcPattern _ _ newpids ty (ParsePatternApp f pargs) = do
 
 doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
   (fsu, f') <- doTcPattern True hasApp newpids ty f
-  im <- Env.getImplicitMap
   rm <- Env.getRefMap
   (r, v, ias) <- case patternPre f' of
                   PatternImplicitApp False r@(PatternCtor v _) a -> return (r, v, a)
-                  _ -> err (patternLoc f) (Fatal $
-                              "cannot apply pattern\n"
-                              ++ prePatternToString im rm
-                                  defaultExprIndent (patternPre f')
-                              ++ "\nto implicit argument(s)")
+                  _ -> do
+                    pp <- prePatternToStringT defaultExprIndent (patternPre f')
+                    err (patternLoc f) (Fatal $
+                          "cannot apply pattern\n"
+                          ++ pp ++ "\nto implicit argument(s)")
   tys0 <- Env.forceLookupImplicit (varId v)
   let (fcod, _) = preTermFinalCod rm (patternTy f')
   dsu <- tcPatternUnify newpids (patternLoc f) fcod ty
@@ -2369,18 +2358,17 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
     remakeArgs _ _ = error "unexpected arguments to remakeArgs"
 doTcPattern _ _ newpids ty (ParsePatternLazyApp f) = do
   (fsu, f') <- doTcPattern False True newpids ty f
+  when (not $ patternPreCanApply (patternPre f')) $ do
+    ss <- preTermToStringT defaultExprIndent (patternTy f')
+    err (patternLoc f) (Recoverable $
+      "unable to match pattern with inferred type\n" ++ ss)
   r <- Env.getRefMap
-  im <- Env.getImplicitMap
-  when (not $ patternPreCanApply (patternPre f'))
-    (err (patternLoc f) (Recoverable $
-      "unable to match pattern with inferred type\n"
-      ++ preTermToString im r defaultExprIndent (patternTy f')))
   let c = preTermLazyCod r (patternTy f')
   case c of
-    Nothing ->
+    Nothing -> do
+      ss <- preTermToStringT defaultExprIndent (patternTy f')
       err (patternLoc f) (Recoverable $
-        "unable to match pattern with inferred type\n"
-        ++ preTermToString im r defaultExprIndent (patternTy f'))
+        "unable to match pattern with inferred type\n" ++ ss)
     Just (cod, io) -> do
       let !() = assert (not io) ()
       let p = Pattern {patternPre = PatternLazyApp (patternPre f'),
@@ -2401,12 +2389,10 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
                     x2 <- Env.lookup (na0 ++ "\\")
                     if isJust x2
                     then do
-                      im <- Env.getImplicitMap
-                      rm <- Env.getRefMap
+                      ss <- preTermToStringT defaultExprIndent ty
                       err lo (Fatal $
                                 "multiple candidates for constructor "
-                                ++ quote na0 ++ "of type\n"
-                                ++ preTermToString im rm defaultExprIndent ty)
+                                ++ quote na0 ++ "of type\n" ++ ss)
                     else return (x1, na1)
                   else do
                     let na2 = na0 ++ "\\"
@@ -2426,12 +2412,10 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
       _ <- ctorFromVarStatus x'
       error "this should be unreachable"
     _ -> do
-      im <- Env.getImplicitMap
-      rm <- Env.getRefMap
+      ss <- preTermToStringT defaultExprIndent ty
       if hasImplicitApp || hasApp
       then err lo (Recoverable $ "expected " ++ quote na
-                               ++ " to be constructor of\n"
-                               ++ preTermToString im rm defaultExprIndent ty)
+                               ++ " to be constructor of\n" ++ ss)
       else do
         v <- insertNonblankFreshVariable (lo, na) ty
         return (IntMap.empty, Pattern {patternPre = PatternVar v,
@@ -2568,11 +2552,9 @@ verifyIsEmptyType :: Monad m => Loc -> VarId -> PreTerm -> TypeCheckT m ()
 verifyIsEmptyType lo newpids ty = do
   e <- isEmptyType newpids ty
   when (not e) $ do
-    r <- Env.getRefMap
-    im <- Env.getImplicitMap
+    ss <- preTermToStringT defaultExprIndent ty
     err lo (Recoverable $
-              "unable to match empty pattern with inferred type\n"
-              ++ preTermToString im r defaultExprIndent ty)
+              "unable to match empty pattern with inferred type\n" ++ ss)
 
 dependencyOrderArgs ::
   (t -> VarIdSet) -> [(Maybe Var, t)] -> [a] ->

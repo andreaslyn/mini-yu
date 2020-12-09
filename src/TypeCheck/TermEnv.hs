@@ -17,7 +17,9 @@ module TypeCheck.TermEnv
   , patternApply
   , prePatternApplyWithVars
   , preTermProjArgs
+  , preTermToStringT
   , preTermToString
+  , prePatternToStringT
   , prePatternToString
   , preTermGetAlphaType
   , caseTreeToString
@@ -35,6 +37,7 @@ import qualified TypeCheck.Env as Env
 import Data.Maybe (fromJust, isJust, isNothing)
 import Control.Exception (assert)
 import Control.Monad.Trans.State
+import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Applicative ((<|>))
 --import Data.List (sortOn, intercalate)
@@ -697,7 +700,7 @@ preTermGetAlphaType _ rm _ (TermCtor v _) =
   fmap (termTy . fst) (IntMap.lookup (varId v) rm)
 preTermGetAlphaType _ rm _ (TermRef v _) = 
   fmap (termTy . fst) (IntMap.lookup (varId v) rm)
-preTermGetAlphaType _ _ iv (TermVar _ v) = IntMap.lookup (varId v) iv
+preTermGetAlphaType _ _ iv (TermVar _ v) = fmap fst (IntMap.lookup (varId v) iv)
 preTermGetAlphaType im rm iv (TermLazyFun io f) =
   fmap (TermLazyArrow io) (preTermGetAlphaType im rm iv f)
 preTermGetAlphaType im rm iv (TermFun [] io (Just _) (CaseLeaf vs _ f _)) = do
@@ -864,38 +867,57 @@ getAppliedImplicitsCaseTree _ _ (CaseEmpty _) = IntSet.empty
 
 ----------------- Pretty printing -------------------------------
 
-preTermToString :: ImplicitMap -> RefMap -> Int -> PreTerm -> String
-preTermToString i r indent t =
-  execWriter (runStateT (writeIndent >> writePreTerm i r t) (1, indent))
+preTermToStringT :: Monad m => Int -> PreTerm -> TypeCheckT m String
+preTermToStringT indent t = do
+  (vb, _) <- ask
+  im <- Env.getImplicitMap
+  rm <- Env.getRefMap
+  return (preTermToString vb im rm indent t)
 
-prePatternToString :: ImplicitMap -> RefMap -> Int -> PrePattern -> String
-prePatternToString im rm indent t =
-  preTermToString im rm indent (prePatternToPreTerm t)
+preTermToString :: Bool -> ImplicitMap -> RefMap -> Int -> PreTerm -> String
+preTermToString verbose i r indent t =
+  execWriter (runStateT (writeIndent >> writePreTerm i r t) (1, indent, verbose))
 
-caseTreeToString :: ImplicitMap -> RefMap -> Int -> CaseTree -> [PreTerm] -> String
-caseTreeToString i r indent t as =
-  execWriter (runStateT (writeIndent >> writeCaseTree i r (map Right as) t) (1, indent))
+prePatternToStringT :: Monad m => Int -> PrePattern -> TypeCheckT m String
+prePatternToStringT indent p = do
+  (vb, _) <- ask
+  im <- Env.getImplicitMap
+  rm <- Env.getRefMap
+  return (prePatternToString vb im rm indent p)
 
-type ToString a = StateT (Int, Int) (Writer String) a
+prePatternToString :: Bool -> ImplicitMap -> RefMap -> Int -> PrePattern -> String
+prePatternToString verbose im rm indent t =
+  preTermToString verbose im rm indent (prePatternToPreTerm t)
+
+caseTreeToString :: Bool -> ImplicitMap -> RefMap -> Int -> CaseTree -> [PreTerm] -> String
+caseTreeToString verbose i r indent t as =
+  execWriter (runStateT (writeIndent >> writeCaseTree i r (map Right as) t) (1, indent, verbose))
+
+type ToString a = StateT (Int, Int, Bool) (Writer String) a
 
 incIndent :: ToString ()
-incIndent = modify (\(x, n) -> (x, n+2))
+incIndent = modify (\(x, n, v) -> (x, n+2, v))
 
 decIndent :: ToString ()
-decIndent = modify (\(x, n) -> (x, n-2))
+decIndent = modify (\(x, n, v) -> (x, n-2, v))
 
 nextVarName :: ToString String
 nextVarName = do
-  (x, n) <- get
-  put (x+1, n)
+  (x, n, v) <- get
+  put (x+1, n, v)
   return ('.' : show x)
 
 writeIndent :: ToString ()
-writeIndent = get >>= doWrite . snd
+writeIndent = get >>= \(_, n, _) -> doWrite n
   where
     doWrite :: Int -> ToString ()
     doWrite 0 = return ()
     doWrite i = tell " " >> doWrite (i - 1)
+
+isVerbose :: ToString Bool
+isVerbose = do
+  (_, _, v) <- get
+  return v
 
 writeStr :: String -> ToString ()
 writeStr s = tell s
@@ -934,86 +956,122 @@ writePreTerm im rm (TermApp _ f@(TermVar _ v) [x])
   | Str.isPrefixOp (varName v) =
       writeUnaryApp im rm (varName v) f x
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermVar _ v) _) [x])
-  | Str.isPrefixOp (varName v) =
-      writeUnaryApp im rm (varName v) f x
+    (TermApp a (TermImplicitApp False f@(TermVar _ v) b) [x])
+  | Str.isPrefixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x])
+      else writeUnaryApp im rm (varName v) f x
 writePreTerm im rm (TermApp _ f@(TermCtor v _) [x])
   | Str.isPrefixOp (varName v) =
       writeUnaryApp im rm (varName v) f x
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermCtor v _) _) [x])
-  | Str.isPrefixOp (varName v) =
-      writeUnaryApp im rm (varName v) f x
+    (TermApp a (TermImplicitApp False f@(TermCtor v _) b) [x])
+  | Str.isPrefixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x])
+      else writeUnaryApp im rm (varName v) f x
 writePreTerm im rm (TermApp _ f@(TermData v) [x])
   | Str.isPrefixOp (varName v) =
       writeUnaryApp im rm (varName v) f x
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermData v) _) [x])
-  | Str.isPrefixOp (varName v) =
-      writeUnaryApp im rm (varName v) f x
+    (TermApp a (TermImplicitApp False f@(TermData v) b) [x])
+  | Str.isPrefixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x])
+      else writeUnaryApp im rm (varName v) f x
 writePreTerm im rm (TermApp _ f@(TermRef v _) [x])
   | Str.isPrefixOp (varName v) =
       writeUnaryApp im rm (varName v) f x
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermRef v _) _) [x])
-  | Str.isPrefixOp (varName v) =
-      writeUnaryApp im rm (varName v) f x
+    (TermApp a (TermImplicitApp False f@(TermRef v _) b) [x])
+  | Str.isPrefixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x])
+      else writeUnaryApp im rm (varName v) f x
 writePreTerm im rm (TermApp _ f@(TermVar _ v) [x1, x2])
   | Str.isInfixOp (varName v) =
       writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermVar _ v) _) [x1, x2])
-  | Str.isInfixOp (varName v) =
-      writeBinaryApp im rm (varName v) f x1 x2
+    (TermApp a (TermImplicitApp False f@(TermVar _ v) b) [x1, x2])
+  | Str.isInfixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x1, x2])
+      else writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm (TermApp _ f@(TermCtor v _) [x1, x2])
   | Str.isInfixOp (varName v) =
       writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermCtor v _) _) [x1, x2])
-  | Str.isInfixOp (varName v) =
-      writeBinaryApp im rm (varName v) f x1 x2
+    (TermApp a (TermImplicitApp False f@(TermCtor v _) b) [x1, x2])
+  | Str.isInfixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x1, x2])
+      else writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm (TermApp _ f@(TermData v) [x1, x2])
   | Str.isInfixOp (varName v) =
       writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermData v) _) [x1, x2])
-  | Str.isInfixOp (varName v) =
-      writeBinaryApp im rm (varName v) f x1 x2
+    (TermApp a (TermImplicitApp False f@(TermData v) b) [x1, x2])
+  | Str.isInfixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x1, x2])
+      else writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm (TermApp _ f@(TermRef v _) [x1, x2])
   | Str.isInfixOp (varName v) =
       writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermRef v _) _) [x1, x2])
-  | Str.isInfixOp (varName v) =
-      writeBinaryApp im rm (varName v) f x1 x2
+    (TermApp a (TermImplicitApp False f@(TermRef v _) b) [x1, x2])
+  | Str.isInfixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x1, x2])
+      else writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm (TermApp _ f@(TermVar _ v) (x:xs))
   | Str.isPostfixOp (varName v) =
       writePostfixApp im rm (varName v) f x xs
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermVar _ v) _) (x:xs))
-  | Str.isPostfixOp (varName v) =
-      writePostfixApp im rm (varName v) f x xs
+    (TermApp a (TermImplicitApp False f@(TermVar _ v) b) (x:xs))
+  | Str.isPostfixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) (x:xs))
+      else writePostfixApp im rm (varName v) f x xs
 writePreTerm im rm (TermApp _ f@(TermCtor v _) (x:xs))
   | Str.isPostfixOp (varName v) =
       writePostfixApp im rm (varName v) f x xs
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermCtor v _) _) (x:xs))
-  | Str.isPostfixOp (varName v) =
-      writePostfixApp im rm (varName v) f x xs
+    (TermApp a (TermImplicitApp False f@(TermCtor v _) b) (x:xs))
+  | Str.isPostfixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) (x:xs))
+      else writePostfixApp im rm (varName v) f x xs
 writePreTerm im rm (TermApp _ f@(TermData v) (x:xs))
   | Str.isPostfixOp (varName v) =
       writePostfixApp im rm (varName v) f x xs
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermData v) _) (x:xs))
-  | Str.isPostfixOp (varName v) =
-      writePostfixApp im rm (varName v) f x xs
+    (TermApp a (TermImplicitApp False f@(TermData v) b) (x:xs))
+  | Str.isPostfixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) (x:xs))
+      else writePostfixApp im rm (varName v) f x xs
 writePreTerm im rm (TermApp _ f@(TermRef v _) (x:xs))
   | Str.isPostfixOp (varName v) =
       writePostfixApp im rm (varName v) f x xs
 writePreTerm im rm
-    (TermApp _ (TermImplicitApp False f@(TermRef v _) _) (x:xs))
-  | Str.isPostfixOp (varName v) =
-      writePostfixApp im rm (varName v) f x xs
+    (TermApp a (TermImplicitApp False f@(TermRef v _) b) (x:xs))
+  | Str.isPostfixOp (varName v) = do
+      vb <- isVerbose
+      if vb
+      then writePreTerm im rm (TermApp a (TermImplicitApp True f b) (x:xs))
+      else writePostfixApp im rm (varName v) f x xs
 writePreTerm im rm (TermApp _ f xs) = writeNormalApp im rm f xs
 writePreTerm im rm (TermImplicitApp True f xs) = do
   let b = hasLowerPrecThanApp f
@@ -1023,9 +1081,11 @@ writePreTerm im rm (TermImplicitApp True f xs) = do
   writeStr "["
   writeNamedPreTermArgs im rm xs
   writeStr "]"
-writePreTerm im rm (TermImplicitApp False f _) =
-  writePreTerm im rm f
-  --writePreTerm im rm (TermImplicitApp True f xs)
+writePreTerm im rm (TermImplicitApp False f xs) = do
+  vb <- isVerbose
+  if vb
+  then writePreTerm im rm (TermImplicitApp True f xs)
+  else writePreTerm im rm f
 writePreTerm im rm (TermLazyApp _ f) = do
   let b = hasLowerPrecThanApp f
   when b (writeStr "(")
@@ -1040,8 +1100,10 @@ writePreTerm _ _ (TermVar _ v) = do
   when pre (writeStr "(")
   writeStr (varName v)
   when pre (writeStr ")")
-  --writeStr "."
-  --writeStr (show (varId v))
+  vb <- isVerbose
+  when vb $ do
+    writeStr "."
+    writeStr (show (varId v))
 writePreTerm _ _ TermUnitElem = writeStr "unit"
 writePreTerm _ _ TermUnitTy = writeStr "Unit"
 writePreTerm _ _ TermTy = writeStr "Ty"
@@ -1132,7 +1194,11 @@ writeCaseTree ::
 writeCaseTree im rm [] (CaseLeaf [] _ t _) = writePreTerm im rm t
 writeCaseTree im rm (x : xs) (CaseLeaf (i : is) _ t _) = do
   when (varName i /= "_") $ do
-    writeStr (varName i {- ++ "." ++ show (varId i) -})
+    writeStr (varName i)
+    vb <- isVerbose
+    when vb $ do
+      writeStr "."
+      writeStr (show (varId i))
     writeStr " := "
     case x of
       Left n -> writeStr n
@@ -1185,7 +1251,11 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
       if not (null imps)
       then do
         let TermCtor v _ = termPre t
-        writeStr (varName v {- ++ "." ++ show (varId v) -})
+        writeStr (varName v)
+        vb <- isVerbose
+        when vb $ do
+          writeStr "."
+          writeStr (show (varId v))
         writeStr "["
         imps' <- writeImplicits imps
         writeStr "]"
@@ -1202,7 +1272,11 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
     writeImplicits [] = return []
     writeImplicits ((v, _) : vs) = do
       n <- nextVarName
-      writeStr (varName v {- ++ "." ++ show (varId v) -})
+      writeStr (varName v)
+      vb <- isVerbose
+      when vb $ do
+        writeStr "."
+        writeStr (show (varId v))
       writeStr " := "
       writeStr n
       when (not (null vs)) (writeStr ", ")
@@ -1298,12 +1372,16 @@ writeVarList :: [Var] -> ToString ()
 writeVarList [] = return ()
 writeVarList [v] = do
   writeStr (varName v)
-  --writeStr "."
-  --writeStr (show (varId v))
+  vb <- isVerbose
+  when vb $ do
+    writeStr "."
+    writeStr (show (varId v))
 writeVarList (v:vs) = do
   writeStr (varName v)
-  --writeStr "."
-  --writeStr (show (varId v))
+  vb <- isVerbose
+  when vb $ do
+    writeStr "."
+    writeStr (show (varId v))
   writeStr ", "
   writeVarList vs
 
@@ -1342,8 +1420,10 @@ writeOptNamedPreTerm ::
 writeOptNamedPreTerm im rm (Nothing, t) = writePreTerm im rm t
 writeOptNamedPreTerm im rm (Just v, t) = do
   writeStr (varName v)
-  --writeStr "."
-  --writeStr (show (varId v))
+  vb <- isVerbose
+  when vb $ do
+    writeStr "."
+    writeStr (show (varId v))
   writeStr " : "
   writePreTerm im rm t
 

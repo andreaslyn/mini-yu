@@ -2,7 +2,7 @@ import "yu/prelude/prelude.yu"
 
 val gen-stream : Nat -> [] -> Nat Stream
 let (0) => 0 :: nil.Stream
-let (++ n) => ++ n :: gen-stream(n)
+let (++ n) => ++ n :: gen-stream(n)[]
 
 val 100 : Nat
 let => 10 * 10
@@ -19,8 +19,8 @@ let => 10000 * 10
 val 1000000 : Nat
 let => 100000 * 10
 
-val 10000000 : Nat
-let => 1000000 * 10
+val 3000000 : Nat
+let => 1000000 * 3
 
 val streamFirstAndLast' : Nat Stream -> Nat & Nat
 let (nil.Stream) => 0 $ 0
@@ -46,19 +46,19 @@ val sreverse'[A : Ty] : A Stream -> [] -> A Stream
 let => aux0(nil.Stream)
 where
   val aux0 : ([] -> A Stream) -> A Stream -> [] -> A Stream
-  let (a) => (xs). aux(a, xs)
+  let (a) => (xs). aux(a[], xs)[]
 
   val aux : ([] -> A Stream, A Stream) -> [] -> A Stream
-  let (a, nil.Stream) => a
-  let (a, x :: xs) => aux(x :: a, xs[])
+  let (a, nil.Stream) => a[]
+  let (a, x :: xs) => aux(x :: a[], xs[])[]
 end
 
 val sreverse[A : Ty] : ([] -> A Stream) -> [] -> A Stream
-let (s) => sreverse'(s[])
+let (s) => sreverse'(s[])[]
 
 val main : () ->> Unit
 let () =>
-  xs := gen-stream(10000000);
+  xs := gen-stream(3000000);
   #{ Out of memory
   case streamFirstAndLast(sreverse'(sreverse'(xs[])[]))
   of 0 $ 0 => print.Char('0); print(`\n`)
@@ -67,7 +67,7 @@ let () =>
   of _ $ _ => print.Char('3); print(`\n`)
   end;
   #}
-  case streamFirstAndLast(sreverse(sreverse(xs)))
+  case streamFirstAndLast(sreverse(sreverse(xs[])[])[])
   of 0 $ 0 => "0" println
   of _ $ 0 => "1" println
   of 0 $ _ => "2" println

@@ -151,6 +151,40 @@ freeVarsConstExpr (Lazy _ vs e) =
 freeVarsConstExpr (Fun vs e) =
   IntSet.difference (freeVarsFunExpr e) (IntSet.fromList vs)
 
+getConstsFromRef :: Ref -> IntSet
+getConstsFromRef (ConstRef c) = IntSet.singleton (prConst c)
+getConstsFromRef _ = IntSet.empty
+
+getConstsFromRefs :: [Ref] -> IntSet
+getConstsFromRefs = foldr (\r -> IntSet.union (getConstsFromRef r)) IntSet.empty
+
+getConstsFromLetExpr :: LetExpr -> IntSet
+getConstsFromLetExpr (Ap _ v vs) = getConstsFromRefs (v:vs)
+getConstsFromLetExpr (Pap c vs) =
+  IntSet.insert (prConst c) (getConstsFromRefs vs)
+getConstsFromLetExpr (MkLazy _ _ c) = IntSet.singleton (prConst c)
+getConstsFromLetExpr (Force _ v vs) = getConstsFromRefs (v : projForceArgs vs)
+getConstsFromLetExpr (Pforce _ _ vs) = getConstsFromRefs vs
+getConstsFromLetExpr (CtorBox _ vs) = getConstsFromRefs vs
+getConstsFromLetExpr (Proj _ v) = getConstsFromRef v
+
+getConstsFromFunExpr :: FunExpr -> IntSet
+getConstsFromFunExpr (Ret v) = getConstsFromRef v
+getConstsFromFunExpr (VarFieldCnt _ _ e) = getConstsFromFunExpr e
+getConstsFromFunExpr (Let _ e1 e2) =
+  let e1' = getConstsFromLetExpr e1
+      e2' = getConstsFromFunExpr e2
+  in IntSet.union e1' e2'
+getConstsFromFunExpr (Case v cs) =
+  let cs' = foldl (\a (_, _, x) ->
+                    IntSet.union a (getConstsFromFunExpr x)) IntSet.empty cs
+  in IntSet.union (getConstsFromRef v) cs'
+
+getConstsFromConstExpr :: ConstExpr -> IntSet
+getConstsFromConstExpr (Extern _) = IntSet.empty
+getConstsFromConstExpr (Lazy _ _ e) = getConstsFromFunExpr e
+getConstsFromConstExpr (Fun _ e) = getConstsFromFunExpr e
+
 type Program = IntMap (Const, ConstExpr)
 
 data St = St
@@ -939,7 +973,6 @@ irLetExpr f (Hl.Where e p) = do
 funInline :: Bool -> StM Bool
 funInline inlineCases = do
   p <- fmap program get
-  --(b1, p1) <- doExprInline p
   let (b1, p1) = (False, p)
   (b2, p2) <- doFunInline inlineCases p1
   st <- get
@@ -947,37 +980,36 @@ funInline inlineCases = do
   return (b1 || b2)
 
 doFunInline :: Bool -> Program -> StM (Bool, Program)
-doFunInline inlineCases = \p ->
-  foldrM (\e (a, m) ->
-            do (b, m') <- funIn m e
-               return (a || b, m')
-         ) (False, p) (IntMap.elems p)
+doFunInline inlineCases prog =
+  foldlM (\(a, m) (c, e) -> do
+            (b, e') <- inlineConsts e
+            return (a || b, IntMap.insert (prConst c) (c, e') m)
+         ) (False, IntMap.empty) prog
   where
-    funIn :: Program -> (Const, ConstExpr) -> StM (Bool, Program)
-    funIn p (c, Fun vs e) = aux p c vs e
-    funIn p (c, Lazy _ vs x@(Ret _)) = aux p c vs x
-    funIn p (c, Lazy isStatic vs x@(Let _ (CtorBox _ rs) (Ret _))) =
-      if not (null rs) && isStatic
-        then return (False, p)
-        else aux p c vs x
-    funIn p (c, Lazy _ vs x@(Let _ (Force _ _ _) (Ret _))) = aux p c vs x
-    funIn p _ = return (False, p)
+    inlineConsts :: ConstExpr -> StM (Bool, ConstExpr)
+    inlineConsts e = do
+      let cs = IntSet.foldl'
+                (\r x -> fromJust (IntMap.lookup x prog) : r)
+                [] (getConstsFromConstExpr e)
+      foldlM (\(a, x) c -> do
+                (b, x') <- funIn x c
+                return (a || b, x')
+             ) (False, e) cs
 
-    aux :: Program -> Const -> [Var] -> FunExpr -> StM (Bool, Program)
-    aux p c vs e = do
-      let ps = IntMap.elems p
-      let candidate = isInlineCandidate inlineCases c e
-      ps' <- mapM (doFunIn candidate) ps
-      return
-        (foldl (\(a, q) (b, d, x) ->
-                  (a || b,
-                   IntMap.insert (prConst d) (d, x) q)
-        ) (False, p) ps')
-      where
-        doFunIn :: Bool -> (Const, ConstExpr) -> StM (Bool, Const, ConstExpr)
-        doFunIn cand (d, x) = do
-          (b, e') <- funInlineConstExpr cand c vs e x
-          return (b, d, e')
+    funIn :: ConstExpr -> (Const, ConstExpr) -> StM (Bool, ConstExpr)
+    funIn e0 (c, Fun vs e) = aux e0 c vs e
+    funIn e0 (c, Lazy _ vs x@(Ret _)) = aux e0 c vs x
+    funIn e0 (c, Lazy isStatic vs x@(Let _ (CtorBox _ rs) (Ret _))) =
+      if not (null rs) && isStatic
+        then return (False, e0)
+        else aux e0 c vs x
+    funIn e0 (c, Lazy _ vs x@(Let _ (Force _ _ _) (Ret _))) = aux e0 c vs x
+    funIn e0 _ = return (False, e0)
+
+    aux :: ConstExpr -> Const -> [Var] -> FunExpr -> StM (Bool, ConstExpr)
+    aux e0 c vs e = do
+      let isCand = isInlineCandidate inlineCases c e
+      funInlineConstExpr isCand c vs e e0
 
 isInlineCandidate :: Bool -> Const -> FunExpr -> Bool
 isInlineCandidate inlineCases con = isCandidateFunExpr

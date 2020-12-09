@@ -48,23 +48,20 @@ tcExprUnify lo t1 t2 = do
       isu <- getExprSubst
       let t1' = substPreTerm isu t1
       let t2' = substPreTerm isu t2
-      im <- lift Env.getImplicitMap
-      rm <- lift Env.getRefMap
+      s1 <- lift $ preTermToStringT defaultExprIndent t1'
+      s2 <- lift $ preTermToStringT defaultExprIndent t2'
       return $
         "expected expression to have type\n"
-        ++ preTermToString im rm defaultExprIndent t1'
-        ++ "\nbut type is\n"
-        ++ preTermToString im rm defaultExprIndent t2'
+        ++ s1 ++ "\nbut type is\n" ++ s2
 
 runExprUnifResult :: Monad m =>
   Loc -> Bool -> ExprT m String -> PreTerm -> PreTerm -> ExprT m ()
 runExprUnifResult lo normalize msgPrefix t1 t2 = do
-  boundIds <- lift Env.getNextVarId
-  r <- lift (runExceptT (exprUnifWithBoundIds normalize boundIds t1 t2))
+  r <- lift (runExceptT (exprUnifyUnnormalizedFirst normalize t1 t2))
   case r of
     Right m -> do
       isu <- getExprSubst
-      isu' <- lift (runExceptT (mergeExprUnifMaps boundIds m isu))
+      isu' <- lift (runExceptT (mergeExprUnifMaps m isu))
       isu'' <- case isu' of
                 Right x -> return x
                 Left msg -> errMsg msg
@@ -101,21 +98,21 @@ canAppUnify rm t1 t2 =
   (canAppUnifyBase t1 && canAppUnifyBase t2)
   || preTermsAlphaEqual rm t1 t2
 
-exprUnifWithBoundIds :: Monad m =>
-  Bool -> VarId -> PreTerm -> PreTerm -> ExprUnifResult m
-exprUnifWithBoundIds False boundIds t1 t2 =
-  doExprUnifWithBoundIds False boundIds t1 t2
-exprUnifWithBoundIds True boundIds t1 t2 =
+exprUnifyUnnormalizedFirst :: Monad m =>
+  Bool -> PreTerm -> PreTerm -> ExprUnifResult m
+exprUnifyUnnormalizedFirst False t1 t2 =
+  doExprUnify False t1 t2
+exprUnifyUnnormalizedFirst True t1 t2 =
   catchError
-    (doExprUnifWithBoundIds False boundIds t1 t2)
-    (\_ -> doExprUnifWithBoundIds True boundIds t1 t2)
+    (doExprUnify False t1 t2)
+    (\_ -> doExprUnify True t1 t2)
 
-doExprUnifWithBoundIds :: Monad m =>
-  Bool -> VarId -> PreTerm -> PreTerm -> ExprUnifResult m
-doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
+doExprUnify :: Monad m =>
+  Bool -> PreTerm -> PreTerm -> ExprUnifResult m
+doExprUnify normalize = \t1 t2 -> do
   r <- lift Env.getRefMap
   --i0 <- lift Env.getImplicitMap
-  --let !_ = trace ("expr unify " ++ preTermToString i0 r (preTermNormalize r t1) ++ " with " ++ preTermToString i0 r (preTermNormalize r t2)) ()
+  --let !_ = trace ("expr unify " ++ preTermToString i0 r 0 (preTermNormalize r t1) ++ " with " ++ preTermToString i0 r 0 (preTermNormalize r t2)) ()
   if normalize
   then eunify2 (preTermNormalize r t1) (preTermNormalize r t2)
   else eunify2 t1 t2
@@ -158,10 +155,10 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
           catchError
             (do
               m1 <- eunify2 t1 t2
-              su1 <- mergeExprUnifMaps boundIds su0 m1
+              su1 <- mergeExprUnifMaps su0 m1
               ts' <- lift (substPairs ts su1)
               (er, rs, m2) <- doEunify ts' su1
-              su2 <- mergeExprUnifMaps boundIds su1 m2
+              su2 <- mergeExprUnifMaps su1 m2
               return (er, rs, su2))
             (\msg -> do
               (_, rs, su) <- doEunify ts su0
@@ -189,15 +186,13 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
 
     eunify2NotVar :: Monad m => PreTerm -> PreTerm -> ExprUnifResult m
     eunify2NotVar ar1@(TermArrow io1 d1 c1) ar2@(TermArrow io2 d2 c2) = do
-      r0 <- lift Env.getRefMap
-      im <- lift Env.getImplicitMap
       if io2 && not io1
-      then
+      then do
+        s1 <- lift $ preTermToStringT defaultExprIndent ar1
+        s2 <- lift $ preTermToStringT defaultExprIndent ar2
         throwError $
-            "unable to assign effectful function type\n"
-            ++ preTermToString im r0 defaultExprIndent (TermArrow io2 d2 c2) ++ "\n"
-            ++ "to regular function type\n"
-            ++ preTermToString im r0 defaultExprIndent (TermArrow io1 d1 c1)
+          "unable to coerce effectful function type\n"
+          ++ s2 ++ "\nto regular function type\n" ++ s1
       else if length d1 /= length d2
         then
           throwError "function types with different arities"
@@ -221,7 +216,7 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
                       eunify2
                         (substPreTerm m (substPreTerm su c1))
                         (substPreTerm m (substPreTerm su c2))
-              mergeExprUnifMaps boundIds m u)
+              mergeExprUnifMaps m u)
             (\_ -> unifyAlpha ar1 ar2)
       where
         updateArrowMap :: Monad m =>
@@ -240,29 +235,26 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
           let x = IntMap.insert (varId n1) v m
           return (IntMap.insert (varId n2) v x)
     eunify2NotVar (TermLazyArrow io1 c1) (TermLazyArrow io2 c2) = do
-      r0 <- lift Env.getRefMap
-      im <- lift Env.getImplicitMap
       if io2 && not io1
-      then
+      then do
+        s1 <- lift $ preTermToStringT defaultExprIndent (TermLazyArrow io1 c1)
+        s2 <- lift $ preTermToStringT defaultExprIndent (TermLazyArrow io2 c2)
         throwError $
             "unable to assign effectful lazy type\n"
-            ++ preTermToString im r0 defaultExprIndent (TermLazyArrow io2 c2) ++ "\n"
-            ++ "to regular lazy type\n"
-            ++ preTermToString im r0 defaultExprIndent (TermLazyArrow io1 c1)
+            ++ s2 ++ "\nto regular lazy type\n" ++ s1
       else eunify2 c1 c2
     eunify2NotVar t1@(TermApp _ f1 x1) t2@(TermApp _ f2 x2) = do
       rm <- lift Env.getRefMap
       if canAppUnify rm f1 f2
       then do
-        im <- lift Env.getImplicitMap
         s1 <- eunify2 f1 f2
         if length x1 /= length x2
-          then throwError $
-                  "unable to unify\n"
-                  ++ preTermToString im rm defaultExprIndent t1 ++ "\n"
-                  ++ "with\n"
-                  ++ preTermToString im rm defaultExprIndent t2 ++ "\n"
-                  ++ "different arities"
+          then do
+            u1 <- lift $ preTermToStringT defaultExprIndent t1
+            u2 <- lift $ preTermToStringT defaultExprIndent t2
+            throwError $
+                "unable to unify\n"
+                ++ u1 ++ "\nwith\n" ++ u2 ++ "\ndifferent arities"
           else eunify (zip x1 x2) s1
       else unifyAlpha t1 t2
     eunify2NotVar t1@(TermImplicitApp _ f1 x1) t2@(TermImplicitApp _ f2 x2) = do
@@ -270,14 +262,13 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
       if canAppUnify rm f1 f2
       then do
         s1 <- eunify2 f1 f2
-        im <- lift Env.getImplicitMap
         if length x1 /= length x2
-          then throwError $
-                  "unable to unify\n"
-                  ++ preTermToString im rm defaultExprIndent t1 ++ "\n"
-                  ++ "with\n"
-                  ++ preTermToString im rm defaultExprIndent t2 ++ "\n"
-                  ++ "different implicit arities"
+          then do
+            u1 <- lift $ preTermToStringT defaultExprIndent t1
+            u2 <- lift $ preTermToStringT defaultExprIndent t2
+            throwError $
+              "unable to unify\n"
+              ++ u1 ++ "\nwith\n" ++ u2 ++ "\ndifferent implicit arities"
           else do
             let z = map (\(a, b) -> (snd a, snd b)) (zip x1 x2)
             eunify z s1
@@ -370,13 +361,20 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
       let su' = IntMap.insert (varId i) v su
       return (vs', su')
 
-    isBoundVar :: VarId -> Bool
-    isBoundVar i = i >= boundIds
+    isBoundVar :: ImplicitVarMap -> Var -> VarId -> Bool
+    isBoundVar iv v i = do
+      case IntMap.lookup i iv of
+        Nothing -> i > varId v
+        Just (_, di) ->
+          case IntMap.lookup (varId v) iv of
+            Nothing -> error ("expected " ++ varName v ++ " to be implicit var")
+            Just (_, dv) -> not (head di `elem` dv)
 
-    hasBoundVar :: Monad m => PreTerm -> TypeCheckT m Bool
-    hasBoundVar t = do
+    hasBoundVar :: Monad m => Var -> PreTerm -> TypeCheckT m Bool
+    hasBoundVar v t = do
+      iv <- Env.getImplicitVarMap
       r <- Env.getRefMap
-      return (preTermExistsVar r isBoundVar t)
+      return (preTermExistsVar r (isBoundVar iv v) t)
 
     allVars :: [PreTerm] -> Maybe [Var]
     allVars [] = Just []
@@ -451,7 +449,7 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
             recUnify = do
               s1 <- doUnifyVarApp f1 f2
               foldlM (\s (a1, a2)->
-                        eunify2 a1 a2 >>= mergeExprUnifMaps boundIds s
+                        eunify2 a1 a2 >>= mergeExprUnifMaps s
                      ) s1 (zip as1 as2) 
             typesEqual im rm iv x y = 
               let s = preTermGetAlphaType im rm iv x
@@ -488,25 +486,21 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
     unifyVar :: Monad m => PreTerm -> PreTerm -> ExprUnifResult m
     unifyVar (TermVar b1 v1) (TermVar b2 v2)
       | varId v1 == varId v2 = return IntMap.empty
-      | isBoundVar (varId v1) && isBoundVar (varId v2) =
-          throwError $
-            "unable to unify distinct bound variables "
-            ++ quote (varName v1) ++ " and " ++ quote (varName v2)
-      | isBoundVar (varId v1) =
-          throwError $
-            "unable to unify variable " ++ quote (varName v2)
-            ++ " with bound variable " ++ quote (varName v1)
-      | isBoundVar (varId v2) =
-          throwError $
-            "unable to unify variable " ++ quote (varName v1)
-            ++ " with bound variable " ++ quote (varName v2)
-      | b1 && b2 && varId v1 < varId v2 =
+      | b1 && b2 && varId v1 < varId v2 = do
           return (IntMap.singleton (varId v2) (TermVar b1 v1))
-      | b1 && b2 && varId v2 < varId v1 =
+      | b1 && b2 && varId v2 < varId v1 = do
           return (IntMap.singleton (varId v1) (TermVar b2 v2))
-      | b1 && not b2 =
+      | b1 && not b2 = do
+          when (varId v2 > varId v1) $
+            throwError $
+              "unable to unify implicit variable " ++ quote (varName v1)
+              ++ " with variable " ++ quote (varName v2) ++ " not in other scope"
           return (IntMap.singleton (varId v1) (TermVar b2 v2))
-      | not b1 && b2 =
+      | not b1 && b2 = do
+          when (varId v1 > varId v2) $
+            throwError $
+              "unable to unify implicit variable " ++ quote (varName v2)
+              ++ " with variable " ++ quote (varName v1) ++ " not in other scope"
           return (IntMap.singleton (varId v2) (TermVar b1 v1))
       | True =
           throwError $
@@ -514,37 +508,41 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
             ++ quote (varName v1) ++ " and " ++ quote (varName v2)
     unifyVar (TermVar True v1) t2 = do
       -- v1 should not be bound since it is implicit.
+      b <- lift (hasBoundVar v1 t2)
+      when b $ do
+        s2 <- lift $ preTermToStringT defaultExprIndent t2
+        throwError $
+          "unable to unify implicit variable "
+           ++ quote (varName v1) ++ " with term\n"
+           ++ s2 ++ "\ncontaining variable(s) from other scope"
       r <- lift Env.getRefMap
-      im <- lift Env.getImplicitMap
-      b <- lift (hasBoundVar t2)
-      when b (throwError $ "unable to unify implicit variable "
-                           ++ quote (varName v1) ++ " with term\n"
-                           ++ preTermToString im r defaultExprIndent t2 ++ "\n"
-                           ++ "containing bound variable(s)")
       if IntSet.member (varId v1) (preTermVars r t2)
-        then throwError $
+        then do
+          s2 <- lift $ preTermToStringT defaultExprIndent t2
+          throwError $
                 "unable to unify implicit variable "
                 ++ quote (varName v1)
-                ++ " with\n"
-                ++ preTermToString im r defaultExprIndent t2 ++ "\n"
-                ++ "cyclic equation"
+                ++ " with\n" ++ s2 ++ "\ncyclic equation"
         else do
           return (IntMap.singleton (varId v1) t2)
     unifyVar t1 (TermVar True v2) = do
       -- v2 should not be bound, since it is implicit.
+      b <- lift (hasBoundVar v2 t1)
+      when b $ do
+        s1 <- lift $ preTermToStringT defaultExprIndent t1
+        throwError $
+          "unable to unify implicit variable "
+           ++ quote (varName v2) ++ " with term\n"
+           ++ s1
+           ++ "\ncontaining variable(s) from other scope"
       r <- lift Env.getRefMap
-      im <- lift Env.getImplicitMap
-      b <- lift (hasBoundVar t1)
-      when b (throwError $ "unable to unify implicit variable "
-                           ++ quote (varName v2) ++ " with term\n"
-                           ++ preTermToString im r defaultExprIndent t1 ++ "\n"
-                           ++ "containing bound variable(s)")
       if IntSet.member (varId v2) (preTermVars r t1)
-        then throwError $
-                "unable to unify implicit variable "
-                ++ quote (varName v2) ++ " with\n"
-                ++ preTermToString im r defaultExprIndent t1 ++ "\n"
-                ++ "cyclic equation"
+        then do
+          s1 <- lift $ preTermToStringT defaultExprIndent t1
+          throwError $
+            "unable to unify implicit variable "
+            ++ quote (varName v2) ++ " with\n"
+            ++ s1 ++ "\ncyclic equation"
         else do
           return (IntMap.singleton (varId v2) t1)
     unifyVar _ _ = throwError ""
@@ -558,12 +556,10 @@ doExprUnifWithBoundIds normalize boundIds = \t1 t2 -> do
     
     throwUnableToUnify :: Monad m => PreTerm -> PreTerm -> ExprUnifResult m
     throwUnableToUnify t1 t2 = do
-      r <- lift Env.getRefMap
-      im <- lift Env.getImplicitMap
+      s1 <- lift $ preTermToStringT defaultExprIndent t1
+      s2 <- lift $ preTermToStringT defaultExprIndent t2
       throwError $ "unable to unify\n"
-                   ++ preTermToString im r defaultExprIndent t1 ++ "\n"
-                   ++ "with\n"
-                   ++ preTermToString im r defaultExprIndent t2
+                   ++ s1 ++ "\nwith\n" ++ s2
 
 makeFunWithVarSubst :: Monad m => Bool -> [Var] -> PreTerm -> TypeCheckT m PreTerm
 makeFunWithVarSubst isIo vs t = do
@@ -573,8 +569,8 @@ makeFunWithVarSubst isIo vs t = do
   return (TermFun [] isIo (Just (length vs)) ct)
 
 mergeExprUnifMaps :: Monad m =>
-  VarId -> SubstMap -> SubstMap -> ExprUnifResult m
-mergeExprUnifMaps boundids m1 m2 =
+  SubstMap -> SubstMap -> ExprUnifResult m
+mergeExprUnifMaps m1 m2 =
   foldlM insertSubstMap m2 (IntMap.toList m1)
   where
     insertSubstMap :: Monad m =>
@@ -583,5 +579,5 @@ mergeExprUnifMaps boundids m1 m2 =
       case IntMap.lookup i m of
         Nothing -> return (IntMap.insert i t1 m)
         Just t2 -> do
-          m' <- exprUnifWithBoundIds True boundids t1 t2
-          mergeExprUnifMaps boundids m' m
+          m' <- exprUnifyUnnormalizedFirst True t1 t2
+          mergeExprUnifMaps m' m

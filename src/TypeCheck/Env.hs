@@ -39,7 +39,7 @@ module TypeCheck.Env
   , getNextVarId
   , ImplicitVarMap
   , getImplicitVarMap
-  , forceInsertImplicitVar
+  , insertImplicitVarCurrentScope
   , clearImplicitVarMap
   )
 where
@@ -58,23 +58,26 @@ import Str (quote)
 
 type EnvDepth = Int
 
+type ScopeId = Int
+
 data VarStatus = StatusTerm Term
                | StatusUnknownCtor SubstMap EnvDepth (Loc, VarName) Decl
                | StatusUnknownRef SubstMap EnvDepth Def
-               | StatusUnknownVar SubstMap EnvDepth (Loc, VarName) (Maybe Expr)
+               | StatusUnknownVar SubstMap EnvDepth (Loc, VarName) VarId (Maybe Expr)
                | StatusInProgress Bool (Loc, VarName) -- Bool true is ctor
                deriving Show
 
 type ScopeMap = Map.Map VarName VarStatus
 
-data Env = Env ScopeMap (Maybe Env) deriving Show
+data Env = Env ScopeId ScopeMap (Maybe Env) deriving Show
 
-type ImplicitVarMap = IntMap.IntMap PreTerm
+type ImplicitVarMap = IntMap.IntMap (PreTerm, [ScopeId])
 
 data EnvSt = EnvSt
   { env :: Env
   , nextVarId :: VarId
   , nextRefId :: VarId
+  , currentScopeId :: ScopeId
   , refMap :: RefMap
   , implicitVarMap :: ImplicitVarMap
   , externSet :: ExternSet
@@ -87,7 +90,7 @@ type EnvT = StateT EnvSt
 isStatusUnknown :: VarStatus -> Bool
 isStatusUnknown (StatusUnknownCtor _ _ _ _) = True
 isStatusUnknown (StatusUnknownRef _ _ _) = True
-isStatusUnknown (StatusUnknownVar _ _ _ _) = True
+isStatusUnknown (StatusUnknownVar _ _ _ _ _) = True
 isStatusUnknown _ = False
 
 isStatusInProgress :: VarStatus -> Bool
@@ -101,9 +104,10 @@ isStatusTerm _ = False
 emptyCtxSt :: EnvSt
 emptyCtxSt =
   EnvSt
-    { env = Env Map.empty Nothing
+    { env = Env 0 Map.empty Nothing
     , nextVarId = 0
     , nextRefId = 0
+    , currentScopeId = 0
     , refMap = IntMap.empty
     , implicitVarMap = IntMap.empty
     , externSet = IntSet.empty
@@ -116,6 +120,12 @@ toString = fmap show getEnv
 runEnvT :: Monad m => EnvT m a -> m (a, DataCtorMap, ImplicitMap, RefMap)
 runEnvT s =
   fmap (\(x,r) -> (x, dataCtorMap r, implicitMap r, refMap r)) (runStateT s emptyCtxSt)
+
+getCurrentScopeId :: Monad m => EnvT m ScopeId
+getCurrentScopeId = fmap currentScopeId get
+
+incCurrentScopeId :: Monad m => EnvT m ()
+incCurrentScopeId = modify (\s -> s{currentScopeId = currentScopeId s + 1})
 
 getRefMap :: Monad m => EnvT m RefMap
 getRefMap = fmap refMap get
@@ -187,8 +197,8 @@ putEnv :: Monad m => Env -> EnvT m ()
 putEnv s = modifyEnv (const s)
 
 doLookup :: VarName -> Env -> Maybe VarStatus
-doLookup v (Env m Nothing) = Map.lookup v m
-doLookup v (Env m (Just p)) =
+doLookup v (Env _ m Nothing) = Map.lookup v m
+doLookup v (Env _ m (Just p)) =
   case Map.lookup v m of
     Nothing -> doLookup v p
     Just e -> Just e
@@ -200,15 +210,15 @@ member :: Monad m => VarName -> EnvT m Bool
 member = fmap isJust . TypeCheck.Env.lookup
 
 doForceInsert :: VarName -> VarStatus -> Env -> Env
-doForceInsert n x (Env m p) = Env (Map.insert n x m) p
+doForceInsert n x (Env sid m p) = Env sid (Map.insert n x m) p
 
 forceInsert :: Monad m => VarName -> VarStatus -> EnvT m ()
 forceInsert n p = modifyEnv (doForceInsert n p)
 
 doTryInsert :: VarName -> VarStatus -> Env -> Either VarStatus Env
-doTryInsert n x (Env m p) =
+doTryInsert n x (Env sid m p) =
   case Map.lookup n m of
-    Nothing -> Right (Env (Map.insert n x m) p)
+    Nothing -> Right (Env sid (Map.insert n x m) p)
     Just s -> Left s
 
 tryInsert ::
@@ -221,19 +231,19 @@ tryInsert n x = do
 
 isInThisScope :: Monad m => VarName -> EnvT m Bool
 isInThisScope n = do
-  Env m _ <- getEnv
+  Env _ m _ <- getEnv
   return (Map.member n m)
 
 doUpdateIf ::
   (VarStatus -> Bool) -> VarName -> VarStatus -> Env ->
   Maybe (Env, VarStatus)
-doUpdateIf p n x (Env m c) =
+doUpdateIf p n x (Env sid m c) =
   case Map.lookup n m of
     Nothing -> do
       (c', r) <- c >>= doUpdateIf p n x
-      return (Env m (Just c'), r)
+      return (Env sid m (Just c'), r)
     Just s -> if p s
-                then Just (Env (Map.insert n x m) c, s)
+                then Just (Env sid (Map.insert n x m) c, s)
                 else Nothing
 
 tryUpdateIf :: Monad m =>
@@ -248,18 +258,22 @@ tryUpdate ::
   Monad m => VarName -> VarStatus -> EnvT m (Maybe VarStatus)
 tryUpdate = tryUpdateIf (const True)
 
-envList :: Env -> [ScopeMap]
+envList :: Env -> [(ScopeId, ScopeMap)]
 envList = accEnvList []
   where
-    accEnvList :: [ScopeMap] -> Env -> [ScopeMap]
-    accEnvList acc (Env m Nothing) = m : acc
-    accEnvList acc (Env m (Just c)) = accEnvList (m : acc) c
+    accEnvList :: [(ScopeId, ScopeMap)] -> Env -> [(ScopeId, ScopeMap)]
+    accEnvList acc (Env sid m Nothing) = (sid, m) : acc
+    accEnvList acc (Env sid m (Just c)) = accEnvList ((sid, m) : acc) c
+
+envTrace :: Env -> [ScopeId]
+envTrace (Env sid _ Nothing) = [sid]
+envTrace (Env sid _ (Just c)) = sid : envTrace c
 
 getDepth :: Monad m => EnvT m EnvDepth
 getDepth = fmap envDepth getEnv
   where envDepth :: Env -> EnvDepth
-        envDepth (Env _ Nothing) = 0
-        envDepth (Env _ (Just c)) = 1 + envDepth c
+        envDepth (Env _ _ Nothing) = 0
+        envDepth (Env _ _ (Just c)) = 1 + envDepth c
 
 withDepth :: Monad m => EnvDepth -> EnvT m a -> EnvT m a
 withDepth i c = do
@@ -268,28 +282,30 @@ withDepth i c = do
   (x, s') <- lift (runStateT c (s {env = e}))
   let (m2 : t2) = envList (env s')
   put s'
-  putEnv (mapEnv (Env m2 Nothing) (tail (envList (env s))) t2)
+  putEnv (mapEnv (Env (fst m2) (snd m2) Nothing) (tail (envList (env s))) t2)
   return x
   where capEnv :: Env -> (EnvDepth, Env)
-        capEnv (Env m Nothing) = (0, Env m Nothing)
-        capEnv (Env m (Just e)) =
+        capEnv (Env sid m Nothing) = (0, Env sid m Nothing)
+        capEnv (Env sid m (Just e)) =
           let (n, e') = capEnv e
-          in if n >= i then (n, e') else (n + 1, Env m (Just e))
+          in if n >= i then (n, e') else (n + 1, Env sid m (Just e))
 
-        mapEnv :: Env -> [ScopeMap] -> [ScopeMap] -> Env
-        mapEnv e (_ : xs) (y : ys) = mapEnv (Env y (Just e)) xs ys
-        mapEnv e (x : xs) [] = mapEnv (Env x (Just e)) xs []
+        mapEnv :: Env -> [(ScopeId, ScopeMap)] -> [(ScopeId, ScopeMap)] -> Env
+        mapEnv e (_ : xs) ((k, y) : ys) = mapEnv (Env k y (Just e)) xs ys
+        mapEnv e ((j, x) : xs) [] = mapEnv (Env j x (Just e)) xs []
         mapEnv e [] [] = e
         mapEnv _ [] (_ : _) = error "unreachable case"
 
 scope :: Monad m => EnvT m a -> EnvT m a
 scope c = do
   s <- get
-  let e = Env Map.empty (Just (env s))
+  incCurrentScopeId
+  nid <- getCurrentScopeId
+  let e = Env nid Map.empty (Just (env s))
   (x, s') <- lift (runStateT c (s {env = e}))
   put s'
   case env s' of
-    Env _ (Just s'') -> putEnv s''
+    Env _ _ (Just s'') -> putEnv s''
     _ -> error "missing scope in nested environment?"
   return x
 
@@ -320,8 +336,10 @@ forceInsertRef lo na isPure i t = do
               }
   modifyRefMap (IntMap.insert i (t, meta))
 
-forceInsertImplicitVar :: Monad m => VarId -> PreTerm -> EnvT m ()
-forceInsertImplicitVar i t = modifyImplicitVarMap (IntMap.insert i t)
+insertImplicitVarCurrentScope :: Monad m => VarId -> PreTerm -> EnvT m ()
+insertImplicitVarCurrentScope i t = do
+  x <- fmap envTrace getEnv
+  modifyImplicitVarMap (IntMap.insert i (t, x))
 
 clearImplicitVarMap :: Monad m => EnvT m ()
 clearImplicitVarMap = modifyImplicitVarMap (\_ -> IntMap.empty)

@@ -47,13 +47,12 @@ where
   end
 
   val.. even : [] -> Nat -> Bool
-  let =>
+  let => []. (n). do
     o := odd;
-    []. (n).
-      case n
-      of 0 => !'(b)
-      of ++(n) => o[](n)
-      end
+    case n
+    of 0 => !'(b)
+    of ++(n) => o[](n)
+    end
 
   val.. odd : [] -> Nat -> Bool
   let => []. (
@@ -71,11 +70,10 @@ let () =>
   boolToAscii(nat-package(true)) print;
   boolToAscii(nat-package(false)) print;
   'lf print;
-  "\n" print;
   x := lazy-print1[];
   y := lazy-print1[];
   z := lazy-print2[];
-  "" println
+  "" print
 where
   val lazy-print1 : [] ->> Unit
   let => '1 println

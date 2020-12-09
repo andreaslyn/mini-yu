@@ -17,7 +17,7 @@ let => 100 * 100
 val spawnLoop : Nat ->> ([] -> Str | Unit) List
 let (0) => nil
 let (++ n) =>
-  parallel'((). n str println) :: spawnLoop(n)
+  parallel'((). n str println)[] :: spawnLoop(n)
 
 
 val _foreach\_List\Ty[A : Ty] : (A List, A ->> Unit) ->> Unit
