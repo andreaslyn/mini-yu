@@ -942,8 +942,8 @@ showCasesToCaseTree im rm ((_, ps, _) : pss) =
   in intercalate ", " ss ++ "\n" ++ showCasesToCaseTree im rm pss
   where
     varPatToStr ((Nothing, b), p) =
-      prePatternToString im rm 0 (patternPre p)
-      ++ " : " ++ preTermToString im rm 0 (patternTy p)
+      prePatternToString False im rm 0 (patternPre p)
+      ++ " : " ++ preTermToString False im rm 0 (patternTy p)
       ++ " {forced? " ++ show b ++ "}"
     varPatToStr ((Just v, b), p) =
       varName v ++ "." ++ show (varId v) ++ " := " ++ varPatToStr ((Nothing, b), p)
@@ -1904,10 +1904,15 @@ doTcExpr _ subst _ ty (ExprSeq (Right (p1, e1)) e2) =
 doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
   expr' <- doTcExprSubst False subst Nothing expr
   newpids <- lift Env.getNextVarId
+  --i00 <- lift Env.getImplicitMap
+  --r00 <- lift Env.getRefMap
+  --let !() = trace ("expr type is: " ++ preTermToString True i00 r00 0 (termTy expr')) ()
   (cases', ty0) <- checkCases newpids (termTy expr') cases ty
   case ty0 of
     Nothing -> lift (err lo (Recoverable "unable to infer type of expression"))
     Just ty' -> do
+      --isu <- getExprSubst
+      --let cases'' = substPatternTriples isu cases'
       (ct, io) <- lift (casesToCaseTree cases')
       let c = TermCase (termPre expr') ct
       return (mkTerm c ty' (termIo expr' || io))
@@ -1946,21 +1951,22 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
           Right x -> putExprSubst x
           Left msg -> lift (err (exprLoc e)
                            (Recoverable $ "unification error, " ++ msg))
+        let su' = IntMap.union su subst
         b <- case expectedTy of
-              Nothing ->
-                doTcExprSubst False (IntMap.union su subst) Nothing e
-              Just ty' ->
-                tcExpr (IntMap.union su subst) (substPreTerm su ty') e
+              Nothing -> doTcExprSubst False su' Nothing e
+              Just ty' -> tcExpr su' (substPreTerm su ty') e
         checkNoVariableEscape (patternLoc p) p' (termTy b)
-        return (b, patternToTriple p')
+        return (b, patternToTriple su' p')
       return (patternLoc p, tr, Just e')
-    doCheckCase newpids t p Nothing _ =
+    doCheckCase newpids t p Nothing _ = do
       lift . Env.scope $ do
-        (_, p') <- tcPattern newpids t p
-        return (patternLoc p, patternToTriple p', Nothing)
+        (su, p') <- tcPattern newpids t p
+        return (patternLoc p, patternToTriple su p', Nothing)
 
-    patternToTriple :: Pattern -> [CasePatternTriple]
-    patternToTriple p = [((Nothing, False), p)]
+    patternToTriple :: SubstMap -> Pattern -> [CasePatternTriple]
+    patternToTriple su p =
+      let p' = p {patternTy = substPreTerm su (patternTy p)}
+      in [((Nothing, False), p')]
 
     checkNoVariableEscape ::
       Monad m => Loc -> Pattern -> PreTerm -> ExprT m ()
