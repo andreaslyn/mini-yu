@@ -12,6 +12,16 @@ val _map\_IsFunctor\_->_[F : Ty -> Ty, A; B : Ty] :
 let (isFunctor(m), x, f) => m(x, f, A, B)
 
 
+val idIsFunctor : id IsFunctor
+let => isFunctor((x, f, A, B). f(x))
+
+
+val _@_\_IsFunctor\_->_[F; G : Ty -> Ty] :
+  (G IsFunctor, F IsFunctor) -> (G @ F) IsFunctor
+let (isG, isF) =>
+  isFunctor (x, f, A, B). isG map(x, isF map(_, f))
+
+
 data _IsMonad\_->_ : (Ty -> Ty) -> Ty
 let isMonad[M : Ty -> Ty] : (
   (A, A : Ty) -> M(A),
@@ -91,6 +101,16 @@ let _cons\_HasSignas\EfList[Sig : Ty -> Ty, p : Sig Ef,
 val _hasSignas\EfList : (ps : EfList) -> ps HasSignas(ps Signas)
 let (nil.EfList) => nilSignas.Ef
 let (p :: ps) => ps hasSignas cons
+
+
+val _trans\_Has\EfList[Sig : Ty -> Ty, p : Sig Ef, ps : EfList, qs : EfList] :
+  (ps Has(p), qs HasSignas(ps Signas)) -> &(q : Sig Ef). qs Has(q)
+let (here.Has, _ cons[p := q]) => q $ here.Has
+let (hs there, r cons[ps := qs']) => h 1 $ h 2 there
+where
+  val h : &(q : Sig Ef). qs' Has(q)
+  let => hs trans(r)
+end
 
 
 val _tail!\EfList : EfList -> EfList
@@ -600,7 +620,7 @@ let =>
   tripleDecr(here.Has there, here.Has)
 
 
-val tripleDectPaSt : ? (Nat & Unit)
+val tripleDecrPaSt : ? (Nat & Unit)
 let =>
   _eval do
   runPartialHandler (pa).
@@ -621,7 +641,7 @@ let (pa, st, ch) =>
     Rch $ chIsRet := dch retIsRet;
     chIsRet
     rew((X). (? Str -> (st :: pa :: ps) PreComp(X)) ->
-                       (st :: pa :: ps) PreComp(X), _)
+             (st :: pa :: ps) PreComp(X), _)
     (chk : ? Str -> (st :: pa :: ps) PreComp(dch Ret(Rch, st :: pa :: ps))). do
     chk' := mk.Comp @ const[B := (st :: pa :: ps) CompDom] @ chk;
     ( chScope(ds, dch, _, chk') (chIsF, defaultCh, transCh). do
@@ -714,6 +734,70 @@ where
 end
 
 
+val _reset\_Has\EfList[Sig : Ty -> Ty, p : Sig Ef, ps : EfList,
+    F : (Ty, EfList) -> Ty, S : Ty -> Ty, A; B : Ty] :
+  (ps Has(p),
+    (Sigs : (Ty -> Ty) List) -> Sig Handled(F, S, Sigs),
+    (ts : EfList, ts HasSignas(ps Signas)) -> A ~ ts,
+    (qs : EfList, R : Ty, G : Ty -> Ty, G IsFunctor, H : (Ty, EfList) -> Ty,
+      F(G(A), qs), (X : Ty, X) -> G(X),
+      G(B) -> H(R, qs) ~ qs) -> H(R, qs) ~ qs) ->
+  B ~ ps
+let (origHas, hand, origWork, final) =>
+  aux(origHas, idIsFunctor, (X, x). x, origWork)
+where
+  val aux[ps : EfList, Q : Ty -> Ty] :
+    (ps Has(p), Q IsFunctor,
+      (X : Ty, X) -> Q(X),
+      (ts : EfList, ts HasSignas(ps Signas)) -> Q(A) ~ ts) ->
+    Q(B) ~ ps
+  let (hs there[ps := ps', q := q, Sigq := Sigq],
+      isQ, rollback, work) =>
+    mk.Comp (ds : (q :: ps') CompDom). do
+    dq :: ds := ds;
+    contT do
+    Rq $ isRet := dq retIsRet;
+    isRet
+    rew((X). (Q(B) -> ps' PreComp(X)) -> ps' PreComp(X), _)
+    (k : Q(B) -> ps' PreComp(dq Ret(Rq, ps'))). do
+    k' := mk.Comp @ const[B := ps' CompDom] @ k;
+    dq handled scoper(ps', dq signasIsSignas(ps' hasSignas),
+        Rq, Q(B), cont[dq := dq], k') pr(ds)
+  where
+    val cont[q : Sigq Ef, dq : q Handled(ps')] :
+      (dq ScopeRet IsFunctor,
+        (X : Ty, X) -> dq ScopeRet(X),
+        (qs : EfList, X : Ty, dq Ret(X, qs) ~ qs) ->
+        dq ScopeRet(X) ~ qs) ->
+      dq ScopeRet(Q(B)) ~ ps'
+    let (isG, rbq, trans) =>
+      aux(hs, isG @ isQ, (X, x). rbq(Q(X), rollback(X, x)), work')
+      where
+        val work' :
+          (ts : EfList, ts HasSignas(ps' Signas)) -> dq ScopeRet(Q(A)) ~ ts
+        let (ts, tsHas) =>
+          trans(ts, Q(A), _) do
+          dq handled handle(
+            dq signasIsSignas(tsHas),
+            (t). work(t :: ts, tsHas cons))
+      end
+  end
+  let (here.Has[ps := ps'], isQ, rollback, work) =>
+    mk.Comp (ds : (p :: ps') CompDom). do
+    dp :: ds := ds;
+    Rp $ isRet := dp retIsRet;
+    contT do
+    isRet
+    rew((X). (Q(B) -> ps' PreComp(X)) -> ps' PreComp(X), _)
+    (k : Q(B) -> ps' PreComp(dp Ret(Rp, ps'))). do
+    h := hand(ps' Signas) handle(ps' hasSignas,
+          (p'). work(p' :: ps', ps' hasSignas cons));
+    bind.PreComp(h pr(ds)) (h : F(Q(A), ps')). do
+    k' := mk.Comp @ const[B := ps' CompDom] @ k;
+    final(ps', Rp, Q, isQ, dp Ret, h, rollback, k') pr(ds)
+end
+
+
 val tripleDecr2PaSt : Nat -> ? (Nat & Str List)
 let (n) =>
   _eval do
@@ -721,6 +805,56 @@ let (n) =>
   runStateHandler(n) (st).
   runChoiceHandler (ch).
   tripleDecr2(pa, st, ch)
+
+
+val _catch\_Has\EfList[A : Ty, ps : EfList, pa : PartialSigna Ef] :
+  (ps Has(pa),
+    (ts : EfList, ts HasSignas(ps Signas)) -> A ~ ts,
+    [] -> A ~ ps) -> A ~ ps
+let (hasP, c, h) =>
+  hasP reset((Sigs). partialHandled, c, handleCatch) >>= (a).
+  case a
+  of yes(x) => pure.Comp(x)
+  of no => h[]
+  end
+where
+  val handleCatch :
+    (qs : EfList, R : Ty, G : Ty -> Ty, G IsFunctor,
+      H : (Ty, EfList) -> Ty,
+      ? G(A), (X : Ty, X) -> G(X),
+      G(? A) -> H(R, qs) ~ qs) -> H(R, qs) ~ qs
+  let (qs, R, G, isG, H, no, r, k) => k(r(? A, no))
+  let (qs, R, G, isG, H, yes(x), r, k) => k(isG map(x, yes))
+end
+
+
+val tripleDecrCatch[ps : EfList, st : StateSigna(Nat) Ef, pa : PartialSigna Ef] :
+  (ps Has(st), ps Has(pa)) -> Str ~ ps
+let (hst, hpa) =>
+  decr(hst, hpa) :>>
+  hpa catch((ts, tsHas). do
+    st' $ hst' := hst trans(tsHas);
+    pa' $ hpa' := hpa trans(tsHas);
+    decr(hst', hpa') :>>
+    decr(hst', hpa') :>>
+    pure.Comp("normal return"),
+      pure.Comp("catch block"))
+
+
+val tripleDecrCatchStPa : Nat -> Nat & ? Str
+let (n) =>
+  _eval do
+  runStateHandler(n) (st).
+  runPartialHandler (pa).
+  tripleDecrCatch(here.Has there, here.Has)
+
+
+val tripleDecrCatchPaSt : Nat -> ? (Nat & Str)
+let (n) =>
+  _eval do
+  runPartialHandler (pa).
+  runStateHandler(n) (st).
+  tripleDecrCatch(here.Has, here.Has there)
 
 
 val testIOPartial[ps : EfList, io : IOSigna Ef] : ps Has(io) -> Unit ~ ps
@@ -746,9 +880,19 @@ let () =>
   ("[" :+: testChoice2 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
   ("[" :+: testChoice3 str(_str, ",") :+: "]") println;
   tripleDecrStPa str(_str, (x, _). x str((_). "unit")) println;
-  tripleDectPaSt str(_ str(_str, (_, _). "unit")) println;
+  tripleDecrPaSt str(_ str(_str, (_, _). "unit")) println;
   tripleDecr2PaSt(0) str(_ str(_str, (x, _). x str(id, ", "))) println;
   tripleDecr2PaSt(1) str(_ str(_str, (x, _). x str(id, ", "))) println;
   tripleDecr2PaSt(2) str(_ str(_str, (x, _). x str(id, ", "))) println;
   tripleDecr2PaSt(3) str(_ str(_str, (x, _). x str(id, ", "))) println;
-  tripleDecr2PaSt(4) str(_ str(_str, (x, _). x str(id, ", "))) println
+  tripleDecr2PaSt(4) str(_ str(_str, (x, _). x str(id, ", "))) println;
+  tripleDecrCatchPaSt(0) str(_ str(_str, (x, _). x)) println;
+  tripleDecrCatchPaSt(1) str(_ str(_str, (x, _). x)) println;
+  tripleDecrCatchPaSt(2) str(_ str(_str, (x, _). x)) println;
+  tripleDecrCatchPaSt(3) str(_ str(_str, (x, _). x)) println;
+  tripleDecrCatchPaSt(4) str(_ str(_str, (x, _). x)) println;
+  tripleDecrCatchStPa(0) str(_str, (x, _). x str(id)) println;
+  tripleDecrCatchStPa(1) str(_str, (x, _). x str(id)) println;
+  tripleDecrCatchStPa(2) str(_str, (x, _). x str(id)) println;
+  tripleDecrCatchStPa(3) str(_str, (x, _). x str(id)) println;
+  tripleDecrCatchStPa(4) str(_str, (x, _). x str(id)) println
