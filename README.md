@@ -10,12 +10,12 @@ as garbage collection strategy, inspired by [Lean 4](https://github.com/leanprov
 
 # Related Work
 
-A list of some of the work I have relied on while developing mini yu.
-
+A list of some work I have relied on while developing mini yu:
 * [Sebastian Ullrich and Leonardo de Moura, Counting Immutable Beans: Reference Counting Optimized for Purely Functional Programming](https://arxiv.org/abs/1908.05647)
 * [Jesper Cockx, Dependent pattern matching and proof-relevant unification](https://jesper.sikanda.be/files/thesis-final-digital.pdf)
 * [Andreas Abel, foetus - Termination Checker for Simple Functional Programs](https://www.semanticscholar.org/paper/foetus-Termination-Checker-for-Simple-Functional-Abel/c216d842401569de47d2472b84d33f4f38bbe670)
 * [Matúš Tejiščák and Edwin Brady, Practical Erasure in Dependently Typed Languages](https://eb.host.cs.st-andrews.ac.uk/drafts/dtp-erasure-draft.pdf)
+* [Daan Leijen, Benjamin Zorn and Leonardo de Moura, Mimalloc: Free List Sharding in Action](https://www.microsoft.com/en-us/research/publication/mimalloc-free-list-sharding-in-action/)
 
 # Building
 
