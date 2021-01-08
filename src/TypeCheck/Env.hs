@@ -20,10 +20,13 @@ module TypeCheck.Env
   , forceInsertRef
   , forceInsertExtern
   , forceInsertDataCtor
+  , forceInsertUnfinishedData
+  , removeUnfinishedData
   , forceLookupRefMap
   , forceLookupImplicit
   , isDataType
   , forceLookupDataCtor
+  , lookupUnfinishedData
   , forceInsertImplicit
   , forceLookupImplicitMap
   , forceLookupDataCtorMap
@@ -46,6 +49,7 @@ where
 
 import Data.Maybe (isJust)
 import qualified Data.Map as Map
+import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import Control.Monad.Trans (lift)
@@ -67,6 +71,8 @@ data VarStatus = StatusTerm Term
                | StatusInProgress Bool (Loc, VarName) -- Bool true is ctor
                deriving Show
 
+type UnfinishedDataMap = IntMap (EnvDepth, SubstMap, Def)
+
 type ScopeMap = Map.Map VarName VarStatus
 
 data Env = Env ScopeId ScopeMap (Maybe Env) deriving Show
@@ -82,7 +88,8 @@ data EnvSt = EnvSt
   , implicitVarMap :: ImplicitVarMap
   , externSet :: ExternSet
   , implicitMap :: ImplicitMap
-  , dataCtorMap :: DataCtorMap }
+  , dataCtorMap :: DataCtorMap
+  , unfinishedDataMap :: UnfinishedDataMap }
   deriving Show
 
 type EnvT = StateT EnvSt
@@ -112,7 +119,8 @@ emptyCtxSt =
     , implicitVarMap = IntMap.empty
     , externSet = IntSet.empty
     , implicitMap = IntMap.empty
-    , dataCtorMap = IntMap.empty }
+    , dataCtorMap = IntMap.empty
+    , unfinishedDataMap = IntMap.empty }
 
 toString :: Monad m => EnvT m String
 toString = fmap show getEnv
@@ -142,6 +150,9 @@ getImplicitMap = fmap implicitMap get
 getDataCtorMap :: Monad m => EnvT m DataCtorMap
 getDataCtorMap = fmap dataCtorMap get
 
+getUnfinishedDataMap :: Monad m => EnvT m UnfinishedDataMap
+getUnfinishedDataMap = fmap unfinishedDataMap get
+
 modifyRefMap :: Monad m => (RefMap -> RefMap) -> EnvT m ()
 modifyRefMap f = modify (\s -> s{refMap = f (refMap s)})
 
@@ -156,6 +167,11 @@ modifyImplicitMap f = modify (\s -> s{implicitMap = f (implicitMap s)})
 
 modifyDataCtorMap :: Monad m => (DataCtorMap -> DataCtorMap) -> EnvT m ()
 modifyDataCtorMap f = modify (\s -> s{dataCtorMap = f (dataCtorMap s)})
+
+modifyUnfinishedDataMap :: Monad m =>
+  (UnfinishedDataMap -> UnfinishedDataMap) -> EnvT m ()
+modifyUnfinishedDataMap f =
+  modify (\s -> s{unfinishedDataMap = f (unfinishedDataMap s)})
 
 getNextVarId :: Monad m => EnvT m VarId
 getNextVarId = fmap nextVarId get
@@ -352,6 +368,14 @@ forceInsertDataCtor ::
   Monad m => VarId -> [Var] -> EnvT m ()
 forceInsertDataCtor i xs = modifyDataCtorMap (IntMap.insert i xs)
 
+forceInsertUnfinishedData ::
+  Monad m => VarId -> EnvDepth -> SubstMap -> Def -> EnvT m ()
+forceInsertUnfinishedData i depth su def =
+  modifyUnfinishedDataMap (IntMap.insert i (depth, su, def))
+
+removeUnfinishedData :: Monad m => VarId -> EnvT m ()
+removeUnfinishedData = modifyUnfinishedDataMap . IntMap.delete
+
 lookupRef :: Monad m => VarId -> EnvT m (Maybe Term)
 lookupRef i = fmap (fmap fst . IntMap.lookup i) getRefMap
 
@@ -382,6 +406,10 @@ forceLookupDataCtor :: Monad m => VarId -> EnvT m [Var]
 forceLookupDataCtor i = do
   r <- getDataCtorMap
   return (forceLookupDataCtorMap i r)
+
+lookupUnfinishedData :: Monad m =>
+  VarId -> EnvT m (Maybe (EnvDepth, SubstMap, Def))
+lookupUnfinishedData i = fmap (IntMap.lookup i) getUnfinishedDataMap
 
 memberRef :: Monad m => VarId -> EnvT m Bool
 memberRef = fmap isJust . lookupRef

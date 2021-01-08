@@ -421,7 +421,7 @@ tcDef subst True (DefData isPure d ctors) = do
       (Fatal $ "nested " ++ quote "data" ++ " type in "
                ++ quote "where" ++ " clause is not supported"))
   tcDataAndCtors subst isPure d ctors
-tcDef subst False (DefData isPure d _) = do
+tcDef subst False def@(DefData isPure d _) = do
   depth <- Env.getDepth
   when (depth > 0)
     (err (declLoc d)
@@ -438,6 +438,7 @@ tcDef subst False (DefData isPure d _) = do
       Env.forceInsertImplicit i imps
       Env.forceInsertRef (declLoc d) (declName d) isPure i r
       Env.forceInsertDataCtor i []
+      Env.forceInsertUnfinishedData i depth subst def
       return r
 
 tcDataAndCtors :: Monad m =>
@@ -454,6 +455,7 @@ tcDataAndCtors subst isPure d ctors = do
           cis1 <- foldrM (addVarNotIn css) [] ctors
           let cis' = cis0 ++ cis1
           let cis = map (takeCtorFormVarList cis') ctors
+          Env.removeUnfinishedData (varId v)
           Env.forceInsertDataCtor (varId v) cis
           updateToStatusTerm (varName v) dt
           mapM_ (tcDataDefCtor subst v) (zip cis ctors)
@@ -933,6 +935,14 @@ buildLetCaseTree valName subst impParams domain codomain letCases = do
       (m1, m2, ps) <- tcPatternArgs newpids IntMap.empty subst as
       return (m1, m2, map snd (sortOn fst ps))
 
+tcUnfinishedData :: Monad m => VarId -> TypeCheckT m ()
+tcUnfinishedData dty = do
+  dty' <- Env.lookupUnfinishedData dty
+  case dty' of
+    Nothing -> pure ()
+    Just (depth, su, def) ->
+      Env.withDepth depth (tcDef su True def >> pure ())
+
 {-
 showCasesToCaseTree ::
   ImplicitMap -> RefMap -> [(Loc, [CasePatternTriple], Maybe Term)] -> String
@@ -1002,6 +1012,7 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
                           (termPre te') (termNestedDefs te')
               return (t, Set.singleton firstLoc)
     Right (idx, dty) -> do
+      lift (tcUnfinishedData dty)
       --let !() = trace ("pattern match index: " ++ show idx) ()
       dsp <- lift (dataSplit dty)
       --let !() = trace ("data split: " ++ show (IntMap.keysSet dsp)) ()
