@@ -284,3 +284,10 @@ directory as the current/importing file.
 
 For more examples, take a look at the `examples/` directory
 and the `stdlib/yu/` directory, implementing the Yu standard library.
+
+# Related Work
+
+* [Sebastian Ullrich and Leonardo de Moura, Counting Immutable Beans: Reference Counting Optimized for Purely Functional Programming](https://arxiv.org/abs/1908.05647)
+* [Jesper Cockx, Dependent pattern matching and proof-relevant unification](https://jesper.sikanda.be/files/thesis-final-digital.pdf)
+* [Andreas Abel, foetus - Termination Checker for Simple Functional Programs](https://www.semanticscholar.org/paper/foetus-Termination-Checker-for-Simple-Functional-Abel/c216d842401569de47d2472b84d33f4f38bbe670)
+* [Matúš Tejiščák and Edwin Brady, Practical Erasure in Dependently Typed Languages](https://eb.host.cs.st-andrews.ac.uk/drafts/dtp-erasure-draft.pdf)
