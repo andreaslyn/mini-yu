@@ -66,6 +66,16 @@ val callcc.ContT[A; R : Ty, M : Ty -> Ty, isM : M IsMonad] :
 let (c) => contT (k). c((a, B). contT (_). k(a)) ap(k)
 
 
+val reset.ContT[R; R' : Ty, M : Ty -> Ty] :
+  (isM : M IsMonad, R ContT(R, M, isM)) -> R ContT(R', M, isM)
+let (isM, x) => isM lift(x eval)
+
+
+val shift.ContT[R; A : Ty, M : Ty -> Ty] :
+  (isM : M IsMonad, (A -> M(R)) -> R ContT(R, M, isM)) -> A ContT(R, M, isM)
+let (isM, f) => contT(_eval @ f)
+
+
 val _HandlerFun\_->_ : (Ty -> Ty, Ty, Ty -> Ty) -> Ty
 let (Sig, R, M) => (Sig(A), A : Ty, A -> M(R)) -> M(R)
 
@@ -248,6 +258,178 @@ let =>
   pure.ContT(x - y)
 
 
+########################## Reset/shift ###############################
+
+val testResetShift1 : Nat
+let =>
+  _eval do
+  reset.ContT(idIsMonad, _) do
+  pure.ContT(3) >>= (x).
+  shift.ContT (idIsMonad, (_). pure.ContT(5 * 2)) >>= (y).
+  pure.ContT(1) >>= (z).
+  pure.ContT(x + y - z)
+
+
+val testResetShift2 : Nat
+let =>
+  _eval do
+  reset.ContT(idIsMonad, _) do
+  pure.ContT(3) >>= (x).
+  shift.ContT (idIsMonad, (k). pure.ContT(k(2))) >>= (y).
+  pure.ContT(1) >>= (z).
+  pure.ContT(x + y - z)
+
+
+val TripPa1 : Ty
+let =>
+  PartialSigna Ef(? Str,
+    _ ContT(Nat -> Nat & ? Str, id, idIsMonad), contTIsMonad)
+
+
+val TripSt1 : Ty
+let => StateSigna(Nat) Ef(Nat -> Nat & ? Str, id, idIsMonad)
+
+
+val TripComp1 : Ty -> Ty
+let (A) =>
+  A ContT(? Str,
+    _ ContT(Nat -> Nat & ? Str, id, idIsMonad), contTIsMonad)
+
+
+val decr1 : (TripPa1, TripSt1) -> TripComp1(Unit)
+let (pa, st) =>
+  contTIsMonad lift(st(Nat, getOp)) >>= (x).
+  case x
+  of 0 => pa(Unit, failOp)
+  of ++ x => contTIsMonad lift do st(Unit, putOp(x))
+  end
+
+
+val tripleDecr1 : (TripPa1, TripSt1) -> TripComp1(Str)
+let (pa, st) =>
+  decr1(pa, st) >>= (_).
+  reset.ContT(contTIsMonad,
+    decr1(pa, st) >>= (_).
+    decr1(pa, st) >>= (_).
+    pure.ContT(yes("end of reset"))
+  ) >>= (x).
+  case x
+  of yes(x) => pure.ContT(x)
+  of no => pure.ContT("catch block")
+  end
+
+
+val runTripleDecr1 : Nat -> Nat & ? Str
+let (s) =>
+  idIsMonad runStateHandler(s) (st).
+  contTIsMonad runPartialHandler (pa).
+  tripleDecr1(pa, st)
+
+
+val TripPa2 : Ty
+let => PartialSigna Ef(? (Nat & Str), id, idIsMonad)
+
+
+val TripSt2 : Ty
+let =>
+  StateSigna(Nat) Ef(
+    Nat -> (Nat & Str) ContT(? (Nat & Str), id, idIsMonad),
+    _ ContT(? (Nat & Str), id, idIsMonad), contTIsMonad)
+
+
+val TripComp2 : Ty -> Ty
+let (A) =>
+  A ContT(
+    Nat -> (Nat & Str) ContT(? (Nat & Str), id, idIsMonad),
+    _ ContT(? (Nat & Str), id, idIsMonad), contTIsMonad)
+
+
+val decr2 : (TripPa2, TripSt2) -> TripComp2(Unit)
+let (pa, st) =>
+  st(Nat, getOp) >>= (x).
+  case x
+  of 0 => contTIsMonad lift(pa(Unit, failOp))
+  of ++ x => st(Unit, putOp(x))
+  end
+
+
+val tripleDecr2 : (TripPa2, TripSt2) -> TripComp2(Str)
+let (pa, st) =>
+  decr2(pa, st) >>= (_).
+  reset.ContT(contTIsMonad,
+    decr2(pa, st) >>= (_).
+    decr2(pa, st) >>= (_).
+    pure.ContT((n). pure.ContT(n $ "end of reset"))
+  ) >>= (f).
+  st(Nat, getOp) >>= (s).
+  contTIsMonad lift(f(s)) >>= (x).
+  st(Unit, putOp(x 1)) >>= (_).
+  pure.ContT(x 2)
+
+
+val tripleDecr2' : (TripPa2, TripSt2) -> TripComp2(Str)
+let (pa, st) =>
+  decr2(pa, st) >>= (_).
+  (
+    (
+      contT (stk).
+      pure.ContT (s0). do
+      defaultSt := (A : Ty, a : A). s0 $ a;
+      ## (((X : Ty, X) -> R(X),                                 ## default
+      ##    (qs : EfList, (S -> S & A ~ qs) ~ qs) -> R(A) ~ qs) ## convert handler result using s0
+      ##     -> R(A) ~ ps,                                      ## final result
+      ##    A -> (S -> S & A ~ ps) ~ ps                         ## continuation (stk)
+      ## ) -> (S -> S & A ~ ps) ~ ps
+      ## where R(A) => S & A.
+      (
+        contT (pak). do
+        defaultPa := (A : Ty, a : A). yes(a);
+        h := ( idIsMonad runPartialHandler (pa').
+               ( contTIsMonad runStateHandler(s0) (st'). do
+                 decr2' :=
+                  st'(Nat, getOp) >>= (x).
+                  case x
+                  of 0 => contTIsMonad lift(pa'(Unit, failOp))
+                  of ++ x => st'(Unit, putOp(x))
+                  end;
+                 decr2' >>= (_).
+                 decr2' >>= (_).
+                 pure.ContT("end of decr")
+               )
+             ) :! ? (Nat & Str);
+        ## In general we will be inside a continuation monad:
+        ## h >>= (h).
+        ## But in this case it is just the identity monad:
+        idIsMonad bind(h) (h).
+        case h
+        of no => pak(defaultSt(? Str, no))
+        of yes(x) => pak(x map(yes))
+        end
+      ) >>= (x). stk(x 2) >>= (k). k(x 1)
+    ) >>= (m).
+    case m
+    of no => pure.ContT("catch")
+    of yes(s) => pure.ContT(s)
+    end
+  )
+
+
+val runTripleDecr2 : Nat -> ? (Nat & Str)
+let (s) =>
+  idIsMonad runPartialHandler (pa).
+  contTIsMonad runStateHandler(s) (st).
+  tripleDecr2(pa, st)
+
+
+val runTripleDecr2' : Nat -> ? (Nat & Str)
+let (s) =>
+  idIsMonad runPartialHandler (pa).
+  contTIsMonad runStateHandler(s) (st).
+  tripleDecr2'(pa, st)
+
+########################## End reset/shift ##########################
+
+
 val main : () ->> Unit
 let () =>
   testPartialEffect(2, 0) str(_str) println;
@@ -260,4 +442,18 @@ let () =>
   plusPartialWithStateEffect(0, 2) str(_str, (x, _). x str(_str)) println;
   plusPartialWithStateEffect(2, 2) str(_str, (x, _). x str(_str)) println;
   ("[" :+: testChoice1 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
-  ("[" :+: testChoice2 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println
+  ("[" :+: testChoice2 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
+  testResetShift1 str println;
+  testResetShift2 str println;
+  runTripleDecr1(0) str(_str, (x, _). x str(id)) println;
+  runTripleDecr1(1) str(_str, (x, _). x str(id)) println;
+  runTripleDecr1(2) str(_str, (x, _). x str(id)) println;
+  runTripleDecr1(3) str(_str, (x, _). x str(id)) println;
+  runTripleDecr2(0) str((x). x str(_str, (s, _). s)) println;
+  runTripleDecr2(1) str((x). x str(_str, (s, _). s)) println;
+  runTripleDecr2(2) str((x). x str(_str, (s, _). s)) println;
+  runTripleDecr2(3) str((x). x str(_str, (s, _). s)) println;
+  runTripleDecr2'(0) str((x). x str(_str, (s, _). s)) println;
+  runTripleDecr2'(1) str((x). x str(_str, (s, _). s)) println;
+  runTripleDecr2'(2) str((x). x str(_str, (s, _). s)) println;
+  runTripleDecr2'(3) str((x). x str(_str, (s, _). s)) println

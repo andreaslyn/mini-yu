@@ -1,4 +1,26 @@
 import "yu/prelude.yu"
+import "yu/Bin.yu"
+
+
+data _IsFunctor\_->_ : (Ty -> Ty) -> Ty
+let isFunctor[F : Ty -> Ty] : (
+  (F(A), A -> B, A : Ty, B : Ty) -> F(B)
+) -> F IsFunctor
+
+
+val _map\_IsFunctor\_->_[F : Ty -> Ty, A; B : Ty] :
+  (F IsFunctor, F(A), A -> B) -> F(B)
+let (isFunctor(m), x, f) => m(x, f, A, B)
+
+
+val idIsFunctor : id IsFunctor
+let => isFunctor((x, f, A, B). f(x))
+
+
+val _@_\_IsFunctor\_->_[F; G : Ty -> Ty] :
+  (G IsFunctor, F IsFunctor) -> (G @ F) IsFunctor
+let (isG, isF) =>
+  isFunctor (x, f, A, B). isG map(x, isF map(_, f))
 
 
 data _IsMonad\_->_ : (Ty -> Ty) -> Ty
@@ -65,6 +87,33 @@ let nil.EfList : EfList
 let _::_\EfList[Sig : Ty -> Ty] : (Sig Ef, EfList) -> EfList
 
 
+val _Signas\EfList : EfList -> (Ty -> Ty) List
+let (nil.EfList) => nil
+let (_::_[Sig := Sig](_, ps)) => Sig :: ps Signas
+
+
+data _HasSignas\EfList : (EfList, (Ty -> Ty) List) -> Ty
+let nilSignas.Ef : nil.EfList HasSignas(nil)
+let _cons\_HasSignas\EfList[Sig : Ty -> Ty, p : Sig Ef,
+    Sigs : (Ty -> Ty) List, ps : EfList] :
+  ps HasSignas(Sigs) -> (p :: ps) HasSignas(Sig :: Sigs)
+
+
+val _hasSignas\EfList : (ps : EfList) -> ps HasSignas(ps Signas)
+let (nil.EfList) => nilSignas.Ef
+let (p :: ps) => ps hasSignas cons
+
+
+val _trans\_Has\EfList[Sig : Ty -> Ty, p : Sig Ef, ps : EfList, qs : EfList] :
+  (ps Has(p), qs HasSignas(ps Signas)) -> &(q : Sig Ef). qs Has(q)
+let (here.Has, _ cons[p := q]) => q $ here.Has
+let (hs there, r cons[ps := qs']) => h 1 $ h 2 there
+where
+  val h : &(q : Sig Ef). qs' Has(q)
+  let => hs trans(r)
+end
+
+
 val _tail!\EfList : EfList -> EfList
 let (nil.EfList) => nil.EfList
 let (_ :: ps) => ps
@@ -97,18 +146,75 @@ val isMonad.PreComp[ps : EfList] : ps PreComp IsMonad
 let => isMonad((a, A). pure.PreComp(a), (x, f, A, B). bind.PreComp(x)(f))
 
 
-data _CompDom\EfList : EfList -> Ty
+data _Handled\_Ef\_->_[Sig : Ty -> Ty] : (Sig Ef, EfList) -> Ty
+let mkHandled.Ef[Sig : Ty -> Ty, Sigs : (Ty -> Ty) List,
+    p : Sig Ef, ps : EfList, F : (Ty, EfList) -> Ty, S : Ty -> Ty] : (
+  (A : Ty, Sig(A)) -> A ContT(p Ty, ps PreComp),
+  ps HasSignas(Sigs),
+  Sig Handled(F, S, Sigs),
+  & (R). p Ty = F(R, ps)
+) -> p Handled(ps)
+
+
+val _Signas\_Handled\_Ef\_->_[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
+  p Handled(ps) -> (Ty -> Ty) List
+let (mkHandled.Ef[Sigs := Sigs](_, _, _, _)) => Sigs
+
+
+val signasIsSignasImpl.Ef[Sigs : (Ty -> Ty) List, ts; ps : EfList] :
+  (ps HasSignas(Sigs), ts HasSignas(ps Signas)) -> ts HasSignas(Sigs)
+let (nilSignas.Ef, nilSignas.Ef) => nilSignas.Ef
+let (h1 cons, h2 cons) => signasIsSignasImpl.Ef(h1, h2) cons
+
+
+val _signasIsSignas\_Handled\_Ef\_->_[
+    Sig : Ty -> Ty, p : Sig Ef, ts; ps : EfList] :
+  (h : p Handled(ps), ts HasSignas(ps Signas)) -> ts HasSignas(h Signas)
+let (mkHandled.Ef(_, h1, _, _), h2) => signasIsSignasImpl.Ef(h1, h2)
+
+
+val _Ret\_Handled\_Ef\_->_[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
+  p Handled(ps) -> (Ty, EfList) -> Ty
+let (mkHandled.Ef[F := F](_, _, _, _)) => F
+
+
+val _ScopeRet\_Handled\_Ef\_->_[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
+  p Handled(ps) -> Ty -> Ty
+let (mkHandled.Ef[S := S](_, _, _, _)) => S
+
+
+val _ap\_Handled\_Ef\_->_[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
+  p Handled(ps) -> (A : Ty, Sig(A)) -> A ContT(p Ty, ps PreComp)
+let (mkHandled.Ef(f, _, _, _)) => f
+
+
+val _hasSignas\_Handled\_Ef\_->_[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
+  (h : p Handled(ps)) -> ps HasSignas(h Signas)
+let (mkHandled.Ef(_, hs, _, _)) => hs
+
+
+val _handled\_Handled\_Ef\_->_[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
+  (h : p Handled(ps)) -> Sig Handled(h Ret, h ScopeRet, h Signas)
+let (mkHandled.Ef(_, _, hd, _)) => hd
+
+
+val _retIsRet\_Handled\_Ef\_->_[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
+  (h : p Handled(ps)) -> & (R). p Ty = h Ret(R, ps)
+let (mkHandled.Ef(_, _, _, r)) => r
+
+
+data.. _CompDom\EfList : EfList -> Ty
 let nil.CompDom : nil.EfList CompDom
 let _::_\_CompDom\EfList[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
-  ((A : Ty, Sig(A)) -> A ContT(p Ty, ps PreComp), ps CompDom) -> (p :: ps) CompDom
+  (p Handled(ps), ps CompDom) -> (p :: ps) CompDom
 
 
-data _~_\Ty : (Ty, EfList) -> Ty
+data.. _~_\Ty : (Ty, EfList) -> Ty
 let mk.Comp[ps : EfList, A : Ty] : (ps CompDom -> ps PreComp(A)) -> A ~ ps
 
 
 val _head\_CompDom\EfList[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
-  (p :: ps) CompDom -> (A : Ty, Sig(A)) -> A ContT(p Ty, ps PreComp)
+  (p :: ps) CompDom -> p Handled(ps)
 let (h :: _) => h
 
 
@@ -121,9 +227,9 @@ val _pr\_~_\Ty[ps : EfList, A : Ty] : (A ~ ps, ps CompDom) -> ps PreComp(A)
 let (mk.Comp(c), s) => c(s)
 
 
-val _ap\_~_\Ty[ps : EfList, A; R : Ty, Sig : Ty -> Ty] :
-  (A ~ mk.Ef[Sig := Sig](R) :: ps, A -> R ~ ps,
-    h : (B : Ty, Sig(B)) -> B ContT(R, ps PreComp)) -> R ~ ps
+val _ap\_~_\Ty[ps : EfList, A; R : Ty, Sig : Ty -> Ty] : do
+  p := mk.Ef[Sig := Sig](R);
+  (A ~ p :: ps, A -> R ~ ps, p Handled(ps)) -> R ~ ps
 let (c, f, h) => mk.Comp (s). c pr(h :: s) finally(_ pr(s) @ f)
 
 
@@ -143,15 +249,64 @@ val _IsMonad~\_CompDom\EfList[ps : EfList] : ps CompDom -> (_ ~ ps) IsMonad\_->_
 let (s) => isMonad((a, A). pure.Comp(a), (x, f, A, B). x >>= f)
 
 
-val _Handler\_->_ : (Ty -> Ty, Ty, EfList) -> Ty
-let (Sig, R, ps) => (A : Ty, Sig(A), A -> R ~ ps) -> R ~ ps
+val _Handler\_->_ : (Ty -> Ty, (Ty, EfList) -> Ty, (Ty -> Ty) List) -> Ty
+let (Sig, F, Sigs) =>
+  (ps : EfList, ps HasSignas(Sigs), R; A : Ty, Sig(A), A -> F(R, ps) ~ ps) ->
+  F(R, ps) ~ ps
 
 
-val handle[ps : EfList, A; R : Ty, Sig : Ty -> Ty] :
-  (Sig Handler(R, ps), A -> R ~ ps, (p : Sig Ef) -> A ~ p :: ps) -> R ~ ps
-let (h, k, c) =>
-  mk.Comp (s).
-  c(mk.Ef(R)) ap(k, (B, x). contT (f). h(B, x, mk.Comp @ const @ f) pr(s)) pr(s)
+## XXX This could probably use _PreComp instead of _~_ to avoid
+## circular data dependency.
+## The user can define it like this, but convert to PreComp
+## before storing in _Handled.
+val _Finalizer\_->_ : ((Ty, EfList) -> Ty, (Ty -> Ty) List) -> Ty
+let (F, Sigs) => (ps : EfList, ps HasSignas(Sigs), X : Ty, X) -> F(X, ps) ~ ps
+
+
+## XXX This could probably use _PreComp instead of _~_ to avoid
+## circular data dependency.
+## The user can define it like this, but convert to PreComp
+## before storing in _Handled.
+val _Scoper\_->_ :
+  (Ty -> Ty, (Ty, EfList) -> Ty, Ty -> Ty, (Ty -> Ty) List) -> Ty
+let (Sig, F, S, Sigs) =>
+  (ps : EfList, ps HasSignas(Sigs), R; A : Ty,
+    (S IsFunctor,
+      (X : Ty, X) -> S(X),
+      (qs : EfList, B : Ty, F(B, qs) ~ qs) -> S(B) ~ qs) -> S(A) ~ ps,
+    A -> F(R, ps) ~ ps) ->
+  F(R, ps) ~ ps
+
+
+data.. _Handled\_->_ :
+  (Ty -> Ty, (Ty, EfList) -> Ty, Ty -> Ty, (Ty -> Ty) List) -> Ty
+let mkHandledSig.Ef[Sig : Ty -> Ty, F : (Ty, EfList) -> Ty,
+    S : Ty -> Ty, Sigs : (Ty -> Ty) List] : (
+  Sig Handler(F, Sigs),
+  F Finalizer(Sigs),
+  Sig Scoper(F, S, Sigs)
+) -> Sig Handled(F, S, Sigs)
+
+
+val _scoper\_Handled\_->_[Sig : Ty -> Ty, F : (Ty, EfList) -> Ty,
+    S : Ty -> Ty, Sigs : (Ty -> Ty) List] :
+  Sig Handled(F, S, Sigs) -> Sig Scoper(F, S, Sigs)
+let (mkHandledSig.Ef(_, _, s)) => s
+
+
+val _handle\_Handled\_->_[A : Ty, Sig : Ty -> Ty, Sigs : (Ty -> Ty) List,
+    F : (Ty, EfList) -> Ty, S : Ty -> Ty, ps : EfList] :
+  (Sig Handled(F, S, Sigs), ps HasSignas(Sigs), (p : Sig Ef) -> A ~ p :: ps) ->
+  F(A, ps) ~ ps
+let (mkHandledSig.Ef(ha, fn, sc), hs, c) =>
+  mk.Comp (s). do
+  f := (X, x). contT (k). ha(ps, hs, A, X, x, mk.Comp @ const @ k) pr(s);
+  hd := mkHandled.Ef[p := p](f, hs, mkHandledSig.Ef(ha, fn, sc), A $ refl);
+  c(p) ap(fn(ps, hs, A, _), hd) pr(s)
+where
+  val p : Sig Ef
+  let => mk.Ef(F(A, ps))
+end
 
 
 val _eval\_~_\Ty[R : Ty] : R ~ nil.EfList -> R
@@ -162,13 +317,36 @@ data PartialSigna : Ty -> Ty
 let failOp[A : Ty] : PartialSigna(A)
 
 
-val partialHandler[A : Ty, ps : EfList] : PartialSigna Handler(? A, ps)
-let (_, failOp, k) => pure.Comp(no)
+val partialHandler[Sigs : (Ty -> Ty) List] : PartialSigna Handler((A, _). ? A, Sigs)
+let (_, _, _, _, failOp, k) => pure.Comp(no)
+
+
+val partialFinalizer[Sigs : (Ty -> Ty) List] : ((A, _). ? A) Finalizer(Sigs)
+let (_, _, X, x) => pure.Comp(yes(x))
+
+
+val optionIsFunctor : (?_\Ty) IsFunctor
+let => isFunctor((x, f, A, B). case x of no => no of yes(x) => yes(f(x)) end)
+
+
+val partialScoper[Sigs : (Ty -> Ty) List] :
+  PartialSigna Scoper((A, _). ? A, ? _, Sigs)
+let (ps, _, R, A, c, k) =>
+  c(optionIsFunctor, (X, x). yes(x), (qs, B, x). x) >>= (c).
+  case c
+  of no => pure.Comp(no)
+  of yes(x) => k(x)
+  end
+
+
+val partialHandled[Sigs : (Ty -> Ty) List] :
+  PartialSigna Handled((A, _). ? A, ? _, Sigs)
+let => mkHandledSig.Ef(partialHandler, partialFinalizer, partialScoper)
 
 
 val runPartialHandler[A : Ty, ps : EfList] :
   ((pa : PartialSigna Ef) -> A ~ pa :: ps) -> (? A) ~ ps
-let (c) => handle(partialHandler, pure.Comp @ yes, c)
+let (c) => partialHandled handle(ps hasSignas, c)
 
 
 val _lift\_~_\Ty[A : Ty, Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
@@ -178,7 +356,7 @@ let (c) => mk.Comp (s). isMonad.PreComp lift(c pr(s tail!))
 
 val _apply\_Ef\_->_[ps : EfList, A : Ty, Sig : Ty -> Ty] :
     (p : Sig Ef, Sig(A), ps Has(p)) -> A ~ ps
-let (p, op, here.Has) => mk.Comp (s). s head(A, op)
+let (p, op, here.Has) => mk.Comp (s). s head ap(A, op)
 let (p, op, s' there) => p apply(op, s') lift
 
 
@@ -200,15 +378,44 @@ let getOp[A : Ty] : StateSigna(A)(A)
 let putOp[A : Ty] : A -> StateSigna(A)(Unit)
 
 
-val stateHandler[A; S : Ty, ps : EfList] : StateSigna(S) Handler(S -> A ~ ps, ps)
-let (_, getOp, k) => pure.Comp (s). k(s) >>= (k). k(s)
-let (_, putOp(x), k) => pure.Comp (_). k(unit) >>= (k). k(x)
+val stateHandler[S : Ty, Sigs : (Ty -> Ty) List] :
+  StateSigna(S) Handler((A, ps). S -> S & A ~ ps, Sigs)
+let (_, _, _, _, getOp, k) => pure.Comp (s). k(s) >>= (k). k(s)
+let (_, _, _, _, putOp(x), k) => pure.Comp (_). k(unit) >>= (k). k(x)
+
+
+val stateFinalizer[S : Ty, Sigs : (Ty -> Ty) List] :
+  ((A, ps). S -> S & A ~ ps) Finalizer(Sigs)
+let (_, _, X, x) => pure.Comp((s). pure.Comp(s $ x))
+
+
+val pairIsFunctor[S : Ty] : (S & _) IsFunctor\_->_
+let => isFunctor((x, f, A, B). x 1 $ f(x 2))
+
+
+val stateScoper[S : Ty, Sigs : (Ty -> Ty) List] :
+  StateSigna(S) Scoper((A, ps). S -> S & A ~ ps, (A). S & A, Sigs)
+let (ps, _, R, A, c, k) =>
+  pure.Comp (s). do
+  c(pairIsFunctor, (X, x). s $ x, (qs, B, f). f >>= (f). f(s)) >>= (y).
+  k(y 2) >>= (k). k(y 1)
+
+
+val stateHandled[S : Ty, Sigs : (Ty -> Ty) List] :
+  StateSigna(S) Handled((A, ps). S -> S & A ~ ps, (A). S & A, Sigs)
+let => mkHandledSig.Ef(stateHandler, stateFinalizer, stateScoper)
 
 
 val runStateHandler[A; S : Ty, ps : EfList]
   : S -> ((st : StateSigna(S) Ef) -> A ~ st :: ps) -> S & A ~ ps
 let (s) => (c).
-  handle(stateHandler, (a). pure.Comp (s). pure.Comp(s $ a), c) >>= (f). f(s)
+  stateHandled handle(ps hasSignas, c) >>= (f). f(s)
+
+
+val evalStateHandler[A; S : Ty, ps : EfList]
+  : S -> ((st : StateSigna(S) Ef) -> A ~ st :: ps) -> A ~ ps
+let (s) => (c).
+  runStateHandler(s)(c) >>= (x). pure.Comp(x 2)
 
 
 val partialStatePlus[ps : EfList,
@@ -246,18 +453,58 @@ let (m, n) =>
 
 data ChoiceSigna : Ty -> Ty
 let decideOp : ChoiceSigna(Bool)
+let noneOp[A : Ty] : ChoiceSigna(A)
 
 
-val choiceHandler[ps : EfList, A : Ty] : ChoiceSigna Handler(A List, ps)
-let (_, decideOp, k) =>
+val choiceHandler[Sigs : (Ty -> Ty) List] : ChoiceSigna Handler((A, _). A List, Sigs)
+let (_, _, _, _, decideOp, k) =>
   k(true) >>= (x).
   k(false) >>= (y).
   pure.Comp(x :+: y)
+let (_, _, _, _, noneOp, _) => pure.Comp(nil)
+
+
+val _choose\_Has\EfList[ps : EfList, ch : ChoiceSigna Ef, A : Ty] :
+  (ps Has(ch), A List) -> A ~ ps
+let (hch, nil) => ch apply(noneOp, hch)
+let (hch, x :: xs) =>
+  ch apply(decideOp, hch) >>= (b).
+  case b
+  of true => pure.Comp(x)
+  of false => hch choose(xs)
+  end
+
+
+val choiceFinalizer[Sigs : (Ty -> Ty) List] : ((A, _). A List) Finalizer(Sigs)
+let (_, _, X, x) => pure.Comp(x :: nil)
+
+
+val listIsFunctor : _List IsFunctor\_->_
+let => isFunctor((x, f, A, B). x map(f))
+
+
+val choiceScoper[Sigs : (Ty -> Ty) List] :
+  ChoiceSigna Scoper((A, _). A List, _List, Sigs)
+let (ps, _, R, A, xs, k) =>
+  xs(listIsFunctor, (X, x). x :: nil, (qs, B, x). x) >>= runCont
+where
+  val runCont : A List -> R List ~ ps
+  let (nil) => pure.Comp(nil)
+  let (x :: xs) =>
+    k(x) >>= (x).
+    runCont(xs) >>= (xs).
+    pure.Comp(x :+: xs)
+end
+
+
+val choiceHandled[Sigs : (Ty -> Ty) List] :
+  ChoiceSigna Handled((A, _). A List, _List, Sigs)
+let => mkHandledSig.Ef(choiceHandler, choiceFinalizer, choiceScoper)
 
 
 val runChoiceHandler[A : Ty, ps : EfList] :
   ((ch : ChoiceSigna Ef) -> A ~ ch :: ps) -> A List ~ ps
-let (c) => handle(choiceHandler, pure.Comp @ (_ :: nil), c)
+let (c) => choiceHandled handle(ps hasSignas, c)
 
 
 val testChoice[ps : EfList,
@@ -294,17 +541,53 @@ let =>
   testChoice(here.Has, here.Has)
 
 
+val timeTestChoice : (Bin & Bin & Bin) List
+let =>
+  list := makeList(10.Bin * 5.Bin, nil);
+  _eval do
+  evalStateHandler(0) (_).
+  runChoiceHandler (ch).
+  here.Has choose(list) >>= (x).
+  here.Has choose(list) >>= (y).
+  here.Has choose(list) >>= (z).
+  pure.Comp(x $ y $ z)
+where
+  val.. makeList : (Bin, Bin List) -> Bin List
+  let (n, acc) => if(n =? 0.Bin) then(acc) else(makeList(-- n, n :: acc))
+end
+
+
 data IOSigna : Ty -> Ty
-let printOp : Str -> IOSigna(Unit)
+let printlnOp : Str -> IOSigna(Unit)
 
 
-val ioHandler[A : Ty] : IOSigna Handler(() ->> A, nil.EfList)
-let (_, printOp(s), k) => pure.Comp (). k(s print) eval()
+val ioHandler : IOSigna Handler((A, _). () ->> A, nil)
+let (nil.EfList, nilSignas.Ef, _, _, printlnOp(s), k) =>
+  pure.Comp (). k(s println) eval()
+
+
+val ioFinalizer : ((A, _). () ->> A) Finalizer(nil)
+let (_, _, A, a) => pure.Comp((). a)
+
+
+val effectArrowIfFunctor : ((A). () ->> A) IsFunctor
+let => isFunctor((x, f, A, B). (). f(x()))
+
+
+val ioScoper : IOSigna Scoper((A, _). () ->> A, (A). () ->> A, nil)
+let (nil.EfList, nilSignas.Ef, R, A, c, k) =>
+  pure.Comp ().
+  k(c(effectArrowIfFunctor, (X, x). (). x, (qs, B, x). x) eval()) eval()
+
+
+val ioHandled : IOSigna Handled((A, _). () ->> A, (A). () ->> A, nil)
+let => mkHandledSig.Ef(ioHandler, ioFinalizer, ioScoper)
 
 
 val runIOHandler[A : Ty] :
   ((io : IOSigna Ef) -> A ~ io :: nil.EfList) ->> A
-let (c) => handle(ioHandler, pure.Comp @ (a). ((). a) :! (() ->> A), c) eval()
+let (c) =>
+  ioHandled handle(nilSignas.Ef, c) eval()
 
 
 val decr[ps : EfList, st : StateSigna(Nat) Ef, pa : PartialSigna Ef] :
@@ -321,13 +604,35 @@ val tripleDecr[ps : EfList, st : StateSigna(Nat) Ef, pa : PartialSigna Ef] :
   (ps Has(st), ps Has(pa)) -> Unit ~ ps
 let (hst, hpa) =>
   decr(hst, hpa) :>>
-  runPartialHandler((pa).
-    decr(hst there, here.Has) :>>
-    decr(hst there, here.Has)
-  ) >>= const(pure.Comp(unit))
+  st apply(getOp, hst) >>= (s0).
+  case hpa
+  of _ there =>
+    e := (
+      _eval do
+      runPartialHandler (pa).
+      runStateHandler(s0) (st).
+      decr(here.Has, here.Has there) :>>
+      decr(here.Has, here.Has there)
+    );
+    case e
+    of no => pure.Comp(unit)
+    of yes(s $ unit) => st apply(putOp(s), hst)
+    end
+  of here.Has =>
+    e := (
+      _eval do
+      runStateHandler(s0) (st).
+      runPartialHandler (pa).
+      decr(here.Has there, here.Has) :>>
+      decr(here.Has there, here.Has)
+    );
+    s $ _ := e;
+    st apply(putOp(s), hst) >>= (_).
+    pure.Comp(unit)
+  end
 
 
-val doubleDecrStPa : Nat & ? Unit
+val tripleDecrStPa : Nat & ? Unit
 let =>
   _eval do
   runStateHandler(2) (st).
@@ -335,7 +640,7 @@ let =>
   tripleDecr(here.Has there, here.Has)
 
 
-val doubleDecrPaSt : ? (Nat & Unit)
+val tripleDecrPaSt : ? (Nat & Unit)
 let =>
   _eval do
   runPartialHandler (pa).
@@ -343,11 +648,314 @@ let =>
   tripleDecr(here.Has, here.Has there)
 
 
+val tripleDecr2[ps : EfList] :
+  (pa : PartialSigna Ef, st : StateSigna(Nat) Ef, ch : ChoiceSigna Ef) ->
+  Str ~ ch :: st :: pa :: ps
+let (pa, st, ch) =>
+  ch apply(decideOp, here.Has) >>= (b).
+  if(! b) then(pure.Comp("no choice")) else do
+  decr(here.Has there, here.Has there there) :>>
+  mk.Comp (ds : (ch :: st :: pa :: ps) CompDom). do
+  dch :: ds := ds;
+  ( contT do
+    Rch $ chIsRet := dch retIsRet;
+    chIsRet
+    rew((X). (? Str -> (st :: pa :: ps) PreComp(X)) ->
+             (st :: pa :: ps) PreComp(X), _)
+    (chk : ? Str -> (st :: pa :: ps) PreComp(dch Ret(Rch, st :: pa :: ps))). do
+    chk' := mk.Comp @ const[B := (st :: pa :: ps) CompDom] @ chk;
+    ( chScope(ds, dch, _, chk') (chIsF, defaultCh, transCh). do
+      mk.Comp (ds : (st :: pa :: ps) CompDom). do
+      dst :: ds := ds;
+      ( contT do
+        Rst $ stIsRet := dst retIsRet;
+        stIsRet
+        rew((X). (dch ScopeRet(? Str) -> (pa :: ps) PreComp(X)) -> (pa :: ps) PreComp(X), _)
+        (stk : dch ScopeRet(? Str) -> (pa :: ps) PreComp(dst Ret(Rst, pa :: ps))). do
+        stk' := mk.Comp @ const[B := (pa :: ps) CompDom] @ stk;
+        stScope[R := Rst](dst, handlePaSt(dch, dst, chIsF, defaultCh, transCh), stk')
+        pr(ds)
+      )
+    ) pr(ds)
+  ) >>= (m).
+  case m
+  of no => pure.ContT("catch")
+  of yes(s) => pure.ContT(s)
+  end
+where
+  val chScope[R; A : Ty, ch : ChoiceSigna Ef, ps : EfList] :
+    (ps CompDom,
+      dch : ch Handled(ps),
+      (dch ScopeRet IsFunctor,
+        (X : Ty, X) -> dch ScopeRet(X),
+        (qs : EfList, B : Ty, dch Ret(B, qs) ~ qs) -> dch ScopeRet(B) ~ qs) ->
+        dch ScopeRet(A) ~ ps,
+      A -> dch Ret(R, ps) ~ ps) ->
+    dch Ret(R, ps) ~ ps
+  let (ds, dch, c, chk) =>
+    dch handled scoper(ps, dch signasIsSignas(ps hasSignas), R, A, c, chk)
+
+  ## This is the new scoper:
+  val stScope[R; A : Ty, st : StateSigna(Nat) Ef, ps : EfList] :
+    (dst : st Handled(ps),
+      (dst ScopeRet IsFunctor,
+        (X : Ty, X) -> dst ScopeRet(X),
+        (qs : EfList, B : Ty, dst Ret(B, qs) ~ qs) -> dst ScopeRet(B) ~ qs) ->
+        dst ScopeRet(A) ~ ps,
+      A -> dst Ret(R, ps) ~ ps) ->
+    dst Ret(R, ps) ~ ps
+  let (dst, c, stk) =>
+    dst handled scoper(ps, dst signasIsSignas(ps hasSignas), R, A, c, stk)
+
+  val handlePaSt :
+    (dch : ch Handled(st :: pa :: ps), dst : st Handled(pa :: ps),
+      dch ScopeRet IsFunctor,
+      (X : Ty, X) -> dch ScopeRet(X),
+      (qs : EfList, B : Ty, dch Ret(B, qs) ~ qs) -> dch ScopeRet(B) ~ qs) ->
+    (dst ScopeRet IsFunctor,
+      (X : Ty, X) -> dst ScopeRet(X),
+      (qs : EfList, B : Ty, dst Ret(B, qs) ~ qs) -> dst ScopeRet(B) ~ qs) ->
+    dst ScopeRet(dch ScopeRet(? Str)) ~ pa :: ps
+  let (dch, dst, chIsF, defaultCh, transCh) => (isF, defaultSt, trans). do
+    mk.Comp (ds : (pa :: ps) CompDom). do
+    dpa :: ds := ds;
+    Rpa $ paIsRet := dpa retIsRet;
+    contT do
+    paIsRet
+    rew((X). (F(? Str) -> ps PreComp(X)) -> ps PreComp(X), _)
+    (pak : F(? Str) -> ps PreComp(dpa Ret(Rpa, ps))). do
+    h := ( runPartialHandler (pa'). ## User given "catch" function
+           trans(pa' :: ps, dch ScopeRet(Str),
+             dst handled handle(
+              dst signasIsSignas((pa' :: ps) hasSignas), _) (st'). do
+             transCh(st' :: pa' :: ps, Str,
+               dch handled handle(
+                dch signasIsSignas((st' :: pa' :: ps) hasSignas), _) (ch'). do
+               decr(here.Has there, here.Has there there) :>>
+               decr(here.Has there, here.Has there there) :>>
+               pure.Comp("end of decr")
+             )
+           )
+         ) :! (? F(Str) ~ ps);
+    ## I do not need to know Nat & _.
+    ## It just need be a functor F : Ty -> Ty together with
+    ## defaultSt : (X : Ty, X) -> F(X).
+    bind.PreComp(h pr(ds)) (h : ? F(Str)). do
+    case h
+    of no => pak(defaultSt(dch ScopeRet(? Str), defaultCh(? Str, no)))
+    of yes(x) => pak(isF map(x, chIsF map(_, yes)))
+    end ## User given catch handler.
+        ## There are other ways to solve this,
+        ## but works for now.
+  where
+    val F : Ty -> Ty
+    let => dst ScopeRet @ dch ScopeRet
+  end
+end
+
+
+val tripleDecr2PaSt : Nat -> ? (Nat & Str List)
+let (n) =>
+  _eval do
+  runPartialHandler (pa).
+  runStateHandler(n) (st).
+  runChoiceHandler (ch).
+  tripleDecr2(pa, st, ch)
+
+
+val _reset\_Has\EfList[Sig : Ty -> Ty, p : Sig Ef, ps : EfList,
+    F : (Ty, EfList) -> Ty, S : Ty -> Ty, A; B : Ty] :
+  (ps Has(p),
+    (Sigs : (Ty -> Ty) List) -> Sig Handled(F, S, Sigs),
+    (ts : EfList, ts HasSignas(ps Signas)) -> A ~ ts,
+    (qs : EfList, R : Ty, G : Ty -> Ty, G IsFunctor,
+      F(G(A), qs), B -> R ~ qs, G(B) -> R ~ qs) -> R ~ qs) ->
+  B ~ ps
+let (origHas, hand, origWork, final) =>
+  aux(origHas, idIsFunctor, (X, x). x, origWork)
+where
+  val aux[ps : EfList, Q : Ty -> Ty] :
+    (ps Has(p), Q IsFunctor,
+      (X : Ty, X) -> Q(X),
+      (ts : EfList, ts HasSignas(ps Signas)) -> Q(A) ~ ts) ->
+    Q(B) ~ ps
+  let (hs there[ps := ps', q := q, Sigq := Sigq], isQ, rollback, work) =>
+    mk.Comp (ds : (q :: ps') CompDom). do
+    dq :: ds := ds;
+    contT do
+    Rq $ isRet := dq retIsRet;
+    isRet rew((X). (Q(B) -> ps' PreComp(X)) -> ps' PreComp(X), _)
+      (k : Q(B) -> ps' PreComp(dq Ret(Rq, ps'))). do
+    k' := mk.Comp @ const[B := ps' CompDom] @ k;
+    dq handled scoper(ps', dq signasIsSignas(ps' hasSignas),
+        Rq, Q(B), cont[dq := dq], k') pr(ds)
+  where
+    val cont[q : Sigq Ef, dq : q Handled(ps')] :
+      (dq ScopeRet IsFunctor,
+        (X : Ty, X) -> dq ScopeRet(X),
+        (qs : EfList, X : Ty, dq Ret(X, qs) ~ qs) ->
+        dq ScopeRet(X) ~ qs) ->
+      dq ScopeRet(Q(B)) ~ ps'
+    let (isG, rbq, trans) =>
+      aux(hs, isG @ isQ, (X, x). rbq(Q(X), rollback(X, x)), work')
+      where
+        val work' :
+          (ts : EfList, ts HasSignas(ps' Signas)) -> dq ScopeRet(Q(A)) ~ ts
+        let (ts, tsHas) =>
+          trans(ts, Q(A), _) do
+          dq handled handle(
+            dq signasIsSignas(tsHas),
+            (t). work(t :: ts, tsHas cons))
+      end
+  end
+  let (here.Has[ps := ps'], isQ, rollback, work) =>
+    mk.Comp (ds : (p :: ps') CompDom). do
+    dp :: ds := ds;
+    Rp $ isRet := dp retIsRet;
+    contT do
+    isRet rew((X). (Q(B) -> ps' PreComp(X)) -> ps' PreComp(X), _)
+      (k : Q(B) -> ps' PreComp(dp Ret(Rp, ps'))). do
+    h := hand(ps' Signas) handle(ps' hasSignas,
+          (p'). work(p' :: ps', ps' hasSignas cons));
+    bind.PreComp(h pr(ds)) (h : F(Q(A), ps')). do
+    k' := mk.Comp @ const[B := ps' CompDom] @ k;
+    final(ps', dp Ret(Rp, ps'), Q, isQ, h, k' @ rollback(B, _), k') pr(ds)
+end
+
+
+val _catch\_Has\EfList[A : Ty, ps : EfList, pa : PartialSigna Ef] :
+  (ps Has(pa),
+    (ts : EfList, ts HasSignas(ps Signas)) -> A ~ ts,
+    [] -> A ~ ps) -> A ~ ps
+let (hasP, c, h) =>
+  hasP reset((Sigs). partialHandled, c, handleCatch) >>= (a).
+  case a
+  of yes(x) => pure.Comp(x)
+  of no => h[]
+  end
+where
+  val handleCatch :
+    (qs : EfList, R : Ty, G : Ty -> Ty, G IsFunctor,
+      ? G(A), ? A -> R ~ qs,
+      G(? A) -> R ~ qs) -> R ~ qs
+  let (qs, R, G, isG, no, r, k) => r(no)
+  let (qs, R, G, isG, yes(x), r, k) => k(isG map(x, yes))
+end
+
+
+val _localState\_Has\EfList[A; S : Ty, ps : EfList, st : StateSigna(S) Ef] :
+  (ps Has(st),
+    (ts : EfList, ts HasSignas(ps Signas)) -> A ~ ts, S) -> A ~ ps
+let (hasP, c, news) =>
+  hasP reset((Sigs). stateHandled, c, resetState)
+where
+  val resetState :
+    (qs : EfList, R : Ty, G : Ty -> Ty, G IsFunctor,
+      S -> S & G(A) ~ qs, A -> R ~ qs,
+      G(A) -> R ~ qs) -> R ~ qs
+  let (qs, R, G, isG, f, r, k) => f(news) >>= (x). k(x 2)
+end
+
+
+val tripleDecrCatch[ps : EfList, st : StateSigna(Nat) Ef, pa : PartialSigna Ef] :
+  (ps Has(st), ps Has(pa)) -> Str ~ ps
+let (hst, hpa) =>
+  decr(hst, hpa) :>>
+  hpa catch((ts, tsHas). do
+    st' $ hst' := hst trans(tsHas);
+    pa' $ hpa' := hpa trans(tsHas);
+    decr(hst', hpa') :>>
+    decr(hst', hpa') :>>
+    pure.Comp("normal return"),
+      pure.Comp("catch block"))
+
+
+val tripleDecrCatchStPa : Nat -> Nat & ? Str
+let (n) =>
+  _eval do
+  runStateHandler(n) (st).
+  runPartialHandler (pa).
+  tripleDecrCatch(here.Has there, here.Has)
+
+
+val tripleDecrCatchPaSt : Nat -> ? (Nat & Str)
+let (n) =>
+  _eval do
+  runPartialHandler (pa).
+  runStateHandler(n) (st).
+  tripleDecrCatch(here.Has, here.Has there)
+
+
+val testIOPartial[ps : EfList, io : IOSigna Ef] : ps Has(io) -> Unit ~ ps
+let (hio) =>
+  pr := testPartialEffect(2, 0) str(_str);
+  io apply(printlnOp(pr), hio) :>> do
+  pr := testPartialEffect(0, 2) str(_str);
+  io apply(printlnOp(pr), hio) :>> do
+  pr := testPartialEffect(2, 2) str(_str);
+  io apply(printlnOp(pr), hio)
+
+
+val maxSum : Bin
+let => 10.Bin * 10.Bin * 10.Bin * 10.Bin * 10.Bin
+
+
+val.. testAllSols0 :
+  (Bin & Bin, Bool, Bin & Bin) ->
+  Str | Bin & Bin
+let (a $ b, i, x $ y) =>
+  if(a * x + b * y =? 0.Bin)
+  then(in2(x $ y))
+  or((x + y) cmp(maxSum) gt?)
+  then(in1("sum exceeded max"))
+  else do
+    if(i)
+    then(testAllSols0(a $ b, ! i, (x + 1.Bin) $ y))
+    else(testAllSols0(a $ b, ! i, x $ (y + 1.Bin)))
+
+
+val.. testAllSols[ps : EfList, re : StateSigna(Bin & Bin) Ef,
+    st : StateSigna(Bool) Ef, pa : PartialSigna Ef] :
+  (ps Has(re), ps Has(st), ps Has(pa), Bin & Bin) ->
+  Bin & Bin ~ ps
+let (hre, hst, hpa, x $ y) =>
+  re apply(getOp, hre) >>= (p).
+  if(p 1 * x + p 2 * y =? 0.Bin) then(pure.Comp(x $ y))
+  or((x + y) cmp(maxSum) gt?) then(pa apply(failOp, hpa))
+  else do
+    st apply(getOp, hst) >>= (i).
+    st apply(putOp(! i), hst) >>= (_).
+    if(i)
+    then(testAllSols(hre, hst, hpa, (x + 1.Bin) $ y))
+    else(testAllSols(hre, hst, hpa, x $ (y + 1.Bin)))
+
+
+val runTestAllSols : Bin & Bin -> ? (Bin & Bin)
+let (s) =>
+  _eval do
+  runPartialHandler (pa).
+  evalStateHandler(false) (st).
+  evalStateHandler(s) (re).
+  testAllSols(here.Has, here.Has there, here.Has there there, 1.Bin $ 1.Bin)
+
+
+val testLocalState : Nat -> Nat & Nat
+let (n) =>
+  _eval do
+  runStateHandler(n) (st).
+  st apply(getOp, here.Has) >>= (n).
+  st apply(putOp(n + 1), here.Has) :>>
+  here.Has localState(_, 0) (ps, psHas). do
+  st $ hst := here.Has trans(psHas);
+  st apply(getOp, hst) >>= (n).
+  st apply(putOp(n + 1), hst) :>>
+  st apply(getOp, hst)
+
+
+
 val main : () ->> Unit
 let () =>
-  testPartialEffect(2, 0) str(_str) println;
-  testPartialEffect(0, 2) str(_str) println;
-  testPartialEffect(2, 2) str(_str) println;
+  runIOHandler (io). testIOPartial(here.Has);
   partialPlusWithStateEffect(2, 0) str((p). p str(_str, (x, _). x str)) println;
   partialPlusWithStateEffect(0, 2) str((p). p str(_str, (x, _). x str)) println;
   partialPlusWithStateEffect(2, 2) str((p). p str(_str, (x, _). x str)) println;
@@ -357,5 +965,31 @@ let () =>
   ("[" :+: testChoice1 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
   ("[" :+: testChoice2 str((xs). "[" :+: xs str(_str, ",") :+: "]", ",") :+: "]") println;
   ("[" :+: testChoice3 str(_str, ",") :+: "]") println;
-  doubleDecrStPa str(_str, (x, _). x str((_). "unit")) println;
-  doubleDecrPaSt str(_ str(_str, (_, _). "unit")) println
+  tripleDecrStPa str(_str, (x, _). x str((_). "unit")) println;
+  tripleDecrPaSt str(_ str(_str, (_, _). "unit")) println;
+  tripleDecr2PaSt(0) str(_ str(_str, (x, _). x str(id, ", "))) println;
+  tripleDecr2PaSt(1) str(_ str(_str, (x, _). x str(id, ", "))) println;
+  tripleDecr2PaSt(2) str(_ str(_str, (x, _). x str(id, ", "))) println;
+  tripleDecr2PaSt(3) str(_ str(_str, (x, _). x str(id, ", "))) println;
+  tripleDecr2PaSt(4) str(_ str(_str, (x, _). x str(id, ", "))) println;
+  tripleDecrCatchPaSt(0) str(_ str(_str, (x, _). x)) println;
+  tripleDecrCatchPaSt(1) str(_ str(_str, (x, _). x)) println;
+  tripleDecrCatchPaSt(2) str(_ str(_str, (x, _). x)) println;
+  tripleDecrCatchPaSt(3) str(_ str(_str, (x, _). x)) println;
+  tripleDecrCatchPaSt(4) str(_ str(_str, (x, _). x)) println;
+  tripleDecrCatchStPa(0) str(_str, (x, _). x str(id)) println;
+  tripleDecrCatchStPa(1) str(_str, (x, _). x str(id)) println;
+  tripleDecrCatchStPa(2) str(_str, (x, _). x str(id)) println;
+  tripleDecrCatchStPa(3) str(_str, (x, _). x str(id)) println;
+  tripleDecrCatchStPa(4) str(_str, (x, _). x str(id)) println;
+  case testAllSols0(1.Bin $ 1.Bin, false, 1.Bin $ 1.Bin)
+  of in1(s) => s println
+  of in2(x) => x str(_str, (x, _). x str) println
+  end;
+  case runTestAllSols(1.Bin $ 1.Bin)
+  of no => "sum exceeded max" println
+  of yes(x) => x str(_str, (x, _). x str) println
+  end;
+  testLocalState(4) str(_str, (x, _). x str) println;
+  timeTestChoice len str println
+

@@ -1,0 +1,22 @@
+import "yu/prelude.yu"
+
+
+data _Ef\_->_ : (Ty -> Ty) -> Ty
+let mk.Ef[Sig : Ty -> Ty] : Ty -> Sig Ef
+
+
+data EfList : Ty
+let nil.EfList : EfList
+let _::_\EfList[Sig : Ty -> Ty] : (Sig Ef, EfList) -> EfList
+
+
+val _transBUG\_Has\EfList[Sig : Ty -> Ty, p : Sig Ef, ps : EfList] :
+  ps Has(p) -> Unit
+let (_ there) => unit
+
+
+data _Has\EfList[Sig : Ty -> Ty] : (EfList, Sig Ef) -> Ty
+let here.Has[ps : EfList, Sig : Ty -> Ty, p : Sig Ef] :
+  (p :: ps) Has(p)
+let _there\_Has\EfList[ps : EfList, Sigp; Sigq : Ty -> Ty, p : Sigp Ef, q : Sigq Ef] :
+  ps Has(p) -> (q :: ps) Has(p)

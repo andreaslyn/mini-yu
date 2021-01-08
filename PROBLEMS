@@ -5,4 +5,5 @@ operand type, and memoise all operand types inferred on the way. It
 will not be necessary to search under binders, since functions and
 arrows are base cases for this operand type search.
 
-TypeCheck.hs: TODO: Should not use na0 when user has given name!
+Bug when data type is defined below check for exhaustive patterns:
+test/BUG.yu
