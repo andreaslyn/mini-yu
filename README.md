@@ -198,7 +198,7 @@ val _+_\Bool : (Bool, Bool) -> Bool
 let (true, b) => true
 let (false, b) => b
 ```
-For left associative infix operators, such at `+`, mini yu uses the
+For left associative infix operators, such as `+`, mini yu uses the
 type of the first argument to determine which operator to apply. So
 `true + x` applies `_+_\Bool` and `1 + y` applies `_+_\Nat`.
 
@@ -256,7 +256,7 @@ let nil.Vec[A : Ty] : A Vec(0)
 let _::_\_Vec\Ty[A : Ty, n : Nat] : (A, A Vec(n)) -> A Vec(++ n)
 ```
 Note that infix `::` is right associative, so it overloads on the
-seconds argument, which is `_Vec\Ty` in this case.
+second argument, which is `_Vec\Ty` in this case.
 
 As demonstrated earlier, mini yu supports dependent implicit arguments.
 For an example of a dependent (explicit) arguments we define a (dependent)
