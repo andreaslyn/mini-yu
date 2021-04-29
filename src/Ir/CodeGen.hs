@@ -15,7 +15,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans (lift)
 import Control.Monad (when)
 import qualified Data.List as List
-import Data.Maybe (isJust)
+import Data.Maybe (isNothing, isJust)
 
 import Control.Exception (assert)
 --import Debug.Trace (trace)
@@ -250,6 +250,9 @@ writePapFunClosure c v rs n = do
   writeStr ") {"
   incIndent >> newLine
   writeTempsAndIncs recIdx 0
+  if (isNothing v)
+  then writeStr "yur_unref(self);" >> newLine
+  else return ()
   writeStr "return "
   writeStr (funName c)
   writeStr "("
