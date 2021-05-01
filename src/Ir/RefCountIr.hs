@@ -365,7 +365,7 @@ isVarArgIn :: Var -> PreLetExpr -> Bool
 isVarArgIn v (PreAp _ r rs) = isVarArgInRefs v (r : rs)
 isVarArgIn v (PrePap _ rs) = isVarArgInRefs v rs
 isVarArgIn _ (PreMkLazy _ _ _) = False
-isVarArgIn v (PreForce _ r rs) = isVarArgInRefs v (r : preForceProjArgs rs)
+isVarArgIn v (PreForce _ _ rs) = isVarArgInRefs v (preForceProjArgs rs)
 isVarArgIn v (PreCtorBox _ rs) = isVarArgInRefs v rs
 isVarArgIn _ (PreProj _ _) = False
 isVarArgIn _ (PreReset _) = False
@@ -467,8 +467,8 @@ irIncDecFunExpr ctx (PreLet v e1@(PreAp _ r rs) e2 lli) =
   irIncDecLetExprAp ctx v e1 e2 (r : rs) lli
 irIncDecFunExpr ctx (PreLet v e1@(PrePap _ rs) e2 lli) =
   irIncDecLetExprAp ctx v e1 e2 rs lli
-irIncDecFunExpr ctx (PreLet v e1@(PreForce _ r rs) e2 lli) =
-  irIncDecLetExprAp ctx v e1 e2 (r : preForceProjArgs rs) lli
+irIncDecFunExpr ctx (PreLet v e1@(PreForce _ _ rs) e2 lli) =
+  irIncDecLetExprAp ctx v e1 e2 (preForceProjArgs rs) lli
 irIncDecFunExpr ctx (PreLet v e1@(PreCtorBox _ []) e2 lli) =
   let (prefix, ctx') = decDeadVars ctx lli
       e2' = irIncDecFunExpr (IntSet.insert v ctx') e2

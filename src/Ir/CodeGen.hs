@@ -250,7 +250,7 @@ writePapFunClosure c v rs n = do
   writeStr ") {"
   incIndent >> newLine
   writeTempsAndIncs recIdx 0
-  if (isNothing v)
+  if isNothing v
   then writeStr "yur_unref(self);" >> newLine
   else return ()
   writeStr "return "
