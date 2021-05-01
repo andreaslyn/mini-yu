@@ -1,0 +1,643 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls  ms/call  ms/call  name    
+ 16.67      0.05     0.05                             free
+ 13.33      0.09     0.04 15172019     0.00     0.00  yur_unref_children
+ 10.00      0.12     0.03  2020201     0.00     0.00  yu__du_fn9performShift
+  6.67      0.14     0.02  5050500     0.00     0.00  yu__pa_fn2bind_doContT2
+  6.67      0.16     0.02  2020200     0.00     0.00  yu__fn2_poalt_baIn
+  6.67      0.18     0.02                             mi_malloc
+  6.67      0.20     0.02                             yur_mark_children_atomic
+  3.33      0.21     0.01 16192736     0.00     0.00  yur_malloc
+  3.33      0.22     0.01  3040402     0.00     0.00  yu__du_fn0bind_doComp
+  3.33      0.23     0.01  3040401     0.00     0.00  yu__pa_fn1bind_doContT2
+  3.33      0.24     0.01  3030303     0.00     0.00  yu__du_fn0pure_doComp
+  3.33      0.25     0.01  3030301     0.00     0.00  yu__pa_fn1pure_doContT1
+  3.33      0.26     0.01  2020200     0.00     0.00  yu__pa_fn2_poalt_baIn2
+  3.33      0.27     0.01  1010100     0.00     0.00  yu__du_fn0_pofold_ba_poList_baTy
+  3.33      0.28     0.01  1010100     0.00     0.00  yu__pa_du_du_fn4shift_doNondetC2
+  3.33      0.29     0.01                             mi_heap_malloc
+  3.33      0.30     0.01                             yu__du_du_fn2shift_doStateC
+  0.00      0.30     0.00 15172019     0.00     0.00  yur_dealloc
+  0.00      0.30     0.00  2020201     0.00     0.00  yu__du_du_du_fn0shift_doNondetC
+  0.00      0.30     0.00  2020201     0.00     0.00  yu__fn0performShift
+  0.00      0.30     0.00  2020201     0.00     0.00  yu__pa_du_fn9performShift6
+  0.00      0.30     0.00  2020201     0.00     0.00  yu__pa_fn0shift_doNondetC1
+  0.00      0.30     0.00  1010100     0.00     0.00  yu__pa_du_du_fn2shift_doNondetC2
+  0.00      0.30     0.00  1000000     0.00     0.00  yu__fn18timeTestChoice
+  0.00      0.30     0.00  1000000     0.00     0.00  yu__pa_fn18timeTestChoice3
+  0.00      0.30     0.00    10101     0.00     0.00  yu__du_fn0_pochoose_baIn
+  0.00      0.30     0.00    10000     0.00     0.00  yu__fn14timeTestChoice
+  0.00      0.30     0.00    10000     0.00     0.00  yu__pa_fn14timeTestChoice4
+  0.00      0.30     0.00      102     0.00     0.00  yur_memoize
+  0.00      0.30     0.00      101     0.00     0.00  yu__pocmp_baBin
+  0.00      0.30     0.00      101     0.00     0.00  yu__poeq_qu_baOrder
+  0.00      0.30     0.00      100     0.00     0.00  yu__fn10timeTestChoice
+  0.00      0.30     0.00      100     0.00     0.00  yu__fn1makeList0___timeTestChoice
+  0.00      0.30     0.00      100     0.00     0.00  yu__pa_fn10timeTestChoice4
+  0.00      0.30     0.00      100     0.00     0.00  yu__pa_fn1makeList0___timeTestChoice2
+  0.00      0.30     0.00      100     0.00     0.00  yu__pr_mi_mi_baBin
+  0.00      0.30     0.00      100     0.00     0.00  yu__pr_mi_mi_mi_baBin_pl
+  0.00      0.30     0.00       99     0.00     0.00  yu__pr_mi_mi_baBin_pl
+  0.00      0.30     0.00        3     0.00     0.00  yur_mark_children_static
+  0.00      0.30     0.00        2     0.00     0.00  yu__poprint_baChar
+  0.00      0.30     0.00        1     0.00     0.00  yu_10_doBin
+  0.00      0.30     0.00        1     0.00     0.00  yu_10_doBin_pl
+  0.00      0.30     0.00        1     0.00     0.00  yu__du_fn0_poelse_baThen_doBool
+  0.00      0.30     0.00        1     0.00     0.00  yu__du_fn0_polen_ba_poList_baTy
+  0.00      0.30     0.00        1     0.00     0.00  yu__fn0isFunctor_doComp
+  0.00      0.30     0.00        1     0.00     0.00  yu__fn0unit_doStateC
+  0.00      0.30     0.00        1     0.00     0.00  yu__in_as_baBin
+  0.00      0.30     0.00        1     0.00     0.00  yu__in_as_baBin_pl
+  0.00      0.30     0.00        1     0.00     0.00  yu__in_pl_baBin_pl
+  0.00      0.30     0.00        1     0.00     0.00  yu__pa_du_fn1handle_doHandler4
+  0.00      0.30     0.00        1     0.00     0.00  yu__pa_du_fn1unit_doStateC3
+  0.00      0.30     0.00        1     0.00     0.00  yu__pa_fn0_po2_ba_pr_am_ba_in_mi_gr0
+  0.00      0.30     0.00        1     0.00     0.00  yu__pa_fn0makeList0___timeTestChoice1
+  0.00      0.30     0.00        1     0.00     0.00  yu__pa_fn0unit_doStateC2
+  0.00      0.30     0.00        1     0.00     0.00  yu__pa_fn1run_doStateC1
+  0.00      0.30     0.00        1     0.00     0.00  yu__paisFunctor_doid0
+  0.00      0.30     0.00        1     0.00     0.00  yu__postr_baNat
+  0.00      0.30     0.00        1     0.00     0.00  yu__pr_pl_pl_baBin_pl
+  0.00      0.30     0.00        1     0.00     0.00  yu_aux0____poprint_baStr
+  0.00      0.30     0.00        1     0.00   190.01  yu_timeTestChoice
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+Copyright (C) 2012-2015 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+		     Call graph (explanation follows)
+
+
+granularity: each sample hit covers 2 byte(s) for 3.33% of 0.30 seconds
+
+index % time    self  children    called     name
+                                                 <spontaneous>
+[1]     63.3    0.00    0.19                 yu_main [1]
+                0.00    0.19       1/1           yu_timeTestChoice [2]
+                0.00    0.00       1/1           yu_aux0____poprint_baStr [41]
+                0.00    0.00       1/15172019     yur_unref_children [7]
+                0.00    0.00       1/1           yu__postr_baNat [44]
+                0.00    0.00       1/1           yu__du_fn0_polen_ba_poList_baTy [59]
+                0.00    0.00       1/2           yu__poprint_baChar [58]
+                0.00    0.00       1/15172019     yur_dealloc [47]
+                0.00    0.00       1/3           yur_mark_children_static [57]
+-----------------------------------------------
+                0.00    0.19       1/1           yu_main [1]
+[2]     63.3    0.00    0.19       1         yu_timeTestChoice [2]
+                0.02    0.15 2020200/2020201     yu__pa_fn2bind_doContT2 <cycle 1> [4]
+                0.01    0.01 2020202/3040401     yu__pa_fn1bind_doContT2 [13]
+                0.01    0.00 2020201/3030301     yu__pa_fn1pure_doContT1 [14]
+                0.00    0.00       1/1           yu__du_fn0_poelse_baThen_doBool [29]
+                0.00    0.00       1/10101       yu__du_fn0_pochoose_baIn [18]
+                0.00    0.00       1/2020201     yu__pa_du_fn9performShift6 <cycle 1> [6]
+                0.00    0.00      32/16192736     yur_malloc [23]
+                0.00    0.00       3/3040402     yu__du_fn0bind_doComp [16]
+                0.00    0.00       1/1           yu__in_as_baBin [33]
+                0.00    0.00       2/3030303     yu__du_fn0pure_doComp [17]
+                0.00    0.00       1/1           yu__pa_du_fn1handle_doHandler4 [36]
+                0.00    0.00       1/1           yu__pa_du_fn1unit_doStateC3 [37]
+                0.00    0.00       1/1           yu__pa_fn0unit_doStateC2 [39]
+                0.00    0.00       1/1           yu__pa_fn1run_doStateC1 [40]
+                0.00    0.00       1/1           yu__pa_fn0_po2_ba_pr_am_ba_in_mi_gr0 [38]
+                0.00    0.00       1/1           yu_10_doBin [42]
+                0.00    0.00       1/1           yu__fn0unit_doStateC [46]
+                0.00    0.00       1/101         yu__poeq_qu_baOrder [53]
+                0.00    0.00       1/101         yu__pocmp_baBin [52]
+                0.00    0.00       1/1           yu__fn0isFunctor_doComp [60]
+                0.00    0.00       1/1           yu__paisFunctor_doid0 [62]
+                0.00    0.00       1/3           yur_mark_children_static [57]
+                0.00    0.00       1/102         yur_memoize [51]
+-----------------------------------------------
+[3]     55.5    0.02    0.15 2020201+8080801 <cycle 1 as a whole> [3]
+                0.02    0.09 5050500             yu__pa_fn2bind_doContT2 <cycle 1> [4]
+                0.00    0.04 2020201             yu__pa_du_fn9performShift6 <cycle 1> [6]
+                0.00    0.01 1010100             yu__pa_du_du_fn2shift_doNondetC2 <cycle 1> [24]
+                0.00    0.01 2020201             yu__du_du_du_fn0shift_doNondetC <cycle 1> [25]
+-----------------------------------------------
+                             1010100             yu__pa_du_du_fn2shift_doNondetC2 <cycle 1> [24]
+                             2020200             yu__du_du_du_fn0shift_doNondetC <cycle 1> [25]
+                0.02    0.15 2020200/2020201     yu_timeTestChoice [2]
+[4]     35.9    0.02    0.09 5050500         yu__pa_fn2bind_doContT2 <cycle 1> [4]
+                0.02    0.00 2020200/2020200     yu__fn2_poalt_baIn [9]
+                0.01    0.01 1010100/1010100     yu__pa_du_du_fn4shift_doNondetC2 [10]
+                0.01    0.00 2020200/2020200     yu__pa_fn2_poalt_baIn2 [15]
+                0.00    0.01   10000/10000       yu__fn14timeTestChoice [19]
+                0.01    0.00 3030300/15172019     yur_unref_children [7]
+                0.00    0.00 1020200/3040402     yu__du_fn0bind_doComp [16]
+                0.00    0.00 1010100/3030303     yu__du_fn0pure_doComp [17]
+                0.00    0.00 1000000/2020201     yu__fn0performShift [26]
+                0.00    0.00 1000000/1000000     yu__fn18timeTestChoice [27]
+                0.00    0.00     100/100         yu__fn10timeTestChoice [28]
+                0.00    0.00 3030300/15172019     yur_dealloc [47]
+                0.00    0.00 1000000/1000000     yu__pa_fn18timeTestChoice3 [49]
+                0.00    0.00   10000/10000       yu__pa_fn14timeTestChoice4 [50]
+                0.00    0.00     100/100         yu__pa_fn10timeTestChoice4 [54]
+                             1010100             yu__pa_du_du_fn2shift_doNondetC2 <cycle 1> [24]
+-----------------------------------------------
+                                                 <spontaneous>
+[5]     16.7    0.05    0.00                 free [5]
+-----------------------------------------------
+                             1010100             yu__pa_du_du_fn2shift_doNondetC2 <cycle 1> [24]
+                             1010100             yu__du_du_du_fn0shift_doNondetC <cycle 1> [25]
+                0.00    0.00       1/2020201     yu_timeTestChoice [2]
+[6]     14.4    0.00    0.04 2020201         yu__pa_du_fn9performShift6 <cycle 1> [6]
+                0.03    0.00 2020201/2020201     yu__du_fn9performShift [8]
+                0.01    0.00 2020201/15172019     yur_unref_children [7]
+                0.00    0.00 1010101/3030303     yu__du_fn0pure_doComp [17]
+                0.00    0.00 1010100/3040402     yu__du_fn0bind_doComp [16]
+                0.00    0.00 2020201/2020201     yu__pa_fn0shift_doNondetC1 [48]
+                0.00    0.00 2020201/15172019     yur_dealloc [47]
+                             2020201             yu__du_du_du_fn0shift_doNondetC <cycle 1> [25]
+-----------------------------------------------
+                             1020222             yur_unref_children [7]
+                0.00    0.00       1/15172019     yu__pa_fn0_po2_ba_pr_am_ba_in_mi_gr0 [38]
+                0.00    0.00       1/15172019     yu__pa_fn1run_doStateC1 [40]
+                0.00    0.00       1/15172019     yu_aux0____poprint_baStr [41]
+                0.00    0.00       1/15172019     yu__du_fn0pure_doComp [17]
+                0.00    0.00       1/15172019     yu__pa_fn0unit_doStateC2 [39]
+                0.00    0.00       1/15172019     yu__pa_du_fn1unit_doStateC3 [37]
+                0.00    0.00       1/15172019     yu_main [1]
+                0.00    0.00       2/15172019     yu__pa_du_fn1handle_doHandler4 [36]
+                0.00    0.00       2/15172019     yu__in_pl_baBin_pl [35]
+                0.00    0.00     303/15172019     yu__du_fn0_poelse_baThen_doBool [29]
+                0.00    0.00   10101/15172019     yu__du_du_du_fn0shift_doNondetC <cycle 1> [25]
+                0.00    0.00 1010100/15172019     yu__fn2_poalt_baIn [9]
+                0.00    0.00 1010100/15172019     yu__pa_fn2_poalt_baIn2 [15]
+                0.00    0.00 1010100/15172019     yu__pa_du_du_fn2shift_doNondetC2 <cycle 1> [24]
+                0.00    0.00 1010100/15172019     yu__pa_du_du_fn4shift_doNondetC2 [10]
+                0.00    0.00 1010101/15172019     yu__fn0performShift [26]
+                0.01    0.00 2020201/15172019     yu__pa_fn1pure_doContT1 [14]
+                0.01    0.00 2020201/15172019     yu__pa_du_fn9performShift6 <cycle 1> [6]
+                0.01    0.00 3030300/15172019     yu__pa_fn2bind_doContT2 <cycle 1> [4]
+                0.01    0.00 3040401/15172019     yu__pa_fn1bind_doContT2 [13]
+[7]     13.3    0.04    0.00 15172019+1020222 yur_unref_children [7]
+                             1020222             yur_unref_children [7]
+-----------------------------------------------
+                0.03    0.00 2020201/2020201     yu__pa_du_fn9performShift6 <cycle 1> [6]
+[8]     10.0    0.03    0.00 2020201         yu__du_fn9performShift [8]
+-----------------------------------------------
+                0.02    0.00 2020200/2020200     yu__pa_fn2bind_doContT2 <cycle 1> [4]
+[9]      7.6    0.02    0.00 2020200         yu__fn2_poalt_baIn [9]
+                0.00    0.00 1010100/15172019     yur_unref_children [7]
+                0.00    0.00 1010100/15172019     yur_dealloc [47]
+-----------------------------------------------
+                0.01    0.01 1010100/1010100     yu__pa_fn2bind_doContT2 <cycle 1> [4]
+[10]     7.6    0.01    0.01 1010100         yu__pa_du_du_fn4shift_doNondetC2 [10]
+                0.01    0.00 1010100/1010100     yu__du_fn0_pofold_ba_poList_baTy [20]
+                0.00    0.00 1010100/15172019     yur_unref_children [7]
+                0.00    0.00 1010100/15172019     yur_dealloc [47]
+-----------------------------------------------
+                                                 <spontaneous>
+[11]     6.7    0.02    0.00                 mi_malloc [11]
+-----------------------------------------------
+                                                 <spontaneous>
+[12]     6.7    0.02    0.00                 yur_mark_children_atomic [12]
+-----------------------------------------------
+                0.00    0.00   20200/3040401     yu__du_du_du_fn0shift_doNondetC <cycle 1> [25]
+                0.00    0.00  999999/3040401     yu__pa_du_du_fn2shift_doNondetC2 <cycle 1> [24]
+                0.01    0.01 2020202/3040401     yu_timeTestChoice [2]
+[13]     6.6    0.01    0.01 3040401         yu__pa_fn1bind_doContT2 [13]
+                0.01    0.00 3040401/15172019     yur_unref_children [7]
+                0.00    0.00 3040401/16192736     yur_malloc [23]
+                0.00    0.00 3040401/15172019     yur_dealloc [47]
+-----------------------------------------------
+                0.00    0.00 1010100/3030301     yu__du_du_du_fn0shift_doNondetC <cycle 1> [25]
+                0.01    0.00 2020201/3030301     yu_timeTestChoice [2]
+[14]     5.1    0.01    0.01 3030301         yu__pa_fn1pure_doContT1 [14]
+                0.01    0.00 2020201/15172019     yur_unref_children [7]
+                0.00    0.00 2020201/15172019     yur_dealloc [47]
+-----------------------------------------------
+                0.01    0.00 2020200/2020200     yu__pa_fn2bind_doContT2 <cycle 1> [4]
+[15]     4.2    0.01    0.00 2020200         yu__pa_fn2_poalt_baIn2 [15]
+                0.00    0.00 1010100/15172019     yur_unref_children [7]
+                0.00    0.00 1010100/15172019     yur_dealloc [47]
+-----------------------------------------------
+                0.00    0.00       3/3040402     yu_timeTestChoice [2]
+                0.00    0.00     100/3040402     yu__fn10timeTestChoice [28]
+                0.00    0.00   10000/3040402     yu__fn14timeTestChoice [19]
+                0.00    0.00  999999/3040402     yu__du_fn0_pochoose_baIn [18]
+                0.00    0.00 1010100/3040402     yu__pa_du_fn9performShift6 <cycle 1> [6]
+                0.00    0.00 1020200/3040402     yu__pa_fn2bind_doContT2 <cycle 1> [4]
+[16]     4.0    0.01    0.00 3040402         yu__du_fn0bind_doComp [16]
+                0.00    0.00 3040401/16192736     yur_malloc [23]
+-----------------------------------------------
+                0.00    0.00       2/3030303     yu_timeTestChoice [2]
+                0.00    0.00 1010100/3030303     yu__pa_fn2bind_doContT2 <cycle 1> [4]
+                0.00    0.00 1010100/3030303     yu__du_fn0_pochoose_baIn [18]
+                0.00    0.00 1010101/3030303     yu__pa_du_fn9performShift6 <cycle 1> [6]
+[17]     4.0    0.01    0.00 3030303         yu__du_fn0pure_doComp [17]
+                0.00    0.00 3030301/16192736     yur_malloc [23]
+                0.00    0.00       1/15172019     yur_unref_children [7]
+                0.00    0.00       1/15172019     yur_dealloc [47]
+-----------------------------------------------
+                             1010100             yu__du_fn0_pochoose_baIn [18]
+                0.00    0.00       1/10101       yu_timeTestChoice [2]
+                0.00    0.00     100/10101       yu__fn10timeTestChoice [28]
+                0.00    0.01   10000/10101       yu__fn14timeTestChoice [19]
+[18]     3.5    0.00    0.01   10101+1010100 yu__du_fn0_pochoose_baIn [18]
+                0.00    0.00 1010100/3030303     yu__du_fn0pure_doComp [17]
+                0.00    0.00  999999/3040402     yu__du_fn0bind_doComp [16]
+                0.00    0.00 1020201/2020201     yu__fn0performShift [26]
+                0.00    0.00 1010100/16192736     yur_malloc [23]
+                             1010100             yu__du_fn0_pochoose_baIn [18]
+-----------------------------------------------
+                0.00    0.01   10000/10000       yu__pa_fn2bind_doContT2 <cycle 1> [4]
+[19]     3.5    0.00    0.01   10000         yu__fn14timeTestChoice [19]
+                0.00    0.01   10000/10101       yu__du_fn0_pochoose_baIn [18]
+                0.00    0.00   10000/3040402     yu__du_fn0bind_doComp [16]
+                0.00    0.00   30000/16192736     yur_malloc [23]
+-----------------------------------------------
+                0.01    0.00 1010100/1010100     yu__pa_du_du_fn4shift_doNondetC2 [10]
+[20]     3.3    0.01    0.00 1010100         yu__du_fn0_pofold_ba_poList_baTy [20]
+-----------------------------------------------
+                                                 <spontaneous>
+[21]     3.3    0.01    0.00                 mi_heap_malloc [21]
+-----------------------------------------------
+                                                 <spontaneous>
+[22]     3.3    0.01    0.00                 yu__du_du_fn2shift_doStateC [22]
+-----------------------------------------------
+                0.00    0.00       1/16192736     yu_10_doBin [42]
+                0.00    0.00       1/16192736     yu__in_as_baBin [33]
+                0.00    0.00       1/16192736     yu__fn0unit_doStateC [46]
+                0.00    0.00       1/16192736     yu__pa_du_fn1unit_doStateC3 [37]
+                0.00    0.00       2/16192736     yu__pr_pl_pl_baBin_pl [45]
+                0.00    0.00       2/16192736     yu__postr_baNat [44]
+                0.00    0.00       3/16192736     yu_10_doBin_pl [43]
+                0.00    0.00       3/16192736     yu__in_pl_baBin_pl [35]
+                0.00    0.00       3/16192736     yu__in_as_baBin_pl [34]
+                0.00    0.00      32/16192736     yu_timeTestChoice [2]
+                0.00    0.00      99/16192736     yu__pr_mi_mi_mi_baBin_pl [31]
+                0.00    0.00     184/16192736     yu__pr_mi_mi_baBin_pl [32]
+                0.00    0.00     300/16192736     yu__fn10timeTestChoice [28]
+                0.00    0.00     500/16192736     yu__fn1makeList0___timeTestChoice [30]
+                0.00    0.00   30000/16192736     yu__fn14timeTestChoice [19]
+                0.00    0.00 1010100/16192736     yu__pa_du_du_fn2shift_doNondetC2 <cycle 1> [24]
+                0.00    0.00 1010100/16192736     yu__du_fn0_pochoose_baIn [18]
+                0.00    0.00 1010100/16192736     yu__du_du_du_fn0shift_doNondetC <cycle 1> [25]
+                0.00    0.00 2000000/16192736     yu__fn18timeTestChoice [27]
+                0.00    0.00 2020201/16192736     yu__fn0performShift [26]
+                0.00    0.00 3030301/16192736     yu__du_fn0pure_doComp [17]
+                0.00    0.00 3040401/16192736     yu__pa_fn1bind_doContT2 [13]
+                0.00    0.00 3040401/16192736     yu__du_fn0bind_doComp [16]
+[23]     3.3    0.01    0.00 16192736         yur_malloc [23]
+-----------------------------------------------
+                             1010100             yu__pa_fn2bind_doContT2 <cycle 1> [4]
+[24]     3.3    0.00    0.01 1010100         yu__pa_du_du_fn2shift_doNondetC2 <cycle 1> [24]
+                0.00    0.00  999999/3040401     yu__pa_fn1bind_doContT2 [13]
+                0.00    0.00 1010100/15172019     yur_unref_children [7]
+                0.00    0.00 1010100/16192736     yur_malloc [23]
+                0.00    0.00 1010100/15172019     yur_dealloc [47]
+                             1010100             yu__pa_du_fn9performShift6 <cycle 1> [6]
+                             1010100             yu__pa_fn2bind_doContT2 <cycle 1> [4]
+-----------------------------------------------
+                             2020201             yu__pa_du_fn9performShift6 <cycle 1> [6]
+[25]     2.0    0.00    0.01 2020201         yu__du_du_du_fn0shift_doNondetC <cycle 1> [25]
+                0.00    0.00 1010100/3030301     yu__pa_fn1pure_doContT1 [14]
+                0.00    0.00 1010100/16192736     yur_malloc [23]
+                0.00    0.00   20200/3040401     yu__pa_fn1bind_doContT2 [13]
+                0.00    0.00   10101/15172019     yur_unref_children [7]
+                0.00    0.00   10101/15172019     yur_dealloc [47]
+                             2020200             yu__pa_fn2bind_doContT2 <cycle 1> [4]
+                             1010100             yu__pa_du_fn9performShift6 <cycle 1> [6]
+-----------------------------------------------
+                0.00    0.00 1000000/2020201     yu__pa_fn2bind_doContT2 <cycle 1> [4]
+                0.00    0.00 1020201/2020201     yu__du_fn0_pochoose_baIn [18]
+[26]     1.3    0.00    0.00 2020201         yu__fn0performShift [26]
+                0.00    0.00 1010101/15172019     yur_unref_children [7]
+                0.00    0.00 2020201/16192736     yur_malloc [23]
+                0.00    0.00 1010101/15172019     yur_dealloc [47]
+-----------------------------------------------
+                0.00    0.00 1000000/1000000     yu__pa_fn2bind_doContT2 <cycle 1> [4]
+[27]     0.4    0.00    0.00 1000000         yu__fn18timeTestChoice [27]
+                0.00    0.00 2000000/16192736     yur_malloc [23]
+-----------------------------------------------
+                0.00    0.00     100/100         yu__pa_fn2bind_doContT2 <cycle 1> [4]
+[28]     0.0    0.00    0.00     100         yu__fn10timeTestChoice [28]
+                0.00    0.00     100/10101       yu__du_fn0_pochoose_baIn [18]
+                0.00    0.00     100/3040402     yu__du_fn0bind_doComp [16]
+                0.00    0.00     300/16192736     yur_malloc [23]
+-----------------------------------------------
+                                 100             yu__du_fn0_poelse_baThen_doBool [29]
+                0.00    0.00       1/1           yu_timeTestChoice [2]
+[29]     0.0    0.00    0.00       1+100     yu__du_fn0_poelse_baThen_doBool [29]
+                0.00    0.00     303/15172019     yur_unref_children [7]
+                0.00    0.00     100/100         yu__fn1makeList0___timeTestChoice [30]
+                0.00    0.00     303/15172019     yur_dealloc [47]
+                0.00    0.00     101/102         yur_memoize [51]
+                0.00    0.00     100/100         yu__pa_fn1makeList0___timeTestChoice2 [55]
+                0.00    0.00       1/1           yu__pa_fn0makeList0___timeTestChoice1 [61]
+                                 100             yu__du_fn0_poelse_baThen_doBool [29]
+-----------------------------------------------
+                0.00    0.00     100/100         yu__du_fn0_poelse_baThen_doBool [29]
+[30]     0.0    0.00    0.00     100         yu__fn1makeList0___timeTestChoice [30]
+                0.00    0.00     500/16192736     yur_malloc [23]
+                0.00    0.00     100/100         yu__pr_mi_mi_mi_baBin_pl [31]
+                0.00    0.00     100/100         yu__pr_mi_mi_baBin [56]
+                0.00    0.00     100/101         yu__pocmp_baBin [52]
+                0.00    0.00     100/101         yu__poeq_qu_baOrder [53]
+-----------------------------------------------
+                0.00    0.00     100/100         yu__fn1makeList0___timeTestChoice [30]
+[31]     0.0    0.00    0.00     100         yu__pr_mi_mi_mi_baBin_pl [31]
+                0.00    0.00      99/99          yu__pr_mi_mi_baBin_pl [32]
+                0.00    0.00      99/16192736     yur_malloc [23]
+-----------------------------------------------
+                                  91             yu__pr_mi_mi_baBin_pl [32]
+                0.00    0.00      99/99          yu__pr_mi_mi_mi_baBin_pl [31]
+[32]     0.0    0.00    0.00      99+91      yu__pr_mi_mi_baBin_pl [32]
+                0.00    0.00     184/16192736     yur_malloc [23]
+                                  91             yu__pr_mi_mi_baBin_pl [32]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_timeTestChoice [2]
+[33]     0.0    0.00    0.00       1         yu__in_as_baBin [33]
+                0.00    0.00       1/1           yu__in_as_baBin_pl [34]
+                0.00    0.00       1/16192736     yur_malloc [23]
+-----------------------------------------------
+                                   3             yu__in_as_baBin_pl [34]
+                0.00    0.00       1/1           yu__in_as_baBin [33]
+[34]     0.0    0.00    0.00       1+3       yu__in_as_baBin_pl [34]
+                0.00    0.00       1/1           yu__in_pl_baBin_pl [35]
+                0.00    0.00       3/16192736     yur_malloc [23]
+                                   3             yu__in_as_baBin_pl [34]
+-----------------------------------------------
+                                   3             yu__in_pl_baBin_pl [35]
+                0.00    0.00       1/1           yu__in_as_baBin_pl [34]
+[35]     0.0    0.00    0.00       1+3       yu__in_pl_baBin_pl [35]
+                0.00    0.00       2/15172019     yur_unref_children [7]
+                0.00    0.00       3/16192736     yur_malloc [23]
+                0.00    0.00       1/1           yu__pr_pl_pl_baBin_pl [45]
+                0.00    0.00       2/15172019     yur_dealloc [47]
+                                   3             yu__in_pl_baBin_pl [35]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_timeTestChoice [2]
+[36]     0.0    0.00    0.00       1         yu__pa_du_fn1handle_doHandler4 [36]
+                0.00    0.00       2/15172019     yur_unref_children [7]
+                0.00    0.00       2/15172019     yur_dealloc [47]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_timeTestChoice [2]
+[37]     0.0    0.00    0.00       1         yu__pa_du_fn1unit_doStateC3 [37]
+                0.00    0.00       1/15172019     yur_unref_children [7]
+                0.00    0.00       1/16192736     yur_malloc [23]
+                0.00    0.00       1/15172019     yur_dealloc [47]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_timeTestChoice [2]
+[38]     0.0    0.00    0.00       1         yu__pa_fn0_po2_ba_pr_am_ba_in_mi_gr0 [38]
+                0.00    0.00       1/15172019     yur_unref_children [7]
+                0.00    0.00       1/15172019     yur_dealloc [47]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_timeTestChoice [2]
+[39]     0.0    0.00    0.00       1         yu__pa_fn0unit_doStateC2 [39]
+                0.00    0.00       1/15172019     yur_unref_children [7]
+                0.00    0.00       1/15172019     yur_dealloc [47]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_timeTestChoice [2]
+[40]     0.0    0.00    0.00       1         yu__pa_fn1run_doStateC1 [40]
+                0.00    0.00       1/15172019     yur_unref_children [7]
+                0.00    0.00       1/15172019     yur_dealloc [47]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_main [1]
+[41]     0.0    0.00    0.00       1         yu_aux0____poprint_baStr [41]
+                0.00    0.00       1/15172019     yur_unref_children [7]
+                0.00    0.00       1/2           yu__poprint_baChar [58]
+                0.00    0.00       1/15172019     yur_dealloc [47]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_timeTestChoice [2]
+[42]     0.0    0.00    0.00       1         yu_10_doBin [42]
+                0.00    0.00       1/1           yu_10_doBin_pl [43]
+                0.00    0.00       1/16192736     yur_malloc [23]
+                0.00    0.00       1/3           yur_mark_children_static [57]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_10_doBin [42]
+[43]     0.0    0.00    0.00       1         yu_10_doBin_pl [43]
+                0.00    0.00       3/16192736     yur_malloc [23]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_main [1]
+[44]     0.0    0.00    0.00       1         yu__postr_baNat [44]
+                0.00    0.00       2/16192736     yur_malloc [23]
+-----------------------------------------------
+                                   1             yu__pr_pl_pl_baBin_pl [45]
+                0.00    0.00       1/1           yu__in_pl_baBin_pl [35]
+[45]     0.0    0.00    0.00       1+1       yu__pr_pl_pl_baBin_pl [45]
+                0.00    0.00       2/16192736     yur_malloc [23]
+                                   1             yu__pr_pl_pl_baBin_pl [45]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_timeTestChoice [2]
+[46]     0.0    0.00    0.00       1         yu__fn0unit_doStateC [46]
+                0.00    0.00       1/16192736     yur_malloc [23]
+-----------------------------------------------
+                0.00    0.00       1/15172019     yu__pa_fn0_po2_ba_pr_am_ba_in_mi_gr0 [38]
+                0.00    0.00       1/15172019     yu__pa_fn1run_doStateC1 [40]
+                0.00    0.00       1/15172019     yu_aux0____poprint_baStr [41]
+                0.00    0.00       1/15172019     yu__du_fn0pure_doComp [17]
+                0.00    0.00       1/15172019     yu__pa_fn0unit_doStateC2 [39]
+                0.00    0.00       1/15172019     yu__pa_du_fn1unit_doStateC3 [37]
+                0.00    0.00       1/15172019     yu_main [1]
+                0.00    0.00       2/15172019     yu__pa_du_fn1handle_doHandler4 [36]
+                0.00    0.00       2/15172019     yu__in_pl_baBin_pl [35]
+                0.00    0.00     303/15172019     yu__du_fn0_poelse_baThen_doBool [29]
+                0.00    0.00   10101/15172019     yu__du_du_du_fn0shift_doNondetC <cycle 1> [25]
+                0.00    0.00 1010100/15172019     yu__fn2_poalt_baIn [9]
+                0.00    0.00 1010100/15172019     yu__pa_fn2_poalt_baIn2 [15]
+                0.00    0.00 1010100/15172019     yu__pa_du_du_fn2shift_doNondetC2 <cycle 1> [24]
+                0.00    0.00 1010100/15172019     yu__pa_du_du_fn4shift_doNondetC2 [10]
+                0.00    0.00 1010101/15172019     yu__fn0performShift [26]
+                0.00    0.00 2020201/15172019     yu__pa_fn1pure_doContT1 [14]
+                0.00    0.00 2020201/15172019     yu__pa_du_fn9performShift6 <cycle 1> [6]
+                0.00    0.00 3030300/15172019     yu__pa_fn2bind_doContT2 <cycle 1> [4]
+                0.00    0.00 3040401/15172019     yu__pa_fn1bind_doContT2 [13]
+[47]     0.0    0.00    0.00 15172019         yur_dealloc [47]
+-----------------------------------------------
+                0.00    0.00 2020201/2020201     yu__pa_du_fn9performShift6 <cycle 1> [6]
+[48]     0.0    0.00    0.00 2020201         yu__pa_fn0shift_doNondetC1 [48]
+-----------------------------------------------
+                0.00    0.00 1000000/1000000     yu__pa_fn2bind_doContT2 <cycle 1> [4]
+[49]     0.0    0.00    0.00 1000000         yu__pa_fn18timeTestChoice3 [49]
+-----------------------------------------------
+                0.00    0.00   10000/10000       yu__pa_fn2bind_doContT2 <cycle 1> [4]
+[50]     0.0    0.00    0.00   10000         yu__pa_fn14timeTestChoice4 [50]
+-----------------------------------------------
+                0.00    0.00       1/102         yu_timeTestChoice [2]
+                0.00    0.00     101/102         yu__du_fn0_poelse_baThen_doBool [29]
+[51]     0.0    0.00    0.00     102         yur_memoize [51]
+-----------------------------------------------
+                0.00    0.00       1/101         yu_timeTestChoice [2]
+                0.00    0.00     100/101         yu__fn1makeList0___timeTestChoice [30]
+[52]     0.0    0.00    0.00     101         yu__pocmp_baBin [52]
+-----------------------------------------------
+                0.00    0.00       1/101         yu_timeTestChoice [2]
+                0.00    0.00     100/101         yu__fn1makeList0___timeTestChoice [30]
+[53]     0.0    0.00    0.00     101         yu__poeq_qu_baOrder [53]
+-----------------------------------------------
+                0.00    0.00     100/100         yu__pa_fn2bind_doContT2 <cycle 1> [4]
+[54]     0.0    0.00    0.00     100         yu__pa_fn10timeTestChoice4 [54]
+-----------------------------------------------
+                0.00    0.00     100/100         yu__du_fn0_poelse_baThen_doBool [29]
+[55]     0.0    0.00    0.00     100         yu__pa_fn1makeList0___timeTestChoice2 [55]
+-----------------------------------------------
+                0.00    0.00     100/100         yu__fn1makeList0___timeTestChoice [30]
+[56]     0.0    0.00    0.00     100         yu__pr_mi_mi_baBin [56]
+-----------------------------------------------
+                0.00    0.00       1/3           yu_10_doBin [42]
+                0.00    0.00       1/3           yu_timeTestChoice [2]
+                0.00    0.00       1/3           yu_main [1]
+[57]     0.0    0.00    0.00       3         yur_mark_children_static [57]
+-----------------------------------------------
+                0.00    0.00       1/2           yu_aux0____poprint_baStr [41]
+                0.00    0.00       1/2           yu_main [1]
+[58]     0.0    0.00    0.00       2         yu__poprint_baChar [58]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_main [1]
+[59]     0.0    0.00    0.00       1         yu__du_fn0_polen_ba_poList_baTy [59]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_timeTestChoice [2]
+[60]     0.0    0.00    0.00       1         yu__fn0isFunctor_doComp [60]
+-----------------------------------------------
+                0.00    0.00       1/1           yu__du_fn0_poelse_baThen_doBool [29]
+[61]     0.0    0.00    0.00       1         yu__pa_fn0makeList0___timeTestChoice1 [61]
+-----------------------------------------------
+                0.00    0.00       1/1           yu_timeTestChoice [2]
+[62]     0.0    0.00    0.00       1         yu__paisFunctor_doid0 [62]
+-----------------------------------------------
+
+ This table describes the call tree of the program, and was sorted by
+ the total amount of time spent in each function and its children.
+
+ Each entry in this table consists of several lines.  The line with the
+ index number at the left hand margin lists the current function.
+ The lines above it list the functions that called this function,
+ and the lines below it list the functions this one called.
+ This line lists:
+     index	A unique number given to each element of the table.
+		Index numbers are sorted numerically.
+		The index number is printed next to every function name so
+		it is easier to look up where the function is in the table.
+
+     % time	This is the percentage of the `total' time that was spent
+		in this function and its children.  Note that due to
+		different viewpoints, functions excluded by options, etc,
+		these numbers will NOT add up to 100%.
+
+     self	This is the total amount of time spent in this function.
+
+     children	This is the total amount of time propagated into this
+		function by its children.
+
+     called	This is the number of times the function was called.
+		If the function called itself recursively, the number
+		only includes non-recursive calls, and is followed by
+		a `+' and the number of recursive calls.
+
+     name	The name of the current function.  The index number is
+		printed after it.  If the function is a member of a
+		cycle, the cycle number is printed between the
+		function's name and the index number.
+
+
+ For the function's parents, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the function into this parent.
+
+     children	This is the amount of time that was propagated from
+		the function's children into this parent.
+
+     called	This is the number of times this parent called the
+		function `/' the total number of times the function
+		was called.  Recursive calls to the function are not
+		included in the number after the `/'.
+
+     name	This is the name of the parent.  The parent's index
+		number is printed after it.  If the parent is a
+		member of a cycle, the cycle number is printed between
+		the name and the index number.
+
+ If the parents of the function cannot be determined, the word
+ `<spontaneous>' is printed in the `name' field, and all the other
+ fields are blank.
+
+ For the function's children, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the child into the function.
+
+     children	This is the amount of time that was propagated from the
+		child's children to the function.
+
+     called	This is the number of times the function called
+		this child `/' the total number of times the child
+		was called.  Recursive calls by the child are not
+		listed in the number after the `/'.
+
+     name	This is the name of the child.  The child's index
+		number is printed after it.  If the child is a
+		member of a cycle, the cycle number is printed
+		between the name and the index number.
+
+ If there are any cycles (circles) in the call graph, there is an
+ entry for the cycle-as-a-whole.  This entry shows who called the
+ cycle (as parents) and the members of the cycle (as children.)
+ The `+' recursive calls entry shows the number of function calls that
+ were internal to the cycle, and the calls entry for each member shows,
+ for that member, how many times it was called from other members of
+ the cycle.
+
+Copyright (C) 2012-2015 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+Index by function name
+
+   [5] free                    [9] yu__fn2_poalt_baIn      [4] yu__pa_fn2bind_doContT2
+  [21] mi_heap_malloc         [33] yu__in_as_baBin        [62] yu__paisFunctor_doid0
+  [11] mi_malloc              [34] yu__in_as_baBin_pl     [52] yu__pocmp_baBin
+  [42] yu_10_doBin            [35] yu__in_pl_baBin_pl     [53] yu__poeq_qu_baOrder
+  [43] yu_10_doBin_pl         [24] yu__pa_du_du_fn2shift_doNondetC2 [58] yu__poprint_baChar
+  [25] yu__du_du_du_fn0shift_doNondetC [10] yu__pa_du_du_fn4shift_doNondetC2 [44] yu__postr_baNat
+  [22] yu__du_du_fn2shift_doStateC [36] yu__pa_du_fn1handle_doHandler4 [56] yu__pr_mi_mi_baBin
+  [18] yu__du_fn0_pochoose_baIn [37] yu__pa_du_fn1unit_doStateC3 [32] yu__pr_mi_mi_baBin_pl
+  [29] yu__du_fn0_poelse_baThen_doBool [6] yu__pa_du_fn9performShift6 [31] yu__pr_mi_mi_mi_baBin_pl
+  [20] yu__du_fn0_pofold_ba_poList_baTy [38] yu__pa_fn0_po2_ba_pr_am_ba_in_mi_gr0 [45] yu__pr_pl_pl_baBin_pl
+  [59] yu__du_fn0_polen_ba_poList_baTy [61] yu__pa_fn0makeList0___timeTestChoice1 [41] yu_aux0____poprint_baStr
+  [16] yu__du_fn0bind_doComp  [48] yu__pa_fn0shift_doNondetC1 [2] yu_timeTestChoice
+  [17] yu__du_fn0pure_doComp  [39] yu__pa_fn0unit_doStateC2 [47] yur_dealloc
+   [8] yu__du_fn9performShift [54] yu__pa_fn10timeTestChoice4 [23] yur_malloc
+  [60] yu__fn0isFunctor_doComp [50] yu__pa_fn14timeTestChoice4 [12] yur_mark_children_atomic
+  [26] yu__fn0performShift    [49] yu__pa_fn18timeTestChoice3 [57] yur_mark_children_static
+  [46] yu__fn0unit_doStateC   [13] yu__pa_fn1bind_doContT2 [51] yur_memoize
+  [28] yu__fn10timeTestChoice [55] yu__pa_fn1makeList0___timeTestChoice2 [7] yur_unref_children
+  [19] yu__fn14timeTestChoice [14] yu__pa_fn1pure_doContT1 [3] <cycle 1>
+  [27] yu__fn18timeTestChoice [40] yu__pa_fn1run_doStateC1
+  [30] yu__fn1makeList0___timeTestChoice [15] yu__pa_fn2_poalt_baIn2

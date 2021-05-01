@@ -1,0 +1,71 @@
+import "yu/prelude.yu"
+
+
+val IsFunctor : (Ty -> Ty) -> Ty
+let (F) => (F(A), A -> B, A : Ty, B : Ty) -> F(B)
+
+
+val map[F : Ty -> Ty, A; B : Ty] : (IsFunctor(F), F(A), A -> B) -> F(B)
+let (m, x, f) => m(x, f, A, B)
+
+
+val isFunctor.id : IsFunctor(id)
+let (x, f, A, B) => f(x)
+
+
+val isFunctor.@[F; G : Ty -> Ty] :
+  (IsFunctor(G), IsFunctor(F)) -> IsFunctor(G @ F)
+let (isG, isF) =>
+  (x, f, A, B). map[F := G](isG, x, map(isF, _, f))
+
+
+data IsMonad : (Ty -> Ty) -> Ty
+let isMonad[M : Ty -> Ty] :
+  ( (A, A : Ty) -> M(A)
+  , (M(A), A -> M(B), A : Ty, B : Ty) -> M(B) ) ->
+  IsMonad(M)
+
+
+val _pure\IsMonad[A : Ty, M : Ty -> Ty] : IsMonad(M) -> A -> M(A)
+let (isMonad(r, _)) => r(_, A)
+
+
+val _bind\IsMonad[A; B : Ty, M : Ty -> Ty] :
+  (IsMonad(M), M(A), A -> M(B)) -> M(B)
+let (isMonad(_, b), a, f) => b(a, f, A, B)
+
+
+val isMonad.id : IsMonad(id)
+let => isMonad(_:!_, bind)
+where
+  val bind : (A, A -> B, A; B : Ty) -> B
+  let (x, f, A, B) => f(x)
+end
+
+
+val ContT : (Ty, M : Ty -> Ty) -> Ty -> Ty
+let (R, M) => (A). (A -> M(R)) -> M(R)
+
+
+val map.ContT[A; B : Ty, M : Ty -> Ty] :
+  (ContT(R, M)(A), A -> B, R : Ty) -> ContT(R, M)(B)
+let (c, f, R) => (k : B -> M(R)). c(k @ f)
+
+
+val isFunctor.ContT : (R : Ty, M : Ty -> Ty) -> IsFunctor(ContT(R, M))
+let (R, M) => (x, f, A, B). map.ContT(x, f, R)
+
+
+val pure.ContT[A : Ty] : (R : Ty, M : Ty -> Ty, A) -> ContT(R, M)(A)
+let (R, M, a) => (k). k(a)
+
+
+val bind.ContT[A; B : Ty] :
+  (R : Ty, M : Ty -> Ty, ContT(R, M)(A), A -> ContT(R, M)(B)) ->
+  ContT(R, M)(B)
+let (R, M, x, f) => (k). x (a). f(a)(k)
+
+
+val isMonad.ContT : (R : Ty, M : Ty -> Ty) -> IsMonad(ContT(R, M))
+let (R, M) =>
+  isMonad((a, A). pure.ContT(R, M, a), (x, f, A, B). bind.ContT(R, M, x, f))

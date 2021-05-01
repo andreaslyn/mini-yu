@@ -1,0 +1,109 @@
+import "Handler.yu"
+
+
+data Nondet : Signa
+let noneOp[A : Ty] : Nondet(shift.Op, A)
+let decideOp : Nondet(shift.Op, Bool)
+
+
+val _none\In[A : Ty, Us : Signa List, Ps : Ef List] :
+  (In(Nondet, Us), AreEfs(Us, Ps)) -> Ps :> A
+let => performShift(noneOp, _, _)
+
+
+val _decide\In[Us : Signa List, Ps : Ef List] :
+  (In(Nondet, Us), AreEfs(Us, Ps)) -> Ps :> Bool
+let => performShift(decideOp, _, _)
+
+
+val _alt\In[A : Ty, Us : Signa List, Ps : Ef List] :
+  (In(Nondet, Us), AreEfs(Us, Ps), Ps :> A, Ps :> A) -> Ps :> A
+let (isIn, arePs, a1, a2) =>
+  bind.Comp(arePs, isIn decide(arePs), _) (b). do
+  case b
+  of true => a1
+  of false => a2
+  end
+
+
+val _choose\In[A : Ty, Us : Signa List, Ps : Ef List] :
+  (In(Nondet, Us), AreEfs(Us, Ps), A List) -> Ps :> A
+let (isIn, arePs, nil) => isIn none(arePs)
+let (isIn, arePs, a :: as) =>
+  isIn alt(arePs, pure.Comp(arePs, a), isIn choose(arePs, as))
+
+
+val NondetC : (Ef List, Ty) -> Ty
+let (Ps, A) => A List
+
+
+val chooseAll.NondetC[A; B : Ty, Us : Signa List, Ps : Ef List] :
+  (AreEfs(Us, Ps), A -> Ps :> NondetC(Ps, B), A List) -> Ps :> NondetC(Ps, B)
+let (areEfs, f, nil) => pure.Comp(areEfs, nil)
+let (areEfs, f, a :: as) =>
+  bind.Comp(areEfs, f(a), _) (a'). do
+  bind.Comp(areEfs, chooseAll.NondetC(areEfs, f, as), _) (as'). do
+  pure.Comp(areEfs, a' :+: as')
+
+
+val env.NondetC : Ty -> Ty
+let => _List
+
+
+val isFunctorEnv.NondetC : IsFunctor(env.NondetC)
+let (xs, f, A, B) => xs map(f)
+
+
+val unit.NondetC[Us : Signa List] :
+  (A : Ty, Ps : Ef List, AreEfs(Us, Ps), A) -> Ps :> NondetC(Ps, A)
+let (A, Ps, arePs, a) => pure.Comp(arePs, a :: nil)
+
+
+val modify.NondetC[Us : Signa List] : 
+  ( A; B : Ty, Ps : Ef List, AreEfs(Us, Ps)
+  , (env.NondetC(Unit), RunCarrier(Us, NondetC, env.NondetC)) ->
+    Ps :> env.NondetC(A)
+  , A -> Ps :> NondetC(Ps, B)
+  ) -> Ps :> NondetC(Ps, B)
+let (A, B, Ps, arePs, scope, k) =>
+  bind.Comp(arePs, scope(unit :: nil, (_, _, _, x). x),
+      chooseAll.NondetC(arePs, k, _))
+
+
+val isCarrier.NondetC : (Us : Signa List) -> IsCarrier(NondetC, Us)
+let (Us) =>
+  mk.IsCarrier(env.NondetC, isFunctorEnv.NondetC,
+      unit.NondetC, modify.NondetC)
+
+
+val shift.NondetC[Us : Signa List] :
+  (A; R : Ty, Ps : Ef List, AreEfs(Us, Ps),
+    Nondet(shift.Op, A), A -> Ps :> NondetC(Ps, R)) ->
+  Ps :> NondetC(Ps, R)
+let (A, R, Ps, arePs, decideOp, k) =>
+  bind.Comp(arePs, k(true), _) (xs). do
+  bind.Comp(arePs, k(false), _) (ys). do
+  pure.Comp(arePs, xs :+: ys)
+let (A, R, Ps, arePs, noneOp, k) => pure.Comp(arePs, nil)
+
+
+val reset.NondetC[Us : Signa List] :
+  ( F : Ty -> Ty, B; R : Ty, n : Arity
+  , Ps : Ef List, AreEfs(Us, Ps), IsFunctor(F)
+  , Nondet(reset.Op(n), B), Dom(Nest(NondetC, F, Ps), n)
+  , F(Unit), F(B) -> Ps :> NondetC(Ps, R)
+  ) -> Ps :> NondetC(Ps, R)
+let (F, B, R, n, Ps, arePs, isF, (), dm, en, k)
+
+
+val handler.NondetC :
+  (Us : Signa List) ->
+  Handler(isCarrier.NondetC(Us), Nondet, Us)
+let (Us) => mk.Handler(shift.NondetC, reset.NondetC)
+
+
+val run.NondetC[A : Ty, Us : Signa List, Ps : Ef List] :
+  (AreEfs(Us, Ps),
+    (Li : Ef, AreEfs(Nondet :: Us, Li :: Ps)) -> (Li :: Ps) :> A) ->
+  Ps :> A List
+let (arePs, scope) => handler.NondetC(Us) handle(arePs, scope)

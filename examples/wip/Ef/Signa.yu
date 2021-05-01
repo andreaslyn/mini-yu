@@ -1,0 +1,57 @@
+import "yu/prelude.yu"
+
+
+data Arity : Ty
+let nullary : Arity
+let succary : (Ty, Arity) -> Arity
+
+val arity1 : Ty -> Arity
+let (A1) => succary(A1, nullary)
+
+val arity2 : (Ty, Ty) -> Arity
+let (A1, A2) => succary(A1, arity1(A2))
+
+val arity3 : (Ty, Ty, Ty) -> Arity
+let (A1, A2, A3) => succary(A1, arity2(A2, A3))
+
+
+data Operation : Ty
+let shift.Op : Operation
+let reset.Op : Arity -> Operation
+
+val reset1 : Ty -> Operation
+let (A1) => reset.Op(arity1(A1))
+
+val reset2 : (Ty, Ty) -> Operation
+let (A1, A2) => reset.Op(arity2(A1, A2))
+
+val reset3 : (Ty, Ty, Ty) -> Operation
+let (A1, A2, A3) => reset.Op(arity3(A1, A2, A3))
+
+
+data Dom : (Ty -> Ty, Arity) -> Ty
+let nildom[F : Ty -> Ty] : Dom(F, nullary)
+let _::_\Dom[F : Ty -> Ty, n : Arity, A : Ty] :
+  (F(A), Dom(F, n)) -> Dom(F, succary(A, n))
+
+
+val _map\Dom[F; G : Ty -> Ty, n : Arity] :
+  (Dom(F, n), (A : Ty, F(A)) -> G(A)) -> Dom(G, n)
+let (nildom, _) => nildom
+let (_::_[A := A](x, xs), m) => m(A, x) :: xs map(m)
+
+
+val Signa : Ty
+let => (Operation, Ty) -> Ty
+
+
+val Inject : (Signa, Signa) -> Ty
+let (u, v) => (op : Operation, A : Ty, u(op, A)) -> v(op, A)
+
+
+data In : (Signa, Signa List) -> Ty
+let _there\In[u; v : Signa, us : Signa List] :
+    In(u, us) -> In(u, v :: us)
+let here.In[u : Signa, us : Signa List] : In(u, u :: us)
+let inject.In[u; v : Signa, us : Signa List] :
+    Inject(u, v) -> In(u, v :: us)

@@ -17,6 +17,12 @@ let (nil.Stream, _) => nil.Stream
 let (x :: xs, ++ n) => x :: xs[] take!(n)
 
 
+val _takeList!\_Stream\Ty[A : Ty] : (A Stream, Nat) -> A List
+let (nil.Stream, _) => nil
+let (_, 0) => nil
+let (x :: xs, ++ n) => x :: xs[] takeList!(n)
+
+
 val _drop!\_Stream\Ty[A : Ty] : (A Stream, Nat) -> A Stream
 let (xs, 0) => xs
 let (nil.Stream, _) => nil.Stream

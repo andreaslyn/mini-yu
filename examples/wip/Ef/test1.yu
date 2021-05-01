@@ -1,0 +1,46 @@
+import "State.yu"
+import "Nondet.yu"
+import "yu/Bin.yu"
+
+
+val.. makeTestList : (Bin, Bin List) -> Bin List
+let (n, acc) =>
+    if(n =? 0.Bin) then(acc) else do makeTestList(-- n, n :: acc)
+
+
+val testList : Bin List
+let => makeTestList(10.Bin * 10.Bin, nil)
+
+
+val timeTestChoice1 : (Bin & Bin & Bin) List
+let =>
+  eval.StateC (nil.AreEfs, (St0, areSt0).
+    run.NondetC(areSt0, _) (No, areNo). do
+    eval.StateC (areNo, (St, areSt). do
+      bind.Comp(areSt, here.In there choose(areSt, testList), _) (x). do
+      bind.Comp(areSt, here.In there choose(areSt, testList), _) (y). do
+      bind.Comp(areSt, here.In there choose(areSt, testList), _) (z). do
+      bind.Comp(areSt, here.In there there put(areSt, 1.Bin), _) (_). do
+      pure.Comp(areSt, x $ y $ z)
+    , 0.Bin)
+  , 0.Bin)
+
+
+val timeTestChoice2 : (Bin & Bin & Bin) List
+let =>
+  eval.StateC (nil.AreEfs, (St0, areSt0).
+    run.NondetC(areSt0, _) (No, areNo). do
+    eval.StateC (areNo, (St, areSt). do
+      bind.Comp(areSt, here.In there choose(areSt, testList), _) (x). do
+      bind.Comp(areSt, here.In there choose(areSt, testList), _) (y). do
+      bind.Comp(areSt, here.In there choose(areSt, testList), _) (z). do
+      bind.Comp(areSt, here.In there there put(areSt, 1.Bin), _) (_). do
+      here.In there none(areSt)
+    , 0.Bin)
+  , 0.Bin)
+
+
+val main : () ->> Unit
+let () =>
+  timeTestChoice1 len str println;
+  timeTestChoice2 len str println
