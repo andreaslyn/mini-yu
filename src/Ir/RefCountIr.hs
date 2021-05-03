@@ -469,11 +469,6 @@ irIncDecFunExpr ctx (PreLet v e1@(PrePap _ rs) e2 lli) =
   irIncDecLetExprAp ctx v e1 e2 rs lli
 irIncDecFunExpr ctx (PreLet v e1@(PreForce _ _ rs) e2 lli) =
   irIncDecLetExprAp ctx v e1 e2 (preForceProjArgs rs) lli
-irIncDecFunExpr ctx (PreLet v e1@(PreCtorBox _ []) e2 lli) =
-  let (prefix, ctx') = decDeadVars ctx lli
-      e2' = irIncDecFunExpr (IntSet.insert v ctx') e2
-      -- Trivial ctors are incremented, since they are statically allocated.
-  in prefix (PreLet v e1 (PreInc (VarRef v) e2' (IntSet.insert v lli)) lli)
 irIncDecFunExpr ctx (PreLet v e1@(PreCtorBox _ rs) e2 lli) =
   irIncDecLetExprAp ctx v e1 e2 rs lli
 irIncDecFunExpr ctx (PreLet v e1@(PreMkLazy _ _ _) e2 lli) =
