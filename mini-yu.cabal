@@ -7,7 +7,7 @@ cabal-version: 1.12
 -- hash: 0367db03485186b67a354bbf5df8915af9e82f7cc6d4e09b1c29be2c304a2f78
 
 name:           mini-yu
-version:        0.1.4.0
+version:        0.1.3.0
 description:    Please see the README on GitHub at <https://github.com/andreaslyn/mini-yu#readme>
 homepage:       https://github.com/andreaslyn/mini-yu#readme
 bug-reports:    https://github.com/andreaslyn/mini-yu/issues

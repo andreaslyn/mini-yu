@@ -927,14 +927,17 @@ newLine = tell "\n" >> writeIndent
 
 writePreTerm :: ImplicitMap -> RefMap -> PreTerm -> ToString ()
 writePreTerm im rm (TermFun imps _ (Just _) (CaseLeaf vs _ t _)) = do
+  when (not (null imps)) (writeStr (show imps))
   writeStr "("
   writeVarList (drop (length imps) vs)
   writeStr "). "
   writePreTerm im rm t
-writePreTerm im rm (TermFun imps _ Nothing ct) =
+writePreTerm im rm (TermFun imps _ Nothing ct) = do
+  when (not (null imps)) (writeStr (show imps) >> writeStr ". ")
   writeCaseTree im rm (map Left imps) ct
 writePreTerm im rm (TermFun imps _ (Just n) ct) = do
   args <- mapM (\_ -> nextVarName) [1..n]
+  when (not (null imps)) (writeStr (show imps))
   writeStr "("
   writeNameList args
   writeStr "). "

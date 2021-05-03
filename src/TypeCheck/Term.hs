@@ -67,7 +67,45 @@ data PreTerm = TermFun [VarName] Bool (Maybe Int) CaseTree
              | TermUnitTy
              | TermTy
              | TermEmpty  -- Just for converting pattern to term
-             deriving Show
+
+instance Show PreTerm where
+  show (TermFun vs io m ct) =
+    "TermFun {" ++ show vs
+        ++ ", " ++ show io
+        ++ ", " ++ show m
+        ++ ", " ++ show ct ++ "}"
+  show (TermLazyFun io t) =
+    "TermLazyFun {" ++ show io ++ ", " ++ show t ++ "}"
+  show (TermArrow io d c) =
+    "TermArrow {" ++ show io
+        ++ ", " ++ show d
+        ++ ", " ++ show c ++ "}"
+  show (TermLazyArrow io t) =
+    "TermLazyArrow {" ++ show io ++ ", " ++ show t ++ "}"
+  show (TermApp io t ts) =
+    "TermApp {" ++ show io
+        ++ ", " ++ show t
+        ++ ", " ++ show ts ++ "}"
+  show (TermImplicitApp io t ts) =
+    "TermImplicitApp {" ++ show io
+        ++ ", " ++ show t
+        ++ ", " ++ show ts ++ "}"
+  show (TermLazyApp io t) =
+    "TermLazyApp {" ++ show io ++ ", " ++ show t ++ "}"
+  show (TermRef v _) =
+    "TermRef {" ++ show v ++ "}"
+  show (TermVar b v) =
+    "TermVar {" ++ show b ++ ", " ++ show v ++ "}"
+  show (TermData v) =
+    "TermData {" ++ show v ++ "}"
+  show (TermCtor v i) =
+    "TermCtor {" ++ show v ++ ", " ++ show i ++ "}"
+  show (TermCase t ct) =
+    "TermCase {" ++ show t ++ ", " ++ show ct ++ "}"
+  show TermUnitElem = "TermUnitElem"
+  show TermUnitTy = "TermUnitTy"
+  show TermTy = "TermTy"
+  show TermEmpty = "TermEmpty"
 
 data RefVar = RefExtern Var Int | RefVal Var | RefData Var | RefCtor Var deriving Show
 

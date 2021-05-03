@@ -36,6 +36,7 @@ module Str
   , anonymousFunString
   , funFromLazyString
   , anonymousDuplicateString
+  , partialSpecializationString
   , unitName
   , underscoreName
   , implementationPrefix
@@ -232,6 +233,10 @@ funFromLazyString = "_fz"
 
 anonymousDuplicateString :: String
 anonymousDuplicateString = "_du"
+
+partialSpecializationString :: Int -> Int -> String
+partialSpecializationString i j =
+  "_ps" ++ show i ++ "_" ++ show j ++ "_"
 
 unitName :: String
 unitName = "_un"
