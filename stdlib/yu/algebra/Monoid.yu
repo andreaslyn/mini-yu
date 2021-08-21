@@ -1,50 +1,56 @@
-import "operations.yu"
+import "yu/algebra/operations.yu"
 
 
-data _IsMonoid\Ty : Ty -> Ty
+data IsMonoid : Ty -> Ty
 let is.Monoid[A : Ty] :
-  (op : (A, A) -> A, unt : A, op IsAssociative, op HasUnit(unt)) -> A IsMonoid
+  (op : A & A -> A) &
+  (unt : A) &
+  IsAssociative op &
+  (HasUnit op unt) ->
+  IsMonoid A
 
 
-val _op\_IsMonoid\Ty[A : Ty] : A IsMonoid -> (A, A) -> A
-let (is.Monoid(op, _, _, _)) => op
+val _.op\IsMonoid [A : Ty] : IsMonoid A -> A & A -> A
+let (is.Monoid op _ _ _) => op
 
 
-val _unit\_IsMonoid\Ty[A : Ty] : A IsMonoid -> A
-let (is.Monoid(_, u, _, _)) => u
+val _.unit\IsMonoid [A : Ty] : IsMonoid A -> A
+let (is.Monoid _ u _ _) => u
 
 
-val _isAssociative\_IsMonoid\Ty[A : Ty] : (M : A IsMonoid) -> M op IsAssociative
-let (is.Monoid(_, _, a, _)) => a
+val _.isAssociative\IsMonoid [A : Ty] :
+  (M : IsMonoid A) -> IsAssociative (M .op)
+let (is.Monoid _ _ a _) => a
 
 
-val _hasUnit\_IsMonoid\Ty[A : Ty] : (M : A IsMonoid) -> M op HasUnit(M unit)
-let (is.Monoid(_, _, _, h)) => h
+val _.hasUnit\IsMonoid [A : Ty] :
+  (M : IsMonoid A) -> HasUnit (M .op) (M .unit)
+let (is.Monoid _ _ _ h) => h
 
 
 data Monoid : Ty
-let mk.Monoid[A : Ty] : A IsMonoid -> Monoid
+let mk.Monoid [A : Ty] : IsMonoid A -> Monoid
 
 
-val _Carrier\Monoid : Monoid -> Ty
-let (mk.Monoid[A := A](_)) => A
+val _.Carrier\Monoid : Monoid -> Ty
+let (mk.Monoid[A := A] _) => A
 
 
-val _isMonoid\Monoid : (M : Monoid) -> M Carrier IsMonoid
-let (mk.Monoid(h)) => h
+val _.isMonoid\Monoid : (M : Monoid) -> IsMonoid (M .Carrier)
+let (mk.Monoid h) => h
 
 
-val _op\Monoid : (M : Monoid) -> (M Carrier, M Carrier) -> M Carrier
-let (M) => M isMonoid op
+val _.op\Monoid : (M : Monoid) -> M .Carrier & M .Carrier -> M .Carrier
+let M => M .isMonoid .op
 
 
-val _unit\Monoid : (M : Monoid) -> M Carrier
-let (M) => M isMonoid unit
+val _.unit\Monoid : (M : Monoid) -> M .Carrier
+let M => M .isMonoid .unit
 
 
-val _isAssociative\Monoid : (M : Monoid) -> M op IsAssociative
-let (M) => M isMonoid isAssociative
+val _.isAssociative\Monoid : (M : Monoid) -> IsAssociative (M .op)
+let M => M .isMonoid .isAssociative
 
 
-val _hasUnit\Monoid : (M : Monoid) -> M op HasUnit(M unit)
-let (M) => M isMonoid hasUnit
+val _.hasUnit\Monoid : (M : Monoid) -> HasUnit (M .op) (M .unit)
+let M => M .isMonoid .hasUnit

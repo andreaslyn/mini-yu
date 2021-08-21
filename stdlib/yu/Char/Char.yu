@@ -1,5 +1,4 @@
-import "yu/Vec/Vec.yu"
-
+import "yu/Ordering?/theorems.yu"
 
 data Char : Ty
 let '0 : Char ## "0"
@@ -132,20 +131,20 @@ let 'gr : Char  ## Grave accent "`"
 let 'del : Char ## Delete character
 
 
-data _IsDigit\Char : Char -> Ty
-let 0IsDigit.Char : '0 IsDigit
-let 1IsDigit.Char : '1 IsDigit
-let 2IsDigit.Char : '2 IsDigit
-let 3IsDigit.Char : '3 IsDigit
-let 4IsDigit.Char : '4 IsDigit
-let 5IsDigit.Char : '5 IsDigit
-let 6IsDigit.Char : '6 IsDigit
-let 7IsDigit.Char : '7 IsDigit
-let 8IsDigit.Char : '8 IsDigit
-let 9IsDigit.Char : '9 IsDigit
+data _.IsDigit\Char : Char -> Ty
+let 0IsDigit.Char : '0 .IsDigit
+let 1IsDigit.Char : '1 .IsDigit
+let 2IsDigit.Char : '2 .IsDigit
+let 3IsDigit.Char : '3 .IsDigit
+let 4IsDigit.Char : '4 .IsDigit
+let 5IsDigit.Char : '5 .IsDigit
+let 6IsDigit.Char : '6 .IsDigit
+let 7IsDigit.Char : '7 .IsDigit
+let 8IsDigit.Char : '8 .IsDigit
+let 9IsDigit.Char : '9 .IsDigit
 
 
-val _toUpper\Char : Char -> Char
+val _.toUpper\Char : Char -> Char
 let ('a) => 'A
 let ('b) => 'B
 let ('c) => 'C
@@ -175,7 +174,7 @@ let ('z) => 'Z
 let (c) => c
 
 
-val _toLower\Char : Char -> Char
+val _.toLower\Char : Char -> Char
 let ('A) => 'a
 let ('B) => 'b
 let ('C) => 'c
@@ -205,34 +204,34 @@ let ('Z) => 'z
 let (c) => c
 
 
-extern _cmp\Char : (Char, Char) -> Order
+extern _.cmp\Char : Char & Char -> Order
 
 extern cmpIsTransitive?.Char :
-  cmpToLe?.Ordering?(_cmp\Char) IsTransitive?
+  cmpToLe?.Ordering? _.cmp\Char .IsTransitive?
 
 extern cmpIsCompatible.Char :
-  (b : Char, c : Char) -> b cmp(c) lt? = c cmp(b) gt?
+  (b : Char) & (c : Char) -> b .cmp c .lt? = c .cmp b .gt?
 
-val ordering?.Char : Char Ordering?
-let => fromCmp.Ordering?(_cmp, cmpIsTransitive?.Char, cmpIsCompatible.Char)
+val ordering?.Char : Ordering? Char
+let => fromCmp.Ordering? _.cmp cmpIsTransitive?.Char cmpIsCompatible.Char
 
-val equivalence?.Char : Char Equivalence?
-let => ordering?.Char equivalence?
+val equivalence?.Char : Equivalence? Char
+let => ordering?.Char .equivalence?
 
-val _<?_\Char : (Char, Char) -> Bool
-let => ordering?.Char lt?
+val _<?_\Char : Char & Char -> Bool
+let => ordering?.Char .lt?
 
-val _<=?_\Char : (Char, Char) -> Bool
-let => ordering?.Char le?
+val _<=?_\Char : Char & Char -> Bool
+let => ordering?.Char .le?
 
-val _>?_\Char : (Char, Char) -> Bool
-let => ordering?.Char gt?
+val _>?_\Char : Char & Char -> Bool
+let => ordering?.Char .gt?
 
-val _>=?_\Char : (Char, Char) -> Bool
-let => ordering?.Char ge?
+val _>=?_\Char : Char & Char -> Bool
+let => ordering?.Char .ge?
 
-val _=?_\Char : (Char, Char) -> Bool
-let => equivalence?.Char eq?
+val _=?_\Char : Char & Char -> Bool
+let => equivalence?.Char .eq?
 
-val _!=?_\Char : (Char, Char) -> Bool
-let => equivalence?.Char neq?
+val _!=?_\Char : Char & Char -> Bool
+let => equivalence?.Char .neq?

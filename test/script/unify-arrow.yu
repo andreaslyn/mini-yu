@@ -1,71 +1,72 @@
 
-data Id : (Ty, Ty) -> Ty
-let refl : (A : Ty) -> Id(A, A)
+data Id : Ty & Ty -> Ty
+let refl : (A : Ty) -> Id A A
 
 ##val error-bound : (X : Ty, Id((A : Ty) -> A, Ty -> X)) -> {}
 ##let (X, refl(_)) => []
 
-val easy-ok : (X : Ty, Y : Ty, Id((A : Ty) -> X -> A, (B : Ty) -> Y -> B)) -> Id(X, Y)
-let (X, Y, refl(_)) => refl(X)
+val easy-ok : (X : Ty) & (Y : Ty) & Id ((A : Ty) -> X -> A) ((B : Ty) -> Y -> B) -> Id X Y
+let X Y (refl(_)) => refl(X)
 
 val hard-ok :
-  (X : Ty, Y : Ty,
-    Id((A : Ty, Unused : A) -> (X, A) -> A,
-       (B : Ty, B) -> (y : Y, b : B) -> B)) -> Id(X, Y)
-let (X, Y, refl(_)) => refl(X)
+  (X : Ty) & (Y : Ty) &
+    Id((A : Ty) & (Unused : A) -> X & A -> A)
+       ((B : Ty) & B -> (y : Y) & (b : B) -> B) -> Id X Y
+let X Y (refl(_)) => refl(X)
+
 
 val hard-absurd :
-  (X : Ty, Y : Ty,
-    Id((A : Ty, Unused : A) -> (Ty, A) -> A,
-       (B : Ty, B) -> (y : Id(X, Y), b : B) -> B)) -> Id(X, Y)
-let (X, Y, ())
+  (X : Ty) & (Y : Ty) &
+    Id ((A : Ty) & (Unused : A) -> Ty & A -> A)
+       ((B : Ty) & B -> (y : Id X Y) & (b : B) -> B) -> Id X Y
+let X Y {}
 
 data Bool : Ty
 let true : Bool
 let false : Bool
 
-val ite[A : Ty] : (Bool, () -> A, () -> A) -> A
-let (true, f, _) => f()
-let (false, _, g) => g()
+val ite[A : Ty] : Bool & ({} -> A) & ({} -> A) -> A
+let true f _ => f ()
+let false _ g => g ()
 
 data Wrap[A : Ty] : A -> Ty
 let wrap[A : Ty] : (a : A) -> Wrap(a)
 
 val harder1-ok :
-  (X : Ty, Y : Ty, b : Bool,
-    Id((x : Wrap(true), y : X) -> Bool, (x' : Wrap(b), ite(b, (). Y, (). Bool)) -> Bool)
-  ) -> Id(X, Y)
-let (X, Y, _, refl(_)) => refl(X)
+  (X : Ty) & (Y : Ty) & (b : Bool) &
+    Id ((x : Wrap(true)) & (y : X) -> Bool) ((x' : Wrap(b)) & ite b ((_ : {}) => Y) ((_ : {}) => Bool) -> Bool) ->
+  Id X Y
+let X Y _ (refl(_)) => refl(X)
 
 val harder1-absurd :
-  (X : Ty, Y : Ty, b : Bool,
-    Id((x : Wrap(false), y : Ty) -> Bool, (x' : Wrap(b), ite(b, (). Y, (). Bool)) -> Bool)
-  ) -> Id(X, Y)
-let (X, Y, _, ())
+  (X : Ty) & (Y : Ty) & (b : Bool) &
+    Id ((x : Wrap(false)) & (y : Ty) -> Bool) ((x' : Wrap(b)) & (ite b ((_ : {}) => Y) ((_ : {}) => Bool)) -> Bool) ->
+  Id X Y
+let X Y _ {}
 
 val harder2-ok :
-  (X : Ty, Y : Ty, a : Bool, b : Bool,
-    Id((x : Wrap(true), y : X, Wrap(true)) -> Bool,
-        (x' : Wrap(a), ite(b, (). Y, (). Bool), ite(a, (). Wrap(b), (). Bool)) -> Bool)
-  ) -> Id(X, Y)
-let (X, Y, _, _, refl(_)) => refl(X)
+  (X : Ty) & (Y : Ty) & (a : Bool) & (b : Bool) &
+    Id ((x : Wrap(true)) & (y : X) & Wrap(true) -> Bool)
+       ((x' : Wrap(a)) & ite b ((_ : {}) => Y) ((_ : {}) => Bool) & ite a ((_ : {}) => Wrap(b)) ((_ : {}) => Bool) -> Bool) ->
+  Id X Y
+let X Y _ _ (refl(_)) => refl(X)
 
 val harder2-ok' :
-  (X : Ty, Y : Ty, a : Bool, b : Bool,
-    Id((x : Wrap(true), y : Bool, Wrap(false)) -> X,
-        (x' : Wrap(a), ite(b, (). Y, (). Bool), ite(a, (). Wrap(b), (). Bool))
-          -> ite(b, (). Bool, (). Y))
-  ) -> Id(X, Y)
-let (X, Y, _, _, refl(_)) => refl(X)
+  (X : Ty) & (Y : Ty) & (a : Bool) & (b : Bool) &
+    Id ((x : Wrap(true)) & (y : Bool) & Wrap(false) -> X)
+        ((x' : Wrap(a)) & ite b ((_ : {}) => Y) ((_ : {}) => Bool) & ite a ((_ : {}) => Wrap(b)) ((_ : {}) => Bool)
+          -> ite b ((_ : {}) => Bool) ((_ : {}) => Y)) ->
+  Id X Y
+let X Y _ _ (refl(_)) => refl(X)
 
 val cycle-seemingly1 :
-  (X : Ty, b : Bool,
-    Id((X, Wrap(b)) -> Bool, (ite(b, (). X, (). Bool), Wrap(true)) -> X)
-  ) -> Id(X, Bool)
-let (X, b, refl(_)) => refl(X)
+  (X : Ty) & (b : Bool) &
+    Id (X & Wrap(b) -> Bool) (ite b ((_ : {}) => X) ((_ : {}) => Bool) & Wrap(true) -> X) ->
+  Id X Bool
+let X b (refl(_)) => refl(X)
 
 val cycle-seemingly2 :
-  (X : Ty, Y : Ty, b : Bool,
-    Id((Y, Y, Wrap(b)) -> Bool, (ite(b, (). X, (). Bool), X, Wrap(true)) -> Bool)
-  ) -> Id(X, Y)
-let (X, Y, b, refl(_)) => refl(Y)
+  (X : Ty) & (Y : Ty) & (b : Bool) &
+    Id (Y & Y & Wrap(b) -> Bool) (ite b ((_ : {}) => X) ((_ : {}) => Bool) & X & Wrap(true) -> Bool) ->
+  Id X Y
+let X Y b (refl(_)) => refl(Y)

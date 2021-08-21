@@ -2,14 +2,14 @@
 data Nat : Ty
 let 0 : Nat
 
-data Vec : () -> () -> (Nat, Ty) -> Ty
-let vnil : (A : Ty) -> Vec()()(0, A)
+data Vec : {} -> {} -> Nat & Ty -> Ty
+let vnil : (A : Ty) -> Vec () () 0 A
 
-data Id : (A : Ty, A, A) -> Ty
-let refl : (A : Ty, x : A) -> Id(A, x, x)
+data Id : (A : Ty) & A & A -> Ty
+let refl : (A : Ty) & (x : A) -> Id A x x
 
 ##val id-list-vec : (A : Ty, Id(Ty, Vec()()(n, Ty), Vec()()(n, Vec()()(n, A))), n : Nat) -> Nat
 ##let (A, refl(_, _), n) => 0
 
-val id-list-vec : (A : Ty, Id(Ty, Vec()()(n, Ty), Vec()()(n, Vec()()(n, A))), n : Nat) -> Nat
-let (A, (), n)
+val id-list-vec : (A : Ty) & Id Ty (Vec () () n Ty) (Vec () () n (Vec () () n A)) & (n : Nat) -> Nat
+let A {} n

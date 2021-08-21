@@ -1,14 +1,14 @@
 
 data Test : Ty
-let t1 : const(Test, t2, Test)
-let t2 : const(Test, t3, Test)
-let t3 : const(Nat, ++(0), Test)
+let t1 : const Test t2 Test
+let t2 : const Test t3 Test
+let t3 : const Nat (++ 0) Test
 
-val const : (A : Ty, A, Ty) -> Ty
-let (A, _, X) => X
+val const : (A : Ty) & A & Ty -> Ty
+let A _ X => X
 
 data Nat : Ty
-let (++_\Nat) : const(Ty, Test, Nat) -> const(Nat, 0, Nat)
+let (++_\Nat) : const Ty Test Nat -> const Nat 0 Nat
 let 0 : Nat
 
 val rec-match : Rec -> Rec

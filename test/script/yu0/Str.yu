@@ -1,16 +1,16 @@
 
-import "List.yu"
-import "Char.yu"
-import "Nat.yu"
+import "/yu0/List.yu"
+import "/yu0/Char.yu"
+import "/yu0/Nat.yu"
 
 val Str : Ty
 let => List(Char)
 
 val strToUpper : Str -> Str
-let (s) => map(s, toUpperCase)
+let (s) => map s toUpperCase
 
 val strToLower : Str -> Str
-let (s) => map(s, toLowerCase)
+let (s) => map s toLowerCase
 
 val.. toStr.Nat : Nat -> Str
 let (0) => '0 :: nil
@@ -25,12 +25,12 @@ let (++ ++ ++ ++ ++ ++ ++ ++ 0) => '8 :: nil
 let (++ ++ ++ ++ ++ ++ ++ ++ ++ 0) => '9 :: nil
 let (n) =>
   x := n / 10;
-  y := mod(n, 10);
-  toStr.Nat(x) :+: toStr.Nat(y)
+  y := mod n 10;
+  toStr.Nat x :+: toStr.Nat y
 
-val toStr.List[A : Ty] : (List(A), A -> Str) -> Str
-let (xs, f) => fold(map(xs, f), nil, _:+:_)
+val toStr.List[A : Ty] : List(A) & (A -> Str) -> Str
+let xs f => fold (map xs f) nil _:+:_
 
 val toStr.Bool : Bool -> Str
-let (true) => 't :: 'r :: 'u :: 'e :: nil
-let (false) => 'f :: 'a :: 'l :: 's :: 'e :: nil
+let true => 't :: 'r :: 'u :: 'e :: nil
+let false => 'f :: 'a :: 'l :: 's :: 'e :: nil

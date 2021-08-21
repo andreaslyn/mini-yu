@@ -1,6 +1,6 @@
 
 data Empty : Ty
-let ()
+let {}
 
 val not : Ty -> Ty
-let (A) => A -> Empty
+let A => A -> Empty

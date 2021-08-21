@@ -1208,12 +1208,12 @@ yur_Ref *yur_cstr_to_yustr(const char *s) {
 }
 
 
-yur_Ref *yu__poprint_baChar(yur_Ref *x) {
+yur_Ref *yu__po_doprint_baChar(yur_Ref *x) {
   putchar(yur_yuchar_to_cchar(x));
   return &yur_unit;
 }
 
-yur_Ref *yu__pocmp_baChar(yur_Ref *c, yur_Ref *b) {
+yur_Ref *yu__po_docmp_baChar(yur_Ref *c, yur_Ref *b) {
   size_t t;
   if (b->tag < c->tag) {
     t = 0;
@@ -1254,6 +1254,6 @@ static yur_Ref *is_lt(yur_Ref *x) {
 
 yur_Ref *yu_cmpIsCompatible_doChar(yur_Ref *c, yur_Ref *b) {
   yur_Ref *e = yur_build(1, 0);
-  e->fields[0] = is_lt(yu__pocmp_baChar(b, c));
+  e->fields[0] = is_lt(yu__po_docmp_baChar(b, c));
   return e;
 }

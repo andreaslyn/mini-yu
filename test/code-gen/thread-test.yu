@@ -2,9 +2,9 @@ import "yu/parallel/parallel.yu"
 import "yu/print/print.yu"
 
 
-val printResult : Str | Unit ->> Unit
-let (in1(msg)) => ("error: " :+: msg) println
-let (in2(unit)) => "ok" println
+val printResult : Str || {} ->> {}
+let (in1 msg) => ("error: " :+: msg) .println
+let (in2 ()) => "ok" .println
 
 
 val 100 : Nat
@@ -14,28 +14,28 @@ val 10000 : Nat
 let => 100 * 100
 
 
-val spawnLoop : Nat ->> ([] -> Str | Unit) List
-let (0) => nil
+val spawnLoop : Nat ->> List (Lazy of Str || {})
+let 0 => nil
 let (++ n) =>
-  parallel'((). n str println)[] :: spawnLoop(n)
+  parallel' (_ => n .println) :: spawnLoop n
 
 
-val _foreach\_List\Ty[A : Ty] : (A List, A ->> Unit) ->> Unit
-let (nil, _) => unit
-let (x :: xs, f) => f(x); xs foreach(f)
+val _.foreach\List [A : Ty] : List A & (A ->> {}) ->> {}
+let nil _ => ()
+let (x :: xs) f => f x; xs .foreach f
 
 
-val main : () ->> Unit
+val main : {} ->> {}
 let () =>
-  t1 := parallel' (). ('t :: '1 :: nil.Str) println;
-  t2 := parallel' (). ('t :: '2 :: nil.Str) println;
-  t3 := parallel' (). ('t :: '3 :: nil.Str) println;
-  t4 := parallel' (). ('t :: '4 :: nil.Str) println;
-  t5 := parallel' (). ('t :: '5 :: nil.Str) println;
-  t6 := parallel' (). ('t :: '6 :: nil.Str) println;
-  t7 := parallel' (). ('t :: '7 :: nil.Str) println;
-  printResult(t4[]);
-  printResult(t5[]);
-  printResult(t6[]);
-  printResult(t7[]);
-  spawnLoop(10 * 10) foreach (t). printResult(t[])
+  t1 := parallel' (_ => ('t :: '1 :: nil.Str) .println);
+  t2 := parallel' (_ => ('t :: '2 :: nil.Str) .println);
+  t3 := parallel' (_ => ('t :: '3 :: nil.Str) .println);
+  t4 := parallel' (_ => ('t :: '4 :: nil.Str) .println);
+  t5 := parallel' (_ => ('t :: '5 :: nil.Str) .println);
+  t6 := parallel' (_ => ('t :: '6 :: nil.Str) .println);
+  t7 := parallel' (_ => ('t :: '7 :: nil.Str) .println);
+  printResult (t7 .force);
+  printResult (t6 .force);
+  printResult (t5 .force);
+  printResult (t4 .force);
+  spawnLoop (10 * 10) .foreach of t => printResult of t .force

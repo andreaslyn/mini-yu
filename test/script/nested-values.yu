@@ -3,14 +3,14 @@ data Nat : Ty
 let 0 : Nat
 let (++_\) : Nat -> Nat
 
-val test1 : (m : Nat, n : Nat) -> Nat
-let (m, n) => const(first)[](plusn(m))
+val test1 : (m : Nat) & (n : Nat) -> Nat
+let m n => const first (plusn m)
 where
   val first : Nat
   let => m
 
-  val const : Nat -> [] -> Nat -> Nat
-  let (x) => []. (y). plusn(y)
+  val const : Nat -> [] -> [] -> Nat -> Nat
+  let (x) => plusn
 
   val plusn : (x : Nat) -> Nat
   let (0) => n-indirect(n)
@@ -21,31 +21,31 @@ where
   let (++(x)) => ++(plusn(x))
 end
 
-val test2 : (X : Ty, m : Nat, n : Nat) -> Nat
-let (_, 0, n) => len(replicaten(unit))
+val test2 : (X : Ty) & (m : Nat) & (n : Nat) -> Nat
+let _ 0 n => len (replicaten ())
 where
-  val replicaten[A : Ty] : A -> List(A)
-  let (a) => replicate(n, a)
+  val replicaten [A : Ty] : A -> List A
+  let (a) => replicate n a
 
-  val replicate[A : Ty] : (Nat, a : A) -> List(A)
-  let (0, _) => nil
-  let (++(x), a) => cons(a, replicate(x, a))
+  val replicate [A : Ty] : Nat & (a : A) -> List(A)
+  let 0 _ => nil
+  let (++ x) a => cons a (replicate x a)
 
   val len[A : Ty] : List(A) -> Nat
   let (nil) => 0
-  let (cons(_, xs)) => ++(len(xs))
+  let (cons _ xs) => ++(len(xs))
 end
-let (X, ++(m), n) => len(nilX)
+let X (++ m) n => len(nilX)
 where
-  val len : ListOfX(X) -> Nat
+  val len : ListOfX X -> Nat
   let (nilX) => 0
-  let (consX(_)(xs)) => ++(len(xs))
+  let (consX _ xs) => ++(len(xs))
 end
 
 data ListOfX : Ty -> Ty
-let nilX[X : Ty] : ListOfX(X)
+let nilX[X : Ty] : ListOfX (X)
 let consX[X : Ty] : (x : X) -> ListOfX(X) -> ListOfX(X)
 
 data List : Ty -> Ty
 let nil[A : Ty] : List(A)
-let cons[A : Ty] : (A, List(A)) -> List(A)
+let cons[A : Ty] : A & List(A) -> List(A)

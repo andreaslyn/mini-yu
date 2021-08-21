@@ -8,86 +8,90 @@ let black.RB : Color.RB
 let red.RB : Color.RB
 
 
-val _red?\Color.RB : Color.RB -> Bool
-let (black.RB) => false
-let (red.RB) => true
+val _.red?\Color.RB : Color.RB -> Bool
+let black.RB => false
+let red.RB => true
 
-val _black?\Color.RB : Color.RB -> Bool
-let (black.RB) => true
-let (red.RB) => false
-
-
-data _RBTree\Ty : (A : Ty, A Ordering?) -> Ty
-let leaf.RB[A : Ty, od : A Ordering?] : A RBTree(od)
-let _node\_RBTree\Ty[A : Ty, od : A Ordering?] :
-  (A RBTree(od), A RBTree(od), A, Color.RB) -> A RBTree(od)
+val _.black?\Color.RB : Color.RB -> Bool
+let black.RB => true
+let red.RB => false
 
 
-data _IsNonempty\_RBTree\Ty[A : Ty, od : A Ordering?] : A RBTree(od) -> Ty
-let mkIsNonempty.RB[A : Ty, od : A Ordering?,
-    t1 : A RBTree(od), t2 : A RBTree(od), x : A, c : Color.RB] :
-  t1 node(t2, x, c) IsNonempty
+data RBTree : (A : Ty) & Ordering? A -> Ty
+let leaf.RB [A : Ty] [od : Ordering? A] : RBTree A od
+let _.node\RBTree [A : Ty] [od : Ordering? A] :
+  RBTree A od & RBTree A od & A & Color.RB -> RBTree A od
 
 
-val _balanceLeft\_RBTree\Ty[A : Ty, od : A Ordering?] :
-  (A RBTree(od), A RBTree(od), A, Color.RB) -> A RBTree(od)
-let (s1 node(s2, x, red.RB) node(t1, y, red.RB), t2, z, _) =>
-  s1 node(s2, x, black.RB) node(t1 node(t2, z, black.RB), y, red.RB)
-let (t1 node(s1 node(s2, x, red.RB), y, red.RB), t2, z, _) =>
-  t1 node(s1, y, black.RB) node(s2 node(t2, z, black.RB), x, red.RB)
-let (t1, t2, z, c) => t1 node(t2, z, c)
+data _.IsNode\RBTree [A : Ty] [od : Ordering? A] : RBTree A od -> Ty
+let isNode.RB [A : Ty] [od : Ordering? A]
+    [t1 : RBTree A od] [t2 : RBTree A od] [x : A] [c : Color.RB] :
+  t1 .node t2 x c .IsNode
 
 
-val _balanceRight\_RBTree\Ty[A : Ty, od : A Ordering?] :
-  (A RBTree(od), A RBTree(od), A, Color.RB) -> A RBTree(od)
-let (t1, s1 node(s2, x, red.RB) node(t2, y, red.RB), z, _) =>
-  t1 node(s1, z, black.RB) node(s2 node(t2, y, black.RB), x, red.RB)
-let (t1, t2 node(s1 node(s2, x, red.RB), y, red.RB), z, _) =>
-  t1 node(t2, z, black.RB) node(s1 node(s2, x, black.RB), y, red.RB)
-let (t1, t2, z, c) => t1 node(t2, z, c)
+val _.balanceLeft\RBTree [A : Ty] [od : Ordering? A] :
+  RBTree A od & RBTree A od & A & Color.RB -> RBTree A od
+let (s1 .node s2 x red.RB .node t1 y red.RB) t2 z _ =>
+  s1 .node s2 x black.RB .node (t1 .node t2 z black.RB) y red.RB
+let (t1 .node (s1 .node s2 x red.RB) y red.RB) t2 z _ =>
+  t1 .node s1 y black.RB .node (s2 .node t2 z black.RB) x red.RB
+let t1 t2 z c => t1 .node t2 z c
 
 
-val _balanceInsert\_RBTree\Ty[A : Ty, od : A Ordering?] :
-  (A RBTree(od), A) -> A RBTree(od)
-let (leaf.RB, y) => leaf.RB node(leaf.RB, y, red.RB)
-let (t1 node(t2, x, c), y) =>
-  t1 balanceInsertCmp(t2, x, c, y, od cmp(x, y))
+val _.balanceRight\RBTree [A : Ty] [od : Ordering? A] :
+  RBTree A od & RBTree A od & A & Color.RB -> RBTree A od
+let t1 (s1 .node s2 x red.RB .node t2 y red.RB) z _ =>
+  t1 .node s1 z black.RB .node (s2 .node t2 y black.RB) x red.RB
+let t1 (t2 .node (s1 .node s2 x red.RB) y red.RB) z _ =>
+  t1 .node t2 z black.RB .node (s1 .node s2 x black.RB) y red.RB
+let t1 t2 z c => t1 .node t2 z c
 
 
-val _balanceInsertCmp\_RBTree\Ty[A : Ty, od : A Ordering?] :
-  (A RBTree(od), A RBTree(od), A, Color.RB, A, Order) -> A RBTree(od)
-let (t1, t2, x, c, y, lt.Order) => t1 balanceRight(t2 balanceInsert(y), x, c)
-let (t1, t2, x, c, y, eq.Order) => t1 node(t2, x, c)
-let (t1, t2, x, c, y, gt.Order) => t1 balanceInsert(y) balanceLeft(t2, x, c)
+val _.balanceInsert\RBTree [A : Ty] [od : Ordering? A] :
+  RBTree A od & A -> RBTree A od
+let leaf.RB y => leaf.RB .node leaf.RB y red.RB
+let (t1 .node t2 x c) y =>
+  t1 .balanceInsertOrder t2 x c y (od .cmp x y)
 
 
-val _insert\_RBTree\Ty[A : Ty, od : A Ordering?] :
-  (A RBTree(od), A) -> A RBTree(od)
-let (t, x) => colorRootBlack(t balanceInsert(x))
+val _.balanceInsertOrder\RBTree [A : Ty] [od : Ordering? A] :
+  RBTree A od & RBTree A od & A & Color.RB & A & Order -> RBTree A od
+let t1 t2 x c y lt.Order => t1 .balanceRight (t2 .balanceInsert y) x c
+let t1 t2 x c y eq.Order => t1 .node t2 x c
+let t1 t2 x c y gt.Order => t1 .balanceInsert y .balanceLeft t2 x c
+
+
+val _.insert\RBTree [A : Ty] [od : Ordering? A] :
+  RBTree A od & A -> RBTree A od
+let t x => colorRootBlack (t .balanceInsert x)
 where
-  val colorRootBlack : A RBTree(od) -> A RBTree(od)
-  let (leaf.RB) => leaf.RB
-  let (t1 node(t2, y, _)) => t1 node(t2, y, black.RB)
+  val colorRootBlack : RBTree A od -> RBTree A od
+  let leaf.RB => leaf.RB
+  let (t1 .node t2 y _) => t1 .node t2 y black.RB
 end
 
 
-val fromList.TBTree[A : Ty, od : A Ordering?] :
-  A List -> A RBTree(od)
-let (nil) => leaf.RB
-let (x :: xs) => fromList.TBTree(xs) insert(x)
+val fromList.TBTree [A : Ty] [od : Ordering? A] :
+  List A -> RBTree A od
+let => aux leaf.RB _
+where
+  val aux : RBTree A od & List A -> RBTree A od
+  let t nil => t
+  let t (x :: xs) => aux (t .insert x) xs
+end
 
 
-val _member\_RBTree\Ty[A : Ty, od : A Ordering?] :
-  (A RBTree(od), A) -> Bool
-let (leaf.RB, _) => false
-let (t1 node(t2, x, _), y) => od eq?(x, y) | t1 member(y) | t2 member(y)
+val _.member\RBTree [A : Ty] [od : Ordering? A] :
+  RBTree A od & A -> Bool
+let leaf.RB _ => false
+let (t1 .node t2 x _) y => od .eq? x y || t1 .member y || t2 .member y
 
 
-val test.RBTree : do
+val test.RBTree : of
   xs := 1 :: 6 :: 5 :: 4 :: 6 :: 1 :: 3 :: 2 :: nil;
-  f := fromList.TBTree[od := ordering?.Nat];
-  ? do
-    f(xs) member(1) & f(xs) member(2) & f(xs) member(3) &
-    f(xs) member(4) & f(xs) member(5) & f(xs) member(6) &
-    ! f(xs) member(0) & ! f(xs) member(7)
+  f := fromList.TBTree [od := ordering?.Nat];
+  ? of
+    f xs .member 1 && f xs .member 2 && f xs .member 3 &&
+    f xs .member 4 && f xs .member 5 && f xs .member 6 &&
+    ! f xs .member 0 && ! f xs .member 7
 let => refl

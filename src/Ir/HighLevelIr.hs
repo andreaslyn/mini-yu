@@ -142,12 +142,13 @@ data St = St
   , nextConst :: Int
   , nextVar :: Int
   , unitConst :: Const
+  , optimize :: Bool
   }
 
 type StM = State St
 
 highLevelIr ::
-  [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap ->
+  Bool -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap ->
   (Program, ProgramRoots)
 highLevelIr = runStM
 
@@ -248,9 +249,9 @@ lookupDataCtor v = do
   return (Env.forceLookupDataCtorMap v dm)
 
 runStM ::
-  [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap ->
+  Bool -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap ->
   (Program, ProgramRoots)
-runStM vs dm im rm =
+runStM enableOptimization vs dm im rm =
   let st = St { teImplicitMap = im
               , teRefMap = rm
               , teDataCtorMap = dm
@@ -261,8 +262,9 @@ runStM vs dm im rm =
               , nextConst = 0
               , nextVar = 0
               , unitConst = Const "" 0 -- Dummy value in the beginning.
+              , optimize = enableOptimization
               }
-      (x, st') = runState (irInitProgram vs) st
+      (x, st') = runState (irInitProgram vs >>= optimizeProgram) st
   in (program st', x)
 
 irInitProgram :: [Te.RefVar] -> StM ProgramRoots
@@ -651,6 +653,66 @@ removeIdx i (x : xs) =
   let (x', xs') = removeIdx (i-1) xs in (x', x : xs')
 removeIdx _ _ = error "invalid index to removeIdx IR"
 
+
+--------------------- Optimization -------------------------
+
+
+optimizeProgram :: ProgramRoots -> StM ProgramRoots
+optimizeProgram roots = do
+  b <- fmap optimize get
+  if b
+  then doOptimizeProgram roots
+  else return roots
+
+doOptimizeProgram :: ProgramRoots -> StM ProgramRoots
+doOptimizeProgram roots = do
+  simplLazyForce roots
+  return roots
+
+simplLazyForce :: ProgramRoots -> StM ()
+simplLazyForce [] = return ()
+simplLazyForce (c : rs) = do
+  p <- fmap program get
+  let (e, isStatic) = lookupConst c p
+  e' <- simplLazyForceExpr e
+  let p' = IntMap.insert (prConst c) (c, e', isStatic) p
+  modify (\st -> st {program = p'})
+  simplLazyForce rs
+
+simplLazyForceExpr :: Expr -> StM Expr
+simplLazyForceExpr (Lazy io e) = do
+  e' <- simplLazyForceExpr e
+  case removeForce e of
+    Nothing -> return (Lazy io e')
+    Just d -> return d
+simplLazyForceExpr e@(Force _ _) = return e
+simplLazyForceExpr e@(Ap _ _ _) = return e
+simplLazyForceExpr (Fun vs e) =
+  fmap (Fun vs) (simplLazyForceExpr e)
+simplLazyForceExpr e@(Extern _) = return e
+simplLazyForceExpr (Case v cs) = do
+  cs' <-  mapM (\(i, n, e) -> fmap ((,,) i n) (simplLazyForceExpr e)) cs
+  return (Case v cs')
+simplLazyForceExpr e@(ConstRef _) = return e
+simplLazyForceExpr e@(CtorRef _ _) = return e
+simplLazyForceExpr e@(Proj _ _) = return e
+simplLazyForceExpr (Let v e1 e2) = do
+  e1' <- simplLazyForceExpr e1
+  e2' <- simplLazyForceExpr e2
+  return (Let v e1' e2')
+simplLazyForceExpr e@(Ret _) = return e
+simplLazyForceExpr (Where e rs) = do
+  e' <- simplLazyForceExpr e
+  simplLazyForce rs
+  return (Where e' rs)
+
+removeForce :: Expr -> Maybe Expr
+removeForce (Let v1 (Ret v2) e) = do
+  e' <- removeForce e
+  Just (Let v1 (Ret v2) e')
+removeForce (Force _ v) = Just (Ret v)
+removeForce _ = Nothing
+
 ------------------- Printing -----------------------------
 
 irToString :: Program -> ProgramRoots -> String
@@ -745,7 +807,7 @@ writeExpr inci p (Case v cs) = do
     writeCases [] = return ()
     writeCases ((i, n, w) : ws) = do
       newLine
-      writeStr "of "
+      writeStr "let "
       writeStr (show i)
       writeStr "("
       writeStr (show n)

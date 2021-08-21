@@ -42,7 +42,7 @@ typedef struct yur_Ref {
   struct yur_Ref *fields[];
 } yur_Ref;
 
-yur_Ref *yu_main();
+yur_Ref *yu_main(yur_Ref *);
 
 yur_NORETURN
 void yur_panic(const char *fmt, ...);

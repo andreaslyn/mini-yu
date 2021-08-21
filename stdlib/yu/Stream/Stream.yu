@@ -1,43 +1,43 @@
 import "yu/Nat/Nat.yu"
 
 
-data _Stream\Ty : Ty -> Ty
-let nil.Stream[A : Ty] : A Stream
-let _::_\_Stream\Ty[A : Ty] : (A, [] -> A Stream) -> A Stream
+data Stream : Ty -> Ty
+let nil.Stream [A : Ty] : Stream A
+let _::_\Stream [A : Ty] : A & ([] -> Stream A) -> Stream A
 
 
-val _:+:_\_Stream\Ty[A : Ty] : (A Stream, A Stream) -> A Stream
-let (nil.Stream, ys) => ys
-let (x :: xs, ys) => x :: xs[] :+: ys
+val _:+:_\Stream [A : Ty] : Stream A & Stream A -> Stream A
+let nil.Stream ys => ys
+let (x :: xs) ys => x :: xs :+: ys
 
 
-val _take!\_Stream\Ty[A : Ty] : (A Stream, Nat) -> A Stream
-let (_, 0) => nil.Stream
-let (nil.Stream, _) => nil.Stream
-let (x :: xs, ++ n) => x :: xs[] take!(n)
+val _.take!\Stream [A : Ty] : Stream A & Nat -> Stream A
+let _ 0 => nil.Stream
+let nil.Stream _ => nil.Stream
+let (x :: xs) (++ n) => x :: xs .take! n
 
 
-val _takeList!\_Stream\Ty[A : Ty] : (A Stream, Nat) -> A List
-let (nil.Stream, _) => nil
-let (_, 0) => nil
-let (x :: xs, ++ n) => x :: xs[] takeList!(n)
+val _.takeList!\Stream [A : Ty] : Stream A & Nat -> List A
+let nil.Stream _ => nil
+let _ 0 => nil
+let (x :: xs) (++ n) => x :: xs .takeList! n
 
 
-val _drop!\_Stream\Ty[A : Ty] : (A Stream, Nat) -> A Stream
-let (xs, 0) => xs
-let (nil.Stream, _) => nil.Stream
-let (_ :: xs, ++ n) => xs[] drop!(n)
+val _.drop!\Stream [A : Ty] : Stream A & Nat -> Stream A
+let xs 0 => xs
+let nil.Stream _ => nil.Stream
+let (_ :: xs) (++ n) => xs .drop! n
 
 
-val _accum\_Stream\Ty[A; B : Ty] : (A Stream, B, (B, A) -> B) -> B
-let (nil.Stream, y, _) => y
-let (x :: xs, y, f) => xs[] accum(f(y, x), f)
+val _.accum\Stream [A B : Ty] : Stream A & B & (B & A -> B) -> B
+let nil.Stream y _ => y
+let (x :: xs) y f => xs .accum (f y x) f
 
 
-val _fold\_Stream\Ty[A; B : Ty] : (A Stream, B, (A, B) -> B) -> B
-let (nil.Stream, y, _) => y
-let (x :: xs, y, f) => f(x, xs[] fold(y, f))
+val _.fold\Stream [A B : Ty] : Stream A & B & (A & B -> B) -> B
+let nil.Stream y _ => y
+let (x :: xs) y f => f x (xs .fold y f)
 
 
-val _rev\_Stream\Ty[A : Ty] : A Stream -> A Stream
-let => _ accum(nil.Stream, (s, x). x :: s)
+val _.rev\Stream [A : Ty] : Stream A -> Stream A
+let => _ .accum nil.Stream (s x => x :: s)

@@ -1,43 +1,43 @@
-import "Ordering?.yu"
-import "theorems.yu"
+import "yu/Ordering?/Ordering?.yu"
+import "yu/Ordering?/theorems.yu"
 
 
-val cmpIsTransitive?.Bool : cmpToLe?.Ordering?(_cmp\Bool) IsTransitive?
-let (false, _, false, _, _) => refl
-let (false, _, true, _, _) => refl
-let (true, false, _, (), _)
-let (true, true, false, _, ())
-let (true, true, true, _, _) => refl
+val cmpIsTransitive?.Bool : cmpToLe?.Ordering? _.cmp\Bool .IsTransitive?
+let false _ false _ _ => refl
+let false _ true _ _ => refl
+let true false _ {} _
+let true true false _ {}
+let true true true _ _ => refl
 
 
 val cmpIsCompatible.Bool :
-  (a : Bool, b : Bool) -> a cmp(b) lt? = b cmp(a) gt?
-let (false, false) => refl
-let (false, true) => refl
-let (true, false) => refl
-let (true, true) => refl
+  (a : Bool) & (b : Bool) -> a .cmp b .lt? = b .cmp a .gt?
+let false false => refl
+let false true => refl
+let true false => refl
+let true true => refl
 
 
-val ordering?.Bool : Bool Ordering?
-let => fromCmp.Ordering?(_cmp, cmpIsTransitive?.Bool, cmpIsCompatible.Bool)
+val ordering?.Bool : Ordering? Bool
+let => fromCmp.Ordering? _.cmp cmpIsTransitive?.Bool cmpIsCompatible.Bool
 
-val equivalence?.Bool : Bool Equivalence?
-let => ordering?.Bool equivalence?
+val equivalence?.Bool : Equivalence? Bool
+let => ordering?.Bool .equivalence?
 
-val _=?_\Bool : (Bool, Bool) -> Bool
-let => equivalence?.Bool eq?
+val _=?_\Bool : Bool & Bool -> Bool
+let => equivalence?.Bool .eq?
 
-val _!=?_\Bool : (Bool, Bool) -> Bool
-let => equivalence?.Bool neq?
+val _!=?_\Bool : Bool & Bool -> Bool
+let => equivalence?.Bool .neq?
 
-val _<?_\Bool : (Bool, Bool) -> Bool
-let => ordering?.Bool lt?
+val _<?_\Bool : Bool & Bool -> Bool
+let => ordering?.Bool .lt?
 
-val _>?_\Bool : (Bool, Bool) -> Bool
-let => ordering?.Bool gt?
+val _>?_\Bool : Bool & Bool -> Bool
+let => ordering?.Bool .gt?
 
-val _<=?_\Bool : (Bool, Bool) -> Bool
-let => ordering?.Bool le?
+val _<=?_\Bool : Bool & Bool -> Bool
+let => ordering?.Bool .le?
 
-val _>=?_\Bool : (Bool, Bool) -> Bool
-let => ordering?.Bool ge?
+val _>=?_\Bool : Bool & Bool -> Bool
+let => ordering?.Bool .ge?

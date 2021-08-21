@@ -23,6 +23,15 @@ yuKeyTok ty = do
   where
     cmpTy t = if tokType t == ty then Just (tokLoc t) else Nothing
 
+yuPostfixVarTok :: YuParsec (Loc, String)
+yuPostfixVarTok = do
+  f <- tokToPos
+  token (show . tokType) f getVar
+  where
+    getVar t = case tokType t of
+                TokPostfixOp s -> Just (tokLoc t, s)
+                _ -> Nothing
+
 yuVarTok :: YuParsec (Loc, String)
 yuVarTok = do
   f <- tokToPos
@@ -76,14 +85,8 @@ yuPreOpTok = do
 
 yuPostfixOpTok :: YuParsec (Loc, String)
 yuPostfixOpTok = do
-  (lo, op) <- keyTok <|> yuVarTok
+  (lo, op) <- yuPostfixVarTok
   return (lo, '_' : op)
-  where
-    keyTok :: YuParsec (Loc, String)
-    keyTok =
-          (yuKeyTok TokTy >>= \lo -> return (lo, "Ty"))
-      <|> (yuKeyTok TokUnitTy >>= \lo -> return (lo, "Unit"))
-      <|> (yuKeyTok TokUnitElem >>= \lo -> return (lo, "unit"))
 
 yuPreOpTok' :: YuParsec (Loc, String)
 yuPreOpTok' = do
@@ -142,8 +145,8 @@ parseCtorDecls = try emptyCtor <|> many1 doCtor
     emptyCtor :: YuParsec [Decl]
     emptyCtor = do
       _ <- yuKeyTok TokLet
-      _ <- yuKeyTok TokParenL
-      _ <- yuKeyTok TokParenR
+      _ <- yuKeyTok TokCurlyL
+      _ <- yuKeyTok TokCurlyR
       return []
 
     doCtor :: YuParsec Decl
@@ -162,23 +165,20 @@ parseVarOrPrefix = do
 parseDecl :: YuParsec Decl
 parseDecl = do
   var <- parseVarOrPrefix
-  imps <- optionMaybe parseImplicits
+  imps <- many parseImplicit
   ty <- parseTypeSpec
-  let imps' = case imps of
-                Nothing -> []
-                Just x -> x
-  return (Decl var imps' ty)
+  return (Decl var (concat imps) ty)
   where
-    parseImplicits :: YuParsec VarList
-    parseImplicits = do
+    parseImplicit :: YuParsec [VarListElem]
+    parseImplicit = do
       _ <- yuKeyTok TokSquareL
-      xs <- varListElem `sepBy1` yuKeyTok TokComma
+      xs <- varListElem
       _ <- yuKeyTok TokSquareR
-      return (concat xs)
+      return xs
 
     varListElem :: YuParsec [VarListElem]
     varListElem = do
-      vars <- parseVarOrPrefix `sepBy` yuKeyTok TokSemiColon
+      vars <- many1 parseVarOrPrefix
       ty <- parseTypeSpec
       return (zip vars (repeat $ Just ty))
 
@@ -198,25 +198,28 @@ parseDataDecl = impureData <|> pureData
 
 parseVarListLoc :: YuParsec (Loc, VarList)
 parseVarListLoc = do
-  lo <- yuKeyTok TokParenL
-  xs <- varListElem `sepBy` yuKeyTok TokComma
-  _ <- yuKeyTok TokParenR
-  return (lo, concat xs)
+  xs <- many1 varListElem
+  let lo = fst (head xs)
+  let xs' = map snd xs
+  return (lo, concat xs')
   where
-    varListElem :: YuParsec [VarListElem]
+    varListElem :: YuParsec (Loc, [VarListElem])
     varListElem = try varListElemMany <|> varListElem1
 
-    varListElemMany :: YuParsec [VarListElem]
+    varListElemMany :: YuParsec (Loc, [VarListElem])
     varListElemMany = do
-      vars <- parseVarOrPrefix `sepBy1` yuKeyTok TokSemiColon
-      ty <- optionMaybe parseTypeSpec
-      return (zip vars (repeat ty))
+      lo <- yuKeyTok TokParenL
+      vars <- many1 parseVarOrPrefix
+      ty <- case vars of
+              [_] -> optionMaybe parseTypeSpec
+              _ -> fmap Just parseTypeSpec
+      _ <- yuKeyTok TokParenR
+      return (lo, zip vars (repeat ty))
 
-    varListElem1 :: YuParsec [VarListElem]
+    varListElem1 :: YuParsec (Loc, [VarListElem])
     varListElem1 = do
       var <- parseVarOrPrefix
-      ty <- optionMaybe parseTypeSpec
-      return [(var, ty)]
+      return (fst var, [(var, Nothing)])
 
 parseValDecl :: YuParsec (Bool, Decl)
 parseValDecl = impureVal <|> pureVal
@@ -235,7 +238,7 @@ parseValDecl = impureVal <|> pureVal
 parseValDef :: YuParsec Def
 parseValDef = do
   (isPure, d) <- parseValDecl
-  lets <- many1 parseLetCase
+  lets <- many1 parseValCase
   return (DefVal isPure d lets)
 
 parseExternDef :: YuParsec Def
@@ -244,48 +247,40 @@ parseExternDef = do
   d <- parseDecl
   return (DefExtern d)
 
-parseLetCase :: YuParsec LetCase
-parseLetCase = do
+parseValCase :: YuParsec ValCase
+parseValCase = do
   lo <- yuKeyTok TokLet
   (impls, args) <- parseLetPattern
   d <- optionMaybe letDef
-  return (LetCase lo impls args d)
+  case args of
+    [] -> return (ValCase lo impls Nothing d)
+    _ -> return (ValCase lo impls (Just args) d)
   where
     parseLetPattern ::
-      YuParsec ([((Loc, String), ParsePattern)],
-                Maybe [ParsePattern])
+      YuParsec ([((Loc, String), ParsePattern)], [ParsePattern])
     parseLetPattern = do
-      imps <- optionMaybe parseImplicits
-      args <- optionMaybe parseArgs
-      case imps of
-        Nothing -> return ([], args)
-        Just imps' -> return (imps', args)
-
-    parseImplicits :: YuParsec [((Loc, String), ParsePattern)]
-    parseImplicits = do
-      _ <- yuKeyTok TokSquareL
-      imps <- parseImplicit `sepBy1` yuKeyTok TokComma
-      _ <- yuKeyTok TokSquareR
-      return imps
+      imps <- many parseImplicit
+      args <- many parsePatternLeaf
+      return (imps, args)
 
     parseImplicit :: YuParsec ((Loc, String), ParsePattern)
     parseImplicit = do
+      _ <- yuKeyTok TokSquareL
+      imp <- parseImplicitAssign
+      _ <- yuKeyTok TokSquareR
+      return imp
+
+    parseImplicitAssign :: YuParsec ((Loc, String), ParsePattern)
+    parseImplicitAssign = do
       v <- yuVarTok
       _ <- yuKeyTok TokColonEq
       p <- parsePattern
       return (v, p)
 
-    parseArgs :: YuParsec [ParsePattern]
-    parseArgs = do
-      _ <- yuKeyTok TokParenL
-      args <- parsePattern `sepBy` yuKeyTok TokComma
-      _ <- yuKeyTok TokParenR
-      return args
-
     letDef :: YuParsec (Expr, OptWhereClause)
     letDef = do
       _ <- yuKeyTok TokEqGreater
-      e <- parseExprSeq
+      e <- parseExpr
       w <- optionMaybe parseWhere
       return (e, w)
 
@@ -300,41 +295,30 @@ parseExpr :: YuParsec Expr
 parseExpr = parseDoExpr
 
 parseDoExpr :: YuParsec Expr
-parseDoExpr = tryParseDoExpr <|> parseFunExpr
+parseDoExpr = doParseDoExpr <|> parseFunExpr
 
-tryParseDoExpr :: YuParsec Expr
-tryParseDoExpr = try (yuKeyTok TokDo >> parseExprSeq)
+doParseDoExpr :: YuParsec Expr
+doParseDoExpr = yuKeyTok TokOf >> parseExpr
 
 parseFunExpr :: YuParsec Expr
-parseFunExpr = tryParseFunExpr <|> parseArrowExpr
+parseFunExpr = tryParseFunExpr <|> parseExprSeq
 
 tryParseFunExpr :: YuParsec Expr
-tryParseFunExpr = try doParseLazyFun <|> try doParseFun
+tryParseFunExpr = try doParseFun
   where
     doParseFun :: YuParsec Expr
     doParseFun = do
       (lo, xs) <- parseVarListLoc
-      _ <- yuKeyTok TokPeriod
-      e <- parseDoExpr
+      _ <- yuKeyTok TokEqGreater
+      e <- parseFunExpr
       return (ExprFun lo xs e)
 
-    doParseLazyFun :: YuParsec Expr
-    doParseLazyFun = do
-      lo <- yuKeyTok TokSquareL
-      _ <- yuKeyTok TokSquareR
-      _ <- yuKeyTok TokPeriod
-      e <- parseDoExpr
-      return (ExprLazyFun lo e)
-
-tryParseDoOrFun :: YuParsec Expr
-tryParseDoOrFun = tryParseDoExpr <|> tryParseFunExpr
-
-parseDoOrFunOr :: YuParsec Expr -> YuParsec Expr
-parseDoOrFunOr e = try tryParseDoOrFun <|> e
+parseDoOr :: YuParsec Expr -> YuParsec Expr
+parseDoOr e = doParseDoExpr <|> e
 
 parseArrowExpr :: YuParsec Expr
 parseArrowExpr =
-  try lazyParam <|> try zeroParams <|> try manyParams <|> try oneNamedParam <|> parseAppExprArrow
+  try lazyParam <|> try manyParams <|> parseAppExprArrow
   where
     parseAppExprArrow :: YuParsec Expr
     parseAppExprArrow = do
@@ -355,14 +339,6 @@ parseArrowExpr =
       a <- parseDoExpr
       return (ExprLazyArrow lo b a)
 
-    zeroParams :: YuParsec Expr
-    zeroParams = do
-      lo <- yuKeyTok TokParenL
-      _ <- yuKeyTok TokParenR
-      b <- parseArrowSymbol
-      a <- parseDoExpr
-      return (ExprArrow lo b [] a)
-
     parseArrowSymbol :: YuParsec Bool
     parseArrowSymbol =
       (yuKeyTok TokDashGreater >> return False)
@@ -370,35 +346,36 @@ parseArrowExpr =
 
     manyParams :: YuParsec Expr
     manyParams = do
-      lo <- yuKeyTok TokParenL
-      e <- paramElem
-      _ <- yuKeyTok TokComma
-      es <- paramElem `sepBy1` yuKeyTok TokComma
-      _ <- yuKeyTok TokParenR
+      es0 <- paramElem `sepBy1` yuKeyTok TokAmp
+      let lo = fst (head es0)
+      let es = map snd es0
       b <- parseArrowSymbol
       a <- parseDoExpr
-      return (ExprArrow lo b (e ++ concat es) a)
+      return (ExprArrow lo b (concat es) a)
 
-    oneNamedParam :: YuParsec Expr
-    oneNamedParam = do
+    paramElem :: YuParsec (Loc, [ExprListTypedElem])
+    paramElem = paramElemWithParen <|> paramElemWithoutParen
+
+    paramElemWithParen :: YuParsec (Loc, [ExprListTypedElem])
+    paramElemWithParen = do
       lo <- yuKeyTok TokParenL
-      e <- paramElemVar
+      (_, p) <- try paramElemVar <|> paramElemExpr
       _ <- yuKeyTok TokParenR
-      b <- parseArrowSymbol
-      a <- parseDoExpr
-      return (ExprArrow lo b e a)
+      return (lo, p)
 
-    paramElem :: YuParsec [ExprListTypedElem]
-    paramElem = try paramElemVar <|> paramElemExpr
-
-    paramElemVar :: YuParsec [ExprListTypedElem]
+    paramElemVar :: YuParsec (Loc, [ExprListTypedElem])
     paramElemVar = do
-      v <- parseVarOrPrefix `sepBy` yuKeyTok TokSemiColon
+      v <- many1 parseVarOrPrefix
+      let lo = fst (head v)
       ty <- parseTypeSpec
-      return (zipWith (\x t -> Right (x, t)) v (repeat ty))
+      return (lo, zipWith (\x t -> Right (x, t)) v (repeat ty))
 
-    paramElemExpr :: YuParsec [ExprListTypedElem]
-    paramElemExpr = liftM (\x -> [Left x]) parseExpr
+    paramElemExpr :: YuParsec (Loc, [ExprListTypedElem])
+    paramElemExpr =
+      liftM (\x -> (exprLoc x, [Left x])) parseExpr
+
+    paramElemWithoutParen :: YuParsec (Loc, [ExprListTypedElem])
+    paramElemWithoutParen = liftM (\x -> (exprLoc x, [Left x])) parseOp6Expr
 
 yuChainl1 :: YuParsec Expr -> YuParsec (Expr -> Expr -> Expr) -> YuParsec Expr
 yuChainl1 p op = do { x <- p; rest x }
@@ -406,7 +383,7 @@ yuChainl1 p op = do { x <- p; rest x }
     rest x = dorest x <|> return x
     dorest x = do
       f <- op
-      y0 <- optionMaybe tryParseDoOrFun
+      y0 <- optionMaybe doParseDoExpr
       case y0 of
         Nothing -> do { y <- p; rest (f x y) }
         Just y -> return (f x y)
@@ -418,7 +395,7 @@ yuChainr1 p op = scan
     rest x = dorest x <|> return x
     dorest x = do
       f <- op
-      y0 <- optionMaybe tryParseDoOrFun
+      y0 <- optionMaybe doParseDoExpr
       case y0 of
         Nothing -> do { y <- scan; return (f x y) }
         Just y -> return (f x y)
@@ -483,7 +460,7 @@ parsePrefixOpExpr = do
   case v of
     Nothing -> parseAppExpr
     Just v' -> do
-      e <- parseDoOrFunOr parsePrefixOpExpr
+      e <- parseDoOr parsePrefixOpExpr
       return (ExprApp (ExprVar v') [e])
 
 parseAppExpr :: YuParsec Expr
@@ -493,70 +470,64 @@ parseAppExpr = do
   where
     parseApp :: Expr -> YuParsec Expr
     parseApp e =
-      try (parsePostfixDoOrFun e)
-      <|> try (parsePostfixNormal e)
-      <|> try (parseAppDoOrFun e)
+      try (parsePostfixNormalAndDo e)
+      <|> try (parseAppDo e)
       <|> try (parseAppNormal e)
-      <|> try (parseAppSquare e)
+      <|> try (parseAppLazy e)
+      <|> try (parseAppImplicit e)
       <|> return e
 
-    appParen :: YuParsec [Expr]
-    appParen = do
-      _ <- yuKeyTok TokParenL
-      args <- parseExprSeq `sepBy` yuKeyTok TokComma
-      _ <- yuKeyTok TokParenR
-      return args
+    appArg :: YuParsec Expr
+    appArg = parseExprLeaf
 
-    appSquare :: YuParsec [((Loc, String), Expr)]
-    appSquare = do
+    appImplicit :: YuParsec ((Loc, String), Expr)
+    appImplicit = do
       _ <- yuKeyTok TokSquareL
-      args <- getNamedArg `sepBy` yuKeyTok TokComma
+      arg <- getNamedArg
       _ <- yuKeyTok TokSquareR
-      return args
+      return arg
 
-    parsePostfixNormal :: Expr -> YuParsec Expr
-    parsePostfixNormal e = do
+    parsePostfixNormalAndDo :: Expr -> YuParsec Expr
+    parsePostfixNormalAndDo e = do
       op <- yuPostfixOpTok
-      imps <- optionMaybe appSquare
-      args <- optionMaybe appParen
-      let (f, args') = case args of
-                        Nothing -> (id, [])
-                        Just [] -> (\x -> ExprApp x [], [])
-                        Just as -> (id, as)
+      imps <- many appImplicit
+      args <- many appArg
+      ofArg <- optionMaybe doParseDoExpr
       case imps of
-        Nothing ->
-          parseApp (f $ ExprApp (ExprVar op) (e : args'))
-        Just [] ->
-          if null args'
-          then
-            parseApp (f $ ExprLazyApp (ExprApp (ExprVar op) [e]))
-          else
-            parseApp (f $ ExprApp (ExprLazyApp (ExprApp (ExprVar op) [e])) args')
-        Just imps' ->
-          parseApp (f $ ExprApp (ExprImplicitApp (ExprVar op) imps') (e : args'))
-
-    parsePostfixDoOrFun :: Expr -> YuParsec Expr
-    parsePostfixDoOrFun e = do
-      op <- yuPostfixOpTok
-      imps <- optionMaybe appSquare
-      a <- tryParseDoOrFun
-      case imps of
-        Nothing ->
-          return (ExprApp (ExprVar op) [e, a])
-        Just imps' -> 
-          return (ExprApp (ExprImplicitApp (ExprVar op) imps') [e, a])
+        [] ->
+          case ofArg of
+            Nothing -> parseApp (ExprApp (ExprVar op) (e : args))
+            Just x ->  parseApp (ExprApp (ExprVar op) (e : args ++ [x]))
+        _ ->
+          case ofArg of
+            Nothing ->
+              parseApp (ExprApp (ExprImplicitApp (ExprVar op) imps) (e : args))
+            Just x ->
+              parseApp (ExprApp (ExprImplicitApp (ExprVar op) imps) (e : args ++ [x]))
 
     parseAppNormal :: Expr -> YuParsec Expr
     parseAppNormal e = do
-      args <- appParen
-      parseApp (ExprApp e args)
+      args <- many1 appArg
+      ofArg <- optionMaybe doParseDoExpr
+      case ofArg of
+        Nothing -> parseApp (ExprApp e args)
+        Just x -> parseApp (ExprApp e (args ++ [x]))
 
-    parseAppSquare :: Expr -> YuParsec Expr
-    parseAppSquare e = do
-      args <- appSquare
-      if null args
-        then parseApp (ExprLazyApp e)
-        else parseApp (ExprImplicitApp e args)
+    parseAppDo :: Expr -> YuParsec Expr
+    parseAppDo e = do
+      a <- doParseDoExpr
+      return (ExprApp e [a])
+
+    parseAppImplicit :: Expr -> YuParsec Expr
+    parseAppImplicit e = do
+      args <- many1 appImplicit
+      parseApp (ExprImplicitApp e args)
+
+    parseAppLazy :: Expr -> YuParsec Expr
+    parseAppLazy e = do
+      _ <- yuKeyTok TokSquareL
+      _ <- yuKeyTok TokSquareR
+      parseApp (ExprLazyApp e)
 
     getNamedArg :: YuParsec ((Loc, String), Expr)
     getNamedArg = do
@@ -564,11 +535,6 @@ parseAppExpr = do
       _ <- yuKeyTok TokColonEq
       t <- parseExpr
       return (v, t)
-
-    parseAppDoOrFun :: Expr -> YuParsec Expr
-    parseAppDoOrFun e = do
-      a <- tryParseDoOrFun
-      return (ExprApp e [a])
 
 parseExprLeaf :: YuParsec Expr
 parseExprLeaf =
@@ -581,13 +547,15 @@ parseExprLeaf =
   <|> parseExprStr
 
 parseExprUnitElem :: YuParsec Expr
-parseExprUnitElem = do
-  lo <- yuKeyTok TokUnitElem
+parseExprUnitElem = try $ do
+  lo <- yuKeyTok TokParenL
+  _ <- yuKeyTok TokParenR
   return (ExprUnitElem lo)
 
 parseExprUnitTy :: YuParsec Expr
-parseExprUnitTy = do
-  lo <- yuKeyTok TokUnitTy
+parseExprUnitTy = try $ do
+  lo <- yuKeyTok TokCurlyL
+  _ <- yuKeyTok TokCurlyR
   return (ExprUnitTy lo)
 
 parseExprTy :: YuParsec Expr
@@ -602,7 +570,7 @@ parseExprStr = do
     yuCharsToExpr :: [String] -> Loc -> Expr
     yuCharsToExpr [] lo = ExprVar (lo, "nil")
     yuCharsToExpr (c : cs) lo =
-      ExprApp (ExprVar (lo, "_::_\\_List\\Ty"))
+      ExprApp (ExprVar (lo, "_::_\\List"))
         [ExprVar (lo, c), yuCharsToExpr cs lo]
 
 parseExprVar :: YuParsec Expr
@@ -610,28 +578,23 @@ parseExprVar = liftM ExprVar yuVarTok
 
 parseExprSeq :: YuParsec Expr
 parseExprSeq = do
-  es <- exprOrAssign `sepBy1` yuKeyTok TokSemiColon
-  let (start, [end]) = splitAt (length es - 1) es
-  e <- case end of
-         Right _ -> fail "expected expression"
-         Left x -> return x
-  return (foldr ExprSeq e start)
+  e <- try assignElem <|> fmap Left parseArrowExpr
+  m <- optionMaybe (yuKeyTok TokSemiColon)
+  case m of
+    Nothing ->
+      case e of
+        Right _ -> fail "expected expression"
+        Left e' -> return e'
+    Just _ -> do
+      es <- parseExpr
+      return (ExprSeq e es)
   where
-    exprOrAssign :: YuParsec ExprSeqElem
-    exprOrAssign = try exprElem <|> assignElem
-
     assignElem :: YuParsec ExprSeqElem
     assignElem = do
       p <- parsePattern
       _ <- yuKeyTok TokColonEq
-      e <- parseExpr
+      e <- parseArrowExpr
       return (Right (p, e))
-
-    exprElem :: YuParsec ExprSeqElem
-    exprElem = do
-      e <- parseExpr
-      notFollowedBy (yuKeyTok TokColonEq)
-      return (Left e)
 
 parseParenExpr :: YuParsec Expr
 parseParenExpr = do
@@ -646,7 +609,7 @@ parseParenExpr = do
 
     parenExpr :: YuParsec Expr
     parenExpr = do
-      e <- parseExprSeq
+      e <- parseExpr
       _ <- yuKeyTok TokParenR
       return e
 
@@ -654,13 +617,13 @@ parseCaseExpr :: YuParsec Expr
 parseCaseExpr = do
   lo <- yuKeyTok TokCase
   e <- parseExpr
-  ofs <- many1 ofCase
+  ofs <- many1 caseCase
   _ <- yuKeyTok TokEnd
   return (ExprCase lo e ofs)
   where
-    ofCase :: YuParsec OfCase
-    ofCase = do
-      _ <- yuKeyTok TokOf
+    caseCase :: YuParsec CaseCase
+    caseCase = do
+      _ <- yuKeyTok TokBar
       p <- parsePattern
       e <- optionMaybe caseDef
       case e of
@@ -670,11 +633,25 @@ parseCaseExpr = do
     caseDef :: YuParsec Expr
     caseDef = do
       _ <- yuKeyTok TokEqGreater
-      e <- parseExprSeq
+      e <- parseExpr
       return e
 
 parsePattern :: YuParsec ParsePattern
-parsePattern = parsePatternOp6
+parsePattern = parsePatternOp
+{-
+parsePattern = lazyPattern <|> parsePatternOp
+  where
+    lazyPattern :: YuParsec ParsePattern
+    lazyPattern = do
+      lo <- yuKeyTok TokSquareL
+      _ <- yuKeyTok TokSquareR
+      _ <- yuKeyTok TokEqGreater
+      p <- parsePattern
+      return (ParsePatternLazy lo p)
+-}
+
+parsePatternOp :: YuParsec ParsePattern
+parsePatternOp = parsePatternOp6
 
 parsePatternOp6 :: YuParsec ParsePattern
 parsePatternOp6 =
@@ -745,52 +722,33 @@ parsePatternApp = parsePatternLeaf >>= parseApp
     parseApp :: ParsePattern -> YuParsec ParsePattern
     parseApp p =
       try (appPostfix p)
-      <|> try (appParen >>= parseApp . ParsePatternApp p)
+      <|> try (many1 appArg >>= parseApp . ParsePatternApp p)
       <|> try (do
-                args <- appSquare
-                if null args
-                  then parseApp (ParsePatternLazyApp p)
-                  else parseApp (ParsePatternImplicitApp p args))
+                args <- many1 appImplicit
+                parseApp (ParsePatternImplicitApp p args))
       <|> return p
 
-    appParen :: YuParsec [ParsePattern]
-    appParen = do
-      _ <- yuKeyTok TokParenL
-      args <- parsePattern `sepBy` yuKeyTok TokComma
-      _ <- yuKeyTok TokParenR
-      return args
+    appArg :: YuParsec ParsePattern
+    appArg = parsePatternLeaf
 
-    appSquare :: YuParsec [((Loc, String), ParsePattern)]
-    appSquare = do
+    appImplicit :: YuParsec ((Loc, String), ParsePattern)
+    appImplicit = do
       _ <- yuKeyTok TokSquareL
-      args <- parseArg `sepBy` yuKeyTok TokComma
+      arg <- parseArg
       _ <- yuKeyTok TokSquareR
-      return args
+      return arg
 
     appPostfix :: ParsePattern -> YuParsec ParsePattern
     appPostfix p = do
       op <- yuPostfixOpTok
-      imps <- optionMaybe appSquare
-      args <- optionMaybe appParen
-      let (f, args') = case args of
-                        Nothing -> (id, [])
-                        Just [] -> (\x -> ParsePatternApp x [], [])
-                        Just as -> (id, as)
+      imps <- many appImplicit
+      args <- many appArg
       case imps of
-        Nothing ->
-          parseApp (f $ ParsePatternApp (ParsePatternVar op) (p : args'))
-        Just [] ->
-          if null args'
-          then
-            parseApp (f $ ParsePatternLazyApp
-                          (ParsePatternApp (ParsePatternVar op) [p]))
-          else
-            parseApp (f $ ParsePatternApp
-                          (ParsePatternLazyApp
-                            (ParsePatternApp (ParsePatternVar op) [p])) args')
-        Just imps' ->
-          parseApp (f $ ParsePatternApp
-                        (ParsePatternImplicitApp (ParsePatternVar op) imps') (p : args'))
+        [] ->
+          parseApp (ParsePatternApp (ParsePatternVar op) (p : args))
+        _ ->
+          parseApp (ParsePatternApp
+                      (ParsePatternImplicitApp (ParsePatternVar op) imps) (p : args))
 
     parseArg :: YuParsec ((Loc, String), ParsePattern)
     parseArg = do
@@ -800,10 +758,28 @@ parsePatternApp = parsePatternLeaf >>= parseApp
       return (v, p)
 
 parsePatternLeaf :: YuParsec ParsePattern
-parsePatternLeaf = patStr <|> patUnit <|> patVar <|> patPat
+parsePatternLeaf = patStr <|> patEmpty <|> patVar <|> patPat
   where
     patVar :: YuParsec ParsePattern
     patVar = liftM ParsePatternVar yuVarTok
+
+    patEmpty :: YuParsec ParsePattern
+    patEmpty = do
+      lo <- yuKeyTok TokCurlyL
+      _ <- yuKeyTok TokCurlyR
+      return (ParsePatternEmpty lo)
+
+    patStr :: YuParsec ParsePattern
+    patStr = do
+      (lo, s) <- yuStringLitTok
+      return (ParsePatternApp (ParsePatternVar (lo, "mk.Str"))
+                [yuCharsToPat (stringToYuChars s) lo])
+      where
+        yuCharsToPat :: [String] -> Loc -> ParsePattern
+        yuCharsToPat [] lo = ParsePatternVar (lo, "nil")
+        yuCharsToPat (c : cs) lo =
+          ParsePatternApp (ParsePatternVar (lo, "_::_\\_.List\\Ty"))
+            [ParsePatternVar (lo, c), yuCharsToPat cs lo]
 
     patPat :: YuParsec ParsePattern
     patPat = do
@@ -822,24 +798,7 @@ parsePatternLeaf = patStr <|> patUnit <|> patVar <|> patPat
           _ <- yuKeyTok TokParenR
           case p of
             Just p' -> return p'
-            Nothing -> return (ParsePatternEmpty lo)
-
-    patUnit :: YuParsec ParsePattern
-    patUnit = do
-      lo <- yuKeyTok TokUnitElem
-      return (ParsePatternUnit lo)
-
-    patStr :: YuParsec ParsePattern
-    patStr = do
-      (lo, s) <- yuStringLitTok
-      return (ParsePatternApp (ParsePatternVar (lo, "mk.Str"))
-                [yuCharsToPat (stringToYuChars s) lo])
-      where
-        yuCharsToPat :: [String] -> Loc -> ParsePattern
-        yuCharsToPat [] lo = ParsePatternVar (lo, "nil")
-        yuCharsToPat (c : cs) lo =
-          ParsePatternApp (ParsePatternVar (lo, "_::_\\_List\\Ty"))
-            [ParsePatternVar (lo, c), yuCharsToPat cs lo]
+            Nothing -> return (ParsePatternUnit lo)
 
 runParse' :: FilePath -> [Tok] -> Either String Program
 runParse' p ts =

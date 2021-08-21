@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0527ef75eddeda341b8f3e53a191878ee9e509330802551e1783f4062cd214c2
+-- hash: d6830b8e6261ae6a1e52b6d1dd675a7ce9589b35ec1d92daf58238fc811f1ec7
 
 name:           mini-yu
 version:        0.1.3.0
@@ -31,6 +31,7 @@ library
       Ir.HighLevelIr
       Ir.RefCountIr
       Loc
+      PackageMap
       ParseTree
       Str
       TypeCheck.Env

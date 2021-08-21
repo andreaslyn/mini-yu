@@ -4,16 +4,16 @@ import "yu/prelude/prelude.yu"
 extern (!_\) : Bool ->> Bool
 
 
-extern len : (A : Ty, A List) -> Nat
+extern len : (A : Ty) & List A -> Nat
 
 
-val main : () ->> Unit
+val main : {} ->> {}
 let () =>
-  case (!_\)(true)
-  of false => '1 println
-  of true => '0 println
+  case (!_\) true
+  | false => '1 .println
+  | true => '0 .println
   end;
-  case len(Nat, 0 :: 0 :: 0 :: nil)
-  of 0 => "0\n" print
-  of _ => "1\n" print
+  case len Nat (0 :: 0 :: 0 :: nil)
+  | 0 => "0\n" .print
+  | _ => "1\n" .print
   end

@@ -1,5 +1,5 @@
 import "yu/print/print.yu"
 
 
-val main : () ->> Unit
-let () => "Hello, World!" println
+val main : {} ->> {}
+let () => "Hello, World!" .println

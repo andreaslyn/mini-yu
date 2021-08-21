@@ -1,32 +1,32 @@
 
-val test1 : Unit
-let => ((x). x)(unit)
+val test1 : {}
+let => (x => x)()
 
-val test2 : Unit
-let => ((x, y). unit-id(x))(unit, Ty)
+val test2 : {}
+let => (x y => unit-id x) () Ty
 where
-  val unit-id : Unit -> Unit
-  let (unit) => unit
+  val unit-id : {} -> {}
+  let () => ()
 end
 
-val test3 : Unit
-let => ((x). (unit := x; unit))(unit)
+val test3 : {}
+let => (x => () := x; ()) ()
 
-data Id[A : Ty] : (A, A) -> Ty
-let refl[A : Ty, a : A] : Id(a, a)
+data Id [A : Ty] : A & A -> Ty
+let refl [A : Ty] [a : A] : Id a a
 
 data Nat : Ty
 let 0 : Nat
 let (++_\) : Nat -> Nat
 
 data ReflectNat : Nat -> Ty
-let reflectNat : (n : Nat) -> ReflectNat(n)
+let reflectNat : (n : Nat) -> ReflectNat n
 
-val reflectPlus[m : Nat, n : Nat]
-  : (ReflectNat(m), ReflectNat(n)) -> Nat
-let [n := 0](_, _) => m
-let [n := ++(n)](rm, _) => ++(reflectPlus(rm, reflectNat(n)))
+val reflectPlus [m : Nat] [n : Nat]
+  : ReflectNat(m) & ReflectNat(n) -> Nat
+let [n := 0] _ _ => m
+let [n := ++(n)] rm _ => ++ reflectPlus rm (reflectNat n)
 
 val test-reflect-nat
-  : Id(reflectPlus(reflectNat(0), reflectNat(0)), 0)
+  : Id (reflectPlus (reflectNat 0) (reflectNat 0)) 0
 let => refl

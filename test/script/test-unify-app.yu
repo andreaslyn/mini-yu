@@ -5,87 +5,87 @@ let 0 : Nat
 let (++_\Nat) : Nat -> Nat
 
 
-data _List\Ty : Ty -> Ty
-let nil[A : Ty] : A List
-let _::_\_List\Ty[A : Ty] : (A, A List) -> A List
+data _.List\Ty : Ty -> Ty
+let nil [A : Ty] : A .List
+let _::_\_.List\Ty[A : Ty] : A & A .List -> A .List
 
 
-val id-F[F : Ty -> Ty, A : Ty] : F(A) -> F(A)
-let (x) => x
+val id-F[F : Ty -> Ty] [A : Ty] : F A -> F A
+let x => x
 
 
-val test-id-F-List : Unit
+val test-id-F-List : {}
 let =>
-  _ := id-F(unit :: nil);
-  unit
+  _ := id-F(() :: nil);
+  ()
 
 
-data _Vec\Ty : (Ty, Nat) -> Ty
-let vnil[A : Ty] : A Vec(0)
-let _::_\_Vec\Ty[A : Ty, n : Nat] : (A, A Vec(n)) -> A Vec(++ n)
+data _.Vec\Ty : Ty & Nat -> Ty
+let vnil[A : Ty] : A .Vec 0
+let _::_\_.Vec\Ty[A : Ty] [n : Nat] : A & A .Vec n -> A .Vec (++ n)
 
 
-data _IsTyTy\_->_ : (Ty -> Ty) -> Ty
-let mkIsTyTy[F : Ty -> Ty] : F IsTyTy
+data _.IsTyTy\Ty : (Ty -> Ty) -> Ty
+let mkIsTyTy[F : Ty -> Ty] : F .IsTyTy
 
 
-val id-F-IsTyTy[F : Ty -> Ty, A : Ty] : (F(A), F IsTyTy) -> F(A)
-let (x, _) => x
+val id-F-IsTyTy[F : Ty -> Ty] [A : Ty] : F A & F .IsTyTy -> F A
+let x _ => x
 
 
-val test-id-F-Vec : Unit
+val test-id-F-Vec : {}
 let =>
-  _ := id-F-IsTyTy(unit :: vnil, mkIsTyTy[F := (xx). xx Vec(++ 0)]);
-  unit
+  _ := id-F-IsTyTy (() :: vnil) (mkIsTyTy[F := xx => xx .Vec (++ 0)]);
+  ()
 
 
-data _IsTyTy'\_->_ : (Ty -> Ty, Ty) -> Ty
-let mkIsTyTy'[F : Ty -> Ty, A : Ty] : F IsTyTy'(A)
+data _.IsTyTy'\Ty : (Ty -> Ty) & Ty -> Ty
+let mkIsTyTy'[F : Ty -> Ty] [A : Ty] : F .IsTyTy' A
 
 
-val id-F-IsTyTy'1[F; G : Ty -> Ty, A; B : Ty] : (F(A), G(B), F IsTyTy'(G(A)), G IsTyTy) -> F(A)
-let (x, _, _, _) => x
+val id-F-IsTyTy'1[F G : Ty -> Ty] [A B : Ty] : F A & G B & F .IsTyTy' (G A) & (G .IsTyTy) -> F A
+let x _ _ _ => x
 
 
-val id-F-IsTyTy'2[F; G : Ty -> Ty, A; B : Ty] : (F(A), G(A), F IsTyTy, G IsTyTy'(F(B))) -> F(A)
-let (x, _, _, _) => x
+val id-F-IsTyTy'2[F G : Ty -> Ty] [A B : Ty] : F A & G A & F .IsTyTy & G .IsTyTy' (F B) -> F A
+let x _ _ _ => x
 
 
-val test-id-F-Vec' : Unit
+val test-id-F-Vec' : {}
 let =>
-  _ := id-F-IsTyTy'1(unit :: vnil, unit :: vnil,
-    mkIsTyTy'[F := (x0). x0 Vec(++ 0), A := Unit Vec(++ 0)],
-    mkIsTyTy[F := (x1). x1 Vec(++ 0)]);
-  _ := id-F-IsTyTy'2(unit :: vnil, unit :: vnil,
-    mkIsTyTy[F := (x0). x0 Vec(++ 0)],
-    mkIsTyTy'[F := (x1). x1 Vec(++ 0), A := Unit Vec(++ 0)]);
-  unit
+  _ := id-F-IsTyTy'1 (() :: vnil) (() :: vnil)
+    (mkIsTyTy' [F := x0 => x0 .Vec (++ 0)] [A := {} .Vec (++ 0)])
+    (mkIsTyTy [F := x1 => x1 .Vec (++ 0)]);
+  _ := id-F-IsTyTy'2 (() :: vnil) (() :: vnil)
+    (mkIsTyTy[F := x0 => x0 .Vec(++ 0)])
+    (mkIsTyTy'[F := x1 => x1 .Vec(++ 0)] [A := {} .Vec(++ 0)]);
+  ()
 
 
-data _IsTyTyTy\_->_ : ((Ty, Ty) -> Ty) -> Ty
-let mkIsTyTyTy[F : (Ty, Ty) -> Ty] : F IsTyTyTy
+data _.IsTyTyTy\Ty : (Ty & Ty -> Ty) -> Ty
+let mkIsTyTyTy[F : Ty & Ty -> Ty] : F .IsTyTyTy
 
 
-val id-F-IsTyTyTy[F : (Ty, Ty) -> Ty, A; B : Ty] : (F(A, B), F IsTyTyTy) -> F(A, B)
-let (x, _) => x
+val id-F-IsTyTyTy[F : Ty & Ty -> Ty] [A B : Ty] : F A B & F .IsTyTyTy -> F A B
+let x _ => x
 
 
-data _PairList\Ty : (Ty, Ty) -> Ty
-let pnil[A; B : Ty] : A PairList(B)
-let pcons[A; B : Ty] : (A, B, A PairList(B)) -> A PairList(B)
+data _.PairList\Ty : Ty & Ty -> Ty
+let pnil[A B : Ty] : A .PairList B
+let pcons[A B : Ty] : A & B & A .PairList B -> A .PairList B
 
 
-val test-id-F-PairList : Unit
+val test-id-F-PairList : {}
 let =>
-  _ := id-F-IsTyTyTy(pcons(unit, unit, pnil), mkIsTyTyTy[F := _PairList\Ty]);
-  unit
+  _ := id-F-IsTyTyTy (pcons () () pnil) (mkIsTyTyTy[F := _.PairList\Ty]);
+  ()
 
 
-val id-F-IsTyTyTy2[F : (Ty, Ty) -> Ty, A; B : Ty] : (F(A, B), F IsTyTyTy, F(B, A)) -> F(A, B)
-let (x, _, _) => x
+val id-F-IsTyTyTy2[F : Ty & Ty -> Ty] [A B : Ty] : F A B & F .IsTyTyTy & F B A -> F A B
+let x _ _ => x
 
 
-val test-id-F-List-Drop : Unit
+val test-id-F-List-Drop : {}
 let =>
-  _ := id-F-IsTyTyTy2(unit :: nil, mkIsTyTyTy[F := (_, B). B List], 0 :: nil);
-  unit
+  _ := id-F-IsTyTyTy2 (() :: nil) (mkIsTyTyTy[F := _ B => B .List]) (0 :: nil);
+  ()

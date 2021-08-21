@@ -5,341 +5,371 @@ import "yu/relation?/relation?.yu"
 import "yu/Bool/theorems.yu"
 
 
-data _OrderRelation?\Ty : Ty -> Ty
-let mkRel.Ordering?[A : Ty] :
-  (le : (A, A) -> Bool,
-    lt : (A, A) -> Bool,
-    eq : (A, A) -> Bool,
-    cmp : (A, A) -> Order) -> A OrderRelation?
-
-val _cmp\_OrderRelation?\Ty[A : Ty] : A OrderRelation? -> (A, A) -> Order
-let (mkRel.Ordering?(_, _, _, cmp)) => cmp
-
-val _le?\_OrderRelation?\Ty[A : Ty] : A OrderRelation? -> (A, A) -> Bool
-let (mkRel.Ordering?(le, _, _, _)) => le
-
-val _ge?\_OrderRelation?\Ty[A : Ty] : A OrderRelation? -> (A, A) -> Bool
-let (R) => (x, y). R le?(y, x)
-
-val _lt?\_OrderRelation?\Ty[A : Ty] : A OrderRelation? -> (A, A) -> Bool
-let (mkRel.Ordering?(_, lt, _, _)) => lt
-
-val _gt?\_OrderRelation?\Ty[A : Ty] : A OrderRelation? -> (A, A) -> Bool
-let (R) => (x, y). R lt?(y, x)
-
-val _eq?\_OrderRelation?\Ty[A : Ty] : A OrderRelation? -> (A, A) -> Bool
-let (mkRel.Ordering?(_, _, eq, _)) => eq
-
-val _neq?\_OrderRelation?\Ty[A : Ty] : A OrderRelation? -> (A, A) -> Bool
-let (R) => (x, y). ! R eq?(x, y)
+data OrderRelation? : Ty -> Ty
+let mkRel.Ordering? [A : Ty] :
+  (le : A & A -> Bool) &
+  (lt : A & A -> Bool) &
+  (eq : A & A -> Bool) &
+  (cmp : A & A -> Order) ->
+  OrderRelation? A
 
 
-val cmpToLt?.Ordering?[A : Ty] : ((A, A) -> Order) -> (A, A) -> Bool
-let (C) => (x, y). C(x, y) lt?
+val _.cmp\OrderRelation?[A : Ty] : OrderRelation? A -> A & A -> Order
+let (mkRel.Ordering? _ _ _ cmp) => cmp
 
-val cmpToEq?.Ordering?[A : Ty] : ((A, A) -> Order) -> (A, A) -> Bool
-let (C) => (x, y). C(x, y) eq?
+val _.le?\OrderRelation?[A : Ty] : OrderRelation? A -> A & A -> Bool
+let (mkRel.Ordering? le _ _ _) => le
 
-val cmpToGt?.Ordering?[A : Ty] : ((A, A) -> Order) -> (A, A) -> Bool
-let (C) => (x, y). C(x, y) gt?
+val _.ge?\OrderRelation?[A : Ty] : OrderRelation? A -> A & A -> Bool
+let R => x y => R .le? y x
 
-val cmpToNeq?.Ordering?[A : Ty] : ((A, A) -> Order) -> (A, A) -> Bool
-let (C) => (x, y). ! cmpToEq?.Ordering?(C)(x, y)
+val _.lt?\OrderRelation?[A : Ty] : OrderRelation? A -> A & A -> Bool
+let (mkRel.Ordering? _ lt _ _) => lt
 
-val cmpToGe?.Ordering?[A : Ty] : ((A, A) -> Order) -> (A, A) -> Bool
-let (C) => (x, y). ! cmpToLt?.Ordering?(C)(x, y)
+val _.gt?\OrderRelation?[A : Ty] : OrderRelation? A -> A & A -> Bool
+let R => x y => R .lt? y x
 
-val cmpToLe?.Ordering?[A : Ty] : ((A, A) -> Order) -> (A, A) -> Bool
-let (C) => (x, y). ! cmpToGt?.Ordering?(C)(x, y)
+val _.eq?\OrderRelation?[A : Ty] : OrderRelation? A -> A & A -> Bool
+let (mkRel.Ordering? _ _ eq _) => eq
 
-
-val leToCmpImpl.Ordering? : (Bool, Bool) -> Order
-let (lexy, leyx) =>
-  if(! lexy)
-  then(gt.Order)
-  else do
-    if(leyx)
-    then(eq.Order)
-    else(lt.Order)
-
-val leToCmp.Ordering?[A : Ty] : ((A, A) -> Bool) -> (A, A) -> Order
-let (le) => (x, y). leToCmpImpl.Ordering?(le(x, y), le(y, x))
-
-val leToLt?.Ordering?[A : Ty] : ((A, A) -> Bool) -> (A, A) -> Bool
-let (le) => (x, y). ! le(y, x)
-
-val leToEq?.Ordering?[A : Ty] : ((A, A) -> Bool) -> (A, A) -> Bool
-let (le) => (x, y). le(x, y) & le(y, x)
-
-val leToNeq?.Ordering?[A : Ty] : ((A, A) -> Bool) -> (A, A) -> Bool
-let (le) => (x, y). ! leToEq?.Ordering?(le)(x, y)
-
-val leToGt?.Ordering?[A : Ty] : ((A, A) -> Bool) -> (A, A) -> Bool
-let (le) => (x, y). leToLt?.Ordering?(le)(y, x)
-
-val leToGe?.Ordering?[A : Ty] : ((A, A) -> Bool) -> (A, A) -> Bool
-let (le) => (x, y). le(y, x)
+val _.neq?\OrderRelation?[A : Ty] : OrderRelation? A -> A & A -> Bool
+let R => x y => ! R .eq? x y
 
 
-data _IsOrdering?\_OrderRelation?\Ty[A : Ty] : A OrderRelation? -> Ty
-let mk.IsOrdering?[A : Ty, R : A OrderRelation?] :
-  (R le? IsTotalPreorder?,
-   (x; y : A) -> R cmp(x, y) = leToCmp.Ordering?(R le?)(x, y),
-   (x; y : A) -> R lt?(x, y) = leToLt?.Ordering?(R le?)(x, y),
-   (x; y : A) -> R eq?(x, y) = leToEq?.Ordering?(R le?)(x, y)) ->
-  R IsOrdering?
+val cmpToLt?.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Bool
+let C => x y => C x y .lt?
 
-val _leIsTotalPreorder\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
-  R IsOrdering? -> R le? IsTotalPreorder?
-let (mk.IsOrdering?(isLe, _, _, _)) => isLe
+val cmpToEq?.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Bool
+let C => x y => C x y .eq?
 
-val _leIsTransitive?\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
-  R IsOrdering? -> R le? IsTransitive?
-let (C) => C leIsTotalPreorder 2
+val cmpToGt?.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Bool
+let C => x y => C x y .gt?
 
-val _leIsConnex?\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
-  R IsOrdering? -> R le? IsConnex?
-let (C) => C leIsTotalPreorder 1
+val cmpToNeq?.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Bool
+let C => x y => ! cmpToEq?.Ordering? C x y
 
-val _cmpIsCompatible\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
-  R IsOrdering? -> (x; y : A) -> R cmp(x, y) = leToCmp.Ordering?(R le?)(x, y)
-let (mk.IsOrdering?(_, isCmp, _, _)) => isCmp
+val cmpToGe?.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Bool
+let C => x y => ! cmpToLt?.Ordering? C x y
 
-val _ltIsCompatible\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
-  R IsOrdering? -> (x; y : A) -> R lt?(x, y) = leToLt?.Ordering?(R le?)(x, y)
-let (mk.IsOrdering?(_, _, isLt, _)) => isLt
-
-val _eqIsCompatible\_IsOrdering?\_OrderRelation?\Ty[A : Ty, R : A OrderRelation?] :
-  R IsOrdering? -> (x; y : A) -> R eq?(x, y) = leToEq?.Ordering?(R le?)(x, y)
-let (mk.IsOrdering?(_, _, _, isEq)) => isEq
+val cmpToLe?.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Bool
+let C => x y => ! cmpToGt?.Ordering? C x y
 
 
-data _Ordering?\Ty : Ty -> Ty
-let mk.Ordering?[A : Ty] : (R : A OrderRelation?, R IsOrdering?) -> A Ordering?
+val leToCmpImpl.Ordering? : Bool & Bool -> Order
+let lexy leyx =>
+  if (! lexy)
+  .then gt.Order
+  .elif leyx
+  .then eq.Order
+  .else lt.Order
 
-val _ordering\_Ordering?\Ty[A : Ty] : A Ordering? -> A OrderRelation?
-let (mk.Ordering?(R, _)) => R
+val leToCmp.Ordering? [A : Ty] : (A & A -> Bool) -> A & A -> Order
+let le => x y => leToCmpImpl.Ordering? (le x y) (le y x)
 
-val _isOrdering?\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?) -> R ordering IsOrdering?
-let (mk.Ordering?(R, isR)) => isR
+val leToLt?.Ordering? [A : Ty] : (A & A -> Bool) -> A & A -> Bool
+let le => x y => ! le y x
 
-val _cmp\_Ordering?\Ty[A : Ty] : A Ordering? -> (A, A) -> Order
-let (R) => R ordering cmp
+val leToEq?.Ordering? [A : Ty] : (A & A -> Bool) -> A & A -> Bool
+let le => x y => le x y && le y x
 
-val _le?\_Ordering?\Ty[A : Ty] : A Ordering? -> (A, A) -> Bool
-let (R) => R ordering le?
+val leToNeq?.Ordering? [A : Ty] : (A & A -> Bool) -> A & A -> Bool
+let le => x y => ! leToEq?.Ordering? le x y
 
-val _ge?\_Ordering?\Ty[A : Ty] : A Ordering? -> (A, A) -> Bool
-let (R) => R ordering ge?
+val leToGt?.Ordering? [A : Ty] : (A & A -> Bool) -> A & A -> Bool
+let le => x y => leToLt?.Ordering? le y x
 
-val _lt?\_Ordering?\Ty[A : Ty] : A Ordering? -> (A, A) -> Bool
-let (R) => R ordering lt?
-
-val _gt?\_Ordering?\Ty[A : Ty] : A Ordering? -> (A, A) -> Bool
-let (R) => R ordering gt?
-
-val _eq?\_Ordering?\Ty[A : Ty] : A Ordering? -> (A, A) -> Bool
-let (R) => R ordering eq?
-
-val _neq?\_Ordering?\Ty[A : Ty] : A Ordering? -> (A, A) -> Bool
-let (R) => R ordering neq?
+val leToGe?.Ordering? [A : Ty] : (A & A -> Bool) -> A & A -> Bool
+let le => x y => le y x
 
 
-val _leIsTransitive?\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?) -> R le? IsTransitive?
-let (R) => R isOrdering? leIsTransitive?
+data IsOrdering? [A : Ty] : OrderRelation? A -> Ty
+let mk.IsOrdering? [A : Ty] [R : OrderRelation? A] :
+  (R .le? .IsTotalPreorder?) &
+  ((x y : A) -> R .cmp x y = leToCmp.Ordering? (R .le?) x y) &
+  ((x y : A) -> R .lt? x y = leToLt?.Ordering? (R .le?) x y) &
+  ((x y : A) -> R .eq? x y = leToEq?.Ordering? (R .le?) x y) ->
+  IsOrdering? R
 
-val _leIsConnex?\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?) -> R le? IsConnex?
-let (R) => R isOrdering? leIsConnex?
+val _.leIsTotalPreorder\IsOrdering? [A : Ty] [R : OrderRelation? A] :
+  IsOrdering? R -> R .le? .IsTotalPreorder?
+let (mk.IsOrdering? isLe _ _ _) => isLe
+
+val _.leIsTransitive?\IsOrdering? [A : Ty] [R : OrderRelation? A] :
+  IsOrdering? R -> R .le? .IsTransitive?
+let (C) => C .leIsTotalPreorder .2
+
+val _.leIsConnex?\IsOrdering? [A : Ty] [R : OrderRelation? A] :
+  IsOrdering? R -> R .le? .IsConnex?
+let (C) => C .leIsTotalPreorder .1
+
+val _.cmpIsCompatible\IsOrdering? [A : Ty] [R : OrderRelation? A] :
+  IsOrdering? R -> (x y : A) -> R .cmp x y = leToCmp.Ordering? (R .le?) x y
+let (mk.IsOrdering? _ isCmp _ _) => isCmp
+
+val _.ltIsCompatible\IsOrdering? [A : Ty] [R : OrderRelation? A] :
+  IsOrdering? R -> (x y : A) -> R .lt? x y = leToLt?.Ordering? (R .le?) x y
+let (mk.IsOrdering? _ _ isLt _) => isLt
+
+val _.eqIsCompatible\IsOrdering? [A : Ty] [R : OrderRelation? A] :
+  IsOrdering? R -> (x y : A) -> R .eq? x y = leToEq?.Ordering? (R .le?) x y
+let (mk.IsOrdering? _ _ _ isEq) => isEq
 
 
-val _setCmp\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?, cmp : (A, A) -> Order,
-    (x; y : A) -> cmp(x, y) = R cmp(x, y)) -> A Ordering?
-let (R, cmp, isCmp) =>
-  mk.Ordering?(mkRel.Ordering?(R le?, R lt?, R eq?, cmp), _) do
-  mk.IsOrdering?(R isOrdering? leIsTotalPreorder, isCmp',
-    R isOrdering? ltIsCompatible, R isOrdering? eqIsCompatible)
+data Ordering? : Ty -> Ty
+let mk.Ordering?[A : Ty] :
+  (R : OrderRelation? A) & IsOrdering? R -> Ordering? A
+
+val _.ordering\Ordering? [A : Ty] : Ordering? A -> OrderRelation? A
+let (mk.Ordering? R _) => R
+
+val _.isOrdering?\Ordering?[A : Ty] :
+  (R : Ordering? A) -> IsOrdering? (R .ordering)
+let (mk.Ordering? R isR) => isR
+
+val _.cmp\Ordering? [A : Ty] : Ordering? A -> A & A -> Order
+let R => R .ordering .cmp
+
+val _.le?\Ordering? [A : Ty] : Ordering? A -> A & A -> Bool
+let R => R .ordering .le?
+
+val _.ge?\Ordering? [A : Ty] : Ordering? A -> A & A -> Bool
+let R => R .ordering .ge?
+
+val _.lt?\Ordering? [A : Ty] : Ordering? A -> A & A -> Bool
+let R => R .ordering .lt?
+
+val _.gt?\Ordering? [A : Ty] : Ordering? A -> A & A -> Bool
+let R => R .ordering .gt?
+
+val _.eq?\Ordering?[A : Ty] : Ordering? A -> A & A -> Bool
+let R => R .ordering .eq?
+
+val _.neq?\Ordering?[A : Ty] : Ordering? A -> A & A -> Bool
+let R => R .ordering .neq?
+
+
+val _.leIsTransitive?\Ordering?[A : Ty] :
+  (R : Ordering? A) -> R .le? .IsTransitive?
+let R => R .isOrdering? .leIsTransitive?
+
+val _.leIsConnex?\Ordering?[A : Ty] :
+  (R : Ordering? A) -> R .le? .IsConnex?
+let R => R .isOrdering? .leIsConnex?
+
+
+val _.setCmp\Ordering? [A : Ty] :
+  (R : Ordering? A) &
+  (cmp : A & A -> Order) &
+  ((x y : A) -> cmp x y = R .cmp x y) ->
+  Ordering? A
+let R cmp isCmp =>
+  mk.Ordering? (mkRel.Ordering? (R .le?) (R .lt?) (R .eq?) cmp) of
+  mk.IsOrdering?
+    (R .isOrdering? .leIsTotalPreorder)
+    isCmp'
+    (R .isOrdering? .ltIsCompatible)
+    (R .isOrdering? .eqIsCompatible)
 where
-  val isCmp' : (x; y : A) -> cmp(x, y) = leToCmp.Ordering?(R le?)(x, y)
-  let (x, y) => isCmp(x, y) @ R isOrdering? cmpIsCompatible(x, y)
+  val isCmp' : (x y : A) -> cmp x y = leToCmp.Ordering? (R .le?) x y
+  let x y => isCmp x y @ R .isOrdering? .cmpIsCompatible x y
 end
 
 
-val _setLt\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?, lt : (A, A) -> Bool,
-    (x; y : A) -> lt(x, y) = R lt?(x, y)) -> A Ordering?
-let (R, lt, isLt) =>
-  mk.Ordering?(mkRel.Ordering?(R le?, lt, R eq?, R cmp), _) do
-  mk.IsOrdering?(R isOrdering? leIsTotalPreorder,
-    R isOrdering? cmpIsCompatible, isLt', R isOrdering? eqIsCompatible)
+val _.setLt\Ordering? [A : Ty] :
+  (R : Ordering? A) &
+  (lt : A & A -> Bool) &
+  ((x y : A) -> lt x y = R .lt? x y) ->
+  Ordering? A
+let R lt isLt =>
+  mk.Ordering? (mkRel.Ordering? (R .le?) lt (R .eq?) (R .cmp)) of
+  mk.IsOrdering?
+    (R .isOrdering? .leIsTotalPreorder)
+    (R .isOrdering? .cmpIsCompatible)
+    isLt'
+    (R .isOrdering? .eqIsCompatible)
 where
-  val isLt' : (x; y : A) -> lt(x, y) = leToLt?.Ordering?(R le?)(x, y)
-  let (x, y) => isLt(x, y) @ R isOrdering? ltIsCompatible(x, y)
+  val isLt' : (x y : A) -> lt x y = leToLt?.Ordering? (R .le?) x y
+  let x y => isLt x y @ R .isOrdering? .ltIsCompatible x y
 end
 
 
-val _setEq\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?, eq : (A, A) -> Bool,
-    (x; y : A) -> eq(x, y) = R eq?(x, y)) -> A Ordering?
-let (R, eq, isEq) =>
-  mk.Ordering?(mkRel.Ordering?(R le?, R lt?, eq, R cmp), _) do
-  mk.IsOrdering?(R isOrdering? leIsTotalPreorder,
-    R isOrdering? cmpIsCompatible, R isOrdering? ltIsCompatible, isEq')
+val _.setEq\Ordering? [A : Ty] :
+  (R : Ordering? A) &
+  (eq : A & A -> Bool) &
+  ((x y : A) -> eq x y = R .eq? x y) ->
+  Ordering? A
+let R eq isEq =>
+  mk.Ordering? (mkRel.Ordering? (R .le?) (R .lt?) eq (R .cmp)) of
+  mk.IsOrdering?
+    (R .isOrdering? .leIsTotalPreorder)
+    (R .isOrdering? .cmpIsCompatible)
+    (R .isOrdering? .ltIsCompatible)
+    isEq'
 where
-  val isEq' : (x; y : A) -> eq(x, y) = leToEq?.Ordering?(R le?)(x, y)
-  let (x, y) => isEq(x, y) @ R isOrdering? eqIsCompatible(x, y)
+  val isEq' : (x y : A) -> eq x y = leToEq?.Ordering? (R .le?) x y
+  let x y => isEq x y @ R .isOrdering? .eqIsCompatible x y
 end
 
 
-val _setLe\_Ordering?\Ty[A : Ty] :
-  (R : A Ordering?, le : (A, A) -> Bool,
-    (x; y : A) -> le(x, y) = R le?(x, y)) -> A Ordering?
-let (R, le, isLe) =>
-  mk.Ordering?(mkRel.Ordering?(le, R lt?, R eq?, R cmp),
-    mk.IsOrdering?(isTP, isCmp, isLt, isEq))
+val _.setLe\Ordering? [A : Ty] :
+  (R : Ordering? A) &
+  (le : A & A -> Bool) &
+  ((x y : A) -> le x y = R .le? x y) ->
+  Ordering? A
+let R le isLe =>
+  mk.Ordering?
+    (mkRel.Ordering? le (R .lt?) (R .eq?) (R .cmp))
+    (mk.IsOrdering? isTP isCmp isLt isEq)
 where
-  val isCon : le IsConnex?
-  let (x, y) =>
-    isLe(x, y) rew((t). ? (t | le(y, x)), _) do
-    isLe(y, x) rew((t). ? (R le?(x, y) | t), _) do
-    R isOrdering? leIsTotalPreorder 1(x, y)
+  val isCon : le .IsConnex?
+  let x y =>
+    isLe x y .rew (t => ? (t || le y x)) of
+    isLe y x .rew (t => ? (R .le? x y || t)) of
+    R .isOrdering? .leIsTotalPreorder .1 x y
 
-  val isTra : le IsTransitive?
-  let (x, y, z, lexy, leyz) =>
-    lexy' := isLe(x, y) resp(? _, lexy);
-    leyz' := isLe(y, z) resp(? _, leyz);
-    isLe(x, z) rew(? _, _) do
-    R isOrdering? leIsTotalPreorder 2(x, y, z, lexy', leyz')
+  val isTra : le .IsTransitive?
+  let x y z lexy leyz =>
+    lexy' := isLe x y .resp (? _) lexy;
+    leyz' := isLe y z .resp (? _) leyz;
+    isLe x z .rew (? _) of
+    R .isOrdering? .leIsTotalPreorder .2 x y z lexy' leyz'
 
-  val isTP : le IsTotalPreorder?
+  val isTP : le .IsTotalPreorder?
   let => isCon $ isTra
 
-  val isCmp : (x; y : A) -> R cmp(x, y) = leToCmp.Ordering?(le)(x, y)
-  let (x, y) =>
-    isLe(x, y) rew(G(_, le(y, x)), _) do
-    isLe(y, x) rew(G(R le?(x, y), _), _) do
-    R isOrdering? cmpIsCompatible(x, y)
+  val isCmp : (x y : A) -> R .cmp x y = leToCmp.Ordering? le x y
+  let x y =>
+    isLe x y .rew (G _ (le y x)) of
+    isLe y x .rew (G (R .le? x y) _) of
+    R .isOrdering? .cmpIsCompatible x y
   where
-    val G : (Bool, Bool) -> Ty
-    let (a, b) => R cmp(x, y) = leToCmpImpl.Ordering?(a, b)
+    val G : Bool & Bool -> Ty
+    let a b => R .cmp x y = leToCmpImpl.Ordering? a b
   end
 
-  val isLt : (x; y : A) -> R lt?(x, y) = leToLt?.Ordering?(le)(x, y)
-  let (x, y) =>
-    isLe(y, x) rew((t). R lt?(x, y) = ! t, _) do
-    R isOrdering? ltIsCompatible(x, y)
+  val isLt : (x y : A) -> R .lt? x y = leToLt?.Ordering? le x y
+  let x y =>
+    isLe y x .rew (t => R .lt? x y = ! t) of
+    R .isOrdering? .ltIsCompatible x y
 
-  val isEq : (x; y : A) -> R eq?(x, y) = leToEq?.Ordering?(le)(x, y)
-  let (x, y) =>
-    isLe(x, y) rew(G(_, le(y, x)), _) do
-    isLe(y, x) rew(G(R le?(x, y), _), _) do
-    R isOrdering? eqIsCompatible(x, y)
+  val isEq : (x y : A) -> R .eq? x y = leToEq?.Ordering? le x y
+  let x y =>
+    isLe x y .rew (G _ (le y x)) of
+    isLe y x .rew (G (R .le? x y) _) of
+    R .isOrdering? .eqIsCompatible x y
   where
-    val G : (Bool, Bool) -> Ty
-    let (a, b) => R eq?(x, y) = a & b
+    val G : Bool & Bool -> Ty
+    let a b => R .eq? x y = a && b
   end
 end
 
 
-val fromLe.Ordering?[A : Ty] :
-  (le : (A, A) -> Bool, le IsTotalPreorder?) -> A Ordering?
-let (le, isLe) =>
-  mk.Ordering?(mkRel.Ordering?(le, leToLt?.Ordering?(le),
-    leToEq?.Ordering?(le), leToCmp.Ordering?(le)), _) do
-  mk.IsOrdering?(isLe, (x, y). refl, (x, y). refl, (x, y). refl)
+val fromLe.Ordering? [A : Ty] :
+  (le : A & A -> Bool) & le .IsTotalPreorder? -> Ordering? A
+let le isLe =>
+  mk.Ordering?
+    (mkRel.Ordering?
+      le
+      (leToLt?.Ordering? le)
+      (leToEq?.Ordering? le)
+      (leToCmp.Ordering? le)) of
+  mk.IsOrdering? isLe (x y => refl) (x y => refl) (x y => refl)
 
 
-val cmpToLeToLt?.Ordering?[A : Ty] : ((A, A) -> Order) -> (A, A) -> Bool
-let => leToLt?.Ordering? @ cmpToLe?.Ordering?
+val cmpToLeToLt?.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Bool
+let => leToLt?.Ordering? @compose cmpToLe?.Ordering?
 
-val cmpToLt?IsCompatible.Ordering?[A : Ty] :
-  (cmp : (A, A) -> Order,
-    (x; y : A) ->
-    cmpToLt?.Ordering?(cmp)(x, y) = cmpToGt?.Ordering?(cmp)(y, x)) ->
-  (x; y : A) ->
-  cmpToLt?.Ordering?(cmp)(x, y) = cmpToLeToLt?.Ordering?(cmp)(x, y)
-let (cmp, isC) => (x, y). isC(x, y) @ ! involutionOp!.Bool
+val cmpToLt?IsCompatible.Ordering? [A : Ty] :
+  (cmp : A & A -> Order) &
+  ((x y : A) ->
+    cmpToLt?.Ordering? cmp x y = cmpToGt?.Ordering? cmp y x) ->
+  (x y : A) ->
+  cmpToLt?.Ordering? cmp x y = cmpToLeToLt?.Ordering? cmp x y
+let cmp isC => x y => isC x y @ ! involutionOp!.Bool
 
 
-val cmpToLeToEq?.Ordering?[A : Ty] : ((A, A) -> Order) -> (A, A) -> Bool
-let => leToEq?.Ordering? @ cmpToLe?.Ordering?
+val cmpToLeToEq?.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Bool
+let => leToEq?.Ordering? @compose cmpToLe?.Ordering?
 
-val cmpToEq?IsCompatible.Ordering?[A : Ty] :
-  (cmp : (A, A) -> Order,
-    (x; y : A) ->
-    cmpToLt?.Ordering?(cmp)(x, y) = cmpToGt?.Ordering?(cmp)(y, x)) ->
-  (x; y : A) ->
-  cmpToEq?.Ordering?(cmp)(x, y) = cmpToLeToEq?.Ordering?(cmp)(x, y)
-let (cmp, isC) => (x, y).
-  cmp(x, y) notGtIsLtOrEq rew(
-    (t). cmp(x, y) eq? = t & ! cmp(y, x) gt?, _) do
-  cmp(y, x) notGtIsLtOrEq rew(
-    (t). cmp(x, y) eq? = (cmp(x, y) lt? | cmp(x, y) eq?) & t, _) do
-  isC(y, x) rew(
-    (t). cmp(x, y) eq?
-         = (cmp(x, y) lt? | cmp(x, y) eq?) & (t | cmp(y, x) eq?), _) do
-  eqSym(isC(y, x), ! isC(x, y), cmp(y, x), cmp(x, y)) rew(
-    (t). cmp(x, y) eq?
-         = (cmp(x, y) lt? | cmp(x, y) eq?) & (cmp(x, y) gt? | t), _) do
-  cmp(x, y) ind(
-    (c). c eq? = (c lt? | c eq?) & (c gt? | c eq?),
-    refl, refl, refl)
+val cmpToEq?IsCompatible.Ordering? [A : Ty] :
+  (cmp : A & A -> Order) &
+  ((x y : A) ->
+    cmpToLt?.Ordering? cmp x y = cmpToGt?.Ordering? cmp y x) ->
+  (x y : A) ->
+  cmpToEq?.Ordering? cmp x y = cmpToLeToEq?.Ordering? cmp x y
+let cmp isC => x y =>
+  cmp x y .notGtIsLtOrEq .rew
+    (t => cmp x y .eq? = t && ! cmp y x .gt?) of
+  cmp y x .notGtIsLtOrEq .rew
+    (t => cmp x y .eq? = (cmp x y .lt? || cmp x y .eq?) && t) of
+  isC y x .rew
+    (t =>
+      cmp x y .eq?
+      = (cmp x y .lt? || cmp x y .eq?) && (t || cmp y x .eq?)) of
+  eqSym (isC y x) (! isC x y) (cmp y x) (cmp x y) .rew
+    (t =>
+      cmp x y .eq?
+      = (cmp x y .lt? || cmp x y .eq?) && (cmp x y .gt? || t)) of
+  cmp x y .ind
+    (c => c .eq? = (c .lt? || c .eq?) && (c .gt? || c .eq?))
+    refl refl refl
 where
   val eqSym :
-    (c lt? = d gt?, c gt? = d lt?, c : Order, d : Order) -> c eq? = d eq?
-  let (_, _, lt.Order, lt.Order) => refl
-  let ((), _, lt.Order, eq.Order)
-  let (_, _, lt.Order, gt.Order) => refl
-  let (_, (), eq.Order, lt.Order)
-  let (_, _, eq.Order, eq.Order) => refl
-  let ((), _, eq.Order, gt.Order)
-  let (_, _, gt.Order, lt.Order) => refl
-  let (_, (), gt.Order, eq.Order)
-  let (_, _, gt.Order, gt.Order) => refl
+    (c .lt? = d .gt?) &
+    (c .gt? = d .lt?) &
+    (c : Order) &
+    (d : Order) ->
+    c .eq? = d .eq?
+  let _ _ lt.Order lt.Order => refl
+  let {} _ lt.Order eq.Order
+  let _ _ lt.Order gt.Order => refl
+  let _ {} eq.Order lt.Order
+  let _ _ eq.Order eq.Order => refl
+  let {} _ eq.Order gt.Order
+  let _ _ gt.Order lt.Order => refl
+  let _ {} gt.Order eq.Order
+  let _ _ gt.Order gt.Order => refl
 end
 
 
-val cmpToLeToCmp.Ordering?[A : Ty] : ((A, A) -> Order) -> (A, A) -> Order
-let => leToCmp.Ordering? @ cmpToLe?.Ordering?
+val cmpToLeToCmp.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Order
+let => leToCmp.Ordering? @compose cmpToLe?.Ordering?
 
-val cmpToCmpIsCompatible.Ordering[A : Ty] :
-  (cmp : (A, A) -> Order,
-    (x; y : A) ->
-    cmpToLt?.Ordering?(cmp)(x, y) = cmpToGt?.Ordering?(cmp)(y, x)) ->
-  (x; y : A) ->
-  cmp(x, y) = cmpToLeToCmp.Ordering?(cmp)(x, y)
-let (cmp, isC) => (x, y).
-  (! isC(x, y)) rew((a).
-    cmp(x, y) = leToCmpImpl.Ordering?(! cmp(x, y) gt?, ! a), _) do
-  cmp(x, y) ind((c).
-    c = leToCmpImpl.Ordering?(! c gt?, ! c lt?), refl, refl, refl)
-
-
-val cmpToLeIsConnex?.Ordering?[A : Ty] :
-  (cmp : (A, A) -> Order,
-    (x; y : A) ->
-    cmpToLt?.Ordering?(cmp)(x, y) = cmpToGt?.Ordering?(cmp)(y, x)) ->
-  cmpToLe?.Ordering?(cmp) IsConnex?
-let (cmp, isC) => (x, y).
-  isC(x, y) resp((b). ? (! cmp(x, y) gt? | ! b), _) do
-  cmp(x, y) ind((c). ? (! c gt? | ! c lt?), refl, refl, refl)
+val cmpToCmpIsCompatible.Ordering [A : Ty] :
+  (cmp : A & A -> Order) &
+  ((x y : A) ->
+    cmpToLt?.Ordering? cmp x y = cmpToGt?.Ordering? cmp y x) ->
+  (x y : A) ->
+  cmp x y = cmpToLeToCmp.Ordering? cmp x y
+let cmp isC => x y =>
+  (! isC x y) .rew
+    (a => cmp x y = leToCmpImpl.Ordering? (! cmp x y .gt?) (! a)) of
+  cmp x y .ind
+    (c => c = leToCmpImpl.Ordering? (! c .gt?) (! c .lt?)) refl refl refl
 
 
-val fromCmp.Ordering?[A : Ty] :
-  (cmp : (A, A) -> Order,
-    cmpToLe?.Ordering?(cmp) IsTransitive?,
-    (x; y : A) ->
-    cmpToLt?.Ordering?(cmp)(x, y) = cmpToGt?.Ordering?(cmp)(y, x)) ->
-  A Ordering?
-let (cmp, isT, isC) =>
-  fromLe.Ordering?(cmpToLe?.Ordering?(cmp), isLe)
-  setLt(cmpToLt?.Ordering?(cmp), cmpToLt?IsCompatible.Ordering?(cmp, isC))
-  setEq(cmpToEq?.Ordering?(cmp), cmpToEq?IsCompatible.Ordering?(cmp, isC))
-  setCmp(cmp, cmpToCmpIsCompatible.Ordering(cmp, isC))
+val cmpToLeIsConnex?.Ordering? [A : Ty] :
+  (cmp : A & A -> Order) &
+  ((x y : A) ->
+    cmpToLt?.Ordering? cmp x y = cmpToGt?.Ordering? cmp y x) ->
+  cmpToLe?.Ordering? cmp .IsConnex?
+let cmp isC => x y =>
+  isC x y .resp (b => ? (! cmp x y .gt? || ! b)) of
+  cmp x y .ind (c => ? (! c .gt? || ! c .lt?)) refl refl refl
+
+
+val fromCmp.Ordering? [A : Ty] :
+  (cmp : A & A -> Order) &
+  (cmpToLe?.Ordering? cmp .IsTransitive?) &
+  ((x y : A) ->
+    cmpToLt?.Ordering? cmp x y = cmpToGt?.Ordering? cmp y x) ->
+  Ordering? A
+let cmp isT isC =>
+  fromLe.Ordering? (cmpToLe?.Ordering? cmp) isLe
+  .setLt (cmpToLt?.Ordering? cmp) (cmpToLt?IsCompatible.Ordering? cmp isC)
+  .setEq (cmpToEq?.Ordering? cmp) (cmpToEq?IsCompatible.Ordering? cmp isC)
+  .setCmp cmp (cmpToCmpIsCompatible.Ordering cmp isC)
 where
-  val isLe : cmpToLe?.Ordering?(cmp) IsTotalPreorder?
-  let => cmpToLeIsConnex?.Ordering?(cmp, isC) $ isT
+  val isLe : cmpToLe?.Ordering? cmp .IsTotalPreorder?
+  let => cmpToLeIsConnex?.Ordering? cmp isC $ isT
 end

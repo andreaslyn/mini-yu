@@ -669,7 +669,7 @@ writeFunExpr b (Case v cs) = do
     writeCases [] = return ()
     writeCases ((i, w) : ws) = do
       newLine
-      writeStr "of "
+      writeStr "let "
       writeStr (show i)
       writeStr " => "
       writeFunExpr True w

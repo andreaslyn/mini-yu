@@ -1,53 +1,53 @@
 
-import "Id.yu"
+import "/yu0/Id.yu"
 
 data Bool : Ty
 let true : Bool
 let false : Bool
 
 val (!_\Bool) : Bool -> Bool
-let (true) => false
-let (false) => true
+let true => false
+let false => true
 
-val _||_\Bool : (Bool, [] -> Bool) -> Bool
-let (true, _) => true
-let (false, b) => b[]
+val _||_\Bool : Bool & ([] -> Bool) -> Bool
+let true _ => true
+let false b => b
 
-val _&&_\Bool : (Bool, [] -> Bool) -> Bool
-let (false, _) => false
-let (true, b) => b[]
+val _&&_\Bool : Bool & ([] -> Bool) -> Bool
+let false _ => false
+let true b => b
 
 data IfThen.Bool : Ty -> Ty
-let _?then_\Bool[A : Ty] : (Bool, [] -> A) -> IfThen.Bool(A)
+let _?then_\Bool [A : Ty] : Bool & ([] -> A) -> IfThen.Bool A
 
-val _?else_\IfThen.Bool[A : Ty] : (IfThen.Bool(A), [] -> A) -> A
-let (true ?then f, _) => f[]
-let (false ?then _, g) => g[]
+val _?else_\IfThen.Bool [A : Ty] : IfThen.Bool A & ([] -> A) -> A
+let (true ?then f) _ => f
+let (false ?then _) g => g
 
-val _=b_\Bool : (Bool, Bool) -> Bool
-let (true, true) => true
-let (false, false) => true
-let (_, _) => false
+val _=b_\Bool : Bool & Bool -> Bool
+let true true => true
+let false false => true
+let _ _ => false
 
 val True : Bool -> Ty
-let (a) => a = true
+let a => a = true
 
-val Id-b->Id : (a : Bool, b : Bool) -> True(a =b b) -> a = b
-let (true, true) => (_). refl
-let (false, false) => (_). refl
-let (true, false) => (c). case c of () end
-let (false, true) => (c). case c of () end
+val Id-b->Id : (a : Bool) & (b : Bool) -> True (a =b b) -> a = b
+let true true => _ => refl
+let false false => _ => refl
+let true false => c => case c | {} end
+let false true => c => case c | {} end
 
-val id->==b : (a : Bool, b : Bool) -> a = b -> True(a =b b)
-let (true, b) => (e). case e of refl => refl end
-let (false, b) => (e). resp(e, (x). True(false =b x), refl)
+val id->==b : (a : Bool) & (b : Bool) -> a = b -> True (a =b b)
+let true b => e => case e | refl => refl end
+let false b => e => resp e (x => True(false =b x)) refl
 
 val involutionBnot : (b : Bool) -> ! ! b = b
-let (true) => refl
-let (false) => refl
+let true => refl
+let false => refl
 
-val commutativeBor : (a : Bool, b : Bool) -> a || b = b || a
-let (true, true) => refl
-let (true, false) => refl
-let (false, true) => refl
-let (false, false) => refl
+val commutativeBor : (a : Bool) & (b : Bool) -> a || b = b || a
+let true true => refl
+let true false => refl
+let false true => refl
+let false false => refl

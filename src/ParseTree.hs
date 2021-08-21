@@ -3,14 +3,14 @@ module ParseTree
   , ImportPath
   , Def (..)
   , Decl (..)
-  , LetCase (..)
+  , ValCase (..)
   , VarList
   , VarListElem
   , OptWhereClause
   , Expr (..)
   , ExprSeqElem
   , ExprListTypedElem
-  , OfCase
+  , CaseCase
   , ParsePattern (..)
 
   , astToString -- Printing
@@ -20,7 +20,7 @@ module ParseTree
   , declLoc
   , defLoc
   , exprLoc
-  , letCaseLoc
+  , valCaseLoc
   , patternLoc
   , defName
   , declName
@@ -36,7 +36,7 @@ type ImportPath = (Loc, String)
 
 type Program = ([ImportPath], [Def])
 
-data Def = DefVal Bool Decl [LetCase] -- Bool = True if pure
+data Def = DefVal Bool Decl [ValCase] -- Bool = True if pure
          | DefExtern Decl
          | DefData Bool Decl [Decl]   -- Bool = True if pure
          deriving Show
@@ -46,8 +46,8 @@ data Decl = Decl (Loc, String) VarList Expr deriving Show
   -- 'let'
   --    [ X ':=' ParsePattern, Y ':=' ParsePattern, ...]
   --    ( ParsePattern, ParsePattern, .. ) '=>' Expr 'where' ... 'end'
-data LetCase =
-  LetCase Loc [((Loc, String), ParsePattern)]
+data ValCase =
+  ValCase Loc [((Loc, String), ParsePattern)]
     (Maybe [ParsePattern]) (Maybe (Expr, OptWhereClause))
   deriving Show
 
@@ -65,7 +65,6 @@ type OptWhereClause = Maybe [Def]
 -- Then is has any type.
 
 data Expr = ExprFun Loc VarList Expr
-          | ExprLazyFun Loc Expr
               -- ExprArrow Bool = True if it is an IO arrow.
           | ExprArrow Loc Bool [ExprListTypedElem] Expr
           | ExprLazyArrow Loc Bool Expr
@@ -74,7 +73,7 @@ data Expr = ExprFun Loc VarList Expr
           | ExprLazyApp Expr
           | ExprVar (Loc, String)
           | ExprSeq ExprSeqElem Expr
-          | ExprCase Loc Expr [OfCase]
+          | ExprCase Loc Expr [CaseCase]
           | ExprUnitElem Loc
           | ExprUnitTy Loc
           | ExprTy Loc
@@ -84,12 +83,11 @@ type ExprSeqElem = Either Expr (ParsePattern, Expr)
 
 type ExprListTypedElem = Either Expr ((Loc, String), Expr)
 
-type OfCase = Either ParsePattern (ParsePattern, Expr)
+type CaseCase = Either ParsePattern (ParsePattern, Expr)
 
 data ParsePattern = ParsePatternApp ParsePattern [ParsePattern]
                   | ParsePatternImplicitApp ParsePattern
                                             [((Loc, String), ParsePattern)]
-                  | ParsePatternLazyApp ParsePattern
                   | ParsePatternVar (Loc, String)
                   | ParsePatternEmpty Loc
                   | ParsePatternUnit Loc
@@ -99,8 +97,8 @@ type ToString a = StateT (Bool, Int) (Writer String) a
 
 ------------------------ Getters ---------------------------------
 
-letCaseLoc :: LetCase -> Loc
-letCaseLoc (LetCase lo _ _ _) = lo
+valCaseLoc :: ValCase -> Loc
+valCaseLoc (ValCase lo _ _ _) = lo
 
 declLoc :: Decl -> Loc
 declLoc (Decl (lo, _) _ _) = lo
@@ -113,7 +111,6 @@ defLoc (DefData _ d _) = declLoc d
 patternLoc :: ParsePattern -> Loc
 patternLoc (ParsePatternApp p _) = patternLoc p
 patternLoc (ParsePatternImplicitApp p _) = patternLoc p
-patternLoc (ParsePatternLazyApp p) = patternLoc p
 patternLoc (ParsePatternVar (lo, _)) = lo
 patternLoc (ParsePatternUnit lo) = lo
 patternLoc (ParsePatternEmpty lo) = lo
@@ -126,7 +123,6 @@ exprLoc :: Expr -> Loc
 exprLoc (ExprUnitElem lo) = lo
 exprLoc (ExprUnitTy lo) = lo
 exprLoc (ExprFun lo _ _) = lo
-exprLoc (ExprLazyFun lo _) = lo
 exprLoc (ExprArrow lo _ _ _) = lo
 exprLoc (ExprLazyArrow lo _ _) = lo
 exprLoc (ExprApp e _) = exprLoc e
@@ -189,13 +185,13 @@ writePatternNamedArgList [] = return ()
 writePatternNamedArgList ps = doWritePatternNamedArgList ps
 
 doWritePatternNamedArgList :: [((Loc, String), ParsePattern)] -> ToString ()
-doWritePatternNamedArgList ps = writeStr "[" >> doWriteArgs ps >> writeStr "]"
+doWritePatternNamedArgList ps = doWriteArgs ps
   where
     doWriteArgs [] = return ()
     doWriteArgs [((_, s), x)] =
-      writeStr s >> writeStr " = " >> writePattern x
+      writeStr "[" >> writeStr s >> writeStr " := " >> writePattern x >> writeStr "]"
     doWriteArgs (((_, s), x) : xs) =
-      writePattern x >> writeStr s >> writeStr " = " >> writeStr ", "
+      writeStr "[" >> writeStr s >> writeStr " := " >> writePattern x >> writeStr "] "
       >> doWriteArgs xs
 
 writePatternMaybeArgs :: Maybe [ParsePattern] -> ToString ()
@@ -203,76 +199,63 @@ writePatternMaybeArgs Nothing = return ()
 writePatternMaybeArgs (Just ps) = writePatternArgs ps
 
 writePatternArgs :: [ParsePattern] -> ToString ()
-writePatternArgs ps = writeStr "(" >> doWriteArgs ps >> writeStr ")"
+writePatternArgs ps = doWriteArgs ps
   where
     doWriteArgs [] = return ()
-    doWriteArgs [x] = writePattern x
+    doWriteArgs [x] = writeStr "(" >> writePattern x >> writeStr ")"
     doWriteArgs (x : xs) =
-      writePattern x >> writeStr ", " >> doWriteArgs xs
+      writeStr "(" >> writePattern x >> writeStr ") " >> doWriteArgs xs
 
 writePatternImplicitArgs :: [((Loc, String), ParsePattern)] -> ToString ()
-writePatternImplicitArgs ps = writeStr "[" >> doWriteArgs ps >> writeStr "]"
+writePatternImplicitArgs ps = doWriteArgs ps >> writeStr "]"
   where
     doWriteArgs [] = return ()
-    doWriteArgs [((_, v), x)] = writeStr v >> writeStr " = " >> writePattern x
+    doWriteArgs [((_, v), x)] =
+      writeStr "[" >> writeStr v >> writeStr " := " >> writePattern x >> writeStr "]"
     doWriteArgs (x : xs) =
-      doWriteArgs [x] >> writeStr ", " >> doWriteArgs xs
+      writeStr "[" >> doWriteArgs [x] >> writeStr "] " >> doWriteArgs xs
 
 writePattern :: ParsePattern -> ToString ()
 writePattern (ParsePatternApp p ps) = writePattern p >> writePatternArgs ps
 writePattern (ParsePatternImplicitApp p ps) =
   writePattern p >> writePatternImplicitArgs ps
-writePattern (ParsePatternLazyApp p) = writePattern p >> writeStr "[]"
-writePattern (ParsePatternUnit _) = writeStr "unit"
-writePattern (ParsePatternEmpty _) = writeStr "()"
+writePattern (ParsePatternUnit _) = writeStr "()"
+writePattern (ParsePatternEmpty _) = writeStr "{}"
 writePattern (ParsePatternVar (_, v)) = writeStr v
 
-writeExprListTyped :: [ExprListTypedElem] -> ToString ()
-writeExprListTyped es = do
-  case es of
-    [] -> writeStr "()"
-    [e] -> if hasLowerPrec e
-            then writeStr "(" >> doWrite [e] >> writeStr ")"
-            else doWrite [e]
-    _ -> writeStr "(" >> doWrite es >> writeStr ")"
+writeExprListTyped :: String -> [ExprListTypedElem] -> ToString ()
+writeExprListTyped sep es = doWrite es
   where
     doWrite :: [ExprListTypedElem] -> ToString ()
     doWrite [] = return ()
     doWrite [Left e] = writeExpr e
     doWrite [Right ((_, v), t)] = do
+      writeStr "("
       writeStr v
       writeStr " : "
       writeExpr t
+      writeStr ")"
     doWrite (Left x : xs) = writeExpr x >> writeStr ", " >> doWrite xs
     doWrite (Right ((_, v), t) : xs) = do
+      writeStr "("
       writeStr v
       writeStr " : "
       writeExpr t
-      writeStr ", "
+      writeStr ") "
+      writeStr sep
+      when (sep /= "") (writeStr " ")
       doWrite xs
-
-    hasLowerPrec (Left (ExprFun _ _ _)) = True
-    hasLowerPrec (Left (ExprLazyFun _ _)) = True
-    hasLowerPrec (Left (ExprArrow _ _ _ _)) = True
-    hasLowerPrec (Left (ExprLazyArrow _ _ _)) = True
-    hasLowerPrec (Right _) = True
-    hasLowerPrec _ = False
 
 writeExpr :: Expr -> ToString ()
 writeExpr (ExprTy _) = writeStr "Ty"
-writeExpr (ExprUnitElem _) = writeStr "unit"
-writeExpr (ExprUnitTy _) = writeStr "Unit"
+writeExpr (ExprUnitElem _) = writeStr "()"
+writeExpr (ExprUnitTy _) = writeStr "{}"
 writeExpr (ExprFun _ vs e) = do
-  writeStr "("
   writeVarList vs
-  writeStr ")"
-  writeStr ". "
-  writeExpr e
-writeExpr (ExprLazyFun _ e) = do
-  writeStr "[]. "
+  writeStr " => "
   writeExpr e
 writeExpr (ExprArrow _ b es e) = do
-  writeExprListTyped es
+  writeExprListTyped "&" es
   if b
     then writeStr " ->> "
     else writeStr " -> "
@@ -287,7 +270,6 @@ writeExpr (ExprLazyApp e) = do
   writeStr "[]"
 writeExpr (ExprApp e as) =
   let hasLowerPrec (ExprFun _ _ _) = True
-      hasLowerPrec (ExprLazyFun _ _) = True
       hasLowerPrec (ExprArrow _ _ _ _) = True
       hasLowerPrec (ExprLazyArrow _ _ _) = True
       hasLowerPrec _ = False
@@ -308,7 +290,6 @@ writeExpr (ExprApp e as) =
      writeStr ")" }
 writeExpr (ExprImplicitApp e as) =
   let hasLowerPrec (ExprFun _ _ _) = True
-      hasLowerPrec (ExprLazyFun _ _) = True
       hasLowerPrec (ExprArrow _ _ _ _) = True
       hasLowerPrec (ExprLazyArrow _ _ _) = True
       hasLowerPrec _ = False
@@ -353,10 +334,10 @@ writeExpr (ExprCase _ e ofs) = do
   writeStr "case "
   writeExpr e
   newLine
-  let writeOfs :: [OfCase] -> ToString ()
+  let writeOfs :: [CaseCase] -> ToString ()
       writeOfs [] = return ()
       writeOfs (Right (p, x) : os) = do
-        writeStr "of "
+        writeStr "| "
         writePattern p
         writeStr " => "
         incIndent
@@ -366,7 +347,7 @@ writeExpr (ExprCase _ e ofs) = do
         newLine
         writeOfs os
       writeOfs (Left p : os) = do
-        writeStr "of "
+        writeStr "| "
         writePattern p
         writeStr " absurd"
         newLine
@@ -377,16 +358,18 @@ writeExpr (ExprCase _ e ofs) = do
 writeVarListElem :: VarListElem -> ToString ()
 writeVarListElem ((_, s), Nothing) = writeStr s
 writeVarListElem ((_, s), Just t) = do
+  writeStr "("
   writeStr s
   writeStr " : "
   writeExpr t
+  writeStr ")"
 
 writeVarList :: VarList -> ToString ()
 writeVarList [] = return ()
 writeVarList [x] = writeVarListElem x
 writeVarList (x : xs) = do
   writeVarListElem x
-  writeStr ", "
+  writeStr " "
   writeVarList xs
 
 writeOptWhere :: Maybe [Def] -> ToString ()
@@ -424,8 +407,8 @@ doWriteNamedVarList (((_, na), Just t) : vs) =
 doWriteNamedVarList (((_, na), Nothing) : vs) =
   writeStr na >> writeStr ", " >> doWriteNamedVarList vs
 
-writeLetCase :: LetCase -> ToString ()
-writeLetCase (LetCase _ ps0 ps (Just (e, w))) = do
+writeValCase :: ValCase -> ToString ()
+writeValCase (ValCase _ ps0 ps (Just (e, w))) = do
   writeStr "let "
   writePatternNamedArgList ps0
   writePatternMaybeArgs ps
@@ -436,7 +419,7 @@ writeLetCase (LetCase _ ps0 ps (Just (e, w))) = do
   decIndent
   newLine
   writeOptWhere w
-writeLetCase (LetCase _ ps0 ps Nothing) = do
+writeValCase (ValCase _ ps0 ps Nothing) = do
   writeStr "let "
   writePatternNamedArgList ps0
   writePatternMaybeArgs ps
@@ -453,7 +436,7 @@ writeDef (DefVal isPure d ls) = do
     else writeStr "val.. "
   writeNameDecl d
   newLine
-  mapM_ writeLetCase ls
+  mapM_ writeValCase ls
 writeDef (DefData isPure (Decl (_, v) imps t) vs) = do
   if isPure
     then writeStr ("data " ++ v)

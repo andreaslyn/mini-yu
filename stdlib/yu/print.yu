@@ -1,2 +1,2 @@
-import "print/print.yu"
-import "print/printf.yu"
+import "yu/print/print.yu"
+import "yu/print/printf.yu"

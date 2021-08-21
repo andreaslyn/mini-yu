@@ -1,7 +1,7 @@
 # Mini Yu
 
-Mini Yu is a dependently typed programming language, similar to Agda, Idris, Coq and Lean.
-Mini Yu is a prototype language to experiment with dependently typed language
+Mini Yu is a dependently typed programming language, similar to Agda, Idris, Coq, Lean.
+It is an experimental language to test dependently typed language
 features and runtime implementation.
 
 The mini yu compiler is implemented in Haskell. It compiles mini yu source code to
@@ -24,13 +24,13 @@ In order to build the mini yu source code, you need to be running on
 a Unix system, Mac, Linux, FreeBSD, etc.
 
 Before building, make sure you have [stack](https://docs.haskellstack.org/en/stable/README/)
-version >= 2.5.1 installed on the system. You can obtain version
+installed on the system. You can obtain version
 of stack with the command
 ```
 stack --version
 ```
-If you have an older version of stack, then it may be possible to
-upgrade with the command
+If you have an old version of stack, then you may need to
+upgrade it. This can commonly be achieved with the command
 ```
 stack upgrade
 ```
@@ -60,8 +60,8 @@ To get started, here is the Hello World program in Mini Yu:
 import "yu/prelude.yu"
 
 ## Function main is the program entry point:
-val main : () ->> Unit
-let () => "Hello, World!" println
+val main : {} ->> {}
+let () => "Hello, World!" .println
 ```
 Note that line comments start with `##`.
 
@@ -71,21 +71,20 @@ Compile it with the command
 path/to/yuc -c -o hello-world.yu
 ```
 The `-c` command line argument tells mini yu to compile the program,
-not just type check, and the `-o` command line argument tells
+not just type check. The `-o` command line argument tells
 mini yu to optimize the program. This will produce a binary
 file called `hello-world.yu.exe`, which prints `Hello, World!`
 when executed.
 
-The type of `main` is effectful function type `() ->> Unit`, which is
-indicating that the `main` function has no arguments `()`, is
-effectful `->>`, and codomain (return type) is `Unit`.
-`Unit` is similar to `void` in C and Java.
-The effectful arrow type `->>` allows us to apply the `println`
-operator and print `Hello, World!` to the standard output device.
+The type of `main` is effectful function type `{} ->> {}`, which is
+indicating that the `main` function has one argument of type unit `{}`, is
+effectful `->>`, and codomain (return type) is unit `{}`.
+The effectful arrow type `->>` allows us to apply the `.println`
+postfix operator and print `Hello, World!` to the standard output device.
 
 Currently, the only supported effect is `->>`, which allows printing
-strings to standard out. I may extend mini yu with a more powerful
-effect system at some point.
+strings to standard out. I am working on extending mini yu with a
+more powerful effect system.
 
 The point of having an effect system is to control where observable
 side effects may occur. The pure function type `->` is used for functions
@@ -94,13 +93,13 @@ function. Mini Yu will not accept the following program
 ```
 import "yu/prelude.yu"
 
-val customPrint : Str -> Unit
-let (s) => s println
+val customPrint : Str -> {}
+let s => s .println
 
-val main : () ->> Unit
-let () => customPrint("Hello, World")
+val main : {} ->> {}
+let () => customPrint "Hello, World"
 ```
-Change the type of `customPrint` to `Str ->> Unit`, and then it will work.
+Change the type of `customPrint` to `Str ->> {}`, and then it will work.
 
 ## Algebraic data types
 
@@ -116,25 +115,25 @@ clashes with the standard library.**
 
 The identity type can be defined with
 ```
-data Id[A : Ty] : (A, A) -> Ty
-let refl[A : Ty, a : A] : Id(a, a)
+data Id [A : Ty] : A & A -> Ty
+let refl [A : Ty] [a : A] : Id a a
 ```
-The square brackets mark implicit arguments, and `(A, A) -> Ty` is a
-binary function type.
+The square brackets mark implicit arguments `[A : Ty]` and `[a : A]`,
+and `A & A -> Ty` is a binary function type.
 
 ## Dependent pattern matching
 
 Values are declared with `val` and defined by (dependent) pattern matching.
 Addition on natural numbers can be defined by
 ```
-val plus : (Nat, Nat) -> Nat
-let (m, 0) => m
-let (m, succ(n)) => succ(plus(m, n))
+val plus : Nat & Nat -> Nat
+let m 0 => m
+let m (succ n) => succ (plus m n)
 ```
 And transitivity of identity
 ```
-val trans[A : Ty, x; y; z : A] : (Id(x, y), Id(y, z)) -> Id(x, z)
-let (refl, p) => p
+val trans [A : Ty] [x y z : A] : Id x y & Id y z -> Id x z
+let refl p => p
 ```
 
 ## Operator overloading
@@ -146,15 +145,14 @@ There are 3 kinds of operators:
 * postfix operators.
 
 Prefix and infix operators start with an operator symbol, such as `+`,
-`&`, `!`, `=`, etc. But note that the symbols `\` and `#` are treated
-specially, not regarded as operator symbols. Postfix operators and
-regular variable identifiers start with an alphanumeric character,
-such as `A`, `4`, `a`. Examples of prefix and infix operator names
-are `+`, `&&` and `?is-true`. Examples of postfix operator names and
-variable identifiers are `length`, `Size` and `is-even?`.
+`&`, `!`, `=`, etc. But the symbols `\` and `#` are treated
+specially, not regarded as operator symbols. Postfix operators
+start with a period `.` for example `.length`, `.is-true?`.
+Variable identifiers start with an alphanumeric character,
+such as `A`, `1st`, `a*b`.
 
-We can for example define the natural numbers by using a prefix operator `++` for
-the successor constructor,
+We can for example define the natural numbers by using a prefix
+operator `++` for the successor constructor,
 ```
 data Nat : Ty
 let 0 : Nat
@@ -173,17 +171,17 @@ let => ++ 1
 
 Addition on natural numbers as infix operator `+`,
 ```
-val _+_\Nat : (Nat, Nat) -> Nat
-let (m, 0) => m
-let (m, ++ n) => ++ (m + n)
+val _+_\Nat : Nat & Nat -> Nat
+let m 0 => m
+let m (++ n) => ++ (m + n)
 ```
 
-An `is-even?` postfix operator on natural numbers,
+A `.is-even?` postfix operator on natural numbers,
 ```
-val _is-even?\Nat : Nat -> Bool
-let (0) => true
+val _.is-even?\Nat : Nat -> Bool
+let 0 => true
 let (++ 0) => false
-let (++ ++ n) => n is-even?
+let (++ ++ n) => n .is-even?
 ```
 where `Bool` is the type
 ```
@@ -195,9 +193,9 @@ let true : Bool
 We can overload operators based on type of an argument.
 It is possible to define addition of booleans by
 ```
-val _+_\Bool : (Bool, Bool) -> Bool
-let (true, b) => true
-let (false, b) => b
+val _+_\Bool : Bool & Bool -> Bool
+let true b => true
+let false b => b
 ```
 For left associative infix operators, such as `+`, mini yu uses the
 type of the first argument to determine which operator to apply. So
@@ -215,7 +213,7 @@ $ | &      (right associative)
 = : ? !    (right associative)
 < > ~      (left associative)
 ```
-The operators in the top has higher precedence than those in the
+The operators in the top have higher precedence than those in the
 bottom, so infix `+` is left associative and has lower precedence
 than infix `*`.
 
@@ -236,37 +234,33 @@ possible to mark arguments as lazy. For example, in the definition of
 addition of booleans, it is often desired to have the second argument
 evaluated only when the first argument is false. This can be achieved with
 ```
-val _+_\Bool : (Bool, [] -> Bool) -> Bool
-let (true, b) => true
-let (false, b) => b[]
+val _+_\Bool : Bool & ([] -> Bool) -> Bool
+let true b => true
+let false b => b
 ```
 The `[] -> Bool` is the lazy `Bool` type. It evaluates the second argument
-only when the first argument is `false`. Syntactic sugar allows us to
-apply functions in the same way when arguments are lazy as when they
-are strict. So we can write `true + false`, and it will desugar into
-```
-true + ([]. false)
-```
+only when the first argument is `false`. Like this the second argument
+to `_+_\Bool` is only evaluated if it is needed.
 
 ## Dependent types
 
-Let us define the vector data type as a postfix operator on `Ty`,
+Define the vector data type by
 ```
-data _Vec\Ty : (Ty, Nat) -> Ty
-let nil.Vec[A : Ty] : A Vec(0)
-let _::_\_Vec\Ty[A : Ty, n : Nat] : (A, A Vec(n)) -> A Vec(++ n)
+data Vec : Nat & Ty -> Ty
+let nilv [A : Ty] : Vec 0 A
+let _::_\Vec [A : Ty] [n : Nat] : A & Vec n A -> Vec (++ n) A
 ```
 Note that infix `::` is right associative, so it overloads on the
-second argument, which is `_Vec\Ty` in this case.
+second argument, which is `Vec` in this case.
 
 As demonstrated earlier, mini yu supports dependent implicit arguments.
 For an example of a dependent (explicit) arguments we define a (dependent)
 function which returns the zero vector of any length `n`, where the
-codomain of the function `Nat Vec(n)` depends on `n`:
+codomain of the function `Vec n Nat` depends on `n`:
 ```
-val 0.Vec : (n : Nat) -> Nat Vec(n)
-let (0) => nil.Vec
-let (++ n) => 0 :: 0.Vec(n)
+val 0v : (n : Nat) -> Vec n Nat
+let 0 => nilv
+let (++ n) => 0 :: 0v n
 ```
 
 ## Importing and standard library
@@ -283,14 +277,16 @@ import "yu/List.yu"
 Take a look at the `stdlib/yu/` directory to see what is available
 in the standard library. If an import string starts with `yu/`, such
 as `"yu/List.yu"`, then mini yu will search for files in the standard
-library. Other import strings are relative to the importing file, so
+library. If an import string starts with slash `"/"`, then it will
+search for files starting from the root of the project
 ```
-import "functionality.yu"
+import "/path/to/functionality.yu"
 ```
-will search for a file named `functionality.yu` located in the same
-directory as the current/importing file.
+will search for a file named `$DIR/path/to/functionality.yu`, where
+`$DIR` is the directory of the main file. The main file is the
+file passed to the `yuc` compiler.
 
 ## More examples
 
 For more examples, take a look at the `examples/` directory
-and the `stdlib/yu/` directory, implementing the Yu standard library.
+and the `stdlib/yu/` directory, implementing the standard library.

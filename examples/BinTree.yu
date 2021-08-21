@@ -2,104 +2,106 @@ import "yu/prelude.yu"
 import "yu/Bin.yu"
 
 
-data _BinTree\Ty : (A : Ty, A Ordering?) -> Ty
-let leaf.BinTree[A : Ty, od : A Ordering?] : A BinTree(od)
-let _node\_BinTree\Ty[A : Ty, od : A Ordering?] :
-  (A BinTree(od), A, A BinTree(od)) -> A BinTree(od)
+data BinTree : (A : Ty) & Ordering? A -> Ty
+let leaf.BinTree [A : Ty] [od : Ordering? A] : BinTree A od
+let _.node\BinTree [A : Ty] [od : Ordering? A] :
+  BinTree A od & A & BinTree A od -> BinTree A od
 
 
-val empty.BinTree[A : Ty, od : A Ordering?] : A BinTree(od)
+val empty.BinTree [A : Ty] [od : Ordering? A] : BinTree A od
 let => leaf.BinTree
 
 
-val _member\_BinTree\Ty[A : Ty, od : A Ordering?] : (A BinTree(od), A) -> Bool
-let (t0, a) => member(t0, no)
+val _.member\BinTree [A : Ty] [od : Ordering? A] : BinTree A od & A -> Bool
+let t0 a => member t0 no
 where
-  ## member(t, candidate): the invariant is
-  ## if candicate = yes(c) then e > c, for any member e of t.
-  val member : (A BinTree(od), ? A) -> Bool
-  let (leaf.BinTree, no) => false
-  let (leaf.BinTree, yes(x)) => od eq?(a, x)
-  let (l node(x, r), candidate) =>
-    if(od lt?(a, x)) then(member(l, candidate)) else(member(r, yes(x)))
+  ## member t candidate: the invariant is
+  ## if candicate = yes c then e > c, for any member e of t.
+  val member : BinTree A od & ? A -> Bool
+  let leaf.BinTree no => false
+  let leaf.BinTree (yes x) => od .eq? a x
+  let (l .node x r) candidate =>
+    if (od .lt? a x) .then (member l candidate) .else (member r (yes x))
 end
 
 
-val _insert\_BinTree\Ty[A : Ty, od : A Ordering?] :
-  (A BinTree(od), A) -> A BinTree(od)
-let (t0, a) =>
-  case insert(t0, no)
-  of yes(t) => t
-  of no => t0
+val _.insert\BinTree [A : Ty] [od : Ordering? A] :
+  BinTree A od & A -> BinTree A od
+let t0 a =>
+  case insert t0 no
+  | yes t => t
+  | no => t0
   end
 where
-  val newNode : ? A BinTree(od)
-  let => yes(leaf.BinTree node(a, leaf.BinTree))
+  val newNode : ? BinTree A od
+  let => yes (leaf.BinTree .node a leaf.BinTree)
 
-  ## insert(t, candidate): the invariant is
-  ## if candicate = yes(c) then e > c, for any member e of t.
-  val insert : (A BinTree(od), ? A) -> ? A BinTree(od)
-  let (leaf.BinTree, no) => newNode
-  let (leaf.BinTree, yes(x)) => if(od eq?(a, x)) then(no) else(newNode)
-  let (l node(x, r), candidate) =>
-    if(od lt?(a, x))
-    then(insert(l, candidate) >>= (l). yes(l node(x, r)))
-    else(insert(r, yes(x)) >>= (r). yes(l node(x, r)))
+  ## insert t candidate: the invariant is
+  ## if candicate = yes c then e > c, for any member e of t.
+  val insert : BinTree A od & ? A -> ? BinTree A od
+  let leaf.BinTree no => newNode
+  let leaf.BinTree (yes x) => if (od .eq? a x) .then no .else newNode
+  let (l .node x r) candidate =>
+    if (od .lt? a x)
+    .then (insert l candidate >>= of l => yes (l .node x r))
+    .else (insert r (yes x) >>= of r => yes (l .node x r))
 end
 
 
-val fromList.BinTree[A : Ty, od : A Ordering?] : A List -> A BinTree(od)
-let (nil) => empty.BinTree
-let (x :: xs) => fromList.BinTree(xs) insert (x)
+val fromList.BinTree [A : Ty] [od : Ordering? A] : List A -> BinTree A od
+let nil => empty.BinTree
+let (x :: xs) => fromList.BinTree xs .insert x
 
 
 val test1 :
-  ? fromList.BinTree[od := ordering?.Nat](0 :: 0 :: 1 :: 2 :: 3 :: nil) member(1)
+  ? fromList.BinTree [od := ordering?.Nat] (0 :: 0 :: 1 :: 2 :: 3 :: nil) .member 1
 let => refl
 
 
 val test2 :
-  ? fromList.BinTree[od := ordering?.Nat](3 :: 5 :: 2 :: 1 :: 0 :: 2 :: nil) member(1)
+  ? fromList.BinTree [od := ordering?.Nat] (3 :: 5 :: 2 :: 1 :: 0 :: 2 :: nil) .member 1
 let => refl
 
 
 val test3 :
-  ? fromList.BinTree[od := ordering?.Nat](1 :: 1 :: 1 :: nil) member(1)
+  ? fromList.BinTree [od := ordering?.Nat] (1 :: 1 :: 1 :: nil) .member 1
 let => refl
 
 
 val test4 :
-  ? ! fromList.BinTree[od := ordering?.Nat](2 :: 0 :: 3 :: nil) member(1)
+  ? ! fromList.BinTree [od := ordering?.Nat] (2 :: 0 :: 3 :: nil) .member 1
 let => refl
 
 
-val completeDepth.BinBag[A : Ty, od : A Ordering?] :
-  (Nat, A) -> A BinTree(od)
-let (depth, a) => complete(depth)
+val completeDepth.BinBag [A : Ty] [od : Ordering? A] :
+  Nat & A -> BinTree A od
+let depth a => complete depth
 where
-  val complete : Nat -> A BinTree(od)
-  let (0) => leaf.BinTree
-  let (++ n) => complete(n) node(a, complete(n))
+  val complete : Nat -> BinTree A od
+  let 0 => leaf.BinTree
+  let (++ n) => complete n .node a (complete n)
 end
 
 
-val completeSize.Bag[A : Ty, od : A Ordering?] : (Bin, A) -> A BinTree(od)
-let (size, a) => create2(size) 1
+val completeSize.Bag [A : Ty] [od : Ordering? A] : Bin & A -> BinTree A od
+let size a => create2 size .1
 where
-  val.. create2 : Bin -> A BinTree(od) & A BinTree(od)
-  let (0.Bin) => leaf.BinTree $ leaf.BinTree node(a, leaf.BinTree)
-  let (1.Bin+ inBin) =>
-    n := leaf.BinTree node(a, leaf.BinTree);
-    n $ n node(a, leaf.BinTree)
+  val.. create2 : Bin -> BinTree A od && BinTree A od
+  let 0.Bin => leaf.BinTree $ leaf.BinTree .node a leaf.BinTree
+  let (1.Bin+ .inBin) =>
+    n := leaf.BinTree .node a leaf.BinTree;
+    n $ n .node a leaf.BinTree
   let (n) => ## n >= 2
-    q $ r := n divmod2;  ## n = 2q + r and q >= 1
-    if(r)
-    then(
-      t1 $ t2 := create2(q);    ## size t1 = q and size t2 = q + 1
+    q $ r := n .divmod2;  ## n = 2q + r and q >= 1
+    if r
+    .then (
+      t1 $ t2 := create2 q;    ## size t1 = q and size t2 = q + 1
       ## a tree of size n = 2q + 1 and a tree of size n + 1 = 2q + 2:
-      t1 node(a, t1) $ t2 node(a, t1))
-    else do
-      t0 $ t1 := create2(-- q); ## size t0 = q and size t1 = q
+      t1 .node a t1 $ t2 .node a t1
+    )
+    .else (
+      t0 $ t1 := create2 (-- q); ## size t0 = q and size t1 = q
       ## a tree of size n = 2q and a tree of size n + 1 = 2q + 1:
-      t1 node(a, t0) $ t1 node(a, t1)
+      t1 .node a t0 $ t1 .node a t1
+    )
 end

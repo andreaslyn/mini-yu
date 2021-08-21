@@ -2,17 +2,17 @@ import "yu/prelude.yu"
 import "yu/Stream.yu"
 
 
-val alternate[A : Ty] : (A, A) -> A Stream
-let (a1, a2) => alt1
+val alternate [A : Ty] : A & A -> Stream A
+let a1 a2 => alt1
 where
-  val.. alt1 : A Stream
+  val.. alt1 : Stream A
   let => a1 :: alt2
 
-  val.. alt2 : A Stream
+  val.. alt2 : Stream A
   let => a2 :: alt1
 end
 
 
-val main : () ->> Unit
+val main : {} ->> {}
 let () =>
-  alternate(0, 1) takeList!(10) str(_str, ", ") println
+  alternate 0 1 .takeList! 10 .str _.str ", " .println

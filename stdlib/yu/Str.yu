@@ -1,2 +1,2 @@
-import "Str/Str.yu"
-import "Str/Format.yu"
+import "yu/Str/Str.yu"
+import "yu/Str/Format.yu"

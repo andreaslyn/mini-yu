@@ -1,9 +1,9 @@
 
-data (&_\_->_)[A : Ty] : (B : A -> Ty) -> Ty
-let _$_\[A : Ty, B : A -> Ty] : (a : A, B(a)) -> & B
+data (&:_\Ty) [A : Ty] : (B : A -> Ty) -> Ty
+let _$_\ [A : Ty] [B : A -> Ty] : (a : A) & B(a) -> &: B
 
-val pr1[A : Ty, B : A -> Ty] : & B -> A
+val pr1 [A : Ty] [B : A -> Ty] : &: B -> A
 let (a $ _) => a
 
-val pr2[A : Ty, B : A -> Ty] : (s : & B) -> B(pr1(s))
+val pr2 [A : Ty] [B : A -> Ty] : (s : &: B) -> B (pr1 s)
 let (_ $ b) => b

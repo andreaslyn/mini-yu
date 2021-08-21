@@ -1,57 +1,64 @@
-import "Empty.yu"
+import "yu/basic/Empty.yu"
 
 
-data _=_\[A; B : Ty] : (A, B) -> Ty
-let refl[A : Ty, a : A] : a = a
+data Equal [A B : Ty] : A & B -> Ty
+let refl [A : Ty] [a : A] : a = a
 
 
-val (!_\_=_\)[A; B : Ty, a : A, b : B] : a = b -> b = a
-let (refl) => refl
+val _=_\ [A B : Ty] : A & B -> Ty
+let => Equal
 
 
-val _@_\_=_\[a : A, b : B, c : C, A; B; C : Ty]
-  : (a = b, b = c) -> a = c
-let (refl, p) => p
+val (!_\Equal) [A B : Ty] [a : A] [b : B] : a = b -> b = a
+let refl => refl
 
 
-val _ap\_=_\[A : Ty, B : A -> Ty, a1 : A, a2 : A]
-  : (a1 = a2, f : (a : A) -> B(a)) -> f(a1) = f(a2)
-let (refl, _) => refl
+val _@_\Equal [a : A] [b : B] [c : C] [A B C : Ty]
+  : a = b & b = c -> a = c
+let refl p => p
 
 
-val _rew\_=_\[A : Ty, a1 : A, a2 : A]
-  : (a1 = a2, P : A -> Ty, P(a2)) -> P(a1)
-let (refl, _, x) => x
+val _.ap\Equal [A : Ty] [B : A -> Ty] [a1 : A] [a2 : A]
+  : a1 = a2 & (f : (a : A) -> B a) -> f a1 = f a2
+let refl _ => refl
 
 
-val _rewR\_=_\[A : Ty, B : A -> Ty, C : Ty, a1; a2 : A, c : C]
-  : (a1 = a2, f : (x : A) -> B(x), c = f(a2)) -> c = f(a1)
-let (e, f, h) => e rew((x). c = f(x), h)
+val _.rew\Equal [A : Ty] [a1 : A] [a2 : A]
+  : a1 = a2 & (P : A -> Ty) & P a2 -> P a1
+let refl _ x => x
 
 
-val _rewL\_=_\[A : Ty, B : A -> Ty, C : Ty, a1 : A, a2 : A, c : C]
-  : (a1 = a2, f : (x : A) -> B(x), f(a2) = c) -> f(a1) = c
-let (e, f, h) => e rew((x). f(x) = c, h)
+val _.rewR\Equal [A : Ty] [B : A -> Ty] [C : Ty] [a1 a2 : A] [c : C]
+  : a1 = a2 & (f : (x : A) -> B x) & c = f a2 -> c = f a1
+let e f h => e .rew (x => c = f x) h
+
+val _.rewL\Equal
+  [A : Ty] [B : A -> Ty] [C : Ty] [a1 : A] [a2 : A] [c : C]
+  : a1 = a2 & (f : (x : A) -> B x) & f a2 = c -> f a1 = c
+let e f h => e .rew (x => f x = c) h
 
 
-val _resp\_=_\[A : Ty, a1 : A, a2 : A]
-  : (a1 = a2, P : A -> Ty, P(a1)) -> P(a2)
-let (refl, _, x) => x
+val _.resp\Equal [A : Ty] [a1 : A] [a2 : A]
+  : a1 = a2 & (P : A -> Ty) & P a1 -> P a2
+let refl _ x => x
 
 
-val _!=_\[A; B : Ty] : (A, B) -> Ty
-let (a, b) => ! (a = b)
+val _!=_\ [A B : Ty] : A & B -> Ty
+let a b => ! (a = b)
 
 
-val _sym!=\_=_\[A; B : Ty, a : A, b : B] : a != b -> b != a
-let (e) => e @ (!_\_=_\)
+val _.sym!=\Equal [A B : Ty] [a : A] [b : B] : a != b -> b != a
+let e => e @compose (!_\Equal)
 
 
 extern funext.Equal :
-  (f; g : (a : A) -> B(a), (a : A) -> f(a) = g(a),
-    A : Ty, B : A -> Ty) -> f = g
+  (f g : (a : A) -> B a) &
+  ((a : A) -> f a = g a) &
+  (A : Ty) &
+  (B : A -> Ty) ->
+  f = g
 
 
-val funext[A : Ty, B : A -> Ty, f; g : (a : A) -> B(a)] :
-  ((a : A) -> f(a) = g(a)) -> f = g
-let (r) => funext.Equal(f, g, r, A, B)
+val funext [A : Ty] [B : A -> Ty] [f g : (a : A) -> B a] :
+  ((a : A) -> f a = g a) -> f = g
+let r => funext.Equal f g r A B

@@ -1,5 +1,5 @@
 
-import "Id.yu"
+import "/yu0/Id.yu"
 
 data Char : Ty
 let '0 : Char

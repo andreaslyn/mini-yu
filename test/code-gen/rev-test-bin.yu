@@ -1,8 +1,8 @@
 import "yu/prelude/prelude.yu"
 import "yu/Bin/Bin.yu"
 
-val gen-list : Bin -> Bin List
-let (b) => b rec(0.Bin :: nil, (b, x). ++ b :: x)
+val gen-list : Bin -> List Bin
+let b => b .rec (0.Bin :: nil) of b x => ++ b :: x
 
 val 100.Bin : Bin
 let => 10.Bin * 10.Bin
@@ -19,24 +19,24 @@ let => 10000.Bin * 10.Bin
 val 1000000.Bin : Bin
 let => 100000.Bin * 10.Bin
 
-val rev[A : Ty] : A List -> A List
-let (xs) => xs accum(nil, (a, x). x :: a)
+val rev [A : Ty] : List A -> List A
+let xs => xs .accum nil of a x => x :: a
 
-val rev'[A : Ty] : A List -> A List
-let => aux0(nil)
+val rev' [A : Ty] : List A -> List A
+let => aux0 nil
 where
-  val aux0 : A List -> A List -> A List
-  let (a) => (xs). aux(a, xs)
+  val aux0 : List A -> List A -> List A
+  let a => xs => aux a xs
 
-  val aux : (A List, A List) -> A List
-  let (a, nil) => a
-  let (a, x :: xs) => aux(x :: a, xs)
+  val aux : List A & List A -> List A
+  let a nil => a
+  let a (x :: xs) => aux (x :: a) xs
 end
 
-val main : () ->> Unit
+val main : {} ->> {}
 let () =>
-  xs := gen-list(1000000.Bin);
-  case rev'(rev'(xs))
-  of nil => "0" println
-  of _ => "1" println
+  xs := gen-list 1000000.Bin;
+  case rev' (rev' xs)
+  | nil => "0" .println
+  | _ => "1" .println
   end

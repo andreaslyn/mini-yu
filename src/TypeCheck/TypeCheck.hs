@@ -5,6 +5,7 @@ where
 
 import Str
 import Loc (Loc)
+import PackageMap (PackageMap, takePackage)
 import qualified Loc
 import qualified TypeCheck.Env as Env
 import ParseTree
@@ -29,10 +30,7 @@ import TypeCheck.SubstMap
 import Data.List (find, sortOn, sortBy, isPrefixOf)
 import Data.Foldable (foldlM, foldrM)
 import System.Directory
-  (getCurrentDirectory, setCurrentDirectory, canonicalizePath,
-   doesFileExist, getPermissions, readable)
-import System.FilePath (takeDirectory)
-import qualified System.FilePath.Posix as FilePath
+  (canonicalizePath, doesFileExist, getPermissions, readable)
 import Control.Exception (assert)
 import TypeCheck.TypeCheckT
 import TypeCheck.PatternUnify
@@ -50,41 +48,55 @@ _useIntercalate = intercalate
 
 runTypeCheckT ::
   MonadIO m =>
-  Bool -> Bool -> FilePath -> FilePath -> Program ->
+  Bool -> Bool -> PackageMap -> FilePath -> Program ->
   m (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
-runTypeCheckT verbose compiling stdImport file prog = do
+runTypeCheckT verbose compiling packagePaths file prog = do
   r <- runExceptT
         (runReaderT
           (evalStateT
-            (Env.runEnvT (tcInitProgram compiling stdImport prog))
+            (Env.runEnvT (tcInitProgram compiling packagePaths prog))
               (Set.singleton file)) (verbose, file))
   case r of
     Left e -> return (Left (typeCheckErrMsg e))
     Right x -> return (Right x)
 
-importFilePath :: MonadIO m => FilePath -> FilePath -> m FilePath
-importFilePath stdImport p
-  | isPrefixOf "yu/" p = liftIO $ canonicalizePath (stdImport ++ p)
-  | True = liftIO $ canonicalizePath p
+importFilePath :: MonadIO m =>
+  PackageMap -> FilePath -> m (Either String FilePath)
+importFilePath packagePaths p =
+  case takePackage p of
+    Nothing ->
+      return (Left $ "import " ++ quote p
+                     ++ " is missing package prefix "
+                     ++ quote (".../" ++ p))
+    Just (pack, postfix) ->
+      case Map.lookup pack packagePaths of
+        Nothing ->
+          return $ Left $
+            "unknown package prefix " ++ quote pack
+            ++ " in import " ++ quote p
+        Just prefix -> do
+          --liftIO (putStrLn (prefix ++ postfix))
+          fmap Right (liftIO $ canonicalizePath (prefix ++ postfix))
 
 runTT ::
   MonadIO m =>
-  Bool -> Bool -> FilePath -> FilePath ->
+  Bool -> Bool -> PackageMap -> FilePath ->
   m (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
-runTT verbose compiling stdImport file = do
-  file' <- importFilePath stdImport file
-  isf <- liftIO (doesFileExist file')
+runTT verbose compiling packagePaths file = do
+  isf <- liftIO (doesFileExist file)
   if not isf
   then return (Left $ "unable to open file " ++ file)
   else do
-    perms <- liftIO (getPermissions file')
+    perms <- liftIO (getPermissions file)
     if not (readable perms)
     then return (Left $ "unable to read file " ++ file)
     else do
-      prog <- runParse file'
+      prog <- runParse file
       case prog of
         Left e -> return (Left e)
-        Right prog' -> runTypeCheckT verbose compiling stdImport file' prog'
+        Right prog' -> do
+          file' <- liftIO (canonicalizePath file)
+          runTypeCheckT verbose compiling packagePaths file' prog'
 
 varStatusTerm :: Monad m => VarStatus -> TypeCheckT m Term
 varStatusTerm (StatusTerm te) = return te
@@ -219,14 +231,15 @@ checkRefNameValid (lo, na0) = do
     invalidNameSplit :: VarName -> Bool
     invalidNameSplit n =
       let (h, n', t) = nameSplit n
-      in h == '.' ||
+      in length n == 2 && head n == '_' ||
+         h == '.' ||
           if h == '_'
           then
             if not (null n')
             then
               if isOperatorChar (head n')
               then t /= '_' || elem '_' n'
-              else t == '_' || elem '_' n'
+              else head n' /= '.' || t == '_' || elem '_' n'
             else
               t == '_' || isOperatorChar t
           else
@@ -252,9 +265,9 @@ checkMainExists = do
     Just (StatusTerm t) -> do
       rm <- Env.getRefMap
       case preTermNormalize rm (termTy t) of
-        TermArrow True [] TermUnitTy -> checkBody (termPre t)
+        TermArrow True [(Nothing, TermUnitTy)] TermUnitTy -> checkBody (termPre t)
         _ -> do
-          ss <- preTermToStringT defaultExprIndent (TermArrow True [] TermUnitTy)
+          ss <- preTermToStringT defaultExprIndent (TermArrow True [(Nothing, TermUnitTy)] TermUnitTy)
           err (Loc.loc 1 1)
             (Fatal $
               "expected type of " ++ quote "main" ++ " to be\n" ++ ss)
@@ -276,16 +289,12 @@ checkMainExists = do
           ++ " is defined by let () => ...")
 
 tcInitProgram :: MonadIO m =>
-  Bool -> FilePath -> Program -> TypeCheckT m [RefVar]
-tcInitProgram compiling stdImport prog = do
-  origDir <- liftIO getCurrentDirectory
-  rs <- doTcInitProgram
-  liftIO (setCurrentDirectory origDir)
-  return rs
+  Bool -> PackageMap -> Program -> TypeCheckT m [RefVar]
+tcInitProgram compiling packagePaths prog = doTcInitProgram
   where
     doTcInitProgram :: MonadIO m => TypeCheckT m [RefVar]
     doTcInitProgram = do
-      rs <- tcProgram stdImport prog
+      rs <- tcProgram packagePaths prog
       mapM_ checkPositivity rs
       rm <- Env.getRefMap
       let ks = IntMap.keys rm
@@ -308,31 +317,35 @@ tcInitProgram compiling stdImport prog = do
           strictPositivityCheck (refMetaLoc meta) dv imps (termTy c)
     checkPositivity _ = return ()
 
-tcProgram :: MonadIO m => FilePath -> Program -> TypeCheckT m [RefVar]
+tcProgram :: MonadIO m => PackageMap -> Program -> TypeCheckT m [RefVar]
 tcProgram _ ([], defs) = do
   rs <- tcDefsToVars IntMap.empty defs
   Env.clearImplicitVarMap
   return rs
-tcProgram stdImport ((lo, ina) : imps, defs) = do
-  (verbose, cf) <- ask
-  let cd = takeDirectory cf
-  liftIO (setCurrentDirectory cd)
-  ina' <- fmap FilePath.normalise (importFilePath stdImport ina)
-  isf <- liftIO (doesFileExist ina')
-  when (not isf) (err lo (Fatal $ "unable to find import file \"" ++ ina ++ "\""))
-  perms <- liftIO (getPermissions ina')
-  when (not (readable perms)) (err lo (Fatal $ "unable to read file \"" ++ ina ++ "\""))
-  is <- lift get
-  if Set.member ina' is
-    then tcProgram stdImport (imps, defs)
-    else do
-      lift (put (Set.insert ina' is))
-      prog <- runParse ina'
-      case prog of
-        Left e -> throwError (Fatal e)
-        Right prog' -> do
-          vs <- local (const (verbose, ina')) (tcProgram stdImport prog')
-          fmap (++vs) (tcProgram stdImport (imps, defs))
+tcProgram packagePaths ((lo, ina) : imps, defs) = do
+  (verbose, _) <- ask
+  ina0 <- importFilePath packagePaths ina
+  case ina0 of
+    Left e0 -> err lo (Fatal e0)
+    Right ina' -> do
+      isf <- liftIO (doesFileExist ina')
+      when (not isf)
+        (err lo (Fatal $ "unable to find import file \"" ++ ina ++ "\""))
+      perms <- liftIO (getPermissions ina')
+      when (not (readable perms))
+        (err lo (Fatal $ "unable to read file \"" ++ ina ++ "\""))
+      is <- lift get
+      if Set.member ina' is
+        then tcProgram packagePaths (imps, defs)
+        else do
+          lift (put (Set.insert ina' is))
+          prog <- runParse ina'
+          case prog of
+            Left e -> throwError (Fatal e)
+            Right prog' -> do
+              vs <- local (const (verbose, ina'))
+                          (tcProgram packagePaths prog')
+              fmap (++vs) (tcProgram packagePaths (imps, defs))
 
 tcDefsToVars :: Monad m => SubstMap -> [Def] -> TypeCheckT m [RefVar]
 tcDefsToVars subst defs = do
@@ -362,13 +375,10 @@ typeOperandName :: Monad m => PreTerm -> TypeCheckT m (Maybe VarName)
 typeOperandName aty = do
   rm <- Env.getRefMap
   let aty' = preTermNormalize rm aty
-  case aty' of
-    TermArrow _ (_:_) _ -> return (Just "_->_")
-    _ ->
-      case preTermCodRootType rm aty' of
-        Just (TermData v, _) -> return (Just (varName v))
-        Just (TermTy, _) -> return (Just "Ty")
-        _ -> return Nothing
+  case preTermCodRootType rm aty' of
+    Just (TermData v, _) -> return (Just (varName v))
+    Just (TermTy, _) -> return (Just "Ty")
+    _ -> return Nothing
 
 tcDef :: Monad m => SubstMap -> Bool -> Def -> TypeCheckT m Term
 tcDef subst _ (DefExtern d) = do
@@ -410,7 +420,7 @@ tcDef subst _ (DefVal isPure d lets) = do
       Env.forceInsertImplicit i imps
       let r = mkTerm (TermRef rv IntMap.empty) (termPre ty) False
       updateToStatusTerm (declName d) r
-      e <- tcLetCases subst (declName d) imps (termPre ty) lets
+      e <- tcValCases subst (declName d) imps (termPre ty) lets
       Env.forceInsertRef (declLoc d) (declName d) isPure i e
       terminationCheck (declLoc d) rv
       return r
@@ -733,9 +743,9 @@ tcDataDefCtorLookup subst (dlo, dna) d = do
     _ ->
       error $ "expected " ++ dna ++ " to be data type"
 
-tcLetCases :: Monad m =>
-  SubstMap -> VarName -> Implicits -> PreTerm -> [LetCase] -> TypeCheckT m Term
-tcLetCases subst na [] ty [LetCase lo' [] Nothing (Just (e, w))] = do
+tcValCases :: Monad m =>
+  SubstMap -> VarName -> Implicits -> PreTerm -> [ValCase] -> TypeCheckT m Term
+tcValCases subst na [] ty [ValCase lo' [] Nothing (Just (e, w))] = do
   case w of
     Nothing -> do
       e' <- evalTcExpr subst ty e
@@ -746,26 +756,26 @@ tcLetCases subst na [] ty [LetCase lo' [] Nothing (Just (e, w))] = do
       e' <- evalTcExpr subst ty e
       when (termIo e') (err lo' (Fatal $ "effect escapes from " ++ quote na))
       return (e' {termNestedDefs = vs})
-tcLetCases _ na [] _ (LetCase lo' [] Nothing Nothing : _) = do
+tcValCases _ na [] _ (ValCase lo' [] Nothing Nothing : _) = do
   err lo' (Fatal $ "case for " ++ quote na ++ " is not absurd")
-tcLetCases _ _ [] _ (LetCase _ [] Nothing (Just _) : LetCase lo' _ _ _ : _) = do
+tcValCases _ _ [] _ (ValCase _ [] Nothing (Just _) : ValCase lo' _ _ _ : _) = do
   err lo' (Fatal "case is unreachable")
-tcLetCases _ na [] _ (LetCase lo' (_:_) Nothing _ : _) = do
+tcValCases _ na [] _ (ValCase lo' (_:_) Nothing _ : _) = do
   err lo' (Fatal $ "cannot apply " ++ quote na ++ " to implicit arguments")
-tcLetCases subst na ips@(_:_) ty (le@(LetCase lo' _ Nothing _) : lets) = do
-  (ct, io) <- buildLetCaseTree na subst ips Nothing ty (le : lets)
+tcValCases subst na ips@(_:_) ty (le@(ValCase lo' _ Nothing _) : lets) = do
+  (ct, io) <- buildValCaseTree na subst ips Nothing ty (le : lets)
   when io (err lo' (Fatal $ "effect escapes from " ++ quote na))
   let ins = map (varName . fst) ips
   let fn = TermFun ins False Nothing ct
   return (mkTerm fn ty False)
-tcLetCases subst na ips ty (le@(LetCase lo' _ (Just _) _) : lets) = do
+tcValCases subst na ips ty (le@(ValCase lo' _ (Just _) _) : lets) = do
   r <- Env.getRefMap
   case preTermDomCod r ty of
     Nothing -> err lo' (Recoverable $
                           "application of " ++ quote na
                           ++ ", but does not have function type")
     Just (dom, cod, io) -> do
-      (ct, hasIo) <- buildLetCaseTree na subst ips (Just dom) cod (le : lets)
+      (ct, hasIo) <- buildValCaseTree na subst ips (Just dom) cod (le : lets)
       let ins = map (varName . fst) ips
       when (hasIo && not io)
         (err lo' (
@@ -773,24 +783,24 @@ tcLetCases subst na ips ty (le@(LetCase lo' _ (Just _) _) : lets) = do
             "expected type of " ++ quote na
             ++ " to be effectful " ++ quote "->>"))
       return (mkTerm (TermFun ins hasIo (Just (length dom)) ct) ty False)
-tcLetCases _ na _ _ [] = error ("missing let case for " ++ quote na)
+tcValCases _ na _ _ [] = error ("missing let case for " ++ quote na)
 
 type CasePatternTriple =
   ((Maybe Var, Bool), Pattern) -- Bool = True if forced.
 
-buildLetCaseTree :: Monad m =>
+buildValCaseTree :: Monad m =>
   VarName -> SubstMap -> Implicits -> Maybe [(Maybe Var, PreTerm)] -> PreTerm ->
-  [LetCase] -> TypeCheckT m (CaseTree, Bool)
-buildLetCaseTree valName subst impParams domain codomain letCases = do
-  iCaseData <- extractImplicitCaseData letCases
+  [ValCase] -> TypeCheckT m (CaseTree, Bool)
+buildValCaseTree valName subst impParams domain codomain valCases = do
+  iCaseData <- extractImplicitCaseData valCases
   r0 <- Env.getRefMap
   let iCaseData' = dependencyOrder r0 iCaseData
                     (map (\(v,x) -> (Just v, x)) impParams)
   caseData <- case domain of
                 Nothing ->
-                  verifyNoExplicitArgs letCases >> return []
+                  verifyNoExplicitArgs valCases >> return []
                 Just d -> do
-                  cd <- extractExplicitCaseData (length d) letCases
+                  cd <- extractExplicitCaseData (length d) valCases
                   r1 <- Env.getRefMap
                   return (dependencyOrder r1 cd d)
   let caseData' = if null caseData
@@ -799,17 +809,17 @@ buildLetCaseTree valName subst impParams domain codomain letCases = do
   cs <- mapM checkCase caseData'
   casesToCaseTree cs
   where
-    verifyNoExplicitArgs :: Monad m => [LetCase] -> TypeCheckT m ()
+    verifyNoExplicitArgs :: Monad m => [ValCase] -> TypeCheckT m ()
     verifyNoExplicitArgs [] = return ()
-    verifyNoExplicitArgs (LetCase lo _ (Just _) _ : _) =
+    verifyNoExplicitArgs (ValCase lo _ (Just _) _ : _) =
       err lo (Recoverable $ "unexpected function application of " ++ quote valName)
-    verifyNoExplicitArgs (LetCase _ _ Nothing _ : ls) =
+    verifyNoExplicitArgs (ValCase _ _ Nothing _ : ls) =
       verifyNoExplicitArgs ls
 
-    extractImplicitCaseData :: Monad m => [LetCase] ->
+    extractImplicitCaseData :: Monad m => [ValCase] ->
       TypeCheckT m [([ParsePattern], Loc, Maybe (Expr, OptWhereClause))]
     extractImplicitCaseData [] = return []
-    extractImplicitCaseData (LetCase lo ias _ e : ls) = do
+    extractImplicitCaseData (ValCase lo ias _ e : ls) = do
       let (p, remain) = getImplicitPatterns lo impParams ias
       case remain of
         [] -> do
@@ -856,17 +866,17 @@ buildLetCaseTree valName subst impParams domain codomain letCases = do
                   Nothing -> Nothing
                   Just (p', ps') -> Just (p', q : ps')
 
-    extractExplicitCaseData :: Monad m => Int -> [LetCase] ->
+    extractExplicitCaseData :: Monad m => Int -> [ValCase] ->
       TypeCheckT m [([ParsePattern], Loc, Maybe (Expr, OptWhereClause))]
     extractExplicitCaseData _ [] = return []
-    extractExplicitCaseData n (LetCase lo _ (Just ps) e : ls) = do
+    extractExplicitCaseData n (ValCase lo _ (Just ps) e : ls) = do
       when (length ps /= n)
         (err lo (Fatal $
           "expected " ++ show n ++ " argument(s), but case for "
           ++ quote valName ++ " is applied to " ++ show (length ps) ++ " argument(s)"))
       pss <- extractExplicitCaseData n ls
       return ((ps, lo, e) : pss)
-    extractExplicitCaseData n (LetCase lo _ Nothing _ : _) =
+    extractExplicitCaseData n (ValCase lo _ Nothing _ : _) =
       err lo (Fatal $
         "expected " ++ show n ++ " argument(s) in case for " ++ quote valName)
 
@@ -986,7 +996,7 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
   --rr <- lift Env.getRefMap
   --ii <- lift Env.getImplicitMap
   --let !() = trace (showCasesToCaseTree ii rr pss) ()
-  midx <- lift (findMatchIndex ps)
+  midx <- lift (findCaseIndex ps)
   case midx of
     Left False -> throwError firstLoc
     Left True -> do
@@ -1065,23 +1075,23 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
         Nothing -> return (CaseNode idx subc subd)
         Just subc' -> return (CaseUnit idx subc')
 
-    findMatchIndex :: Monad m =>
+    findCaseIndex :: Monad m =>
       [CasePatternTriple] -> TypeCheckT m (Either Bool (Int, VarId))
-    findMatchIndex patterns = doFindMatchIndex startIdx (drop startIdx patterns)
+    findCaseIndex patterns = doFindCaseIndex startIdx (drop startIdx patterns)
       where
-        doFindMatchIndex :: Monad m =>
+        doFindCaseIndex :: Monad m =>
           Int -> [CasePatternTriple] -> TypeCheckT m (Either Bool (Int, VarId))
-        doFindMatchIndex _ [] =
+        doFindCaseIndex _ [] =
           if startIdx == 0 then return (Left True) else return (Left False)
-        doFindMatchIndex idx ((_, q) : qs) =
+        doFindCaseIndex idx ((_, q) : qs) =
           case prePatternGetRoot (patternPre q) of
             PatternUnit -> return (Right (idx, -1))
             PatternCtor _ i -> do
               d <- hasLateDependency q qs
               if not d
               then return (Right (idx, i))
-              else doFindMatchIndex (idx + 1) qs
-            _ -> doFindMatchIndex (idx + 1) qs
+              else doFindCaseIndex (idx + 1) qs
+            _ -> doFindCaseIndex (idx + 1) qs
 
         hasLateDependency :: Monad m =>
           Pattern -> [CasePatternTriple] -> TypeCheckT m Bool
@@ -1426,6 +1436,37 @@ dataScope e = do
   put st'
   return x
 
+forceIfLazyPreTerm :: Monad m => PreTerm -> ExprT m PreTerm
+forceIfLazyPreTerm t = do
+  rm <- lift Env.getRefMap
+  let n = preTermNormalize rm t
+  case n of
+    TermLazyArrow _ _ -> return (doForceIfLazyPreTerm n)
+    _ -> return t
+
+doForceIfLazyPreTerm :: PreTerm -> PreTerm
+doForceIfLazyPreTerm (TermLazyArrow _ t) = doForceIfLazyPreTerm t
+doForceIfLazyPreTerm t = t
+
+forceIfLazyTerm :: Monad m => Term -> ExprT m Term
+forceIfLazyTerm t = do
+  rm <- lift Env.getRefMap
+  let n = preTermNormalize rm (termTy t)
+  case n of
+    TermLazyArrow _ _ ->
+      doForceIfLazyTerm (termPre t) n (termIo t) (termNestedDefs t)
+    _ -> return t
+
+doForceIfLazyTerm :: Monad m =>
+  PreTerm -> PreTerm -> Bool -> [RefVar] -> ExprT m Term
+doForceIfLazyTerm te (TermLazyArrow io1 cod) io2 defs =
+  doForceIfLazyTerm (TermLazyApp io1 te) cod (io1 || io2) defs
+doForceIfLazyTerm te ty io defs =
+  return $ Term { termPre = te
+                , termTy = ty
+                , termNestedDefs = defs
+                , termIo = io }
+
 tcExpr :: Monad m => SubstMap -> PreTerm -> Expr -> ExprT m Term
 tcExpr subst ty e = do
   rm <- lift Env.getRefMap
@@ -1435,7 +1476,8 @@ tcExpr subst ty e = do
   where
     exprCheck :: Monad m => PreTerm -> ExprT m Term
     exprCheck expectedTy = do
-      e' <- doTcExpr False subst Nothing (Just expectedTy) e
+      e0 <- doTcExpr False subst Nothing (Just expectedTy) e
+      e' <- forceIfLazyTerm e0
       tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
       su <- getExprSubst
       let se = substPreTerm su (termPre e')
@@ -1444,15 +1486,12 @@ tcExpr subst ty e = do
 
     exprCheckLazy :: Monad m => Bool -> PreTerm -> ExprT m Term
     exprCheckLazy io expectedTy = do
-      case e of
-        ExprLazyFun _ _ -> exprCheck ty
-        _ -> do
-          e' <- doTcExpr False subst Nothing (Just expectedTy) e
-          tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
-          su <- getExprSubst
-          let se = TermLazyFun io (substPreTerm su (termPre e'))
-          let st = TermLazyArrow io (substPreTerm su expectedTy)
-          return (mkTerm se st False)
+      e' <- tcExpr subst expectedTy e
+      tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
+      su <- getExprSubst
+      let se = TermLazyFun io (substPreTerm su (termPre e'))
+      let st = TermLazyArrow io (substPreTerm su expectedTy)
+      return (mkTerm se st False)
 
 doTcExprSubst :: Monad m =>
   Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) -> Expr -> ExprT m Term
@@ -1593,16 +1632,11 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
     getImplicit :: Monad m => (Var, PreTerm) -> ExprT m (Var, PreTerm)
     getImplicit (v, vt) = do
       i <- lift Env.freshVarId
-      let v' = mkVar i ('.' : varName v)
+      let v' = mkVar i ('#' : varName v)
       impMapInsert i vt lo $
         "unable to infer implicit argument " ++ varName v
       return (v, TermVar True v')
 doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
- if isTrial && length as > 0
- then return (mkTerm TermEmpty
-              (TermArrow False
-                  [(Just (mkVar 0 ""), TermEmpty)] TermEmpty) False)
- else
   scope $ do
     as' <- mapM (\a -> fmap ((,) a) (lift Env.freshVarId)) as
     case ty of
@@ -1610,7 +1644,7 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
         implicits <- mapM insertImplicit as
         ats <- mapM insertUnknownUntypedParam (zip as' implicits)
         dom' <- mapM checkParam (zip as' ats)
-        body' <- doTcExpr False subst Nothing Nothing body
+        body' <- doTcExpr isTrial subst Nothing Nothing body
         let io = termIo body'
         let fte = TermFun [] io (Just (length dom'))
                     (CaseLeaf (map fst dom') io (termPre body') [])
@@ -1624,7 +1658,7 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             implicits <- mapM insertImplicit as
             ats <- mapM insertUnknownUntypedParam (zip as' implicits)
             dom' <- mapM checkParam (zip as' ats)
-            body' <- doTcExpr False subst Nothing Nothing body
+            body' <- doTcExpr isTrial subst Nothing Nothing body
             let io = termIo body'
             let fte = TermFun [] io (Just (length dom'))
                         (CaseLeaf (map fst dom') io (termPre body') [])
@@ -1662,7 +1696,7 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
       VarListElem -> ExprT m (Maybe PreTerm)
     insertImplicit ((vlo, vna), Nothing) = do
       i <- lift Env.freshVarId
-      let e = TermVar True (mkVar i ('.' : vna ++ ".Ty"))
+      let e = TermVar True (mkVar i ("TypeOf#" ++ vna))
       impMapInsert i TermTy vlo $ "unable to infer type of " ++ quote vna
       return (Just e)
     insertImplicit (_, Just _) = return Nothing
@@ -1740,24 +1774,6 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
                   Just v' -> IntMap.insert (varId v') tvar su 
       (su'', ts) <- insertTypedParams su' xs
       return (su'', (idx, (var, t')) : ts)
-doTcExpr _ subst _ Nothing (ExprLazyFun _ e) = do
-  e' <- doTcExpr False subst Nothing Nothing e
-  let io = termIo e'
-  let lf = TermLazyFun io (termPre e')
-  let la = TermLazyArrow io (termTy e')
-  return (mkTerm lf la False)
-doTcExpr isTrial subst _ (Just ty) (ExprLazyFun lo e) = do
-  rm <- lift Env.getRefMap
-  case preTermLazyCod rm ty of
-    Nothing -> doTcExpr isTrial subst Nothing Nothing (ExprLazyFun lo e)
-    Just (cod, io) -> do
-      e' <- tcExpr subst cod e
-      let bodyIo = termIo e'
-      when (bodyIo && not io)
-        (lift $ err lo (Fatal $
-          "type of lazy is effectful, but expected pure lazy"))
-      let lf = TermLazyFun bodyIo (termPre e')
-      return (mkTerm lf ty False)
 doTcExpr _ subst _ _ (ExprArrow _ io dom cod) = do
   scope $ do
     mapM_ insertUnknownParam dom
@@ -1795,6 +1811,31 @@ doTcExpr _ subst _ _ (ExprArrow _ io dom cod) = do
               return (Just v, tt, ti)
             _ ->
               error $ "not a variable term " ++ quote vna
+doTcExpr isTrial subst _ _ (ExprLazyApp e) = do
+  e' <- doTcExprSubst isTrial subst Nothing e
+  if not isTrial
+  then doMakeLazyApp e'
+  else do
+    rm <- lift Env.getRefMap
+    case preTermLazyCod rm (termTy e') of
+      Nothing -> doMakeLazyApp e'
+      Just (cod, _) -> do
+        opn <- lift (typeOperandName cod)
+        if isNothing opn
+        then doMakeLazyApp e'
+        else return (mkTerm TermEmpty cod False)
+  where
+    doMakeLazyApp :: Monad m => Term -> ExprT m Term
+    doMakeLazyApp e' = do
+      rm <- lift Env.getRefMap
+      case preTermLazyCod rm (termTy e') of
+        Nothing -> do
+          ss <- lift $ preTermToStringT defaultExprIndent (termTy e')
+          lift $ err (exprLoc e) (Recoverable $
+            "expected expression to have lazy type, "
+            ++ "but type is\n" ++ ss)
+        Just (ty', io) -> do
+          return (mkTerm (TermLazyApp io (termPre e')) ty' (termIo e' || io))
 doTcExpr _ subst _ _ (ExprLazyArrow _ io e) = do
   e' <- tcExpr subst TermTy e
   return (mkTerm (TermLazyArrow io (termPre e')) TermTy (termIo e'))
@@ -1842,15 +1883,44 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
                       (fst y, (snd y, substPreTerm su (snd x)))
                     ) tys ias
     let m = Map.fromList z
-    io <- unifyImplicits (Map.keysSet m) m args
-    return (f' {termPre = TermImplicitApp True r ias,
-                termIo = termIo f' || io})
+    rm <- lift Env.getRefMap
+    let dias = map (\(_, (n, t)) -> (justImplicitVar n, t)) z
+    let nameOrd = dependencyOrderArgs (preTermVars rm) dias (map fst z)
+    let argsOrd = orderImplicitArgsBy nameOrd args
+    (io, tias, tty) <- unifyImplicits (Map.keysSet m) m argsOrd ias (termTy f')
+    return (f' { termPre = TermImplicitApp True r tias
+               , termTy = tty
+               , termIo = termIo f' || io})
   where
+    justImplicitVar :: PreTerm -> Maybe Var
+    justImplicitVar (TermVar _ v) = Just v
+    justImplicitVar _ = error "expected implicit to be a variable"
+
+    orderImplicitArgsBy ::
+      [(Int, (Maybe Var, PreTerm), VarName)] ->
+      [((Loc, String), Expr)] -> [((Loc, String), Expr)]
+    orderImplicitArgsBy [] as = as
+    orderImplicitArgsBy ((_, _, n) : ns) as =
+      case getRemoveImplicit n as of
+        Nothing -> orderImplicitArgsBy ns as
+        Just (a, as') -> a : orderImplicitArgsBy ns as'
+
+    getRemoveImplicit ::
+      VarName -> [((Loc, String), Expr)] ->
+      Maybe (((Loc, String), Expr), [((Loc, String), Expr)])
+    getRemoveImplicit _ [] = Nothing
+    getRemoveImplicit n (((lo, m), e) : as)
+      | n == m = Just (((lo, m), e), as)
+      | True = do
+          (a, as0) <- getRemoveImplicit n as
+          Just (a, ((lo, m), e) : as0)
+
     unifyImplicits :: Monad m =>
       Set VarName -> Map VarName (PreTerm, PreTerm) ->
-      [((Loc, String), Expr)] -> ExprT m Bool
-    unifyImplicits _ _ [] = return False
-    unifyImplicits remain ias (((lo, na), e) : es) = do
+      [((Loc, String), Expr)] -> [(VarName, PreTerm)] -> PreTerm ->
+      ExprT m (Bool, [(VarName, PreTerm)], PreTerm)
+    unifyImplicits _ _ [] imap fty = return (False, imap, fty)
+    unifyImplicits remain ias (((lo, na), e) : es) imap fty = do
       case Map.lookup na ias of
         Nothing -> lift (err lo (Fatal $ "unexpected implicit argument name "
                                          ++ quote na))
@@ -1859,54 +1929,23 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
             then do
               e0 <- tcExpr subst ty e
               e' <- runUnify a e0
-              io <- unifyImplicits (Set.delete na remain) ias es
-              return (io || termIo e')
+              isu <- getExprSubst
+              let ias' = Map.map (\(n, t) -> (n, substPreTerm isu t)) ias
+              let imap' = map (\(n, t) -> (n, substPreTerm isu t)) imap
+              let fty' = substPreTerm isu fty
+              (io, imap'', fty'') <- unifyImplicits (Set.delete na remain) ias' es imap' fty'
+              return (io || termIo e', imap'', fty'')
             else
               lift (err lo (Fatal $ "implicit argument " ++ quote na
                                     ++ " is given multiple times"))
       where
         msgPrefix :: Monad m => ExprT m String
-        msgPrefix = do
+        msgPrefix =
           return $
             "failed unifying values for implicit argument " ++ quote na
         runUnify :: Monad m => PreTerm -> Term -> ExprT m Term
-        runUnify a e0 = do
-          (runExprUnifResult lo False msgPrefix a (termPre e0) >> return e0)
-            `catchRecoverable` runUnifyLazy a e0
-        runUnifyLazy :: Monad m => PreTerm -> Term -> String -> ExprT m Term
-        runUnifyLazy a e0 msg = do
-          let e1 = Term { termPre = TermLazyFun (termIo e0) (termPre e0)
-                        , termTy = TermLazyArrow (termIo e0) (termTy e0)
-                        , termNestedDefs = []
-                        , termIo = False }
-          runExprUnifResult lo False msgPrefix a (termPre e1)
-            `catchRecoverable` (\_ -> throwError (Recoverable msg))
-          return e1
-doTcExpr isTrial subst _ _ (ExprLazyApp e) = do
-  e' <- doTcExprSubst isTrial subst Nothing e
-  if not isTrial
-  then doMakeLazyApp e'
-  else do
-    rm <- lift Env.getRefMap
-    case preTermLazyCod rm (termTy e') of
-      Nothing -> doMakeLazyApp e'
-      Just (cod, _) -> do
-        opn <- lift (typeOperandName cod)
-        if isNothing opn
-        then doMakeLazyApp e'
-        else return (mkTerm TermEmpty cod False)
-  where
-    doMakeLazyApp :: Monad m => Term -> ExprT m Term
-    doMakeLazyApp e' = do
-      rm <- lift Env.getRefMap
-      case preTermLazyCod rm (termTy e') of
-        Nothing -> do
-          ss <- lift $ preTermToStringT defaultExprIndent (termTy e')
-          lift $ err (exprLoc e) (Recoverable $
-            "expected expression to have lazy function type, "
-            ++ "but type is\n" ++ ss)
-        Just (ty', io) -> do
-          return (mkTerm (TermLazyApp io (termPre e')) ty' (termIo e' || io))
+        runUnify a e0 =
+          runExprUnifResult lo False msgPrefix a (termPre e0) >> return e0
 doTcExpr _ subst _ ty (ExprSeq (Left e1) e2) =
   let p1 = ParsePatternUnit (exprLoc e1)
   in doTcExpr False subst Nothing ty (ExprSeq (Right (p1, e1)) e2)
@@ -1929,7 +1968,7 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
       return (mkTerm c ty' (termIo expr' || io))
   where
     checkCases :: Monad m =>
-      VarId -> PreTerm -> [OfCase] -> Maybe PreTerm ->
+      VarId -> PreTerm -> [CaseCase] -> Maybe PreTerm ->
       ExprT m ([(Loc, [CasePatternTriple], Maybe Term)], Maybe PreTerm)
     checkCases _ _ [] expectedTy = return ([], expectedTy)
     checkCases newpids t ((Left p) : ps) expectedTy = do
@@ -2002,14 +2041,18 @@ doTcExprApp isTrial subst operandArg ty f args = do
     rm <- lift Env.getRefMap
     case preTermDomCod rm (termTy f') of
       Nothing -> doMakeTermApp f'
-      Just (_, cod, _) -> do
-        asp <- getArgSplit f'
-        if isNothing asp
-        then makeTrivialApp f' cod
-        else
-          case preTermDomCod rm cod of
-            Nothing -> doMakeTermApp f'
-            Just (_, cod', _) -> makeTrivialApp f' cod'
+      Just (dom, cod, _) ->
+        if length dom /= length args
+        then
+          doMakeTermApp f'
+        else do
+          asp <- getArgSplit f'
+          if isNothing asp
+          then makeTrivialApp f' cod
+          else
+            case preTermDomCod rm cod of
+              Nothing -> doMakeTermApp f'
+              Just (_, cod', _) -> makeTrivialApp f' cod'
   where
     makeTrivialApp :: Monad m => Term -> PreTerm -> ExprT m Term
     makeTrivialApp f' cod = do
@@ -2052,7 +2095,8 @@ doTcExprApp isTrial subst operandArg ty f args = do
 makeTermApp :: Monad m =>
   SubstMap -> Loc ->
   Maybe PreTerm -> Term -> [Expr] -> ExprT m Term
-makeTermApp subst flo ty f' args = do
+makeTermApp subst flo preTy f0 preArgs = do
+  f' <- forceIfLazyTerm f0
   r <- lift Env.getRefMap
   let dc = preTermDomCod r (termTy f')
   case dc of
@@ -2063,11 +2107,13 @@ makeTermApp subst flo ty f' args = do
           "expected expression to have function type, "
           ++ "but type is\n" ++ ss)
     Just (d', c', io) -> do
-      when (length d' /= length args)
+      when (length d' > length preArgs)
         (lift $ err flo
                   (Fatal $
                     "expected " ++ show (length d') ++ " argument(s), "
-                    ++ "but given " ++ show (length args)))
+                    ++ "but given " ++ show (length preArgs)))
+      let (args, postArgs) = splitAt (length d') preArgs
+      let ty = if null postArgs then preTy else Nothing
       iv <- lift Env.getImplicitVarMap
       let args0 = dependencyOrderArgsWithOrder
                     appOrdering
@@ -2077,14 +2123,20 @@ makeTermApp subst flo ty f' args = do
                     args
       let args1 = map (\(i, (v, (p, w)), e) -> (i, v, p, w, e)) args0
       let domVars = getDomVars d'
-      (su, ps, io') <- applyArgs domVars False c' IntMap.empty args1
+      cod <- forceIfLazyPreTerm c'
+      (su, ps, io') <- applyArgs ty domVars False cod IntMap.empty args1
       let ps' = map snd (sortOn fst ps)
       let c = substPreTerm su c'
       let e = TermApp io (termPre f') ps'
-      return (mkTerm e c (termIo f' || io || io'))
+      let fap = mkTerm e c (termIo f' || io || io')
+      if null postArgs
+      then return fap
+      else makeTermApp subst flo preTy fap postArgs
   where
-    unifyType :: Monad m => IntSet -> (Int, Int, Int, Int) -> PreTerm -> SubstMap -> ExprT m Bool
-    unifyType domVars w cod su = do
+    unifyType :: Monad m =>
+      Maybe PreTerm -> IntSet -> (Int, Int, Int, Int) ->
+      PreTerm -> SubstMap -> ExprT m Bool
+    unifyType ty domVars w cod su = do
       case ty of
         Just ty' -> do
           let cod' = substPreTerm su cod
@@ -2112,30 +2164,31 @@ makeTermApp subst flo ty f' args = do
     getDomVars ((Just v, _) : vs) = IntSet.insert (varId v) (getDomVars vs)
 
     applyArgs :: Monad m =>
-      IntSet -> Bool -> PreTerm -> SubstMap ->
+      Maybe PreTerm -> IntSet -> Bool -> PreTerm -> SubstMap ->
       [(Int, Maybe Var, PreTerm, (Int, Int, Int, Int), Expr)] ->
       ExprT m (SubstMap, [(Int, PreTerm)], Bool)
-    applyArgs _ _ _ su [] = return (su, [], False)
-    applyArgs domVars unified cod su ((idx, Nothing, p, w, e) : xs) = do
-      unified' <- unifyCod domVars unified w cod su
+    applyArgs _ _ _ _ su [] = return (su, [], False)
+    applyArgs ty domVars unified cod su ((idx, Nothing, p, w, e) : xs) = do
+      unified' <- unifyCod ty domVars unified w cod su
       (e', eio) <- applyTc p w e
-      (su', es', io) <- applyArgs domVars unified' cod su xs
+      (su', es', io) <- applyArgs ty domVars unified' cod su xs
       return (su', (idx, e') : es', io || eio)
-    applyArgs domVars unified cod su ((idx, Just v, p, w, e) : xs) = do
-      unified' <- unifyCod domVars unified w cod su
+    applyArgs ty domVars unified cod su ((idx, Just v, p, w, e) : xs) = do
+      unified' <- unifyCod ty domVars unified w cod su
       (e', eio) <- applyTc p w e
       r <- lift Env.getRefMap
       let xs' = substArgs r (IntMap.singleton (varId v) e') xs
       let su' = IntMap.insert (varId v) e' su
-      (su'', es', io) <- applyArgs domVars unified' cod su' xs'
+      (su'', es', io) <- applyArgs ty domVars unified' cod su' xs'
       return (su'', (idx, e') : es', io || eio)
 
     unifyCod :: Monad m =>
-      IntSet -> Bool -> (Int, Int, Int, Int) -> PreTerm -> SubstMap -> ExprT m Bool
-    unifyCod domVars unified weight cod su = do
+      Maybe PreTerm -> IntSet -> Bool -> (Int, Int, Int, Int) ->
+      PreTerm -> SubstMap -> ExprT m Bool
+    unifyCod ty domVars unified weight cod su = do
       if unified
       then return True
-      else unifyType domVars weight cod su
+      else unifyType ty domVars weight cod su
             `catchRecoverable` (\_ -> return False)
 
     applyTc p _ e = do
@@ -2165,7 +2218,6 @@ getAppOrderingWeight rm iv ty e =
     funWeight :: PreTerm -> Expr -> Int
     funWeight t@(TermArrow _ _ _) x = IntSet.size (funImplicits t x)
     funWeight t@(TermLazyArrow _ _) x = IntSet.size (funImplicits t x)
-    funWeight _ x@(ExprLazyFun _ _) = funWeightNoType x
     funWeight _ x@(ExprFun _ _ _) = funWeightNoType x
     funWeight t x = IntSet.size (funImplicits t x)
 
@@ -2196,12 +2248,10 @@ getAppOrderingWeight rm iv ty e =
                      ) IntSet.empty (zip d ps)
           s1 = funImplicits c b
       in IntSet.union s0 s1
-    funImplicits (TermLazyArrow _ c) (ExprLazyFun _ b) = funImplicits c b
     funImplicits (TermLazyArrow _ c) b = funImplicits c b
     funImplicits _ _ = IntSet.empty
 
     funWeightNoType :: Expr -> Int
-    funWeightNoType (ExprLazyFun _ x) = funWeightNoType x
     funWeightNoType (ExprFun _ ps x) =
       funWeightNoType x + foldl (\a (_, t) ->
                             if isNothing t then a + 1 else a) 0 ps
@@ -2214,7 +2264,7 @@ appOrdering (_, n1) (_, n2) = compare n1 n2
 tcPattern :: Monad m =>
   VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
 tcPattern newpids ty p = do
-  (su, p')  <- doTcPattern False False newpids ty p
+  (su, p')  <- doTcPatternForceLazy False False newpids ty p
   rm <- Env.getRefMap
   --let !() = trace ("type: " ++ preTermToString im rm 0 (patternTy p')) ()
   when (patternPreCanApply (patternPre p') && isArrowType rm (patternTy p')) $ do
@@ -2233,7 +2283,7 @@ tcPattern newpids ty p = do
 makePatternApp :: Monad m =>
   Loc -> VarId -> PreTerm -> (SubstMap, Pattern) -> [ParsePattern] ->
   TypeCheckT m (SubstMap, Pattern)
-makePatternApp flo newpids ty (fsu, f') pargs = do
+makePatternApp flo newpids ty (fsu, f') prePargs = do
   r <- Env.getRefMap
   when (not $ patternPreCanApply (patternPre f')) $ do
     ss <- preTermToStringT defaultExprIndent (patternTy f')
@@ -2247,11 +2297,12 @@ makePatternApp flo newpids ty (fsu, f') pargs = do
         "unable to match pattern with inferred type\n" ++ ss)
     Just (dom0, cod, io) -> do
       let !() = assert (not io) ()
-      when (length dom0 /= length pargs)
+      when (length dom0 > length prePargs)
         (err flo
           (Fatal $
             "expected " ++ show (length dom0) ++ " argument(s), "
-            ++ "but given " ++ show (length pargs)))
+            ++ "but given " ++ show (length prePargs)))
+      let (pargs, postPargs) = splitAt (length dom0) prePargs
       let (fcod, _) = preTermFinalCod r cod
       dsu <- tcPatternUnify newpids flo fcod ty
       let dsubts = \(d, t) -> (d, substPreTerm dsu t)
@@ -2270,12 +2321,43 @@ makePatternApp flo newpids ty (fsu, f') pargs = do
       let ps' = map (patternPre . snd . snd) (sortOn fst ps)
       let p = Pattern {patternPre = PatternApp (patternPre f') ps',
                        patternTy = c}
-      return (psu, p)
+      if null postPargs
+      then return (psu, p)
+      else makePatternApp flo newpids ty (psu, p) postPargs
+
+
+forceIfLazyPattern :: Monad m => Pattern -> TypeCheckT m Pattern
+forceIfLazyPattern p = do
+  rm <- Env.getRefMap
+  let n = preTermNormalize rm (patternTy p)
+  case n of
+    TermLazyArrow _ _ -> doForceIfLazyPattern (patternPre p) n
+    _ -> return p
+
+doForceIfLazyPattern :: Monad m =>
+  PrePattern -> PreTerm -> TypeCheckT m Pattern
+doForceIfLazyPattern p (TermLazyArrow io cod) =
+  assert (not io) $ doForceIfLazyPattern (PatternLazyApp p) cod
+doForceIfLazyPattern p ty =
+  return $ Pattern {patternPre = p, patternTy = ty}
+
+
+doTcPatternForceLazy :: Monad m =>
+  Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
+doTcPatternForceLazy hasImplicitApp hasApp newpids ty p = do
+  (su, p0) <- doTcPattern hasImplicitApp hasApp newpids ty p
+  if patternPreCanApply (patternPre p0)
+  then do
+    p' <- forceIfLazyPattern p0
+    return (su, p')
+  else
+    return (su, p0)
+
 
 doTcPattern :: Monad m =>
   Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
 doTcPattern _ _ newpids ty (ParsePatternApp f pargs) = do
-  f' <- doTcPattern False True newpids ty f
+  f' <- doTcPatternForceLazy False True newpids ty f
   case pargs of
     a1 : a2 : pargs' ->
       if isPostfixPattern f
@@ -2297,7 +2379,7 @@ doTcPattern _ _ newpids ty (ParsePatternApp f pargs) = do
     isPostfixPattern _ = False
 
 doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
-  (fsu, f') <- doTcPattern True hasApp newpids ty f
+  (fsu, f') <- doTcPatternForceLazy True hasApp newpids ty f
   rm <- Env.getRefMap
   (r, v, ias) <- case patternPre f' of
                   PatternImplicitApp False r@(PatternCtor v _) a -> return (r, v, a)
@@ -2375,24 +2457,6 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
         then p : remakeArgs ps vs
         else v : remakeArgs (p:ps) vs
     remakeArgs _ _ = error "unexpected arguments to remakeArgs"
-doTcPattern _ _ newpids ty (ParsePatternLazyApp f) = do
-  (fsu, f') <- doTcPattern False True newpids ty f
-  when (not $ patternPreCanApply (patternPre f')) $ do
-    ss <- preTermToStringT defaultExprIndent (patternTy f')
-    err (patternLoc f) (Recoverable $
-      "unable to match pattern with inferred type\n" ++ ss)
-  r <- Env.getRefMap
-  let c = preTermLazyCod r (patternTy f')
-  case c of
-    Nothing -> do
-      ss <- preTermToStringT defaultExprIndent (patternTy f')
-      err (patternLoc f) (Recoverable $
-        "unable to match pattern with inferred type\n" ++ ss)
-    Just (cod, io) -> do
-      let !() = assert (not io) ()
-      let p = Pattern {patternPre = PatternLazyApp (patternPre f'),
-                       patternTy = cod}
-      return (fsu, p)
 doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
   (x, na) <- if not (isOperator na0) || '\\' `elem` na0
              then fmap (\x -> (x, na0)) (Env.lookup na0)
@@ -2500,7 +2564,7 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
     getImplicit :: Monad m => (Var, PreTerm) -> TypeCheckT m (Var, PrePattern)
     getImplicit (v, _) = do
       i <- Env.freshVarId
-      let v' = mkVar i (varName v ++ "." ++ na0)
+      let v' = mkVar i (varName v ++ "#" ++ na0)
       return (v, PatternVar v')
 doTcPattern _ _ newpids ty (ParsePatternEmpty lo) = do
   verifyIsEmptyType lo newpids ty

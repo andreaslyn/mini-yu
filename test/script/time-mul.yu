@@ -33,16 +33,16 @@ let => +(8)
 val 10 : Nat
 let => +(9)
 
-val plus : (Nat, Nat) -> Nat
-let (m, 0) => m
-let (m, +(n)) => +(plus(m, n))
+val plus : Nat & Nat -> Nat
+let m 0 => m
+let m (+ n) => + plus m n
 
-val mul : (Nat, Nat) -> Nat
-let (m, 0) => 0
-let (m, +(n)) => plus(mul(m, n), m)
+val mul : Nat & Nat -> Nat
+let m 0 => 0
+let m (+ n) => plus (mul m n) m
 
-data NatId : (Nat, Nat) -> Ty
-let refl[n : Nat] : NatId(n, n)
+data NatId : Nat & Nat -> Ty
+let refl[n : Nat] : NatId n n
 
-val test-eq : NatId(mul(10, mul(9, 10)), mul(10, mul(10, 9)))
+val test-eq : NatId (mul 10 (mul 9 10)) (mul 10 (mul 10 9))
 let => refl

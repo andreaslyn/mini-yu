@@ -3,12 +3,12 @@ data Nat : Ty
 let 0 : Nat
 let (+1_\Nat) : Nat -> Nat
 
-data NatId : (Nat, Nat) -> Ty
-let nat-refl : (n : Nat) -> NatId(n, n)
+data NatId : Nat & Nat -> Ty
+let nat-refl : (n : Nat) -> NatId n n
 
 data Empty : Ty
-let ()
+let {}
 
-val not-0-+1 : (n : Nat, NatId(0, +1 n)) -> Nat
-let (_, ())
+val not-0-+1 : (n : Nat) & NatId 0 (+1 n) -> Nat
+let _ {}
 ##let (_, nat-refl(x)) => 0
