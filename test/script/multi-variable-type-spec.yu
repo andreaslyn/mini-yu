@@ -1,6 +1,6 @@
 
-data _*_\Ty : (Ty, Ty) -> Ty
-let _$_\[A; B : Ty] : (A, B) -> A * B
+data _*_\Ty : Ty & Ty -> Ty
+let _$_\[A B : Ty] : A & B -> A * B
 
 
 data Bool : Ty
@@ -8,31 +8,31 @@ let ff : Bool
 let tt : Bool
 
 
-val _*_\Bool : (Bool, [] -> Bool) -> Bool
-let (ff, _) => ff
-let (tt, b) => b[]
+val _*_\Bool : Bool & ([] -> Bool) -> Bool
+let ff _ => ff
+let tt b => b []
 
 
-data _=_\[A; B : Ty] : (A, B) -> Ty
-let refl[A : Ty, a : A] : a = a
+data _=_\[A B : Ty] : A & B -> Ty
+let refl [A : Ty] [a : A] : a = a
 
 
-val _op*IsCommutative\Bool : (a; b : Bool) -> a * b = b * a
-let (tt, tt) => refl
-let (tt, ff) => refl
-let (ff, tt) => refl
-let (ff, ff) => refl
+val _.op*IsCommutative\Bool : (a b : Bool) -> a * b = b * a
+let tt tt => refl
+let tt ff => refl
+let ff tt => refl
+let ff ff => refl
 
 
-val _op*IsCommutative'\Bool : (a : Bool, b : Bool) -> a * b = b * a
-let => (a; b : Bool). a op*IsCommutative(b)
+val _.op*IsCommutative'\Bool : (a : Bool) & (b : Bool) -> a * b = b * a
+let => (a b : Bool) => a .op*IsCommutative b
 
 
-val desugarArrow[A : Ty, B : (A, A) -> Ty] :
-  ((a1; a2 : A) -> B(a1, a2)) = ((x : A, y : A) -> B(x, y))
+val desugarArrow [A : Ty] [B : A & A -> Ty] :
+  ((a1 a2 : A) -> B a1 a2) = ((x : A) & (y : A) -> B x y)
 let => refl
 
 
-val desugarFun[A : Ty, B : (_; _ : A) -> Ty] :
-  ((a1; a2 : A). B(a1, a2)) = ((x : A, y : A). B(x, y))
+val desugarFun [A : Ty] [B : (_ _ : A) -> Ty] :
+  ((a1 a2 : A) => B a1 a2) = ((x : A) (y : A) => B x y)
 let => refl

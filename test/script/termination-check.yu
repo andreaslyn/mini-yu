@@ -2,42 +2,42 @@ data Nat : Ty
 let 0 : Nat
 let (++_\) : Nat -> Nat
 
-data _List\Ty : Ty -> Ty
-let nil[A : Ty] : A List
-let _::_\_List\Ty[A : Ty] : (A, A List) -> A List
+data _.List\Ty : Ty -> Ty
+let nil[A : Ty] : A .List
+let _::_\_.List\Ty[A : Ty] : A & A .List -> A .List
 
-val last-nat.List : Nat List -> Nat
-let (nil) => 0
+val last-nat.List : Nat .List -> Nat
+let nil => 0
 let (x :: xs) =>
-  case xs
-  of nil => x
-  of y :: ys => last-nat.List(xs)
+  match xs
+  let nil => x
+  let y :: ys => last-nat.List xs
   end
 
-val last-nat'.List : Nat List -> Nat
-let (nil) => 0
+val last-nat'.List : Nat .List -> Nat
+let nil => 0
 let (x :: xs) =>
-  case xs
-  of nil => x
-  of y :: ys => last-nat'.List(y :: ys)
+  match xs
+  let nil => x
+  let y :: ys => last-nat'.List (y :: ys)
   end
 
-data _Stream\Ty : Ty -> Ty
-let nils[A : Ty] : [] -> A Stream
-let _::_\_Stream\Ty[A : Ty] : ([] -> A, [] -> A Stream) -> [] -> A Stream
+data _.Stream\Ty : Ty -> Ty
+let nils[A : Ty] : [] -> A .Stream
+let _::_\_.Stream\Ty[A : Ty] : ([] -> A) & ([] -> A .Stream) -> [] -> A .Stream
 
-val last-nat.Stream : Nat Stream -> Nat
-let (nils[]) => 0
-let ((x :: xs)[]) =>
-  case xs[]
-  of nils[] => x[]
-  of (y :: ys)[] => last-nat.Stream(xs[])
+val last-nat.Stream : Nat .Stream -> Nat
+let (nils []) => 0
+let ((x :: xs) []) =>
+  match xs[]
+  let nils[] => x[]
+  let (y :: ys)[] => last-nat.Stream (xs[])
   end
 
-val last-nat'.Stream : Nat Stream -> Nat
-let (nils[]) => 0
+val last-nat'.Stream : Nat .Stream -> Nat
+let (nils []) => 0
 let ((x :: xs)[]) =>
-  case xs[]
-  of nils[] => x[]
-  of (y :: ys)[] => last-nat'.Stream((y[] :: ys[])[])
+  match xs[]
+  let nils[] => x[]
+  let (y :: ys)[] => last-nat'.Stream ((y[] :: ys[]) [])
   end

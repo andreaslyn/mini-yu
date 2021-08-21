@@ -1,14 +1,14 @@
 
-data Id : (A : Ty, A, A) -> Ty
-let refl : (A : Ty, a : A) -> Id(A, a, a)
+data Id : (A : Ty) & A & A -> Ty
+let refl : (A : Ty) & (a : A) -> Id A a a
 
 data Nat : Ty
 let 0 : Nat
 let (++_\Nat) : Nat -> Nat
 
-val _+_\ : (Nat, Nat) -> Nat
-let (m, 0) => m
-let (m, ++ n) => ++ (m + n)
+val _+_\ : Nat & Nat -> Nat
+let m 0 => m
+let m (++ n) => ++ (m + n)
 
 val 1 : Nat
 let => ++(0)
@@ -22,95 +22,96 @@ let => ++(2)
 val 4 : Nat
 let => ++(3)
 
-val 2+2=4 : Id(Nat, 2 + 2, 4)
-let => refl(Nat, 4)
+val 2+2=4 : Id Nat (2 + 2) 4
+let => refl Nat 4
 
 val Id-ap :
-  (A : Ty, B : Ty, f : A -> B, a1 : A, a2 : A, Id(A, a1, a2)) ->
-  Id(B, f(a1), f(a2))
-let (A, B, f, a, _, refl(_, _)) => refl(B, f(a))
+  (A : Ty) & (B : Ty) & (f : A -> B) & (a1 : A) & (a2 : A) & Id A a1 a2 ->
+  Id B (f a1) (f a2)
+let A B f a _ (refl _ _) => refl B (f a)
 
-val 0+simpl : (n : Nat) -> Id(Nat, _+_(0, n), n)
-let (0) => refl(Nat, 0)
-let (++(n)) => Id-ap(Nat, Nat, (++_), _+_(0, n), n, 0+simpl(n))
+val 0+simpl : (n : Nat) -> Id Nat (_+_ 0 n) n
+let (0) => refl Nat 0
+let (++(n)) => Id-ap Nat Nat (++_) (_+_ 0 n) n (0+simpl n)
 
-val Id-sym : (A : Ty, a1 : A, a2 : A, Id(A, a1, a2)) -> Id(A, a2, a1)
-let (A, a, _, refl(_, _)) => refl(A, a)
+
+val Id-sym : (A : Ty) & (a1 : A) & (a2 : A) & Id A a1 a2 -> Id A a2 a1
+let A a _ (refl _ _) => refl A a
 
 val pp-p-simpl :
-  (m : Nat, n : Nat) -> Id(Nat, _+_(++(m), n), ++(_+_(m, n)))
-let (m, 0) => refl(Nat, ++(m))
-let (m, ++(n)) =>
-  Id-ap(Nat, Nat, (++_), _+_(++(m), n), ++(_+_(m, n)), pp-p-simpl(m, n))
+  (m : Nat) & (n : Nat) -> Id Nat (_+_ (++ m) n) (++ _+_ m n)
+let m 0 => refl Nat (++ m)
+let m (++ n) =>
+  Id-ap Nat Nat (++_) (_+_ (++ m) n) (++ _+_ m n) (pp-p-simpl m n)
 
 val Id-trans :
-  (A : Ty, a1 : A, a2 : A, a3 : A, Id(A, a1, a2), Id(A, a2, a3)) ->
-  Id(A, a1, a3)
-let (A, a, _, _, refl(_, _), refl(_, _)) => refl(A, a)
+  (A : Ty) & (a1 : A) & (a2 : A) & (a3 : A) & Id A a1 a2 & Id A a2 a3 ->
+  Id A a1 a3
+let A a _ _ (refl _ _) (refl _ _) => refl A a
 
-val comm-+ : (m : Nat, n : Nat) -> Id(Nat, m + n, _+_(n, m))
-let (m, 0) => Id-sym(Nat, _+_(0, m), m, 0+simpl(m))
-let (m, ++(n)) =>
-  Id-trans(Nat, ++(_+_(m, n)), ++(n + m), ++ n + m,
-    Id-ap(Nat, Nat, (++_), _+_(m, n), _+_(n, m), comm-+(m, n)),
-    Id-sym(Nat, _+_(++(n), m), ++(_+_(n, m)), pp-p-simpl(n, m)))
+val comm-+ : (m : Nat) & (n : Nat) -> Id Nat (m + n) (_+_ n m)
+let m 0 => Id-sym Nat (_+_ 0 m) m (0+simpl m)
+let m (++ n) =>
+  Id-trans Nat (++(_+_ m n)) (++(n + m)) (++ n + m)
+    (Id-ap Nat Nat (++_) (_+_ m n) (_+_ n m) (comm-+ m n))
+    (Id-sym Nat (_+_ (++ n) m) (++ _+_ n m) (pp-p-simpl n m))
 
-val _+'_\Nat : (Nat, Nat) -> Nat
-let (0, n) => n
-let (++(m), n) => ++(m +' n)
+val _+'_\Nat : Nat & Nat -> Nat
+let 0 n => n
+let (++ m) n => ++ (m +' n)
 
-val ppId : (m : Nat, n : Nat) -> Id(Nat, _+'_(m, n), _+_(m, n))
-let (0, n) => Id-sym(Nat, _+_(0, n), n, 0+simpl(n))
-let (++ m, n) =>
-  Id-trans(Nat, ++(_+'_(m, n)), ++(_+_(m, n)), _+_(++(m), n),
-    Id-ap(Nat, Nat, (++_), _+'_(m, n), _+_(m, n), ppId(m, n)),
-    Id-sym(Nat, _+_(++(m), n), ++(_+_(m, n)), pp-p-simpl(m, n)))
+val ppId : (m : Nat) & (n : Nat) -> Id Nat (_+'_ m n) (_+_ m n)
+let 0 n => Id-sym Nat (_+_ 0 n) n (0+simpl n)
+let (++ m) n =>
+  Id-trans Nat (++(_+'_ m n)) (++(_+_ m n)) (_+_ (++(m)) n)
+    (Id-ap Nat Nat (++_) (_+'_ m n) (_+_ m n) (ppId m n))
+    (Id-sym Nat (_+_ (++ m) n) (++ _+_ m n) (pp-p-simpl m n))
 
-val _*_\Nat : (Nat, Nat) -> Nat
-let (m, n) =>
-  r := case n
-    of 0 => 0
-    of ++ n => m + m * n
+val _*_\Nat : Nat & Nat -> Nat
+let m n =>
+  r := match n
+    let 0 => 0
+    let ++ n => m + m * n
     end;
   r
 
-val 2*2=4 : Id(Nat, ++ ++ ++ ++ 0, _*_(++(++(0)), ++(++(0))))
-let => refl(Nat, ++ ++ 0 * ++ ++ 0)
+val 2*2=4 : Id Nat (++ ++ ++ ++ 0) (_*_ (++ ++ 0) (++ ++ 0))
+let => refl Nat (++ ++ 0 * ++ ++ 0)
 
 val test-id-trans-case :
-  (A : Ty, x : A, y : A, z : A, Id(A, x, y), Id(A, y, z)) ->
-  Id(A, x, z)
-let (A, x, y, z, e1, e2) =>
-  case e1
-  of refl(_, _) =>
-    case e2
-    of refl(_, _) => refl(A, x)
+  (A : Ty) & (x : A) & (y : A) & (z : A) & Id A x y & Id A y z ->
+  Id A x z
+let A x y z e1 e2 =>
+  match e1
+  let refl _ _ =>
+    match e2
+    let refl _ _ => refl A x
     end
   end
 
 val test-id-trans-assign :
-  (T : Ty, x : T, y : T, z : T, Id(T, x, y), Id(T, y, z)) ->
-  Id(T, x, x)
-let (_, _, _, _, e1, e2) =>
-  refl(X, a) := e1; refl(Y, b) := e2; refl(Y, a)
+  (T : Ty) & (x : T) & (y : T) & (z : T) & Id T x y & Id T y z ->
+  Id T x x
+let _ _ _ _ e1 e2 =>
+  refl X a := e1; refl Y b := e2; refl Y a
 
-data Empty : Ty let ()
+data Empty : Ty let {}
 
-val test-empty : Empty -> Unit
+val test-empty : Empty -> {}
 let (e) =>
-  case e of () end
+  match e let {} end
 
-val test-empty' : Empty -> Unit
+val test-empty' : Empty -> {}
 let (e) =>
-  case e
-  of e => case e of () end
+  match e
+  let e => match e let {} end
   end
 
 data Any : Ty
-let any : (A : Ty, A) -> Any
+let any : (A : Ty) & A -> Any
 
-val test-escape : Unit
+val test-escape : {}
 let =>
-  a := any(Nat, 0);
-  _ := (any(X, x) := a; refl(_, _) := refl(X, x); a);
-  unit
+  a := any Nat 0;
+  _ := (any X x := a; refl _ _ := refl X x; a);
+  ()

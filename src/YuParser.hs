@@ -718,7 +718,7 @@ parsePatternApp = parsePatternLeaf >>= parseApp
     parseApp :: ParsePattern -> YuParsec ParsePattern
     parseApp p =
       try (appPostfix p)
-      <|> try (fmap (ParsePatternApp p) (many1 appArg))
+      <|> try (many1 appArg >>= parseApp . ParsePatternApp p)
       <|> try (do
                 _ <- yuKeyTok TokSquareL
                 _ <- yuKeyTok TokSquareR
@@ -778,7 +778,7 @@ parsePatternLeaf = patStr <|> patEmpty <|> patVar <|> patPat
         yuCharsToPat :: [String] -> Loc -> ParsePattern
         yuCharsToPat [] lo = ParsePatternVar (lo, "nil")
         yuCharsToPat (c : cs) lo =
-          ParsePatternApp (ParsePatternVar (lo, "_::_\\_List\\Ty"))
+          ParsePatternApp (ParsePatternVar (lo, "_::_\\_.List\\Ty"))
             [ParsePatternVar (lo, c), yuCharsToPat cs lo]
 
     patPat :: YuParsec ParsePattern

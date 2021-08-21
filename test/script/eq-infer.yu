@@ -5,18 +5,18 @@ let (++_\Nat) : Nat -> Nat
 
 data List : Ty -> Ty
 let nil[A : Ty] : List(A)
-let cons[A : Ty] : (A, List(A)) -> List(A)
+let cons[A : Ty] : A & List A -> List(A)
 
-val eid : (A : Ty, A) -> A
-let (A, a) => a
+val eid : (A : Ty) & A -> A
+let A a => a
 
-data Id[A : Ty] : (A, A) -> Ty
-let refl[a : A, A : Ty] : Id(a, a)
+data Id [A : Ty] : A & A -> Ty
+let refl [a : A] [A : Ty] : Id a a
 
-val test2 : List(Nat)
+val test2 : List Nat
 let =>
-  x := eid(List(Id(0, 0)), nil);
-  case x
-  of nil => cons(0, nil)
-  of cons(refl, _) => cons(++(0), nil)
+  x := eid (List (Id 0 0)) nil;
+  match x
+  let nil => cons 0 nil
+  let cons refl _ => cons (++ 0) nil
   end

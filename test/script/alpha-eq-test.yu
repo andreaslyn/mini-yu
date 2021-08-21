@@ -8,23 +8,23 @@ let => f1'
 
 val.. f1' : Nat -> Nat
 let => n =>
-  case n
-  of 0 => +1 f1'(f2(0))
-  of +1 n => +1 f1'(f2(+1 n))
+  match n
+  let 0 => +1 f1'(f2(0))
+  let +1 n => +1 f1'(f2(+1 n))
   end
 
 val.. f2 : Nat -> Nat
 let n =>
-  case n
-  of 0 => +1 f2'(f1(0))
-  of (+1_)(n) => +1 f2'(f1(+1 n))
+  match n
+  let 0 => +1 f2'(f1(0))
+  let (+1_)(n) => +1 f2'(f1(+1 n))
   end
 where
   val.. f2' : Nat -> Nat
   let n =>
-    case n
-    of 0 => (+1_)(f2'(f2(0)))
-    of +1(n) => +1(f2'(f1(+1(n))))
+    match n
+    let 0 => (+1_)(f2'(f2(0)))
+    let +1(n) => +1(f2'(f1(+1(n))))
     end
 end
 

@@ -4,41 +4,41 @@ let 0 : Nat
 let (+1_\) : Nat -> Nat
 
 val nat-id : Nat -> Nat
-let => (n). n
+let => n => n
 
 val nat-id' : Nat -> Nat
-let => (n : Nat). n
+let => (n : Nat) => n
 
 data Fin : Nat -> Ty
 let 0f : (n : Nat) -> Fin(+1(n))
 let (+1f_\)[n : Nat] : Fin(n) -> Fin(+1 n)
 
-val fin-id1 : (n : Nat, Fin(n)) -> Fin(n)
-let => (_, f). f
+val fin-id1 : (n : Nat) & Fin n -> Fin n
+let => _ f => f
 
-val fin-id2 : (n : Nat, Fin(n)) -> Fin(n)
-let => (n', f). f
+val fin-id2 : (n : Nat) & (Fin(n)) -> Fin(n)
+let => n' f => f
 
-val fin-id3 : (n : Nat, Fin(n)) -> Fin(n)
-let => (n', f : Fin(n')). f
+val fin-id3 : (n : Nat) & Fin(n) -> Fin(n)
+let => n' (f : Fin(n')) => f
 
-val fin-id4 : (n : Nat, Fin(n)) -> Fin(n)
-let => (n' : Nat, f : Fin(n')). f
+val fin-id4 : (n : Nat) & (Fin(n)) -> Fin(n)
+let => (n' : Nat) (f : Fin(n')) => f
 
 val fin-id5 : (n : Nat) -> Fin(n) -> Fin(n)
-let => (n' : Nat). (f : Fin(n')). f
+let => (n' : Nat) => (f : Fin(n')) => f
 
 val fin-id6 : (n : Nat) -> Fin(n) -> Fin(n)
-let => (_). (f). f
+let => _ => f => f
 
-val fin-id7 : (Fin(n), n : Nat) -> Fin(n)
-let => (f : Fin(n'), n'). f
+val fin-id7 : (Fin(n)) & (n : Nat) -> Fin(n)
+let => (f : Fin(n')) n' => f
 
 val 0' : Nat
-let => ((n : Nat). n)(0)
+let => ((n : Nat) => n) 0
 
-data Id : (A : Ty, A, A) -> Ty
-let refl : (A : Ty, a : A) -> Id(A, a, a)
+data Id : (A : Ty) & A & A -> Ty
+let refl : (A : Ty) & (a : A) -> Id A a a
 
-val 0-0'-Id : Id(Nat, 0, 0')
-let => refl(Nat, 0')
+val 0-0'-Id : Id Nat 0 0'
+let => refl Nat 0'

@@ -65,27 +65,28 @@ stdRuntimePath = "runtime"
 isKeyword :: String -> Bool
 isKeyword s
   | s == "Ty" = True
-  | s == "Unit" = True
-  | s == "unit" = True
   | isStrictKeyword s = True
   | True = False
 
 isStrictKeyword :: String -> Bool
 isStrictKeyword s
   | s == "import" = True
+  | s == "extern" = True
   | s == "where" = True
   | s == "end" = True
   | s == "data" = True
+  | s == "data.." = True
   | s == ":" = True
   | s == "let" = True
   | s == "val" = True
+  | s == "val.." = True
   | s == ":=" = True
-  | s == "." = True
   | s == "->" = True
   | s == "->>" = True
-  | s == "case" = True
+  | s == "match" = True
   | s == "of" = True
   | s == "=>" = True
+  | s == "&" = True
   | True = False
 
 isPunctuation :: String -> Bool

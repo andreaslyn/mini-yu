@@ -4,43 +4,43 @@ import "yu0/Bin1-theorems.yu"
 data Reflect : Bool -> Ty
 let reflect : (b : Bool) -> Reflect(b)
 
-val test1 : (b : Bool, Reflect(b)) -> Unit
-let (true, reflect(true)) => unit
-let (_, reflect(false)) => unit
+val test1 : (b : Bool) & Reflect(b) -> {}
+let true (reflect true) => ()
+let _ (reflect false) => ()
 
-val test2 : (Reflect(b), b : Bool) -> Unit
-let (reflect(true), true) => unit
-let (reflect(false), _) => unit
+val test2 : (Reflect(b)) & (b : Bool) -> {}
+let (reflect true) true => ()
+let (reflect false) _ => ()
 
-val test3 : (Reflect(b), b : Bool) -> Unit
-let (reflect(true), true) => unit
-let (reflect(_), false) => unit
+val test3 : (Reflect(b)) & (b : Bool) -> {}
+let (reflect(true)) true => ()
+let (reflect(_)) false => ()
 
-val test4 : (Reflect(b), b : Bool) -> Unit
-let (reflect(true), true) => unit
-let (reflect(false), false) => unit
+val test4 : (Reflect(b)) & (b : Bool) -> {}
+let (reflect(true)) true => ()
+let (reflect(false)) false => ()
 
-val test5 : (Reflect(b), b : Bool) -> Unit
-let (reflect(true), _) => unit
-let (reflect(false), false) => unit
+val test5 : (Reflect(b)) & (b : Bool) -> {}
+let (reflect(true)) _ => ()
+let (reflect(false)) false => ()
 
-val test6 : (Reflect(b), b : Bool) -> Unit
-let (reflect(_), true) => unit
-let (reflect(_), false) => unit
+val test6 : (Reflect(b)) & (b : Bool) -> {}
+let (reflect(_)) true => ()
+let (reflect(_)) false => ()
 
 data Reflect' : Ty -> Ty
-let reflect' : (A : Ty, A) -> Reflect'(A)
+let reflect' : (A : Ty) & A -> Reflect'(A)
 
-val test1' : (Reflect'(Bool)) -> Unit
-let (reflect'(A, false)) => unit
-let (xs) => unit
+val test1' : (Reflect'(Bool)) -> {}
+let (reflect' A false) => ()
+let (xs) => ()
 
-data Is-::[A : Ty] : List(A) -> Ty
-let is-::[A : Ty] : (a : A, as : List(A)) -> Is-::(a :: as)
+data Is-::[A : Ty] : List A -> Ty
+let is-::[A : Ty] : (a : A) & (as : List(A)) -> Is-::(a :: as)
 
-val head[A : Ty] : (as : List(A), Is-::(as)) -> A
-let (x :: _, is-::(_, _)) => x
-
+val head[A : Ty] : (as : List(A)) & Is-:: as -> A
+let (x :: _) (is-:: _ _) => x
+#{
 val test0 : (b : Bool, Empty) -> Bool
 let (true, ())
 let (false, ())
@@ -48,7 +48,7 @@ let (false, ())
 val compute-++-<.Bin0'a
   : (a : Bin0, ++ a < b, b : Bin0) -> a < -- b
 let (_, (), 0.Bin0)
-let (0.Bin0, len<.Bin1, pos.Bin0(bin+(_))) => unit
+let (0.Bin0, len<.Bin1, pos.Bin0(bin+(_))) => ()
 let (pos.Bin0(_), (), pos.Bin0(bin+(nil)))
 let (pos.Bin0(a), h, pos.Bin0(bin+(b :: bs))) =>
   step-op++op<.Bin1(a, h)
@@ -56,7 +56,7 @@ let (pos.Bin0(a), h, pos.Bin0(bin+(b :: bs))) =>
 val compute-++-<.Bin0'b
   : (a : Bin0, ++ a < b, b : Bin0) -> a < -- b
 let (_, (), 0.Bin0)
-let (0.Bin0, len<.Bin1, pos.Bin0(bin+(_ :: _))) => unit
+let (0.Bin0, len<.Bin1, pos.Bin0(bin+(_ :: _))) => ()
 let (pos.Bin0(_), (), pos.Bin0(bin+(nil)))
 let (0.Bin0, (), pos.Bin0(bin+(nil)))
 let (pos.Bin0(a), h, pos.Bin0(bin+(b :: bs))) =>
@@ -65,7 +65,7 @@ let (pos.Bin0(a), h, pos.Bin0(bin+(b :: bs))) =>
 val compute-++-<.Bin0''
   : (++ zzz < b, zzz : Bin0, b : Bin0) -> zzz < -- b
 let ((), y, 0.Bin0)
-let (len<.Bin1, 0.Bin0, pos.Bin0(bin+(_))) => unit
+let (len<.Bin1, 0.Bin0, pos.Bin0(bin+(_))) => ()
 let ((), y, pos.Bin0(bin+(nil)))
 let (h, pos.Bin0(a), pos.Bin0(bin+(b :: bs))) =>
   step-op++op<.Bin1(a, h)
@@ -73,7 +73,7 @@ let (h, pos.Bin0(a), pos.Bin0(bin+(b :: bs))) =>
 val compute-++-<.Bin0'''
   : (++ zzz < b, zzz : Bin0, b : Bin0) -> zzz < -- b
 let ((), _, 0.Bin0)
-let (len<.Bin1, 0.Bin0, pos.Bin0(bin+(_ :: _))) => unit
+let (len<.Bin1, 0.Bin0, pos.Bin0(bin+(_ :: _))) => ()
 let ((), _, pos.Bin0(bin+(nil)))
 let (h, pos.Bin0(a), pos.Bin0(bin+(b :: bs))) =>
   step-op++op<.Bin1(a, h)
@@ -81,5 +81,6 @@ let (h, pos.Bin0(a), pos.Bin0(bin+(b :: bs))) =>
 data Is-Nonempty.List[A : Ty] : List(A) -> Ty
 let mk-Is-Nonempty.List[A : Ty, x : A, xs : List(A)] : Is-Nonempty.List(x :: xs)
 
-val absurd-sum-case[A : Ty] : & Is-Nonempty.List[A := A] -> Unit
-let ((a :: as) $ mk-Is-Nonempty.List) => unit
+val absurd-sum-case[A : Ty] : & Is-Nonempty.List[A := A] -> {}
+let ((a :: as) $ mk-Is-Nonempty.List) => ()
+#}

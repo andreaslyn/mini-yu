@@ -1,6 +1,6 @@
 
-val const[A : Ty, B : Ty] : (A -> B) -> Unit
-let (_) => unit
+val const[A : Ty] [B : Ty] : (A -> B) -> {}
+let (_) => ()
 
-val test : Unit
-let => const((_ : Unit). unit)
+val test : {}
+let => const((_ : {}) => ())
