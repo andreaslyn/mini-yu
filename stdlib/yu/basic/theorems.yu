@@ -2,17 +2,17 @@ import "Fun.yu"
 import "Equal.yu"
 
 
-val idLeftIdentityOp@ [A : Ty] [B : Ty]
-  : (f : A -> B) -> id @ f = f
+val idLeftIdentityOp@compose [A : Ty] [B : Ty]
+  : (f : A -> B) -> id @compose f = f
 let _ => refl
 
 
-val idRightIdentityOp@ [A : Ty] [B : Ty]
-  : (f : A -> B) -> f @ id = f
+val idRightIdentityOp@compose [A : Ty] [B : Ty]
+  : (f : A -> B) -> f @compose id = f
 let _ => refl
 
 
-val associativeOp@ [A : Ty] [B : Ty] [C : Ty] [D : Ty]
+val associativeOp@compose [A : Ty] [B : Ty] [C : Ty] [D : Ty]
   : (f : A -> B) & (g : B -> C) & (h : C -> D) ->
-    h @ (g @ f) = (h @ g) @ f
+    h @compose (g @compose f) = (h @compose g) @compose f
 let _ _ _ => refl

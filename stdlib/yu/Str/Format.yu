@@ -29,7 +29,7 @@ let (c :: cs) => listPreFormat.Str cs .map (constPreFormat.Str c _)
 
 
 val _.preFormat\Str : Str -> PreFormat.Str
-let => listPreFormat.Str @ _.list\Str
+let => listPreFormat.Str @compose _.list\Str
 
 
 val _.Format\PreFormat.Str : PreFormat.Str -> Ty

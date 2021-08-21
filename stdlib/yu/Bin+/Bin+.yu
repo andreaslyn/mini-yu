@@ -5,7 +5,7 @@ import "yu/Str/Str.yu"
 
 data Bin+ : Ty
 let 1.Bin+ : Bin+
-let _%_\Bin+ : (Bin+, Bool) -> Bin+
+let _%_\Bin+ : Bin+ & Bool -> Bin+
 
 
 val 2.Bin+ : Bin+
@@ -45,81 +45,81 @@ let => 1.Bin+ % false % true % false
 
 
 val (++_\Bin+) : Bin+ -> Bin+
-let (1.Bin+) => 2.Bin+
+let 1.Bin+ => 2.Bin+
 let (n % false) => n % true
 let (n % true) => ++ n % false
 
 
-val _+_\Bin+ : (Bin+, Bin+) -> Bin+
-let (1.Bin+, n) => ++ n
-let (m, 1.Bin+) => ++ m
-let (m % a, n % false) => (m + n) % a
-let (m % false, n % b) => (m + n) % b
-let (m % true, n % true) => (++ m + n) % false
+val _+_\Bin+ : Bin+ & Bin+ -> Bin+
+let 1.Bin+ n => ++ n
+let m 1.Bin+ => ++ m
+let (m % a) (n % false) => (m + n) % a
+let (m % false) (n % b) => (m + n) % b
+let (m % true) (n % true) => (++ m + n) % false
 
 
-val _*_\Bin+ : (Bin+, Bin+) -> Bin+
-let (m, 1.Bin+) => m
-let (m, n % false) => (m * n) % false
-let (m, n % true) => ((m * n) % false) + m
+val _*_\Bin+ : Bin+ & Bin+ -> Bin+
+let m 1.Bin+ => m
+let m (n % false) => (m * n) % false
+let m (n % true) => ((m * n) % false) + m
 
 
 val (*2_\Bin+) : Bin+ -> Bin+
-let (n) => n % false
+let => _ % false
 
 
 val (--_\Bin+) : Bin+ -> Bin+
-let (1.Bin+) => 1.Bin+
+let 1.Bin+ => 1.Bin+
 let (n % true) => n % false
 let (1.Bin+ % false) => 1.Bin+
 let (n % false) => -- n % true
 
 
-val _cmp\Bin+ : (Bin+, Bin+) -> Order
-let (1.Bin+, 1.Bin+) => eq.Order
-let (_ % _, 1.Bin+) => gt.Order
-let (1.Bin+, _ % _) => lt.Order
-let (m % false, n % false) => m cmp(n)
-let (m % true, n % true) => m cmp(n)
-let (m % false, n % true) =>
-  case m cmp(n)
-  of gt.Order => gt.Order
-  of _ => lt.Order
+val _.cmp\Bin+ : Bin+ & Bin+ -> Order
+let 1.Bin+ 1.Bin+ => eq.Order
+let (_ % _) 1.Bin+ => gt.Order
+let 1.Bin+ (_ % _) => lt.Order
+let (m % false) (n % false) => m .cmp n
+let (m % true) (n % true) => m .cmp n
+let (m % false) (n % true) =>
+  match m .cmp n
+  let gt.Order => gt.Order
+  let _ => lt.Order
   end
-let (m % true, n % false) =>
-  case m cmp(n)
-  of lt.Order => lt.Order
-  of _ => gt.Order
+let (m % true) (n % false) =>
+  match m .cmp n
+  let lt.Order => lt.Order
+  let _ => gt.Order
   end
 
 
-val _simplOp++Op--\Bin+
-  : (n : Bin+, b : Bool) -> ++ -- (n % b) = n % b
-let (n, true) => refl
-let (1.Bin+, false) => refl
-let (n % a, false) => n simplOp++Op--(a) ap(_ % false)
+val _.simplOp++Op--\Bin+
+  : (n : Bin+) & (b : Bool) -> ++ -- (n % b) = n % b
+let n true => refl
+let 1.Bin+ false => refl
+let (n % a) false => n .simplOp++Op-- a .ap (_ % false)
 
 
-val _simplOp--Op++\Bin+ : (n : Bin+) -> -- ++ n = n
-let (1.Bin+) => refl
+val _.simplOp--Op++\Bin+ : (n : Bin+) -> -- ++ n = n
+let 1.Bin+ => refl
 let (_ % false) => refl
 let (1.Bin+ % true) => refl
-let (n % true % true) => (n % true) simplOp--Op++ ap(_ % true)
-let (n % false % true) => (n % false) simplOp--Op++ ap(_ % true)
+let (n % true % true) => (n % true) .simplOp--Op++ .ap (_ % true)
+let (n % false % true) => (n % false) .simplOp--Op++ .ap (_ % true)
 
 
-val.. _ind\Bin+
-  : (b : Bin+, P : Bin+ -> Ty, P(1.Bin+),
-      (x : Bin+, P(x)) -> P(++ x)) -> P(b)
-let (1.Bin+, P, p1, _) => p1
-let (n % a, P, p1, pi) =>
-  h := n' ind(P, p1, pi);
-  n simplOp++Op--(a) resp(P, pi(n', h))
+val.. _.ind\Bin+
+  : (b : Bin+) & (P : Bin+ -> Ty) & P 1.Bin+ &
+      ((x : Bin+) & P x -> P (++ x)) -> P b
+let 1.Bin+ P p1 _ => p1
+let (n % a) P p1 pi =>
+  h := n' .ind P p1 pi;
+  n .simplOp++Op-- a .resp P (pi n' h)
 where
   val n' : Bin+
   let => -- (n % a)
 end
 
 
-val _rec\Bin+[A : Ty] : (b : Bin+, A, (Bin+, A) -> A) -> A
-let (n, a0, ai) => n ind(const(A), a0, ai)
+val _.rec\Bin+ [A : Ty] : (b : Bin+) & A & (Bin+ & A -> A) -> A
+let n a0 ai => n .ind (const A) a0 ai

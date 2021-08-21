@@ -2,42 +2,42 @@ import "RBTree.yu"
 import "yu/List/theorems.yu"
 
 
-val _rootColor\_RBTree\Ty[A : Ty, od : A Ordering?] :
-  A RBTree(od) -> Color.RB
-let (leaf.RB) => black.RB
-let (_ node(_, _, c)) => c
+val _.rootColor\RBTree [A : Ty] [od : Ordering? A] :
+  RBTree A od -> Color.RB
+let leaf.RB => black.RB
+let (_ .node _ _ c) => c
 
 
-val _pathCountBlackNodes\_RBTree\Ty[A : Ty, od : A Ordering?] :
-  A RBTree(od) -> Nat List
-let (leaf.RB) => 0 :: nil
-let (t1 node(t2, _, red.RB)) =>
-  t1 pathCountBlackNodes :+: t2 pathCountBlackNodes
-let (t1 node(t2, _, black.RB)) =>
-  (t1 pathCountBlackNodes :+: t2 pathCountBlackNodes) map(++ _)
+val _.pathCountBlackNodes\RBTree [A : Ty] [od : Ordering? A] :
+  RBTree A od -> List Nat
+let leaf.RB => 0 :: nil
+let (t1 .node t2 _ red.RB) =>
+  t1 .pathCountBlackNodes :+: t2 .pathCountBlackNodes
+let (t1 .node t2 _ black.RB) =>
+  (t1 .pathCountBlackNodes :+: t2 .pathCountBlackNodes) .map (++_)
 
 
-val _blackInvariant\_RBTree\Ty[A : Ty, od : A Ordering?] :
-  A RBTree(od) -> Bool
-let (t) =>
-  case t pathCountBlackNodes
-  of nil => true
-  of n :: ns => ns accum(true, _) (a, x). a & (x =? n)
+val _.blackInvariant\RBTree [A : Ty] [od : Ordering? A] :
+  RBTree A od -> Bool
+let t =>
+  match t .pathCountBlackNodes
+  let nil => true
+  let n :: ns => ns .accum true of a x => a && (x =? n)
   end
 
 
-val _redInvariant\_RBTree\Ty[A : Ty, od : A Ordering?]
-  : A RBTree(od) -> Bool
-let (leaf.RB) => true
-let (t1 node(t2, _, black.RB)) =>
-  t1 redInvariant & t2 redInvariant
-let (t1 node(t2, _, red.RB)) =>
-  t1 rootColor black? &
-  t2 rootColor black? &
-  t1 redInvariant &
-  t2 redInvariant
+val _.redInvariant\RBTree [A : Ty] [od : Ordering? A]
+  : RBTree A od -> Bool
+let leaf.RB => true
+let (t1 .node t2 _ black.RB) =>
+  t1 .redInvariant && t2 .redInvariant
+let (t1 .node t2 _ red.RB) =>
+  t1 .rootColor .black? &&
+  t2 .rootColor .black? &&
+  t1 .redInvariant &&
+  t2 .redInvariant
 
 
-val _invariant\_RBTree\Ty[A : Ty, od : A Ordering?]
-  : A RBTree(od) -> Bool
-let (t) => t blackInvariant & t redInvariant
+val _.invariant\RBTree [A : Ty] [od : Ordering? A]
+  : RBTree A od -> Bool
+let t => t .blackInvariant && t .redInvariant

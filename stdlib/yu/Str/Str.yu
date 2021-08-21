@@ -72,7 +72,7 @@ let false => mk.Str ('f :: 'a :: 'l :: 's :: 'e :: nil)
 
 
 val _.str\Char : Char -> Str
-let => mk.Str @ (_ :: nil)
+let => mk.Str @compose (_ :: nil)
 
 
 val.. _.str\Nat : Nat -> Str

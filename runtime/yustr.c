@@ -1208,7 +1208,7 @@ yur_Ref *yur_cstr_to_yustr(const char *s) {
 }
 
 
-yur_Ref *yu__poprint_baChar(yur_Ref *x) {
+yur_Ref *yu__po_doprint_baChar(yur_Ref *x) {
   putchar(yur_yuchar_to_cchar(x));
   return &yur_unit;
 }

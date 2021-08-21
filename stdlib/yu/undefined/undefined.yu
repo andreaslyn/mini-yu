@@ -1,5 +1,5 @@
 
 extern undefined.undefined : (A : Ty) -> A
 
-val undefined[A : Ty] : A
-let => undefined.undefined(A)
+val undefined [A : Ty] : A
+let => undefined.undefined A

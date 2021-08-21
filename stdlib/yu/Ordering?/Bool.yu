@@ -11,7 +11,7 @@ let true true true _ _ => refl
 
 
 val cmpIsCompatible.Bool :
-  (a : Bool) & (b : Bool) -> a cmp b .lt? = b .cmp a .gt?
+  (a : Bool) & (b : Bool) -> a .cmp b .lt? = b .cmp a .gt?
 let false false => refl
 let false true => refl
 let true false => refl
@@ -19,10 +19,10 @@ let true true => refl
 
 
 val ordering?.Bool : Ordering? Bool
-let => fromCmp.Ordering? _cmp cmpIsTransitive?.Bool cmpIsCompatible.Bool
+let => fromCmp.Ordering? _.cmp cmpIsTransitive?.Bool cmpIsCompatible.Bool
 
 val equivalence?.Bool : Equivalence? Bool
-let => ordering?.Bool equivalence?
+let => ordering?.Bool .equivalence?
 
 val _=?_\Bool : Bool & Bool -> Bool
 let => equivalence?.Bool .eq?
