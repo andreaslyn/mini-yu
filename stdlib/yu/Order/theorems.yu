@@ -1,4 +1,4 @@
-import "Order.yu"
+import "yu/Order.yu"
 
 
 val _.notLtIsEqOrGt\Order : (c : Order) -> ! c .lt? = c .eq? || c .gt?

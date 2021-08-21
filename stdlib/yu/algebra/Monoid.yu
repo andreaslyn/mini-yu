@@ -1,4 +1,4 @@
-import "operations.yu"
+import "yu/algebra/operations.yu"
 
 
 data IsMonoid : Ty -> Ty

@@ -1,5 +1,5 @@
-import "yu0/Bin0.yu"
-import "yu0/Bin1-theorems.yu"
+import "/yu0/Bin0.yu"
+import "/yu0/Bin1-theorems.yu"
 
 data Reflect : Bool -> Ty
 let reflect : (b : Bool) -> Reflect(b)

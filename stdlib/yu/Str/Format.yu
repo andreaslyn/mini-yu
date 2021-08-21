@@ -1,4 +1,4 @@
-import "Str.yu"
+import "yu/Str/Str.yu"
 
 
 data PreFormat.Str : Ty

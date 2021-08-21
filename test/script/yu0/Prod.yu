@@ -1,6 +1,6 @@
 
-import "Sigma.yu"
-import "Fun.yu"
+import "/yu0/Sigma.yu"
+import "/yu0/Fun.yu"
 
 val _&&_\Ty : Ty & Ty -> Ty
 let A B => &: const [B := A] B

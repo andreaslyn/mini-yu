@@ -1,1 +1,1 @@
-import "parallel/parallel.yu"
+import "yu/parallel/parallel.yu"

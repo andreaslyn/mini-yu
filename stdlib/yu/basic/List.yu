@@ -1,4 +1,4 @@
-import "Fun.yu"
+import "yu/basic/Fun.yu"
 
 
 data List : Ty -> Ty

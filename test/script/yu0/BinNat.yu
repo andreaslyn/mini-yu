@@ -1,6 +1,6 @@
 
-import "List.yu"
-import "Nat.yu"
+import "/yu0/List.yu"
+import "/yu0/Nat.yu"
 
 data Bin+ : Ty
 let bin+ : List(Bool) -> Bin+

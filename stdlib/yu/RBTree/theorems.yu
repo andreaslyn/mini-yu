@@ -1,4 +1,4 @@
-import "RBTree.yu"
+import "yu/RBTree/RBTree.yu"
 import "yu/List/theorems.yu"
 
 

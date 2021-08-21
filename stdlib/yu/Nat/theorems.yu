@@ -1,4 +1,4 @@
-import "Nat.yu"
+import "yu/Nat/Nat.yu"
 import "yu/basic/Equal.yu"
 
 

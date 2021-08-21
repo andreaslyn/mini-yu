@@ -1,5 +1,5 @@
 
-import "Empty.yu"
+import "/yu0/Empty.yu"
 
 val id [A : Ty] : A -> A
 let a => a

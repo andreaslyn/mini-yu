@@ -2,6 +2,7 @@
 
 module Main where
 
+import PackageMap (PackageMap)
 import System.Console.ArgParser.Params as ArPa
 import System.Console.ArgParser as Ar
 import qualified TypeCheck.Term as Te
@@ -18,6 +19,7 @@ import System.IO (hPutStrLn, stderr)
 import System.FilePath (takeDirectory)
 import Str (stdRuntimePath)
 import System.Environment (getExecutablePath)
+import qualified Data.Map as Map
 
 runIr ::
   ProgramOptions -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap -> IO ()
@@ -96,12 +98,25 @@ getProjectPath = do
   e <- getExecutablePath
   makeAbsolute (takeDirectory e ++ "/..")
 
+getMainPath :: ProgramOptions -> IO FilePath
+getMainPath opts = do
+  let a = argumentFileName opts
+  makeAbsolute (takeDirectory a)
+
+packagePaths :: ProgramOptions -> IO PackageMap
+packagePaths opts = do
+  let yuPath = projectRootPath opts ++ "/stdlib/yu"
+  mainPath <- getMainPath opts
+  return (Map.fromList [("yu", yuPath), ("", mainPath)])
+
 run :: ProgramOptions -> IO ()
 run opts = do
   verifyProgramOptions opts
+  packs <- packagePaths opts
   tc <- runTT (optionVerboseErrors opts)
               (optionCompile opts || optionAssembly opts)
-              (projectRootPath opts ++ "/stdlib/") (argumentFileName opts)
+              packs
+              (argumentFileName opts)
   case tc of
     Left msg -> hPutStrLn stderr msg
     Right (vs, dm, im, rm) -> runIr opts vs dm im rm

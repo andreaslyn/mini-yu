@@ -1,5 +1,5 @@
 
-import "Nat.yu"
+import "/yu0/Nat.yu"
 
 data List : Ty -> Ty
 let nil [A : Ty] : List A

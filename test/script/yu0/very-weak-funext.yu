@@ -1,6 +1,6 @@
 
-import "Fun.yu"
-import "Id.yu"
+import "/yu0/Fun.yu"
+import "/yu0/Id.yu"
 
 data Wrap[A : Ty] : A -> Ty
 let wrap[A : Ty] : (a : A) -> Wrap(a)

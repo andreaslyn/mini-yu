@@ -1,7 +1,7 @@
 
-import "List.yu"
-import "Char.yu"
-import "Nat.yu"
+import "/yu0/List.yu"
+import "/yu0/Char.yu"
+import "/yu0/Nat.yu"
 
 val Str : Ty
 let => List(Char)

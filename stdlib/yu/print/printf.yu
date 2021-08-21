@@ -1,4 +1,4 @@
-import "print.yu"
+import "yu/print/print.yu"
 import "yu/Str/Format.yu"
 
 

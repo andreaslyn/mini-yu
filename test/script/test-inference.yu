@@ -1,4 +1,4 @@
-import "yu0/List.yu"
+import "/yu0/List.yu"
 
 val id2[A : Ty] : A -> A -> A
 let =>

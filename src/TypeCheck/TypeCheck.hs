@@ -5,6 +5,7 @@ where
 
 import Str
 import Loc (Loc)
+import PackageMap (PackageMap, takePackage)
 import qualified Loc
 import qualified TypeCheck.Env as Env
 import ParseTree
@@ -29,10 +30,7 @@ import TypeCheck.SubstMap
 import Data.List (find, sortOn, sortBy, isPrefixOf)
 import Data.Foldable (foldlM, foldrM)
 import System.Directory
-  (getCurrentDirectory, setCurrentDirectory, canonicalizePath,
-   doesFileExist, getPermissions, readable)
-import System.FilePath (takeDirectory)
-import qualified System.FilePath.Posix as FilePath
+  (canonicalizePath, doesFileExist, getPermissions, readable)
 import Control.Exception (assert)
 import TypeCheck.TypeCheckT
 import TypeCheck.PatternUnify
@@ -50,41 +48,55 @@ _useIntercalate = intercalate
 
 runTypeCheckT ::
   MonadIO m =>
-  Bool -> Bool -> FilePath -> FilePath -> Program ->
+  Bool -> Bool -> PackageMap -> FilePath -> Program ->
   m (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
-runTypeCheckT verbose compiling stdImport file prog = do
+runTypeCheckT verbose compiling packagePaths file prog = do
   r <- runExceptT
         (runReaderT
           (evalStateT
-            (Env.runEnvT (tcInitProgram compiling stdImport prog))
+            (Env.runEnvT (tcInitProgram compiling packagePaths prog))
               (Set.singleton file)) (verbose, file))
   case r of
     Left e -> return (Left (typeCheckErrMsg e))
     Right x -> return (Right x)
 
-importFilePath :: MonadIO m => FilePath -> FilePath -> m FilePath
-importFilePath stdImport p
-  | isPrefixOf "yu/" p = liftIO $ canonicalizePath (stdImport ++ p)
-  | True = liftIO $ canonicalizePath p
+importFilePath :: MonadIO m =>
+  PackageMap -> FilePath -> m (Either String FilePath)
+importFilePath packagePaths p =
+  case takePackage p of
+    Nothing ->
+      return (Left $ "import " ++ quote p
+                     ++ " is missing package prefix "
+                     ++ quote (".../" ++ p))
+    Just (pack, postfix) ->
+      case Map.lookup pack packagePaths of
+        Nothing ->
+          return $ Left $
+            "unknown package prefix " ++ quote pack
+            ++ " in import " ++ quote p
+        Just prefix -> do
+          --liftIO (putStrLn (prefix ++ postfix))
+          fmap Right (liftIO $ canonicalizePath (prefix ++ postfix))
 
 runTT ::
   MonadIO m =>
-  Bool -> Bool -> FilePath -> FilePath ->
+  Bool -> Bool -> PackageMap -> FilePath ->
   m (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
-runTT verbose compiling stdImport file = do
-  file' <- importFilePath stdImport file
-  isf <- liftIO (doesFileExist file')
+runTT verbose compiling packagePaths file = do
+  isf <- liftIO (doesFileExist file)
   if not isf
   then return (Left $ "unable to open file " ++ file)
   else do
-    perms <- liftIO (getPermissions file')
+    perms <- liftIO (getPermissions file)
     if not (readable perms)
     then return (Left $ "unable to read file " ++ file)
     else do
-      prog <- runParse file'
+      prog <- runParse file
       case prog of
         Left e -> return (Left e)
-        Right prog' -> runTypeCheckT verbose compiling stdImport file' prog'
+        Right prog' -> do
+          file' <- liftIO (canonicalizePath file)
+          runTypeCheckT verbose compiling packagePaths file' prog'
 
 varStatusTerm :: Monad m => VarStatus -> TypeCheckT m Term
 varStatusTerm (StatusTerm te) = return te
@@ -277,16 +289,12 @@ checkMainExists = do
           ++ " is defined by let () => ...")
 
 tcInitProgram :: MonadIO m =>
-  Bool -> FilePath -> Program -> TypeCheckT m [RefVar]
-tcInitProgram compiling stdImport prog = do
-  origDir <- liftIO getCurrentDirectory
-  rs <- doTcInitProgram
-  liftIO (setCurrentDirectory origDir)
-  return rs
+  Bool -> PackageMap -> Program -> TypeCheckT m [RefVar]
+tcInitProgram compiling packagePaths prog = doTcInitProgram
   where
     doTcInitProgram :: MonadIO m => TypeCheckT m [RefVar]
     doTcInitProgram = do
-      rs <- tcProgram stdImport prog
+      rs <- tcProgram packagePaths prog
       mapM_ checkPositivity rs
       rm <- Env.getRefMap
       let ks = IntMap.keys rm
@@ -309,31 +317,35 @@ tcInitProgram compiling stdImport prog = do
           strictPositivityCheck (refMetaLoc meta) dv imps (termTy c)
     checkPositivity _ = return ()
 
-tcProgram :: MonadIO m => FilePath -> Program -> TypeCheckT m [RefVar]
+tcProgram :: MonadIO m => PackageMap -> Program -> TypeCheckT m [RefVar]
 tcProgram _ ([], defs) = do
   rs <- tcDefsToVars IntMap.empty defs
   Env.clearImplicitVarMap
   return rs
-tcProgram stdImport ((lo, ina) : imps, defs) = do
-  (verbose, cf) <- ask
-  let cd = takeDirectory cf
-  liftIO (setCurrentDirectory cd)
-  ina' <- fmap FilePath.normalise (importFilePath stdImport ina)
-  isf <- liftIO (doesFileExist ina')
-  when (not isf) (err lo (Fatal $ "unable to find import file \"" ++ ina ++ "\""))
-  perms <- liftIO (getPermissions ina')
-  when (not (readable perms)) (err lo (Fatal $ "unable to read file \"" ++ ina ++ "\""))
-  is <- lift get
-  if Set.member ina' is
-    then tcProgram stdImport (imps, defs)
-    else do
-      lift (put (Set.insert ina' is))
-      prog <- runParse ina'
-      case prog of
-        Left e -> throwError (Fatal e)
-        Right prog' -> do
-          vs <- local (const (verbose, ina')) (tcProgram stdImport prog')
-          fmap (++vs) (tcProgram stdImport (imps, defs))
+tcProgram packagePaths ((lo, ina) : imps, defs) = do
+  (verbose, _) <- ask
+  ina0 <- importFilePath packagePaths ina
+  case ina0 of
+    Left e0 -> err lo (Fatal e0)
+    Right ina' -> do
+      isf <- liftIO (doesFileExist ina')
+      when (not isf)
+        (err lo (Fatal $ "unable to find import file \"" ++ ina ++ "\""))
+      perms <- liftIO (getPermissions ina')
+      when (not (readable perms))
+        (err lo (Fatal $ "unable to read file \"" ++ ina ++ "\""))
+      is <- lift get
+      if Set.member ina' is
+        then tcProgram packagePaths (imps, defs)
+        else do
+          lift (put (Set.insert ina' is))
+          prog <- runParse ina'
+          case prog of
+            Left e -> throwError (Fatal e)
+            Right prog' -> do
+              vs <- local (const (verbose, ina'))
+                          (tcProgram packagePaths prog')
+              fmap (++vs) (tcProgram packagePaths (imps, defs))
 
 tcDefsToVars :: Monad m => SubstMap -> [Def] -> TypeCheckT m [RefVar]
 tcDefsToVars subst defs = do

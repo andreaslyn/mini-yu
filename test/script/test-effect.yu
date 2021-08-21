@@ -17,7 +17,7 @@ let () =>
 
 val test-io-in-case1 : Bool ->> {}
 let true => ()
-let false => 'A print
+let false => 'A .print
 
 val test-io-in-case2 : Bool ->> {}
 let b =>
@@ -46,7 +46,7 @@ let => b =>
 val test-io-in-lambda3 : Bool ->> {}
 let => _ => ()
 
-val test-pass-io-fun1 : () ->> {}
+val test-pass-io-fun1 : {} ->> {}
 let () => take-io test-io-in-case1
 
 val test-pass-io-fun2 : Bool ->> {}
@@ -57,7 +57,7 @@ let b =>
     | false => test-io-in-case3
     end
 
-val test-coerce-io-fun1 : () ->> {}
+val test-coerce-io-fun1 : {} ->> {}
 let () => take-io dummy
 where
   val dummy : Bool -> {}
@@ -67,7 +67,7 @@ end
 val take-io : (Bool ->> {}) ->> {}
 let (f) => f true
 
-val test-coerce-io-fun2 : () ->> {}
+val test-coerce-io-fun2 : {} ->> {}
 let () => take-higher-io dummy
 where
   val dummy : (Bool ->> {}) -> {}
@@ -97,7 +97,7 @@ let (b) =>
   Bool & test-effect-type1(b) -> of 'A .print; {}
 
 val test-effect-type3 : {} ->> {}
-let {} =>
+let () =>
   f := ((x : const [B := (_) => Bool ->> Ty] Bool test-effect-type2) => x);
   case f true
   | true => ()

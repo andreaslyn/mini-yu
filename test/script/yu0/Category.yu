@@ -1,5 +1,5 @@
 
-import "very-weak-funext.yu"
+import "/yu0/very-weak-funext.yu"
 
 data Category : Ty
 let category :

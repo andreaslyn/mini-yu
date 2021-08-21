@@ -1,4 +1,4 @@
-import "List.yu"
+import "yu/List/List.yu"
 import "yu/DelayList1/DelayList1.yu"
 import "yu/Ordering?/Ordering?.yu"
 

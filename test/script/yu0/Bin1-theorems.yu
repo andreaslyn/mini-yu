@@ -1,5 +1,5 @@
-import "Bin1.yu"
-import "Prod.yu"
+import "/yu0/Bin1.yu"
+import "/yu0/Prod.yu"
 
 
 val not-reflexive-op<.Bin1 [a : Bin1] : not (a < a)

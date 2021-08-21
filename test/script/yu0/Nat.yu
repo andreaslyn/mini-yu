@@ -1,8 +1,8 @@
 
-import "Id.yu"
-import "Fun.yu"
-import "Prod.yu"
-import "Bool.yu"
+import "/yu0/Id.yu"
+import "/yu0/Fun.yu"
+import "/yu0/Prod.yu"
+import "/yu0/Bool.yu"
 
 data Nat : Ty
 let 0 : Nat

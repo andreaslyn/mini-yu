@@ -1,2 +1,2 @@
-import "algebra/operations.yu"
-import "algebra/Monoid.yu"
+import "yu/algebra/operations.yu"
+import "yu/algebra/Monoid.yu"

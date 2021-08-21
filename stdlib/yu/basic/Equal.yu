@@ -1,4 +1,4 @@
-import "Empty.yu"
+import "yu/basic/Empty.yu"
 
 
 data Equal [A B : Ty] : A & B -> Ty

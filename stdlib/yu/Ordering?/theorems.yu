@@ -1,4 +1,4 @@
-import "Ordering?.yu"
+import "yu/Ordering?/Ordering?.yu"
 import "yu/Equivalence?/Equivalence?.yu"
 
 

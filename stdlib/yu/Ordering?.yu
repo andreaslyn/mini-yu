@@ -1,2 +1,2 @@
-import "Ordering?/Ordering?.yu"
-import "Ordering?/Bool.yu"
+import "yu/Ordering?/Ordering?.yu"
+import "yu/Ordering?/Bool.yu"

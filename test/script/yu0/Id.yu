@@ -1,5 +1,5 @@
 
-import "Empty.yu"
+import "/yu0/Empty.yu"
 
 data _=_\ [A : Ty] [B : Ty] : A & B -> Ty
 let refl [A : Ty] [a : A] : a = a

@@ -1,4 +1,4 @@
-import "Equal.yu"
+import "yu/basic/Equal.yu"
 
 
 data Bool : Ty

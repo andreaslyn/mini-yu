@@ -1,6 +1,6 @@
-import "List.yu"
-import "Fun.yu"
-import "Bool.yu"
+import "/yu0/List.yu"
+import "/yu0/Fun.yu"
+import "/yu0/Bool.yu"
 
 
 val Bits : Ty

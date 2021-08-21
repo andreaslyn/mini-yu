@@ -1,5 +1,5 @@
 
-import "Id.yu"
+import "/yu0/Id.yu"
 
 data Bool : Ty
 let true : Bool

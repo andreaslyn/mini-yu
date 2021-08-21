@@ -1,5 +1,5 @@
-import "Fun.yu"
-import "Equal.yu"
+import "yu/basic/Fun.yu"
+import "yu/basic/Equal.yu"
 
 
 val idLeftIdentityOp@compose [A : Ty] [B : Ty]

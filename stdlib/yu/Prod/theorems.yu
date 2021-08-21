@@ -1,4 +1,4 @@
-import "Prod.yu"
+import "yu/Prod/Prod.yu"
 import "yu/basic/Equal.yu"
 
 

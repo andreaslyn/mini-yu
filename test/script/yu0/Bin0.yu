@@ -1,5 +1,5 @@
-import "Bin1.yu"
-import "Empty.yu"
+import "/yu0/Bin1.yu"
+import "/yu0/Empty.yu"
 
 
 data Bin0 : Ty
