@@ -189,13 +189,13 @@ writePatternNamedArgList [] = return ()
 writePatternNamedArgList ps = doWritePatternNamedArgList ps
 
 doWritePatternNamedArgList :: [((Loc, String), ParsePattern)] -> ToString ()
-doWritePatternNamedArgList ps = writeStr "[" >> doWriteArgs ps >> writeStr "]"
+doWritePatternNamedArgList ps = doWriteArgs ps
   where
     doWriteArgs [] = return ()
     doWriteArgs [((_, s), x)] =
-      writeStr s >> writeStr " = " >> writePattern x
+      writeStr "[" >> writeStr s >> writeStr " := " >> writePattern x >> writeStr "]"
     doWriteArgs (((_, s), x) : xs) =
-      writePattern x >> writeStr s >> writeStr " = " >> writeStr ", "
+      writeStr "[" >> writeStr s >> writeStr " := " >> writePattern x >> writeStr "] "
       >> doWriteArgs xs
 
 writePatternMaybeArgs :: Maybe [ParsePattern] -> ToString ()
@@ -203,76 +203,67 @@ writePatternMaybeArgs Nothing = return ()
 writePatternMaybeArgs (Just ps) = writePatternArgs ps
 
 writePatternArgs :: [ParsePattern] -> ToString ()
-writePatternArgs ps = writeStr "(" >> doWriteArgs ps >> writeStr ")"
+writePatternArgs ps = doWriteArgs ps
   where
     doWriteArgs [] = return ()
-    doWriteArgs [x] = writePattern x
+    doWriteArgs [x] = writeStr "(" >> writePattern x >> writeStr ")"
     doWriteArgs (x : xs) =
-      writePattern x >> writeStr ", " >> doWriteArgs xs
+      writeStr "(" >> writePattern x >> writeStr ") " >> doWriteArgs xs
 
 writePatternImplicitArgs :: [((Loc, String), ParsePattern)] -> ToString ()
-writePatternImplicitArgs ps = writeStr "[" >> doWriteArgs ps >> writeStr "]"
+writePatternImplicitArgs ps = doWriteArgs ps >> writeStr "]"
   where
     doWriteArgs [] = return ()
-    doWriteArgs [((_, v), x)] = writeStr v >> writeStr " = " >> writePattern x
+    doWriteArgs [((_, v), x)] =
+      writeStr "[" >> writeStr v >> writeStr " := " >> writePattern x >> writeStr "]"
     doWriteArgs (x : xs) =
-      doWriteArgs [x] >> writeStr ", " >> doWriteArgs xs
+      writeStr "[" >> doWriteArgs [x] >> writeStr "] " >> doWriteArgs xs
 
 writePattern :: ParsePattern -> ToString ()
 writePattern (ParsePatternApp p ps) = writePattern p >> writePatternArgs ps
 writePattern (ParsePatternImplicitApp p ps) =
   writePattern p >> writePatternImplicitArgs ps
 writePattern (ParsePatternLazyApp p) = writePattern p >> writeStr "[]"
-writePattern (ParsePatternUnit _) = writeStr "unit"
-writePattern (ParsePatternEmpty _) = writeStr "()"
+writePattern (ParsePatternUnit _) = writeStr "()"
+writePattern (ParsePatternEmpty _) = writeStr "{}"
 writePattern (ParsePatternVar (_, v)) = writeStr v
 
-writeExprListTyped :: [ExprListTypedElem] -> ToString ()
-writeExprListTyped es = do
-  case es of
-    [] -> writeStr "()"
-    [e] -> if hasLowerPrec e
-            then writeStr "(" >> doWrite [e] >> writeStr ")"
-            else doWrite [e]
-    _ -> writeStr "(" >> doWrite es >> writeStr ")"
+writeExprListTyped :: String -> [ExprListTypedElem] -> ToString ()
+writeExprListTyped sep es = doWrite es
   where
     doWrite :: [ExprListTypedElem] -> ToString ()
     doWrite [] = return ()
     doWrite [Left e] = writeExpr e
     doWrite [Right ((_, v), t)] = do
+      writeStr "("
       writeStr v
       writeStr " : "
       writeExpr t
+      writeStr ")"
     doWrite (Left x : xs) = writeExpr x >> writeStr ", " >> doWrite xs
     doWrite (Right ((_, v), t) : xs) = do
+      writeStr "("
       writeStr v
       writeStr " : "
       writeExpr t
-      writeStr ", "
+      writeStr ") "
+      writeStr sep
+      when (sep /= "") (writeStr " ")
       doWrite xs
-
-    hasLowerPrec (Left (ExprFun _ _ _)) = True
-    hasLowerPrec (Left (ExprLazyFun _ _)) = True
-    hasLowerPrec (Left (ExprArrow _ _ _ _)) = True
-    hasLowerPrec (Left (ExprLazyArrow _ _ _)) = True
-    hasLowerPrec (Right _) = True
-    hasLowerPrec _ = False
 
 writeExpr :: Expr -> ToString ()
 writeExpr (ExprTy _) = writeStr "Ty"
-writeExpr (ExprUnitElem _) = writeStr "unit"
-writeExpr (ExprUnitTy _) = writeStr "Unit"
+writeExpr (ExprUnitElem _) = writeStr "()"
+writeExpr (ExprUnitTy _) = writeStr "{}"
 writeExpr (ExprFun _ vs e) = do
-  writeStr "("
   writeVarList vs
-  writeStr ")"
-  writeStr ". "
+  writeStr " => "
   writeExpr e
 writeExpr (ExprLazyFun _ e) = do
-  writeStr "[]. "
+  writeStr "[] => "
   writeExpr e
 writeExpr (ExprArrow _ b es e) = do
-  writeExprListTyped es
+  writeExprListTyped "&" es
   if b
     then writeStr " ->> "
     else writeStr " -> "
@@ -377,16 +368,18 @@ writeExpr (ExprCase _ e ofs) = do
 writeVarListElem :: VarListElem -> ToString ()
 writeVarListElem ((_, s), Nothing) = writeStr s
 writeVarListElem ((_, s), Just t) = do
+  writeStr "("
   writeStr s
   writeStr " : "
   writeExpr t
+  writeStr ")"
 
 writeVarList :: VarList -> ToString ()
 writeVarList [] = return ()
 writeVarList [x] = writeVarListElem x
 writeVarList (x : xs) = do
   writeVarListElem x
-  writeStr ", "
+  writeStr " "
   writeVarList xs
 
 writeOptWhere :: Maybe [Def] -> ToString ()

@@ -46,9 +46,6 @@ data TokType =
   | TokCase
   | TokOf
   | TokTy
-  | TokUnitTy
-  | TokUnitElem
-  | TokPeriod
   | TokAmp
   | TokColon
   | TokColonEq
@@ -61,7 +58,6 @@ data TokType =
   | TokSquareR
   | TokCurlyL
   | TokCurlyR
-  | TokComma
   | TokSemiColon
   | TokEof
   deriving Eq
@@ -102,9 +98,6 @@ tokTypeString t =
     TokCase -> "case"
     TokOf -> "of"
     TokTy -> "Ty"
-    TokUnitTy -> "Unit"
-    TokUnitElem -> "unit"
-    TokPeriod -> "."
     TokAmp -> "&"
     TokColon -> ":"
     TokColonEq -> ":="
@@ -117,7 +110,6 @@ tokTypeString t =
     TokSquareR -> "]"
     TokCurlyL -> "{"
     TokCurlyR -> "}"
-    TokComma -> ","
     TokSemiColon -> ";"
     TokEof -> "end of file"
 
@@ -228,9 +220,6 @@ makeWordTok s lo
   | s == "val.." = return (tok TokValDotDot lo)
   | s == ":=" = return (tok TokColonEq lo)
   | s == "Ty" = return (tok TokTy lo)
-  | s == "Unit" = return (tok TokUnitTy lo)
-  | s == "unit" = return (tok TokUnitElem lo)
-  | s == "." = return (tok TokPeriod lo)
   | s == "&" = return (tok TokAmp lo)
   | s == "->" = return (tok TokDashGreater lo)
   | s == "->>" = return (tok TokDashGreaterIo lo)
@@ -285,7 +274,6 @@ tryNewTok c lo
   | c == ']' = return $ Just (tok TokSquareR lo)
   | c == '{' = return $ Just (tok TokCurlyL lo)
   | c == '}' = return $ Just (tok TokCurlyR lo)
-  | c == ',' = return $ Just (tok TokComma lo)
   | c == ';' = return $ Just (tok TokSemiColon lo)
   | otherwise = failLoc ("invalid input character") lo
   where

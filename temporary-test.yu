@@ -10,28 +10,28 @@ val _.const\Ty : Ty & Ty -> Ty
 let X _ => X
 
 val testconst : Ty
-let => Ty .const Unit
+let => Ty .const {}
 
-val unitfun : Unit -> Unit
-let (_) => unit
+val unitfun : {} -> {}
+let (_) => ()
 
-val testunitfun : Unit
-let => unitfun unit
+val testunitfun : {}
+let => unitfun ()
 
-val multifun0 : Unit & ((Ty) -> Ty) & ((Ty -> Ty)) & (name : Ty) -> Unit
-let _ _ _ _ => unit
+val multifun0 : {} & ((Ty) -> Ty) & ((Ty -> Ty)) & (name : Ty) -> {}
+let _ _ _ _ => ()
 
-val duofun : Unit & Unit -> Unit
-let unit unit => unit
+val duofun : {} & {} -> {}
+let () () => ()
 
-val testduofun : Unit
-let => duofun unit unit
+val testduofun : {}
+let => duofun () ()
 
-val funfun : Unit -> Unit -> Unit
-let => (x : Unit) => B := Ty; unit; y => unit; u := unit; u
+val funfun : {} -> {} -> {}
+let => (x : {}) => B := Ty; (); y => (); u := (); u
 
-val testfunfun : Unit
-let => funfun unit unit
+val testfunfun : {}
+let => funfun () ()
 
 data Nat : Ty
 let 0 : Nat
@@ -72,3 +72,32 @@ let bibi'' : Bi'' & Bi'' -> Bi''
 val testfunpat2 : Bi'' -> Bi''
 let bi'' => bibi'' bi'' bi''
 let (bibi'' x y) => bibi'' x y
+
+
+val testimp1 [A : Ty] : Ty
+let => A
+
+val testimp2 [A B : Ty] : Ty
+let => B
+
+val testimp2' [A : Ty] [B : {}] : Ty
+let => A
+
+val testimp2'' [A : Ty] [B : {}] : Ty
+let [A := X] [B := ()] => X
+
+
+val testapimp : Ty
+let => testimp1 [A := {}]
+
+val testapimp' : Ty
+let => testimp2' [B := ()] [A := {}]
+
+
+data List : Ty -> Ty
+let nil [A B : Ty] : List A
+let _:+_\List [A : Ty] : A & List A -> List A
+
+val _.len\List [A : Ty] : List A -> Nat
+let (nil [A := X] [B := Y]) => 0
+let (_ :+ xs) => xs .len

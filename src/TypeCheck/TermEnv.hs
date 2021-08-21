@@ -925,27 +925,37 @@ writeStr s = tell s
 newLine :: ToString ()
 newLine = tell "\n" >> writeIndent
 
+writeFunImplicitNames :: [VarName] -> ToString ()
+writeFunImplicitNames [] = return ()
+writeFunImplicitNames [i] = do
+  writeStr "["
+  writeStr i
+  writeStr "]"
+writeFunImplicitNames (i : is) = do
+  writeStr "["
+  writeStr i
+  writeStr "] "
+  writeFunImplicitNames is
+
 writePreTerm :: ImplicitMap -> RefMap -> PreTerm -> ToString ()
 writePreTerm im rm (TermFun imps _ (Just _) (CaseLeaf vs _ t _)) = do
-  when (not (null imps)) (writeStr (show imps))
-  writeStr "("
+  writeFunImplicitNames imps
   writeVarList (drop (length imps) vs)
-  writeStr "). "
+  writeStr " => "
   writePreTerm im rm t
 writePreTerm im rm (TermFun imps _ Nothing ct) = do
-  when (not (null imps)) (writeStr (show imps) >> writeStr ". ")
+  writeFunImplicitNames imps
+  when (not (null imps)) (writeStr " => ")
   writeCaseTree im rm (map Left imps) ct
 writePreTerm im rm (TermFun imps _ (Just n) ct) = do
   args <- mapM (\_ -> nextVarName) [1..n]
-  when (not (null imps)) (writeStr (show imps))
-  writeStr "("
+  writeFunImplicitNames imps
   writeNameList args
-  writeStr "). "
   writeCaseTree im rm (map Left imps ++ map Left args) ct
 writePreTerm im rm (TermLazyFun _ f) =
-  writeStr "[]. " >> writePreTerm im rm f
+  writeStr "[] => " >> writePreTerm im rm f
 writePreTerm im rm (TermArrow io d c) = do
-  optNamedListWithParens d (writeOptNamedPreTermList im rm d)
+  writeDomainList im rm d
   if io
     then writeStr " ->> "
     else writeStr " -> "
@@ -1081,9 +1091,8 @@ writePreTerm im rm (TermImplicitApp True f xs) = do
   when b (writeStr "(")
   writePreTerm im rm f
   when b (writeStr ")")
-  writeStr "["
+  when (not (null xs)) (writeStr " ")
   writeNamedPreTermArgs im rm xs
-  writeStr "]"
 writePreTerm im rm (TermImplicitApp False f xs) = do
   vb <- isVerbose
   if vb
@@ -1094,7 +1103,7 @@ writePreTerm im rm (TermLazyApp _ f) = do
   when b (writeStr "(")
   writePreTerm im rm f
   when b (writeStr ")")
-  writeStr "[]"
+  writeStr " []"
 writePreTerm _ _ (TermRef v _) = writeStr (varName v)
 writePreTerm _ _ (TermData v) = writeStr (varName v)
 writePreTerm _ _ (TermCtor v _) = writeStr (varName v)
@@ -1107,10 +1116,10 @@ writePreTerm _ _ (TermVar _ v) = do
   when vb $ do
     writeStr "."
     writeStr (show (varId v))
-writePreTerm _ _ TermUnitElem = writeStr "unit"
-writePreTerm _ _ TermUnitTy = writeStr "Unit"
+writePreTerm _ _ TermUnitElem = writeStr "()"
+writePreTerm _ _ TermUnitTy = writeStr "{}"
 writePreTerm _ _ TermTy = writeStr "Ty"
-writePreTerm _ _ TermEmpty = writeStr "()"
+writePreTerm _ _ TermEmpty = writeStr "{}"
 writePreTerm im rm (TermCase e ct) = writeCaseTree im rm [Right e] ct
 
 takeOperatorStr :: String -> String
@@ -1126,9 +1135,8 @@ writePostfixApp im rm na _f x xs = do
   when b (writeStr ")")
   writeStr (' ' : takeOperatorStr na)
   when (not (null xs)) $ do
-    writeStr "("
+    writeStr " "
     writePreTermList im rm xs
-    writeStr ")"
 
 writeUnaryApp ::
   ImplicitMap -> RefMap -> String -> PreTerm -> PreTerm -> ToString ()
@@ -1188,9 +1196,9 @@ writeNormalApp im rm f xs = do
   when b (writeStr "(")
   writePreTerm im rm f
   when b (writeStr ")")
-  writeStr "("
-  writePreTermList im rm xs
-  writeStr ")"
+  when (not (null xs)) $ do
+    writeStr " "
+    writePreTermList im rm xs
 
 writeCaseTree ::
   ImplicitMap -> RefMap -> [Either VarName PreTerm] -> CaseTree -> ToString ()
@@ -1205,7 +1213,10 @@ writeCaseTree im rm (x : xs) (CaseLeaf (i : is) _ t _) = do
     writeStr " := "
     case x of
       Left n -> writeStr n
-      Right e -> writePreTerm im rm e
+      Right e -> do
+        when (hasSeqPrecOrLower e) (writeStr "(")
+        writePreTerm im rm e
+        when (hasSeqPrecOrLower e) (writeStr ")")
     writeStr "; "
   writeCaseTree im rm xs (CaseLeaf is False t [])
 writeCaseTree _ _ (_:_) (CaseLeaf [] _ _ _) =
@@ -1259,9 +1270,8 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
         when vb $ do
           writeStr "."
           writeStr (show (varId v))
-        writeStr "["
+        when (not (null imps)) (writeStr " ")
         imps' <- writeImplicits imps
-        writeStr "]"
         names <- writeArgs (termTy t)
         writeStr " => "
         writeCaseTree im rm (imps' ++ names ++ ps') ct
@@ -1275,6 +1285,7 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
     writeImplicits [] = return []
     writeImplicits ((v, _) : vs) = do
       n <- nextVarName
+      writeStr "["
       writeStr (varName v)
       vb <- isVerbose
       when vb $ do
@@ -1282,7 +1293,8 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
         writeStr (show (varId v))
       writeStr " := "
       writeStr n
-      when (not (null vs)) (writeStr ", ")
+      writeStr "]"
+      when (not (null vs)) (writeStr " ")
       ns <- writeImplicits vs
       return (Left n : ns)
 
@@ -1353,22 +1365,29 @@ removeIdx _ [] = error "invalid index to remove"
 
 writePreTermList :: ImplicitMap -> RefMap -> [PreTerm] -> ToString ()
 writePreTermList _ _ [] = return ()
-writePreTermList im rm [p] = writePreTerm im rm p
-writePreTermList im rm (p:ps) = do
+writePreTermList im rm [p] = do
+  when (needsAppParens p) (writeStr "(")
   writePreTerm im rm p
-  writeStr ", "
+  when (needsAppParens p) (writeStr ")")
+writePreTermList im rm (p:ps) = do
+  when (needsAppParens p) (writeStr "(")
+  writePreTerm im rm p
+  when (needsAppParens p) (writeStr ")")
+  writeStr " "
   writePreTermList im rm ps
 
 writeNamedPreTermArgs ::
   ImplicitMap -> RefMap -> [(VarName, PreTerm)] -> ToString ()
 writeNamedPreTermArgs _ _ [] = error "empty implicit application"
 writeNamedPreTermArgs im rm [(n, p)] = do
+  writeStr "["
   writeStr n
   writeStr " := "
   writePreTerm im rm p
+  writeStr "]"
 writeNamedPreTermArgs im rm (p:ps) = do
   writeNamedPreTermArgs im rm [p]
-  writeStr ", "
+  writeStr " "
   writeNamedPreTermArgs im rm ps
 
 writeVarList :: [Var] -> ToString ()
@@ -1385,43 +1404,32 @@ writeVarList (v:vs) = do
   when vb $ do
     writeStr "."
     writeStr (show (varId v))
-  writeStr ", "
+  writeStr " "
   writeVarList vs
 
 writeNameList :: [VarName] -> ToString ()
 writeNameList [] = return ()
 writeNameList [v] = writeStr v
 writeNameList (v:vs) =
-  writeStr v >> writeStr ", " >> writeNameList vs
+  writeStr v >> writeStr " " >> writeNameList vs
 
-optNamedListWithParens ::
-  [(Maybe Var, PreTerm)] -> ToString () -> ToString ()
-optNamedListWithParens [] s = writeStr "(" >> s >> writeStr ")"
-optNamedListWithParens [(v, ty)] s =
-  if isJust v || needParen then writeStr "(" >> s >> writeStr ")" else s
-  where
-    needParen :: Bool
-    needParen = case ty of
-                  TermArrow _ _ _ -> True
-                  TermLazyArrow _ _ -> True
-                  TermFun _ _ _ _ -> True
-                  TermLazyFun _ _ -> True
-                  _ -> False
-optNamedListWithParens (_:_) s = writeStr "(" >> s >> writeStr ")"
-
-writeOptNamedPreTermList ::
+writeDomainList ::
   ImplicitMap -> RefMap -> [(Maybe Var, PreTerm)] -> ToString ()
-writeOptNamedPreTermList _ _ [] = return ()
-writeOptNamedPreTermList im rm [v] = writeOptNamedPreTerm im rm v
-writeOptNamedPreTermList im rm (v:vs) = do
+writeDomainList _ _ [] = return ()
+writeDomainList im rm [v] = writeOptNamedPreTerm im rm v
+writeDomainList im rm (v:vs) = do
   writeOptNamedPreTerm im rm v
-  writeStr ", "
-  writeOptNamedPreTermList im rm vs
+  writeStr " & "
+  writeDomainList im rm vs
 
 writeOptNamedPreTerm ::
   ImplicitMap -> RefMap -> (Maybe Var, PreTerm) -> ToString ()
-writeOptNamedPreTerm im rm (Nothing, t) = writePreTerm im rm t
+writeOptNamedPreTerm im rm (Nothing, t) = do
+  when (needsAppParens t) (writeStr "(")
+  writePreTerm im rm t
+  when (needsAppParens t) (writeStr ")")
 writeOptNamedPreTerm im rm (Just v, t) = do
+  writeStr "("
   writeStr (varName v)
   vb <- isVerbose
   when vb $ do
@@ -1429,6 +1437,7 @@ writeOptNamedPreTerm im rm (Just v, t) = do
     writeStr (show (varId v))
   writeStr " : "
   writePreTerm im rm t
+  writeStr ")"
 
 hasLowerPrecThanApp :: PreTerm -> Bool
 hasLowerPrecThanApp (TermApp _ (TermVar _ v) [_])
@@ -1557,3 +1566,21 @@ hasLowerPrecThanInfixOp6 (TermLazyFun _ _) = True
 hasLowerPrecThanInfixOp6 (TermLazyArrow _ _) = True
 hasLowerPrecThanInfixOp6 (TermArrow _ _ _) = True
 hasLowerPrecThanInfixOp6 _ = False
+
+hasSeqPrecOrLower :: PreTerm -> Bool
+hasSeqPrecOrLower (TermFun _ _ _ _) = True
+hasSeqPrecOrLower (TermImplicitApp False (TermFun _ _ _ _) _) = True
+hasSeqPrecOrLower (TermLazyFun _ _) = True
+hasSeqPrecOrLower _ = False
+
+needsAppParens :: PreTerm -> Bool
+needsAppParens (TermRef _ _) = False
+needsAppParens (TermData _) = False
+needsAppParens (TermCtor _ _) = False
+needsAppParens (TermVar _ _) = False
+needsAppParens TermUnitElem = False
+needsAppParens TermUnitTy = False
+needsAppParens TermTy = False
+needsAppParens TermEmpty = False
+needsAppParens (TermCase _ _) = False
+needsAppParens _ = True
