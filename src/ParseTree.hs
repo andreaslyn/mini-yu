@@ -70,6 +70,7 @@ data Expr = ExprFun Loc VarList Expr
           | ExprLazyArrow Loc Bool Expr
           | ExprApp Expr [Expr]
           | ExprImplicitApp Expr [((Loc, String), Expr)]
+          | ExprLazyApp Expr
           | ExprVar (Loc, String)
           | ExprSeq ExprSeqElem Expr
           | ExprMatch Loc Expr [MatchCase]
@@ -126,6 +127,7 @@ exprLoc (ExprArrow lo _ _ _) = lo
 exprLoc (ExprLazyArrow lo _ _) = lo
 exprLoc (ExprApp e _) = exprLoc e
 exprLoc (ExprImplicitApp e _) = exprLoc e
+exprLoc (ExprLazyApp e) = exprLoc e
 exprLoc (ExprVar (lo, _)) = lo
 exprLoc (ExprMatch lo _ _) = lo
 exprLoc (ExprTy lo) = lo
@@ -263,6 +265,9 @@ writeExpr (ExprLazyArrow _ b e) = do
     then writeStr "[] ->> "
     else writeStr "[] -> "
   writeExpr e
+writeExpr (ExprLazyApp e) = do
+  writeExpr e
+  writeStr "[]"
 writeExpr (ExprApp e as) =
   let hasLowerPrec (ExprFun _ _ _) = True
       hasLowerPrec (ExprArrow _ _ _ _) = True

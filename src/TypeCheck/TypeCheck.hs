@@ -1807,6 +1807,31 @@ doTcExpr _ subst _ _ (ExprArrow _ io dom cod) = do
               return (Just v, tt, ti)
             _ ->
               error $ "not a variable term " ++ quote vna
+doTcExpr isTrial subst _ _ (ExprLazyApp e) = do
+  e' <- doTcExprSubst isTrial subst Nothing e
+  if not isTrial
+  then doMakeLazyApp e'
+  else do
+    rm <- lift Env.getRefMap
+    case preTermLazyCod rm (termTy e') of
+      Nothing -> doMakeLazyApp e'
+      Just (cod, _) -> do
+        opn <- lift (typeOperandName cod)
+        if isNothing opn
+        then doMakeLazyApp e'
+        else return (mkTerm TermEmpty cod False)
+  where
+    doMakeLazyApp :: Monad m => Term -> ExprT m Term
+    doMakeLazyApp e' = do
+      rm <- lift Env.getRefMap
+      case preTermLazyCod rm (termTy e') of
+        Nothing -> do
+          ss <- lift $ preTermToStringT defaultExprIndent (termTy e')
+          lift $ err (exprLoc e) (Recoverable $
+            "expected expression to have lazy type, "
+            ++ "but type is\n" ++ ss)
+        Just (ty', io) -> do
+          return (mkTerm (TermLazyApp io (termPre e')) ty' (termIo e' || io))
 doTcExpr _ subst _ _ (ExprLazyArrow _ io e) = do
   e' <- tcExpr subst TermTy e
   return (mkTerm (TermLazyArrow io (termPre e')) TermTy (termIo e'))

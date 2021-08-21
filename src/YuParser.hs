@@ -473,6 +473,7 @@ parseAppExpr = do
       try (parsePostfixNormalAndDo e)
       <|> try (parseAppDo e)
       <|> try (parseAppNormal e)
+      <|> try (parseAppLazy e)
       <|> try (parseAppImplicit e)
       <|> return e
 
@@ -521,6 +522,12 @@ parseAppExpr = do
     parseAppImplicit e = do
       args <- many1 appImplicit
       parseApp (ExprImplicitApp e args)
+
+    parseAppLazy :: Expr -> YuParsec Expr
+    parseAppLazy e = do
+      _ <- yuKeyTok TokSquareL
+      _ <- yuKeyTok TokSquareR
+      parseApp (ExprLazyApp e)
 
     getNamedArg :: YuParsec ((Loc, String), Expr)
     getNamedArg = do

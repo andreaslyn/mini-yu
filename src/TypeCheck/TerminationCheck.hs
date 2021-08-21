@@ -311,6 +311,7 @@ callRel p a = do
       rm <- lift (lift Env.getRefMap)
       let e = preTermsAlphaEqual rm p' b'
       fmap (e ||) (testEqual c)
+    testEqual (TermLazyFun _ c) = testEqual c
     testEqual b = do
       (p', b') <- unifyTypes b
       rm <- lift (lift Env.getRefMap)
@@ -503,10 +504,14 @@ caseTreeCallSet (CaseNode idx m d) xs = do
   s1 <- caseTreeCatchAllCallSet x xs' d
   return (Set.union s0 s1)
 
+removeLazyApps :: PreTerm -> PreTerm
+removeLazyApps (TermLazyApp _ t) = removeLazyApps t
+removeLazyApps t = t
+
 caseTreeAddCase :: Monad m =>
   PreTerm -> [PreTerm] -> (VarId, ([Var], CaseTree)) ->
   Set (VarId, CallMatrix) -> CallSetT m (Set (VarId, CallMatrix))
-caseTreeAddCase x xs (cid, (is, ct)) acc = do
+caseTreeAddCase x0 xs (cid, (is, ct)) acc = do
   cr <- lift (lift (Env.forceLookupRef cid))
   case termPre cr of
     TermCtor v i -> do
@@ -518,6 +523,7 @@ caseTreeAddCase x xs (cid, (is, ct)) acc = do
       --im <- lift (lift Env.getImplicitMap)
       --rm <- lift (lift Env.getRefMap)
       --let !() = trace ("unify " ++ preTermToString im rm 0 cte ++ " with " ++ preTermToString im rm 0 x) ()
+      let x = removeLazyApps x0
       unif <- lift (lift (runExceptT (patternUnify2NoNormalize newids cte x)))
       case unif of
         Right s -> do
