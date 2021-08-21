@@ -478,8 +478,7 @@ parseAppExpr = do
   where
     parseApp :: Expr -> YuParsec Expr
     parseApp e =
-      try (parsePostfixDo e)
-      <|> try (parsePostfixNormal e)
+      try (parsePostfixNormalAndDo e)
       <|> try (parseAppDo e)
       <|> try (parseAppNormal e)
       <|> try (parseAppLazy e)
@@ -496,32 +495,36 @@ parseAppExpr = do
       _ <- yuKeyTok TokSquareR
       return arg
 
-    parsePostfixNormal :: Expr -> YuParsec Expr
-    parsePostfixNormal e = do
+    parsePostfixNormalAndDo :: Expr -> YuParsec Expr
+    parsePostfixNormalAndDo e = do
       op <- yuPostfixOpTok
       imps <- many appImplicit
       args <- many appArg
+      ofArg <- optionMaybe doParseDoExpr
       case imps of
         [] ->
-          parseApp (ExprApp (ExprVar op) (e : args))
+          case ofArg of
+            Nothing -> parseApp (ExprApp (ExprVar op) (e : args))
+            Just x ->  parseApp (ExprApp (ExprVar op) (e : args ++ [x]))
         _ ->
-          parseApp (ExprApp (ExprImplicitApp (ExprVar op) imps) (e : args))
-
-    parsePostfixDo :: Expr -> YuParsec Expr
-    parsePostfixDo e = do
-      op <- yuPostfixOpTok
-      imps <- many appImplicit
-      a <- doParseDoExpr
-      case imps of
-        [] ->
-          return (ExprApp (ExprVar op) [e, a])
-        _ -> 
-          return (ExprApp (ExprImplicitApp (ExprVar op) imps) [e, a])
+          case ofArg of
+            Nothing ->
+              parseApp (ExprApp (ExprImplicitApp (ExprVar op) imps) (e : args))
+            Just x ->
+              parseApp (ExprApp (ExprImplicitApp (ExprVar op) imps) (e : args ++ [x]))
 
     parseAppNormal :: Expr -> YuParsec Expr
     parseAppNormal e = do
       args <- many1 appArg
-      parseApp (ExprApp e args)
+      ofArg <- optionMaybe doParseDoExpr
+      case ofArg of
+        Nothing -> parseApp (ExprApp e args)
+        Just x -> parseApp (ExprApp e (args ++ [x]))
+
+    parseAppDo :: Expr -> YuParsec Expr
+    parseAppDo e = do
+      a <- doParseDoExpr
+      return (ExprApp e [a])
 
     parseAppImplicit :: Expr -> YuParsec Expr
     parseAppImplicit e = do
@@ -540,11 +543,6 @@ parseAppExpr = do
       _ <- yuKeyTok TokColonEq
       t <- parseExpr
       return (v, t)
-
-    parseAppDo :: Expr -> YuParsec Expr
-    parseAppDo e = do
-      a <- doParseDoExpr
-      return (ExprApp e [a])
 
 parseExprLeaf :: YuParsec Expr
 parseExprLeaf =

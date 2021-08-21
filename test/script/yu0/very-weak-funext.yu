@@ -5,7 +5,7 @@ import "Id.yu"
 data Wrap[A : Ty] : A -> Ty
 let wrap[A : Ty] : (a : A) -> Wrap(a)
 
-val veryWeakFunext[A : Ty, B : A -> Ty]
-  : (f : (a : A) -> B(a), g : (a : A) -> B(a),
-      ((a : A) -> Wrap(f(a))) = ((a' : A) -> Wrap((g @ id)(a')))) -> f = g
-let (f, g, refl) => refl
+val veryWeakFunext [A : Ty] [B : A -> Ty]
+  : (f : (a : A) -> B(a)) & (g : (a : A) -> B(a)) &
+      (((a : A) -> Wrap(f a)) = ((a' : A) -> Wrap((g @ id) a'))) -> f = g
+let f g refl => refl

@@ -1,13 +1,13 @@
 
 import "Empty.yu"
 
-val id[A : Ty] : A -> A
-let (a) => a
+val id [A : Ty] : A -> A
+let a => a
 
-val const[A : Ty, B : Ty] : A -> B -> A
-let (a) => (_). a
+val const [A : Ty] [B : Ty] : A -> B -> A
+let a => _ => a
 
-val _@_\[A : Ty, B : Ty, C : B -> Ty]
-  : (g : (b : B) -> C(b), f : A -> B) ->
-    (a : A) -> C(f(a))
-let (g, f) => (a). g(f(a))
+val _@_\ [A : Ty] [B : Ty] [C : B -> Ty]
+  : (g : (b : B) -> C(b)) & (f : A -> B) ->
+    (a : A) -> C (f a)
+let g f => a => g(f(a))
