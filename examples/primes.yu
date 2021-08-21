@@ -1,16 +1,16 @@
 import "yu/prelude.yu"
 
 
-val primesLessThan : Nat -> Nat List
-let (0) => nil
+val primesLessThan : Nat -> List Nat
+let 0 => nil
 let (++ 0) => nil
-let (++ ++ n) => primes(n listSmaller map (x). (x + 2) $ isNonzero.Nat)
+let (++ ++ n) => primes (n .listSmaller .map of x => (x + 2) $ is++.Nat)
 where
-  val.. primes : (& _Nonzero\Nat) List -> Nat List
-  let (nil) => nil
-  let (n $ D :: ns) => n :: primes(ns filter (x). ! (n divides(x 1, D)))
+  val.. primes : List (&: _.Is++\Nat) -> List Nat
+  let nil => nil
+  let (n $ D :: ns) => n :: primes (ns .filter of x => ! (n .divides (x .1) D))
 end
 
 
-val main : () ->> Unit
-let () => primesLessThan(10 * 10) str(_str, ", ") println
+val main : {} ->> {}
+let () => primesLessThan (10 * 10) .str _.str ", " .println

@@ -1,78 +1,78 @@
 import "yu/prelude.yu"
 
 
-data _LeftistHeap\Ty : (A : Ty, A Ordering?) -> Ty
-let leaf.LeftistHeap[A : Ty, od : A Ordering?] : A LeftistHeap(od)
-let _node\_LeftistHeap\Ty[A : Ty, od : A Ordering?] :
-  (A LeftistHeap(od), A LeftistHeap(od), A) -> A LeftistHeap(od)
+data LeftistHeap : (A : Ty) & Ordering? A -> Ty
+let leaf.LeftistHeap [A : Ty] [od : Ordering? A] : LeftistHeap A od
+let _.node\LeftistHeap [A : Ty] [od : Ordering? A] :
+  LeftistHeap A od & LeftistHeap A od & A -> LeftistHeap A od
 
 
-data _IsNonempty\_LeftistHeap\Ty[A : Ty, od : A Ordering?] :
-  A LeftistHeap(od) -> Ty
-let mkIsNonempty.LeftistHeap[A : Ty, od : A Ordering?,
-    a : A LeftistHeap(od), b : A LeftistHeap(od), x : A] :
-  a node(b, x) IsNonempty
+data _.IsNode\LeftistHeap [A : Ty] [od : Ordering? A] :
+  LeftistHeap A od -> Ty
+let isNode.LeftistHeap [A : Ty] [od : Ordering? A]
+    [a : LeftistHeap A od] [b : LeftistHeap A od] [x : A] :
+  a .node b x .IsNode
 
 
-val singleton.LeftistHeap[A : Ty, od : A Ordering?] : A -> A LeftistHeap(od)
-let (x) => leaf.LeftistHeap node(leaf.LeftistHeap, x)
+val singleton.LeftistHeap [A : Ty] [od : Ordering? A] : A -> LeftistHeap A od
+let x => leaf.LeftistHeap .node leaf.LeftistHeap x
 
 
-val _<=rank_\_LeftistHeap\Ty[A : Ty, od : A Ordering?] :
-  (A LeftistHeap(od), A LeftistHeap(od)) -> Bool
-let (leaf.LeftistHeap, _) => true
-let (_ node(_, _), leaf.LeftistHeap) => false
-let (_ node(b1, _), _ node(b2, _)) => b1 <=rank b2
+val _<=rank_\LeftistHeap [A : Ty] [od : Ordering? A] :
+  LeftistHeap A od & LeftistHeap A od -> Bool
+let leaf.LeftistHeap _ => true
+let (_ .node _ _) leaf.LeftistHeap => false
+let (_ .node b1 _) (_ .node b2 _) => b1 <=rank b2
 
 
-val _mkNode\_LeftistHeap\Ty[A : Ty, od : A Ordering?] :
-  (A LeftistHeap(od), A LeftistHeap(od), A) -> A LeftistHeap(od)
-let (a, b, x) =>
-  if(a <=rank b) then(b node(a, x)) else(a node(b, x))
+val _.mkNode\LeftistHeap [A : Ty] [od : Ordering? A] :
+  LeftistHeap A od & LeftistHeap A od & A -> LeftistHeap A od
+let a b x =>
+  if (a <=rank b) .then (b .node a x) .else (a .node b x)
 
 
 ## Runs in O(log(n) ^ 2) time, since <=rank is O(log(n)).
 
-val _merge\_LeftistHeap\Ty[A : Ty, od : A Ordering?] :
-  (A LeftistHeap(od), A LeftistHeap(od)) -> A LeftistHeap(od)
-let (h, leaf.LeftistHeap) => h
-let (leaf.LeftistHeap, h) => h
-let (a1 node(b1, x1), a2 node(b2, x2)) =>
-  if(od le?(x1, x2))
-  then(a1 mkNode(b1 merge(a2 node(b2, x2)), x1))
-  else(a2 mkNode(a1 node(b1, x1) merge(b2), x2))
+val _.merge\LeftistHeap [A : Ty] [od : Ordering? A] :
+  LeftistHeap A od & LeftistHeap A od -> LeftistHeap A od
+let h leaf.LeftistHeap => h
+let leaf.LeftistHeap h => h
+let (a1 .node b1 x1) (a2 .node b2 x2) =>
+  if (od .le? x1 x2)
+  .then (a1 .mkNode (b1 .merge (a2 .node b2 x2)) x1)
+  .else (a2 .mkNode (a1 .node b1 x1 .merge b2) x2)
 
 
-val _insert\_LeftistHeap\Ty[A : Ty, od : A Ordering?] :
-  (A LeftistHeap(od), A) -> A LeftistHeap(od)
-let (leaf.LeftistHeap, y) => singleton.LeftistHeap(y)
-let (a node(b, x), y) =>
-  if(od lt?(x, y))
-  then(a mkNode(b insert(y), x))
-  else(a node(b, x) node(leaf.LeftistHeap, y))
+val _.insert\LeftistHeap [A : Ty] [od : Ordering? A] :
+  LeftistHeap A od & A -> LeftistHeap A od
+let leaf.LeftistHeap y => singleton.LeftistHeap y
+let (a .node b x) y =>
+  if (od .lt? x y)
+  .then (a .mkNode (b .insert y) x)
+  .else (a .node b x .node leaf.LeftistHeap y)
 
 
-val _findMin?\_LeftistHeap\Ty[A : Ty, od : A Ordering?] :
-  A LeftistHeap(od) -> ? A
-let (leaf.LeftistHeap) => no
-let (_ node(_, x)) => yes(x)
+val _.findMin?\LeftistHeap [A : Ty] [od : Ordering? A] :
+  LeftistHeap A od -> ? A
+let leaf.LeftistHeap => no
+let (_ .node _ x) => yes x
 
 
-val _findMin\_LeftistHeap\Ty[A : Ty, od : A Ordering?] :
-  (h : A LeftistHeap(od), h IsNonempty) -> A
-let (_ node(_, x), mkIsNonempty.LeftistHeap) => x
+val _.findMin\LeftistHeap [A : Ty] [od : Ordering? A] :
+  (h : LeftistHeap A od) & h .IsNode -> A
+let (_ .node _ x) isNode.LeftistHeap => x
 
 
-val _deleteMin\_LeftistHeap\Ty[A : Ty, od : A Ordering?] :
-  A LeftistHeap(od) -> A LeftistHeap(od)
-let (leaf.LeftistHeap) => leaf.LeftistHeap
-let (a node(b, _)) => a merge(b)
+val _.deleteMin\LeftistHeap [A : Ty] [od : Ordering? A] :
+  LeftistHeap A od -> LeftistHeap A od
+let leaf.LeftistHeap => leaf.LeftistHeap
+let (a .node b _) => a .merge b
 
 
-val fromList.LeftistHeap[A : Ty, od : A Ordering?] : A List -> A LeftistHeap(od)
-let (list) => heapList(list) tournament(_merge)
+val fromList.LeftistHeap [A : Ty] [od : Ordering? A] : List A -> LeftistHeap A od
+let list => heapList list .tournament _.merge
 where
-  val heapList : A List -> A LeftistHeap(od) DelayList1
-  let (nil) => one.DelayList1(leaf.LeftistHeap)
-  let (x :: xs) => singleton.LeftistHeap(x) :: (). heapList(xs)
+  val heapList : List A -> DelayList1 of LeftistHeap A od
+  let nil => one.DelayList1 leaf.LeftistHeap
+  let (x :: xs) => singleton.LeftistHeap x :: of _ => heapList xs
 end
