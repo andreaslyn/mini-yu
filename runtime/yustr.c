@@ -1254,6 +1254,6 @@ static yur_Ref *is_lt(yur_Ref *x) {
 
 yur_Ref *yu_cmpIsCompatible_doChar(yur_Ref *c, yur_Ref *b) {
   yur_Ref *e = yur_build(1, 0);
-  e->fields[0] = is_lt(yu__pocmp_baChar(b, c));
+  e->fields[0] = is_lt(yu__po_docmp_baChar(b, c));
   return e;
 }

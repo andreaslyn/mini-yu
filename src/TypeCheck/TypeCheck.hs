@@ -2334,8 +2334,12 @@ doTcPatternForceLazy :: Monad m =>
   Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
 doTcPatternForceLazy hasImplicitApp hasApp newpids ty p = do
   (su, p0) <- doTcPattern hasImplicitApp hasApp newpids ty p
-  p' <- forceIfLazyPattern p0
-  return (su, p')
+  if patternPreCanApply (patternPre p0)
+  then do
+    p' <- forceIfLazyPattern p0
+    return (su, p')
+  else
+    return (su, p0)
 
 
 doTcPattern :: Monad m =>
