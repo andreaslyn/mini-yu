@@ -1,0 +1,74 @@
+
+
+val _.id\Ty : Ty -> Ty
+let X => X
+
+val testid : Ty
+let => Ty .id
+
+val _.const\Ty : Ty & Ty -> Ty
+let X _ => X
+
+val testconst : Ty
+let => Ty .const Unit
+
+val unitfun : Unit -> Unit
+let (_) => unit
+
+val testunitfun : Unit
+let => unitfun unit
+
+val multifun0 : Unit & ((Ty) -> Ty) & ((Ty -> Ty)) & (name : Ty) -> Unit
+let _ _ _ _ => unit
+
+val duofun : Unit & Unit -> Unit
+let unit unit => unit
+
+val testduofun : Unit
+let => duofun unit unit
+
+val funfun : Unit -> Unit -> Unit
+let => (x : Unit) => B := Ty; unit; y => unit; u := unit; u
+
+val testfunfun : Unit
+let => funfun unit unit
+
+data Nat : Ty
+let 0 : Nat
+let (++_\Nat) : Nat -> Nat
+
+val testoppat1 : Nat -> Nat
+let (0) => ++ 0
+let (++ n) => ++ ++ n
+
+data Nat' : Ty
+let 0' : Nat'
+let succ' : Nat' -> Nat'
+
+val testfunpat1 : Nat' -> Nat'
+let (0') => succ' 0'
+let (succ' n) => succ' (succ' n)
+
+data Bi : Ty
+let bi : Bi
+let (++_\Bi) : Bi -> Bi -> Bi
+
+val testoppat2 : Bi -> Bi
+let bi => (++ bi) bi
+let ((++ x) y) => (++ x) y
+
+data Bi' : Ty
+let bi' : Bi'
+let bibi' : Bi' -> Bi' -> Bi'
+
+val testfunpatCurrly : Bi' -> Bi'
+let bi' => bibi' bi' bi'
+let (bibi' x y) => bibi' x y
+
+data Bi'' : Ty
+let bi'' : Bi''
+let bibi'' : Bi'' & Bi'' -> Bi''
+
+val testfunpat2 : Bi'' -> Bi''
+let bi'' => bibi'' bi'' bi''
+let (bibi'' x y) => bibi'' x y

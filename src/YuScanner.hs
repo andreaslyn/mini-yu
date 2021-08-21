@@ -25,6 +25,7 @@ import Control.Monad.IO.Class
 
 data TokType =
     TokVar String
+  | TokPostfixOp String
   | TokStringLit String
   | TokOp1 String --  ^ @        (right associative)
   | TokOp2 String --  * / %      (left associative)
@@ -48,6 +49,7 @@ data TokType =
   | TokUnitTy
   | TokUnitElem
   | TokPeriod
+  | TokAmp
   | TokColon
   | TokColonEq
   | TokDashGreater
@@ -79,6 +81,7 @@ tokTypeString :: TokType -> String
 tokTypeString t =
   case t of
     TokVar s -> s
+    TokPostfixOp s -> s
     TokOp1 s -> s
     TokOp2 s -> s
     TokOp3 s -> s
@@ -102,6 +105,7 @@ tokTypeString t =
     TokUnitTy -> "Unit"
     TokUnitElem -> "unit"
     TokPeriod -> "."
+    TokAmp -> "&"
     TokColon -> ":"
     TokColonEq -> ":="
     TokDashGreater -> "->"
@@ -227,6 +231,7 @@ makeWordTok s lo
   | s == "Unit" = return (tok TokUnitTy lo)
   | s == "unit" = return (tok TokUnitElem lo)
   | s == "." = return (tok TokPeriod lo)
+  | s == "&" = return (tok TokAmp lo)
   | s == "->" = return (tok TokDashGreater lo)
   | s == "->>" = return (tok TokDashGreaterIo lo)
   | s == "case" = return (tok TokCase lo)
@@ -238,6 +243,7 @@ makeWordTok s lo
   | isOp4Char (head s) = return (tok (TokOp4 s) lo)
   | isOp5Char (head s) = return (tok (TokOp5 s) lo)
   | isOp6Char (head s) = return (tok (TokOp6 s) lo)
+  | head s == '.' = return (tok (TokPostfixOp s) lo)
   | otherwise = return (tok (TokVar s) lo)
 
 skipRestOfLine :: SScanner ()

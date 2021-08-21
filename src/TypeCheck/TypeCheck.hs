@@ -2052,7 +2052,7 @@ doTcExprApp isTrial subst operandArg ty f args = do
 makeTermApp :: Monad m =>
   SubstMap -> Loc ->
   Maybe PreTerm -> Term -> [Expr] -> ExprT m Term
-makeTermApp subst flo ty f' args = do
+makeTermApp subst flo preTy f' preArgs = do
   r <- lift Env.getRefMap
   let dc = preTermDomCod r (termTy f')
   case dc of
@@ -2063,11 +2063,13 @@ makeTermApp subst flo ty f' args = do
           "expected expression to have function type, "
           ++ "but type is\n" ++ ss)
     Just (d', c', io) -> do
-      when (length d' /= length args)
+      when (length d' > length preArgs)
         (lift $ err flo
                   (Fatal $
                     "expected " ++ show (length d') ++ " argument(s), "
-                    ++ "but given " ++ show (length args)))
+                    ++ "but given " ++ show (length preArgs)))
+      let (args, postArgs) = splitAt (length d') preArgs
+      let ty = if null postArgs then preTy else Nothing
       iv <- lift Env.getImplicitVarMap
       let args0 = dependencyOrderArgsWithOrder
                     appOrdering
@@ -2077,14 +2079,19 @@ makeTermApp subst flo ty f' args = do
                     args
       let args1 = map (\(i, (v, (p, w)), e) -> (i, v, p, w, e)) args0
       let domVars = getDomVars d'
-      (su, ps, io') <- applyArgs domVars False c' IntMap.empty args1
+      (su, ps, io') <- applyArgs ty domVars False c' IntMap.empty args1
       let ps' = map snd (sortOn fst ps)
       let c = substPreTerm su c'
       let e = TermApp io (termPre f') ps'
-      return (mkTerm e c (termIo f' || io || io'))
+      let fap = mkTerm e c (termIo f' || io || io')
+      if null postArgs
+      then return fap
+      else makeTermApp subst flo preTy fap postArgs
   where
-    unifyType :: Monad m => IntSet -> (Int, Int, Int, Int) -> PreTerm -> SubstMap -> ExprT m Bool
-    unifyType domVars w cod su = do
+    unifyType :: Monad m =>
+      Maybe PreTerm -> IntSet -> (Int, Int, Int, Int) ->
+      PreTerm -> SubstMap -> ExprT m Bool
+    unifyType ty domVars w cod su = do
       case ty of
         Just ty' -> do
           let cod' = substPreTerm su cod
@@ -2112,30 +2119,31 @@ makeTermApp subst flo ty f' args = do
     getDomVars ((Just v, _) : vs) = IntSet.insert (varId v) (getDomVars vs)
 
     applyArgs :: Monad m =>
-      IntSet -> Bool -> PreTerm -> SubstMap ->
+      Maybe PreTerm -> IntSet -> Bool -> PreTerm -> SubstMap ->
       [(Int, Maybe Var, PreTerm, (Int, Int, Int, Int), Expr)] ->
       ExprT m (SubstMap, [(Int, PreTerm)], Bool)
-    applyArgs _ _ _ su [] = return (su, [], False)
-    applyArgs domVars unified cod su ((idx, Nothing, p, w, e) : xs) = do
-      unified' <- unifyCod domVars unified w cod su
+    applyArgs _ _ _ _ su [] = return (su, [], False)
+    applyArgs ty domVars unified cod su ((idx, Nothing, p, w, e) : xs) = do
+      unified' <- unifyCod ty domVars unified w cod su
       (e', eio) <- applyTc p w e
-      (su', es', io) <- applyArgs domVars unified' cod su xs
+      (su', es', io) <- applyArgs ty domVars unified' cod su xs
       return (su', (idx, e') : es', io || eio)
-    applyArgs domVars unified cod su ((idx, Just v, p, w, e) : xs) = do
-      unified' <- unifyCod domVars unified w cod su
+    applyArgs ty domVars unified cod su ((idx, Just v, p, w, e) : xs) = do
+      unified' <- unifyCod ty domVars unified w cod su
       (e', eio) <- applyTc p w e
       r <- lift Env.getRefMap
       let xs' = substArgs r (IntMap.singleton (varId v) e') xs
       let su' = IntMap.insert (varId v) e' su
-      (su'', es', io) <- applyArgs domVars unified' cod su' xs'
+      (su'', es', io) <- applyArgs ty domVars unified' cod su' xs'
       return (su'', (idx, e') : es', io || eio)
 
     unifyCod :: Monad m =>
-      IntSet -> Bool -> (Int, Int, Int, Int) -> PreTerm -> SubstMap -> ExprT m Bool
-    unifyCod domVars unified weight cod su = do
+      Maybe PreTerm -> IntSet -> Bool -> (Int, Int, Int, Int) ->
+      PreTerm -> SubstMap -> ExprT m Bool
+    unifyCod ty domVars unified weight cod su = do
       if unified
       then return True
-      else unifyType domVars weight cod su
+      else unifyType ty domVars weight cod su
             `catchRecoverable` (\_ -> return False)
 
     applyTc p _ e = do
@@ -2233,7 +2241,7 @@ tcPattern newpids ty p = do
 makePatternApp :: Monad m =>
   Loc -> VarId -> PreTerm -> (SubstMap, Pattern) -> [ParsePattern] ->
   TypeCheckT m (SubstMap, Pattern)
-makePatternApp flo newpids ty (fsu, f') pargs = do
+makePatternApp flo newpids ty (fsu, f') prePargs = do
   r <- Env.getRefMap
   when (not $ patternPreCanApply (patternPre f')) $ do
     ss <- preTermToStringT defaultExprIndent (patternTy f')
@@ -2247,11 +2255,12 @@ makePatternApp flo newpids ty (fsu, f') pargs = do
         "unable to match pattern with inferred type\n" ++ ss)
     Just (dom0, cod, io) -> do
       let !() = assert (not io) ()
-      when (length dom0 /= length pargs)
+      when (length dom0 > length prePargs)
         (err flo
           (Fatal $
             "expected " ++ show (length dom0) ++ " argument(s), "
-            ++ "but given " ++ show (length pargs)))
+            ++ "but given " ++ show (length prePargs)))
+      let (pargs, postPargs) = splitAt (length dom0) prePargs
       let (fcod, _) = preTermFinalCod r cod
       dsu <- tcPatternUnify newpids flo fcod ty
       let dsubts = \(d, t) -> (d, substPreTerm dsu t)
@@ -2270,7 +2279,9 @@ makePatternApp flo newpids ty (fsu, f') pargs = do
       let ps' = map (patternPre . snd . snd) (sortOn fst ps)
       let p = Pattern {patternPre = PatternApp (patternPre f') ps',
                        patternTy = c}
-      return (psu, p)
+      if null postPargs
+      then return (psu, p)
+      else makePatternApp flo newpids ty (psu, p) postPargs
 
 doTcPattern :: Monad m =>
   Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)

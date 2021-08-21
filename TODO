@@ -1,0 +1,8 @@
+Change arrow notation
+  {} -> C for unit arrow (special case).
+Change unit notation:
+  () : {}
+Change lambda notation
+  x y => x + y
+
+Remove TokPeriod
