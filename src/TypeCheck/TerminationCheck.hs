@@ -446,7 +446,7 @@ preTermCallSet (TermArrow _ d c) = do
   return (Set.union s0 s1)
 preTermCallSet (TermLazyArrow _ x) = preTermCallSet x
 preTermCallSet (TermLazyApp _ x) = preTermCallSet x
-preTermCallSet (TermCase x ct) = do
+preTermCallSet (TermMatch x ct) = do
   s0 <- preTermCallSet x
   s1 <- caseTreeCallSet ct [x]
   return (Set.union s0 s1)
@@ -610,7 +610,7 @@ directlyAccessibleRefs (TermRef v _) = IntSet.singleton (varId v)
 directlyAccessibleRefs (TermVar _ _) = IntSet.empty
 directlyAccessibleRefs (TermData _) = IntSet.empty
 directlyAccessibleRefs (TermCtor _ _) = IntSet.empty
-directlyAccessibleRefs (TermCase t ct) =
+directlyAccessibleRefs (TermMatch t ct) =
   let t' = directlyAccessibleRefs t
       ct' = caseTreeDirectlyAccessibleRefs ct
   in IntSet.union t' ct'
@@ -705,7 +705,7 @@ accessibleData rm vis (TermRef v s) =
 accessibleData _ _ (TermVar _ _) = IntSet.empty
 accessibleData _ _ (TermData v) = IntSet.singleton (varId v)
 accessibleData _ _ (TermCtor _ _) = IntSet.empty
-accessibleData rm vis (TermCase t ct) =
+accessibleData rm vis (TermMatch t ct) =
   let t' = accessibleData rm vis t
       ct' = caseTreeDirectlyAccessibleData rm vis ct
   in IntSet.union t' ct'
@@ -830,7 +830,7 @@ positivityCheckCod lo dv (TermRef v s) =
 positivityCheckCod _ _ (TermVar _ _) = return ()
 positivityCheckCod _ _ (TermData _) = return ()
 positivityCheckCod _ _ (TermCtor _ _) = return ()
-positivityCheckCod lo dv (TermCase t ct) = do
+positivityCheckCod lo dv (TermMatch t ct) = do
   positivityCheckDom lo IntSet.empty dv t
   positivityCheckDomCaseTree lo IntSet.empty dv ct
 positivityCheckCod _ _ TermUnitElem = return ()
@@ -844,7 +844,7 @@ positivityCheckVerifySimple lo dv (TermFun _ _ _ _) = positivityFail lo dv Nothi
 positivityCheckVerifySimple lo dv (TermRef _ _) = positivityFail lo dv Nothing
 positivityCheckVerifySimple lo dv (TermArrow _ _ _) = positivityFail lo dv Nothing
 positivityCheckVerifySimple lo dv (TermLazyArrow _ _) = positivityFail lo dv Nothing
-positivityCheckVerifySimple lo dv (TermCase _ _) = positivityFail lo dv Nothing
+positivityCheckVerifySimple lo dv (TermMatch _ _) = positivityFail lo dv Nothing
 positivityCheckVerifySimple lo dv (TermLazyFun _ t) =
   positivityCheckVerifySimple lo dv t
 positivityCheckVerifySimple lo dv (TermApp _ f _) =
@@ -922,7 +922,7 @@ positivityCheckContainsData vi dv (TermData v)
           b <- positivityCheckContainsData vi' dv (termTy r)
           return (a || b)
 positivityCheckContainsData _ _ (TermCtor _ _) = return False
-positivityCheckContainsData vi dv (TermCase t ct) = do
+positivityCheckContainsData vi dv (TermMatch t ct) = do
   b1 <- positivityCheckContainsData vi dv t
   b2 <- positivityCheckContainsDataCaseTree vi dv ct
   return (b1 || b2)
@@ -986,7 +986,7 @@ positivityCheckDom lo vi dv (TermRef v s) =
 positivityCheckDom _ _ _ (TermVar _ _) = return ()
 positivityCheckDom _ _ _ (TermData _) = return ()
 positivityCheckDom _ _ _ (TermCtor _ _) = return ()
-positivityCheckDom lo vi dv (TermCase t ct) = do
+positivityCheckDom lo vi dv (TermMatch t ct) = do
   positivityCheckDom lo vi dv t
   positivityCheckDomCaseTree lo vi dv ct
 positivityCheckDom _ _ _ TermUnitElem = return ()

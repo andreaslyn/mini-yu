@@ -410,7 +410,7 @@ tcDef subst _ (DefVal isPure d lets) = do
       Env.forceInsertImplicit i imps
       let r = mkTerm (TermRef rv IntMap.empty) (termPre ty) False
       updateToStatusTerm (declName d) r
-      e <- tcLetCases subst (declName d) imps (termPre ty) lets
+      e <- tcValCases subst (declName d) imps (termPre ty) lets
       Env.forceInsertRef (declLoc d) (declName d) isPure i e
       terminationCheck (declLoc d) rv
       return r
@@ -733,9 +733,9 @@ tcDataDefCtorLookup subst (dlo, dna) d = do
     _ ->
       error $ "expected " ++ dna ++ " to be data type"
 
-tcLetCases :: Monad m =>
-  SubstMap -> VarName -> Implicits -> PreTerm -> [LetCase] -> TypeCheckT m Term
-tcLetCases subst na [] ty [LetCase lo' [] Nothing (Just (e, w))] = do
+tcValCases :: Monad m =>
+  SubstMap -> VarName -> Implicits -> PreTerm -> [ValCase] -> TypeCheckT m Term
+tcValCases subst na [] ty [ValCase lo' [] Nothing (Just (e, w))] = do
   case w of
     Nothing -> do
       e' <- evalTcExpr subst ty e
@@ -746,26 +746,26 @@ tcLetCases subst na [] ty [LetCase lo' [] Nothing (Just (e, w))] = do
       e' <- evalTcExpr subst ty e
       when (termIo e') (err lo' (Fatal $ "effect escapes from " ++ quote na))
       return (e' {termNestedDefs = vs})
-tcLetCases _ na [] _ (LetCase lo' [] Nothing Nothing : _) = do
+tcValCases _ na [] _ (ValCase lo' [] Nothing Nothing : _) = do
   err lo' (Fatal $ "case for " ++ quote na ++ " is not absurd")
-tcLetCases _ _ [] _ (LetCase _ [] Nothing (Just _) : LetCase lo' _ _ _ : _) = do
+tcValCases _ _ [] _ (ValCase _ [] Nothing (Just _) : ValCase lo' _ _ _ : _) = do
   err lo' (Fatal "case is unreachable")
-tcLetCases _ na [] _ (LetCase lo' (_:_) Nothing _ : _) = do
+tcValCases _ na [] _ (ValCase lo' (_:_) Nothing _ : _) = do
   err lo' (Fatal $ "cannot apply " ++ quote na ++ " to implicit arguments")
-tcLetCases subst na ips@(_:_) ty (le@(LetCase lo' _ Nothing _) : lets) = do
-  (ct, io) <- buildLetCaseTree na subst ips Nothing ty (le : lets)
+tcValCases subst na ips@(_:_) ty (le@(ValCase lo' _ Nothing _) : lets) = do
+  (ct, io) <- buildValCaseTree na subst ips Nothing ty (le : lets)
   when io (err lo' (Fatal $ "effect escapes from " ++ quote na))
   let ins = map (varName . fst) ips
   let fn = TermFun ins False Nothing ct
   return (mkTerm fn ty False)
-tcLetCases subst na ips ty (le@(LetCase lo' _ (Just _) _) : lets) = do
+tcValCases subst na ips ty (le@(ValCase lo' _ (Just _) _) : lets) = do
   r <- Env.getRefMap
   case preTermDomCod r ty of
     Nothing -> err lo' (Recoverable $
                           "application of " ++ quote na
                           ++ ", but does not have function type")
     Just (dom, cod, io) -> do
-      (ct, hasIo) <- buildLetCaseTree na subst ips (Just dom) cod (le : lets)
+      (ct, hasIo) <- buildValCaseTree na subst ips (Just dom) cod (le : lets)
       let ins = map (varName . fst) ips
       when (hasIo && not io)
         (err lo' (
@@ -773,24 +773,24 @@ tcLetCases subst na ips ty (le@(LetCase lo' _ (Just _) _) : lets) = do
             "expected type of " ++ quote na
             ++ " to be effectful " ++ quote "->>"))
       return (mkTerm (TermFun ins hasIo (Just (length dom)) ct) ty False)
-tcLetCases _ na _ _ [] = error ("missing let case for " ++ quote na)
+tcValCases _ na _ _ [] = error ("missing let case for " ++ quote na)
 
 type CasePatternTriple =
   ((Maybe Var, Bool), Pattern) -- Bool = True if forced.
 
-buildLetCaseTree :: Monad m =>
+buildValCaseTree :: Monad m =>
   VarName -> SubstMap -> Implicits -> Maybe [(Maybe Var, PreTerm)] -> PreTerm ->
-  [LetCase] -> TypeCheckT m (CaseTree, Bool)
-buildLetCaseTree valName subst impParams domain codomain letCases = do
-  iCaseData <- extractImplicitCaseData letCases
+  [ValCase] -> TypeCheckT m (CaseTree, Bool)
+buildValCaseTree valName subst impParams domain codomain valCases = do
+  iCaseData <- extractImplicitCaseData valCases
   r0 <- Env.getRefMap
   let iCaseData' = dependencyOrder r0 iCaseData
                     (map (\(v,x) -> (Just v, x)) impParams)
   caseData <- case domain of
                 Nothing ->
-                  verifyNoExplicitArgs letCases >> return []
+                  verifyNoExplicitArgs valCases >> return []
                 Just d -> do
-                  cd <- extractExplicitCaseData (length d) letCases
+                  cd <- extractExplicitCaseData (length d) valCases
                   r1 <- Env.getRefMap
                   return (dependencyOrder r1 cd d)
   let caseData' = if null caseData
@@ -799,17 +799,17 @@ buildLetCaseTree valName subst impParams domain codomain letCases = do
   cs <- mapM checkCase caseData'
   casesToCaseTree cs
   where
-    verifyNoExplicitArgs :: Monad m => [LetCase] -> TypeCheckT m ()
+    verifyNoExplicitArgs :: Monad m => [ValCase] -> TypeCheckT m ()
     verifyNoExplicitArgs [] = return ()
-    verifyNoExplicitArgs (LetCase lo _ (Just _) _ : _) =
+    verifyNoExplicitArgs (ValCase lo _ (Just _) _ : _) =
       err lo (Recoverable $ "unexpected function application of " ++ quote valName)
-    verifyNoExplicitArgs (LetCase _ _ Nothing _ : ls) =
+    verifyNoExplicitArgs (ValCase _ _ Nothing _ : ls) =
       verifyNoExplicitArgs ls
 
-    extractImplicitCaseData :: Monad m => [LetCase] ->
+    extractImplicitCaseData :: Monad m => [ValCase] ->
       TypeCheckT m [([ParsePattern], Loc, Maybe (Expr, OptWhereClause))]
     extractImplicitCaseData [] = return []
-    extractImplicitCaseData (LetCase lo ias _ e : ls) = do
+    extractImplicitCaseData (ValCase lo ias _ e : ls) = do
       let (p, remain) = getImplicitPatterns lo impParams ias
       case remain of
         [] -> do
@@ -856,17 +856,17 @@ buildLetCaseTree valName subst impParams domain codomain letCases = do
                   Nothing -> Nothing
                   Just (p', ps') -> Just (p', q : ps')
 
-    extractExplicitCaseData :: Monad m => Int -> [LetCase] ->
+    extractExplicitCaseData :: Monad m => Int -> [ValCase] ->
       TypeCheckT m [([ParsePattern], Loc, Maybe (Expr, OptWhereClause))]
     extractExplicitCaseData _ [] = return []
-    extractExplicitCaseData n (LetCase lo _ (Just ps) e : ls) = do
+    extractExplicitCaseData n (ValCase lo _ (Just ps) e : ls) = do
       when (length ps /= n)
         (err lo (Fatal $
           "expected " ++ show n ++ " argument(s), but case for "
           ++ quote valName ++ " is applied to " ++ show (length ps) ++ " argument(s)"))
       pss <- extractExplicitCaseData n ls
       return ((ps, lo, e) : pss)
-    extractExplicitCaseData n (LetCase lo _ Nothing _ : _) =
+    extractExplicitCaseData n (ValCase lo _ Nothing _ : _) =
       err lo (Fatal $
         "expected " ++ show n ++ " argument(s) in case for " ++ quote valName)
 
@@ -1911,8 +1911,8 @@ doTcExpr _ subst _ ty (ExprSeq (Left e1) e2) =
   let p1 = ParsePatternUnit (exprLoc e1)
   in doTcExpr False subst Nothing ty (ExprSeq (Right (p1, e1)) e2)
 doTcExpr _ subst _ ty (ExprSeq (Right (p1, e1)) e2) =
-  doTcExpr False subst Nothing ty (ExprCase (patternLoc p1) e1 [Right (p1, e2)])
-doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
+  doTcExpr False subst Nothing ty (ExprMatch (patternLoc p1) e1 [Right (p1, e2)])
+doTcExpr _ subst _ ty (ExprMatch lo expr cases) = do
   expr' <- doTcExprSubst False subst Nothing expr
   newpids <- lift Env.getNextVarId
   --i00 <- lift Env.getImplicitMap
@@ -1925,11 +1925,11 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
       --isu <- getExprSubst
       --let cases'' = substPatternTriples isu cases'
       (ct, io) <- lift (casesToCaseTree cases')
-      let c = TermCase (termPre expr') ct
+      let c = TermMatch (termPre expr') ct
       return (mkTerm c ty' (termIo expr' || io))
   where
     checkCases :: Monad m =>
-      VarId -> PreTerm -> [OfCase] -> Maybe PreTerm ->
+      VarId -> PreTerm -> [MatchCase] -> Maybe PreTerm ->
       ExprT m ([(Loc, [CasePatternTriple], Maybe Term)], Maybe PreTerm)
     checkCases _ _ [] expectedTy = return ([], expectedTy)
     checkCases newpids t ((Left p) : ps) expectedTy = do

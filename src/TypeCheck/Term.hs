@@ -62,7 +62,7 @@ data PreTerm = TermFun [VarName] Bool (Maybe Int) CaseTree
              | TermVar Bool Var     -- Variable, Bool = True if implicit.
              | TermData Var         -- Data type definition with ctors
              | TermCtor Var VarId   -- Data constructor with data type
-             | TermCase PreTerm CaseTree
+             | TermMatch PreTerm CaseTree
              | TermUnitElem
              | TermUnitTy
              | TermTy
@@ -100,8 +100,8 @@ instance Show PreTerm where
     "TermData {" ++ show v ++ "}"
   show (TermCtor v i) =
     "TermCtor {" ++ show v ++ ", " ++ show i ++ "}"
-  show (TermCase t ct) =
-    "TermCase {" ++ show t ++ ", " ++ show ct ++ "}"
+  show (TermMatch t ct) =
+    "TermMatch {" ++ show t ++ ", " ++ show ct ++ "}"
   show TermUnitElem = "TermUnitElem"
   show TermUnitTy = "TermUnitTy"
   show TermTy = "TermTy"

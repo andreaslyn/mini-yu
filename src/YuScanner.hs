@@ -33,7 +33,6 @@ data TokType =
   | TokOp4 String --  + -        (left associative)
   | TokOp5 String --  = : ? !    (right associative)
   | TokOp6 String --  < > ~      (left associative)
-  | TokDo
   | TokImport
   | TokWhere
   | TokEnd
@@ -43,7 +42,7 @@ data TokType =
   | TokExtern
   | TokVal
   | TokValDotDot
-  | TokCase
+  | TokMatch
   | TokOf
   | TokTy
   | TokAmp
@@ -85,7 +84,6 @@ tokTypeString t =
     TokOp5 s -> s
     TokOp6 s -> s
     TokStringLit s -> "\"" ++ s ++ "\""
-    TokDo -> "do"
     TokImport -> "import"
     TokWhere -> "where"
     TokEnd -> "end"
@@ -95,7 +93,7 @@ tokTypeString t =
     TokExtern -> "extern"
     TokVal -> "val"
     TokValDotDot -> "val.."
-    TokCase -> "case"
+    TokMatch -> "match"
     TokOf -> "of"
     TokTy -> "Ty"
     TokAmp -> "&"
@@ -207,7 +205,6 @@ failHere msg = getLoc >>= failLoc msg
 
 makeWordTok :: String -> Loc -> SScanner Tok
 makeWordTok s lo
-  | s == "do" = return (tok TokDo lo)
   | s == "import" = return (tok TokImport lo)
   | s == "where" = return (tok TokWhere lo)
   | s == "end" = return (tok TokEnd lo)
@@ -223,7 +220,7 @@ makeWordTok s lo
   | s == "&" = return (tok TokAmp lo)
   | s == "->" = return (tok TokDashGreater lo)
   | s == "->>" = return (tok TokDashGreaterIo lo)
-  | s == "case" = return (tok TokCase lo)
+  | s == "match" = return (tok TokMatch lo)
   | s == "of" = return (tok TokOf lo)
   | s == "=>" = return (tok TokEqGreater lo)
   | isOp1Char (head s) = return (tok (TokOp1 s) lo)

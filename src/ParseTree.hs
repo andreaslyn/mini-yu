@@ -3,14 +3,14 @@ module ParseTree
   , ImportPath
   , Def (..)
   , Decl (..)
-  , LetCase (..)
+  , ValCase (..)
   , VarList
   , VarListElem
   , OptWhereClause
   , Expr (..)
   , ExprSeqElem
   , ExprListTypedElem
-  , OfCase
+  , MatchCase
   , ParsePattern (..)
 
   , astToString -- Printing
@@ -20,7 +20,7 @@ module ParseTree
   , declLoc
   , defLoc
   , exprLoc
-  , letCaseLoc
+  , valCaseLoc
   , patternLoc
   , defName
   , declName
@@ -36,7 +36,7 @@ type ImportPath = (Loc, String)
 
 type Program = ([ImportPath], [Def])
 
-data Def = DefVal Bool Decl [LetCase] -- Bool = True if pure
+data Def = DefVal Bool Decl [ValCase] -- Bool = True if pure
          | DefExtern Decl
          | DefData Bool Decl [Decl]   -- Bool = True if pure
          deriving Show
@@ -46,8 +46,8 @@ data Decl = Decl (Loc, String) VarList Expr deriving Show
   -- 'let'
   --    [ X ':=' ParsePattern, Y ':=' ParsePattern, ...]
   --    ( ParsePattern, ParsePattern, .. ) '=>' Expr 'where' ... 'end'
-data LetCase =
-  LetCase Loc [((Loc, String), ParsePattern)]
+data ValCase =
+  ValCase Loc [((Loc, String), ParsePattern)]
     (Maybe [ParsePattern]) (Maybe (Expr, OptWhereClause))
   deriving Show
 
@@ -74,7 +74,7 @@ data Expr = ExprFun Loc VarList Expr
           | ExprLazyApp Expr
           | ExprVar (Loc, String)
           | ExprSeq ExprSeqElem Expr
-          | ExprCase Loc Expr [OfCase]
+          | ExprMatch Loc Expr [MatchCase]
           | ExprUnitElem Loc
           | ExprUnitTy Loc
           | ExprTy Loc
@@ -84,7 +84,7 @@ type ExprSeqElem = Either Expr (ParsePattern, Expr)
 
 type ExprListTypedElem = Either Expr ((Loc, String), Expr)
 
-type OfCase = Either ParsePattern (ParsePattern, Expr)
+type MatchCase = Either ParsePattern (ParsePattern, Expr)
 
 data ParsePattern = ParsePatternApp ParsePattern [ParsePattern]
                   | ParsePatternImplicitApp ParsePattern
@@ -99,8 +99,8 @@ type ToString a = StateT (Bool, Int) (Writer String) a
 
 ------------------------ Getters ---------------------------------
 
-letCaseLoc :: LetCase -> Loc
-letCaseLoc (LetCase lo _ _ _) = lo
+valCaseLoc :: ValCase -> Loc
+valCaseLoc (ValCase lo _ _ _) = lo
 
 declLoc :: Decl -> Loc
 declLoc (Decl (lo, _) _ _) = lo
@@ -133,7 +133,7 @@ exprLoc (ExprApp e _) = exprLoc e
 exprLoc (ExprImplicitApp e _) = exprLoc e
 exprLoc (ExprLazyApp e) = exprLoc e
 exprLoc (ExprVar (lo, _)) = lo
-exprLoc (ExprCase lo _ _) = lo
+exprLoc (ExprMatch lo _ _) = lo
 exprLoc (ExprTy lo) = lo
 exprLoc (ExprSeq e _) = exprSeqElemLoc e
 
@@ -340,14 +340,14 @@ writeExpr (ExprSeq e1 e2) = do
     writeExprSeqTail (ExprSeq e1' e2') =
       writeExprSeqElem e1' >> writeExprSeqTail e2'
     writeExprSeqTail e = writeExpr e
-writeExpr (ExprCase _ e ofs) = do
-  writeStr "case "
+writeExpr (ExprMatch _ e ofs) = do
+  writeStr "match "
   writeExpr e
   newLine
-  let writeOfs :: [OfCase] -> ToString ()
+  let writeOfs :: [MatchCase] -> ToString ()
       writeOfs [] = return ()
       writeOfs (Right (p, x) : os) = do
-        writeStr "of "
+        writeStr "let "
         writePattern p
         writeStr " => "
         incIndent
@@ -357,7 +357,7 @@ writeExpr (ExprCase _ e ofs) = do
         newLine
         writeOfs os
       writeOfs (Left p : os) = do
-        writeStr "of "
+        writeStr "let "
         writePattern p
         writeStr " absurd"
         newLine
@@ -417,8 +417,8 @@ doWriteNamedVarList (((_, na), Just t) : vs) =
 doWriteNamedVarList (((_, na), Nothing) : vs) =
   writeStr na >> writeStr ", " >> doWriteNamedVarList vs
 
-writeLetCase :: LetCase -> ToString ()
-writeLetCase (LetCase _ ps0 ps (Just (e, w))) = do
+writeValCase :: ValCase -> ToString ()
+writeValCase (ValCase _ ps0 ps (Just (e, w))) = do
   writeStr "let "
   writePatternNamedArgList ps0
   writePatternMaybeArgs ps
@@ -429,7 +429,7 @@ writeLetCase (LetCase _ ps0 ps (Just (e, w))) = do
   decIndent
   newLine
   writeOptWhere w
-writeLetCase (LetCase _ ps0 ps Nothing) = do
+writeValCase (ValCase _ ps0 ps Nothing) = do
   writeStr "let "
   writePatternNamedArgList ps0
   writePatternMaybeArgs ps
@@ -446,7 +446,7 @@ writeDef (DefVal isPure d ls) = do
     else writeStr "val.. "
   writeNameDecl d
   newLine
-  mapM_ writeLetCase ls
+  mapM_ writeValCase ls
 writeDef (DefData isPure (Decl (_, v) imps t) vs) = do
   if isPure
     then writeStr ("data " ++ v)

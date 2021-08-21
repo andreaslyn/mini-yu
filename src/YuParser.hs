@@ -238,7 +238,7 @@ parseValDecl = impureVal <|> pureVal
 parseValDef :: YuParsec Def
 parseValDef = do
   (isPure, d) <- parseValDecl
-  lets <- many1 parseLetCase
+  lets <- many1 parseValCase
   return (DefVal isPure d lets)
 
 parseExternDef :: YuParsec Def
@@ -247,14 +247,14 @@ parseExternDef = do
   d <- parseDecl
   return (DefExtern d)
 
-parseLetCase :: YuParsec LetCase
-parseLetCase = do
+parseValCase :: YuParsec ValCase
+parseValCase = do
   lo <- yuKeyTok TokLet
   (impls, args) <- parseLetPattern
   d <- optionMaybe letDef
   case args of
-    [] -> return (LetCase lo impls Nothing d)
-    _ -> return (LetCase lo impls (Just args) d)
+    [] -> return (ValCase lo impls Nothing d)
+    _ -> return (ValCase lo impls (Just args) d)
   where
     parseLetPattern ::
       YuParsec ([((Loc, String), ParsePattern)], [ParsePattern])
@@ -298,7 +298,7 @@ parseDoExpr :: YuParsec Expr
 parseDoExpr = doParseDoExpr <|> parseFunExpr
 
 doParseDoExpr :: YuParsec Expr
-doParseDoExpr = yuKeyTok TokDo >> parseExpr
+doParseDoExpr = yuKeyTok TokOf >> parseExpr
 
 parseFunExpr :: YuParsec Expr
 parseFunExpr = tryParseFunExpr <|> parseExprSeq
@@ -552,7 +552,7 @@ parseExprLeaf =
   <|> parseExprUnitTy
   <|> parseExprVar
   <|> parseParenExpr
-  <|> parseCaseExpr
+  <|> parseMatchExpr
   <|> parseExprTy
   <|> parseExprStr
 
@@ -623,17 +623,17 @@ parseParenExpr = do
       _ <- yuKeyTok TokParenR
       return e
 
-parseCaseExpr :: YuParsec Expr
-parseCaseExpr = do
-  lo <- yuKeyTok TokCase
+parseMatchExpr :: YuParsec Expr
+parseMatchExpr = do
+  lo <- yuKeyTok TokMatch
   e <- parseExpr
-  ofs <- many1 ofCase
+  ofs <- many1 matchCase
   _ <- yuKeyTok TokEnd
-  return (ExprCase lo e ofs)
+  return (ExprMatch lo e ofs)
   where
-    ofCase :: YuParsec OfCase
-    ofCase = do
-      _ <- yuKeyTok TokOf
+    matchCase :: YuParsec MatchCase
+    matchCase = do
+      _ <- yuKeyTok TokLet
       p <- parsePattern
       e <- optionMaybe caseDef
       case e of

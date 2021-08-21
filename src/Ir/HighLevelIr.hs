@@ -78,7 +78,7 @@ data Expr =
   | Fun [Var] Expr
   | Extern Int
   | Lazy Bool Expr
-  | Case Var [(CtorId, FieldCnt, Expr)]
+  | Match Var [(CtorId, FieldCnt, Expr)]
   | ConstRef Const
   | CtorRef Ctor [Var]
   | Proj Int Var
@@ -106,7 +106,7 @@ freeVars p = \e -> evalState (freev e) IntSet.empty
       return (IntSet.difference e' (IntSet.fromList vs))
     freev (Extern _) = return IntSet.empty
     freev (Lazy _ e) = freev e
-    freev (Case v cs) = do
+    freev (Match v cs) = do
       cs' <- foldlM (\a (_, _, x) -> fmap (IntSet.union a) (freev x))
                   IntSet.empty cs
       return (IntSet.insert v cs')
@@ -526,7 +526,7 @@ irExpr (Te.TermCtor v _) = do
 irExpr (Te.TermVar _ v) = do
   v' <- lookupTermVar v
   return (Ret v')
-irExpr (Te.TermCase e ct) = do
+irExpr (Te.TermMatch e ct) = do
   v <- getNextVar
   e' <- irExpr e
   ct' <- irCaseTree [v] ct
@@ -570,15 +570,15 @@ irCaseTree xs (Te.CaseNode idx m d) = do
             c <- mapM (makeCtorCase False x xs') as
             return (map snd c)
   let allCases = sortOn (\(i, _, _) -> i) (cs ++ de)
-  return (Case x allCases)
+  return (Match x allCases)
 irCaseTree xs (Te.CaseUnit idx (vs, ct)) = do
   let (x, xs') = removeIdx idx xs
   localUpdateTermVars vs (repeat x) $ do
     ct' <- irCaseTree xs' ct
-    return (Case x [(0, 0, ct')])
+    return (Match x [(0, 0, ct')])
 irCaseTree xs (Te.CaseEmpty idx) = do
   let (x, _) = removeIdx idx xs
-  return (Case x [])
+  return (Match x [])
 
 makeCtorCase ::
   Bool -> Var -> [Var] -> (Te.VarId, ([Te.Var], Te.CaseTree)) ->
@@ -714,7 +714,7 @@ isLetExpr _ = False
 
 isLetOrCaseExpr :: Expr -> Bool
 isLetOrCaseExpr (Let _ _ _) = True
-isLetOrCaseExpr (Case _ _) = True
+isLetOrCaseExpr (Match _ _) = True
 isLetOrCaseExpr _ = False
 
 exprToString :: Program -> Expr -> String
@@ -731,10 +731,10 @@ writeExpr _ p (Fun vs e) = do
   when (isLetExpr e) (writeStr ")")
 writeExpr _ _ (Extern a) = writeStr ("extern " ++ show a)
 writeExpr _ p (Lazy _ e) = writeStr "[]. " >> writeExpr True p e
-writeExpr inci p (Case v cs) = do
+writeExpr inci p (Match v cs) = do
   when inci incIndent
   newLine
-  writeStr "case "
+  writeStr "match "
   writeVar v
   writeCases cs
   newLine
@@ -745,7 +745,7 @@ writeExpr inci p (Case v cs) = do
     writeCases [] = return ()
     writeCases ((i, n, w) : ws) = do
       newLine
-      writeStr "of "
+      writeStr "let "
       writeStr (show i)
       writeStr "("
       writeStr (show n)

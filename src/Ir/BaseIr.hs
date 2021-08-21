@@ -104,7 +104,7 @@ projForceArgs Nothing = []
 projForceArgs (Just (_, rs)) = rs
 
 data FunExpr =
-    Case Ref [(CtorId, FieldCnt, FunExpr)]
+    Match Ref [(CtorId, FieldCnt, FunExpr)]
   | Let Var LetExpr FunExpr
   | Ret Ref
     -- The VarFieldCnt is used when removing case expressions
@@ -141,7 +141,7 @@ freeVarsFunExpr (Let v e1 e2) =
   let e1' = freeVarsLetExpr e1
       e2' = freeVarsFunExpr e2
   in IntSet.difference (IntSet.union e1' e2') (IntSet.singleton v)
-freeVarsFunExpr (Case v cs) =
+freeVarsFunExpr (Match v cs) =
   let cs' = foldl (\a (_, _, x) ->
                     IntSet.union a (freeVarsFunExpr x)) IntSet.empty cs
   in IntSet.union (freeVarsRef v) cs'
@@ -177,7 +177,7 @@ getConstsFromFunExpr (Let _ e1 e2) =
   let e1' = getConstsFromLetExpr e1
       e2' = getConstsFromFunExpr e2
   in IntSet.union e1' e2'
-getConstsFromFunExpr (Case v cs) =
+getConstsFromFunExpr (Match v cs) =
   let cs' = foldl (\a (_, _, x) ->
                     IntSet.union a (getConstsFromFunExpr x)) IntSet.empty cs
   in IntSet.union (getConstsFromRef v) cs'
@@ -404,7 +404,7 @@ makeMaps rs = do
       addToVarMap e
     addToVarMap (Hl.Extern _) = return ()
     addToVarMap (Hl.Lazy _ e) = addToVarMap e
-    addToVarMap (Hl.Case _ cs) = do
+    addToVarMap (Hl.Match _ cs) = do
       mapM_ (\(_, _, c) -> addToVarMap c) cs
     addToVarMap (Hl.ConstRef c) = do
       m <- get
@@ -432,7 +432,7 @@ doMakeConstMaps (Hl.Force _ _) = return ()
 doMakeConstMaps (Hl.Fun _ e) = doMakeConstMaps e
 doMakeConstMaps (Hl.Extern _) = return ()
 doMakeConstMaps (Hl.Lazy _ e) = doMakeConstMaps e
-doMakeConstMaps (Hl.Case _ cs) =
+doMakeConstMaps (Hl.Match _ cs) =
   mapM_ (\(_, _, x) -> doMakeConstMaps x) cs
 doMakeConstMaps (Hl.ConstRef _) = return ()
 doMakeConstMaps (Hl.CtorRef _ _) = return ()
@@ -599,10 +599,10 @@ constSubstFunExpr (Let v0 (Proj i v) e) = do
   (v', f) <- constSubstRef v
   e' <- constSubstFunExpr e
   return (f (Let v0 (Proj i v') e'))
-constSubstFunExpr (Case v cs) = do
+constSubstFunExpr (Match v cs) = do
   cs' <- mapM (\(i, n, c) -> fmap (\x -> (i, n, x)) (constSubstFunExpr c)) cs
   (v', f) <- constSubstRef v
-  return (f (Case v' cs'))
+  return (f (Match v' cs'))
 
 constSubstConstExpr :: ConstExpr -> StM ConstExpr
 constSubstConstExpr (Extern vs) = return (Extern vs)
@@ -672,7 +672,7 @@ irProgram parentExpr rs = do
     maxUseCount vis p c (Hl.Lazy io e) = do
       u <- maxUseCount vis p c e
       if io && u /= 0 then Nothing else Just u
-    maxUseCount vis p c (Hl.Case _ cs) =
+    maxUseCount vis p c (Hl.Match _ cs) =
       fmap (foldl max 0) (mapM (\(_, _, x) -> maxUseCount vis p c x) cs)
     maxUseCount vis p c (Hl.ConstRef c') =
       if Hl.prConst c == Hl.prConst c'
@@ -708,7 +708,7 @@ nonStaticConstUnits = \e -> do
     getConstUnits vis (Hl.Fun _ e) = getConstUnits vis e
     getConstUnits _ (Hl.Extern _) = return (IntSet.empty, IntSet.empty)
     getConstUnits vis (Hl.Lazy _ e) = getConstUnits vis e
-    getConstUnits vis (Hl.Case _ cs) =
+    getConstUnits vis (Hl.Match _ cs) =
       foldlM (\(as0, bs0) (_, _, x) -> do
                 (as1, bs1) <- getConstUnits vis x
                 return (IntSet.union as0 as1, IntSet.union bs0 bs1)
@@ -897,10 +897,10 @@ irFunExpr (Hl.Force io v) = do
   v0 <- getNextVar
   return (Let v0 (Force io v' Nothing) (Ret (VarRef v0)))
 irFunExpr (Hl.Extern _) = error "unexpected extern in irFunExpr"
-irFunExpr (Hl.Case v cs) = do
+irFunExpr (Hl.Match v cs) = do
   v' <- lookupVarMapRef v
   cs' <- mapM irCase cs
-  return (Case v' cs')
+  return (Match v' cs')
   where
     irCase ::
       (CtorId, FieldCnt, Hl.Expr) ->
@@ -962,11 +962,11 @@ irLetExpr f (Hl.CtorRef i vs) = do
 irLetExpr f (Hl.Proj i v) = do
   v' <- lookupVarMapRef v
   f (Right (Nothing, Proj i v'))
-irLetExpr f (Hl.Case v cs) = do
+irLetExpr f (Hl.Match v cs) = do
   v' <- lookupVarMapRef v
   cs' <- mapM (\(i, n, e) -> do e' <- irLetExpr f e
                                 return (i, n, e')) cs
-  return (Case v' cs')
+  return (Match v' cs')
 irLetExpr f (Hl.Let v e1 e2) = do
   irLetExpr (letCont v (irLetExpr f e2)) e1
 irLetExpr f (Hl.Ret v) = do
@@ -1040,7 +1040,7 @@ isInlineCandidate :: Bool -> Const -> FunExpr -> Bool
 isInlineCandidate inlineCases con = isCandidateFunExpr
   where
     isCandidateFunExpr :: FunExpr -> Bool
-    isCandidateFunExpr (Case r cs) =
+    isCandidateFunExpr (Match r cs) =
       inlineCases
       && isCandidateRef r
       && and (map (\(_, _, e) -> isCandidateFunExpr e) cs)
@@ -1078,12 +1078,12 @@ type PapMap = IntMap [Ref]
 
 funInlineFunExpr ::
   PapMap -> Bool -> Const -> [Var] -> FunExpr -> FunExpr -> StM (Bool, FunExpr)
-funInlineFunExpr pm cand con vs e (Case r cs) = do
+funInlineFunExpr pm cand con vs e (Match r cs) = do
   (b1, cs') <- foldrM (\(i, n, c) (b, ds) ->
                          do (b', c') <- funInlineFunExpr pm cand con vs e c
                             return (b || b', (i, n, c') : ds)
                       ) (False, []) cs
-  return (b1, Case r cs')
+  return (b1, Match r cs')
 funInlineFunExpr pm cand con vs e (Let v d1 d2) = do
   (b1, pm', f) <- funInlineLetExpr v pm cand con vs e d1
   (b2, d2') <- funInlineFunExpr pm' cand con vs e d2
@@ -1181,7 +1181,7 @@ papSpecializeConstExpr (Lazy _ _ e) = papSpecializeFunExpr e
 papSpecializeConstExpr (Extern _) = return ()
 
 papSpecializeFunExpr :: FunExpr -> StM ()
-papSpecializeFunExpr (Case _ cs) =
+papSpecializeFunExpr (Match _ cs) =
   mapM_ (\(_, _, e) -> papSpecializeFunExpr e) cs
 papSpecializeFunExpr (Let _ el ef) =
   papSpecializeLetExpr el >> papSpecializeFunExpr ef
@@ -1237,10 +1237,10 @@ listSubst vs rs =
   in substFunExpr (IntMap.fromList (zip vs rs))
 
 substFunExpr :: IntMap Ref -> FunExpr -> FunExpr
-substFunExpr m (Case r cs) =
+substFunExpr m (Match r cs) =
   let r' = substRef m r
       cs' = map (\(i, n, c) -> (i, n, substFunExpr m c)) cs
-  in Case r' cs'
+  in Match r' cs'
 substFunExpr m (Let v e1 e2) =
   let e1' = substLetExpr m e1
       e2' = substFunExpr (IntMap.delete v m) e2
@@ -1277,9 +1277,9 @@ updateLeafsFunExpr :: Var -> FunExpr -> FunExpr -> FunExpr
 updateLeafsFunExpr v leaf (Ret r) = listSubst [v] [r] leaf
 updateLeafsFunExpr v leaf (VarFieldCnt v0 n0 e) =
   VarFieldCnt v0 n0 (updateLeafsFunExpr v leaf e)
-updateLeafsFunExpr v leaf (Case r cs) =
+updateLeafsFunExpr v leaf (Match r cs) =
   let cs' = map (\(i, n, c) -> (i, n, updateLeafsFunExpr v leaf c)) cs
-  in Case r cs'
+  in Match r cs'
 updateLeafsFunExpr v leaf (Let w e1 e2) =
   Let w e1 (updateLeafsFunExpr v leaf e2)
 
@@ -1301,10 +1301,10 @@ makeFreshVarsConstExpr (Lazy iss vs e) = do
   return (Lazy iss vs' e')
 
 makeFreshVarsFunExpr :: FreshVarMap -> FunExpr -> StM FunExpr
-makeFreshVarsFunExpr m (Case r cs) = do
+makeFreshVarsFunExpr m (Match r cs) = do
   r' <- makeFreshVarsRef m r
   cs' <- mapM (\(i, n, c) -> fmap (\x -> (i, n, x)) (makeFreshVarsFunExpr m c)) cs
-  return (Case r' cs')
+  return (Match r' cs')
 makeFreshVarsFunExpr m (Let v e1 e2) = do
   v' <- getNextVar
   e1' <- makeFreshVarsLetExpr m e1
@@ -1378,14 +1378,14 @@ removeOneBranchCaseConstExpr (Lazy iss vs e) =
   Lazy iss vs (removeOneBranchCaseFunExpr e)
 
 removeOneBranchCaseFunExpr :: FunExpr -> FunExpr
-removeOneBranchCaseFunExpr (Case r cs) =
+removeOneBranchCaseFunExpr (Match r cs) =
   let cs' = map (\(i, n, c) -> (i, n, removeOneBranchCaseFunExpr c)) cs
   in case cs' of
       [(_, n, x)] ->
         case r of
           VarRef r' -> VarFieldCnt r' n x
           _ -> x
-      _ -> Case r cs'
+      _ -> Match r cs'
 removeOneBranchCaseFunExpr (Let v e1 e2) = 
   Let v e1 (removeOneBranchCaseFunExpr e2)
 removeOneBranchCaseFunExpr (Ret v) = Ret v
@@ -1417,7 +1417,7 @@ getReachableConstExpr (Fun _ e) = getReachableFunExpr e
 getReachableConstExpr (Lazy _ _ e) = getReachableFunExpr e
 
 getReachableFunExpr :: FunExpr -> StateT IntSet StM Program
-getReachableFunExpr (Case _ cs) =
+getReachableFunExpr (Match _ cs) =
   foldlM (\p (_, _, c) ->
             fmap (IntMap.union p) (getReachableFunExpr c)
          ) IntMap.empty cs
@@ -1492,9 +1492,9 @@ changeRemovedFunConstExpr _ _ _ _ =
 
 changeRemovedFunFunExpr ::
   Const -> Const -> [Bool] -> FunExpr -> StM FunExpr
-changeRemovedFunFunExpr old new uses (Case r cs) = do
+changeRemovedFunFunExpr old new uses (Match r cs) = do
   cs' <- foreachChange cs
-  return (Case r cs')
+  return (Match r cs')
   where
     foreachChange ::
       [(CtorId, FieldCnt, FunExpr)] -> StM [(CtorId, FieldCnt, FunExpr)]
@@ -1565,13 +1565,13 @@ removeDeadCodeConstExpr dead c (Lazy iss vs e) = do
 
 removeDeadCodeFunExpr ::
   Const -> [Var] -> VarContext -> FunExpr -> StM (Bool, LiveSet, FunExpr)
-removeDeadCodeFunExpr con params g (Case r cs) = do
+removeDeadCodeFunExpr con params g (Match r cs) = do
   (b2, li2, cs') <- foldrM (\(i, n, c) (a, li, cs') ->
                              do (b, li', c') <- removeDeadCodeFunExpr con params g c
                                 return (a || b, IntSet.union li li', (i, n, c') : cs')
                            ) (False, IntSet.empty, []) cs
   (li3, r') <- removeDeadCodeRef r
-  let ca = Case r' cs'
+  let ca = Match r' cs'
   return (b2, IntSet.union li2 li3, ca)
 removeDeadCodeFunExpr con params g (Let v e1 e2) = do
   (li1, e1', io) <- removeDeadCodeLetExpr con params e1
@@ -1677,7 +1677,7 @@ removeDeadCodeRefs (r:rs) = do
   return (IntSet.union li1 li2, r' : rs')
 
 liveSetFunExpr :: FunExpr -> LiveSet
-liveSetFunExpr (Case r cs) =
+liveSetFunExpr (Match r cs) =
   let r' = liveSetRef r
   in foldl (\a (_, _, e) -> IntSet.union a (liveSetFunExpr e)) r' cs
 liveSetFunExpr (Let v e1 e2) =
@@ -1822,9 +1822,9 @@ writeFunExpr b (Let v e1 e2) = do
   newLine
   writeFunExpr False e2
   when b decIndent
-writeFunExpr b (Case v cs) = do
+writeFunExpr b (Match v cs) = do
   when b (incIndent >> newLine)
-  writeStr "case "
+  writeStr "match "
   writeRef v
   writeCases cs
   newLine
@@ -1835,7 +1835,7 @@ writeFunExpr b (Case v cs) = do
     writeCases [] = return ()
     writeCases ((i, n, w) : ws) = do
       newLine
-      writeStr "of "
+      writeStr "let "
       writeStr (show i)
       writeStr "("
       writeStr (show n)

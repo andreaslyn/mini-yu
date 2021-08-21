@@ -103,7 +103,7 @@ preForceProjArgs Nothing = []
 preForceProjArgs (Just (_, rs)) = rs
 
 data PreFunExpr =
-    PreCase Ref [(CtorId, FieldCnt, PreFunExpr)] LiveSet
+    PreMatch Ref [(CtorId, FieldCnt, PreFunExpr)] LiveSet
   | PreLet Var PreLetExpr PreFunExpr LiveSet
   | PreRet Ref LiveSet
   | PreVarFieldCnt Var FieldCnt PreFunExpr LiveSet
@@ -113,7 +113,7 @@ data PreFunExpr =
   | PreUnuse Ref PreFunExpr LiveSet
 
 prLiveSetPreFunExpr :: PreFunExpr -> LiveSet
-prLiveSetPreFunExpr (PreCase _ _ x) = x
+prLiveSetPreFunExpr (PreMatch _ _ x) = x
 prLiveSetPreFunExpr (PrePforce _ _ _ _ x) = x
 prLiveSetPreFunExpr (PreLet _ _ _ x) = x
 prLiveSetPreFunExpr (PreRet _ x) = x
@@ -137,7 +137,7 @@ forceProjArgs Nothing = []
 forceProjArgs (Just (_, rs)) = rs
 
 data FunExpr =
-    Case Ref [(CtorId, FunExpr)]
+    Match Ref [(CtorId, FunExpr)]
   | Let Var LetExpr FunExpr
   | Ret Ref
   | Pforce Const Var [Ref] FunExpr
@@ -198,12 +198,12 @@ type CoveredFieldVars = IntSet
 type VarSubst = IntMap B.Var
 
 irPreFunExpr :: VarSubst -> CoveredFieldVars -> B.FunExpr -> PreFunExpr
-irPreFunExpr su co (B.Case r cs) =
+irPreFunExpr su co (B.Match r cs) =
   let cs' = map (\(i,n,c) -> (i, n, irPreFunExpr su co c)) cs
       s = foldl (\t (_, _, d) ->
                       IntSet.union (prLiveSetPreFunExpr d) t
                 ) IntSet.empty cs'
-  in PreCase (convertRef su r) cs' (IntSet.union s (liveSetRef su r))
+  in PreMatch (convertRef su r) cs' (IntSet.union s (liveSetRef su r))
 irPreFunExpr su co (B.Let v e1@(B.CtorBox _ rs) e2) =
   let (e1', li1) = irPreLetExpr su e1
       e2' = irPreFunExpr su (IntSet.insert v co) e2
@@ -285,9 +285,9 @@ irResetReuseFunExpr (PreDec _ _ _) =
   error "unexpected PreDec for irResetReuseFunExpr"
 irResetReuseFunExpr (PreUnuse v e li) =
   PreUnuse v (irResetReuseFunExpr e) li
-irResetReuseFunExpr (PreCase r cs li) =
+irResetReuseFunExpr (PreMatch r cs li) =
   let cs' = map (\(i, n, c) -> (i, n, resetCase n c)) cs
-  in PreCase r cs' li
+  in PreMatch r cs' li
   where
     resetCase :: FieldCnt -> PreFunExpr -> PreFunExpr
     resetCase n c =
@@ -315,15 +315,15 @@ irResetFunExpr v0 n0 e@(PreUnuse v e1 li) =
     let e1' = irResetFunExpr v0 n0 e1
     in PreUnuse v e1' (prLiveSetPreFunExpr e1')
   else irResultFunExprTryReset v0 n0 e li
-irResetFunExpr v0 n0 (PreCase r cs _) =
+irResetFunExpr v0 n0 (PreMatch r cs _) =
   let cs' = map (\(i, n, c) -> (i, n, resetCase n c)) cs
       li' = foldl (\s (_, _, c) ->
                       IntSet.union (prLiveSetPreFunExpr c) s
                   ) IntSet.empty cs'
   in
     case r of
-      VarRef r' -> PreCase r cs' (IntSet.insert r' li')
-      _ -> PreCase r cs' li'
+      VarRef r' -> PreMatch r cs' (IntSet.insert r' li')
+      _ -> PreMatch r cs' li'
   where
     resetCase :: FieldCnt -> PreFunExpr -> PreFunExpr
     resetCase n c =
@@ -406,12 +406,12 @@ irReuseFunExpr v0 n0 (PreLet v e1 e2 li) = do
   e2' <- irReuseFunExpr v0 n0 e2
   Just (PreLet v e1 e2' li)
 irReuseFunExpr _ _ (PreRet _ _) = Nothing
-irReuseFunExpr v0 n0 (PreCase r cs li) =
+irReuseFunExpr v0 n0 (PreMatch r cs li) =
   let cs0 = map (\(i, n, c) -> (i, n, c, irReuseFunExpr v0 n0 c)) cs
       hasReuse = any (\(_, _, _, c0) -> isJust c0) cs0
       cs' = map (\(i, n, c, c0) -> (i, n, chooseCase c c0)) cs0
   in if hasReuse
-      then Just (PreCase r cs' li)
+      then Just (PreMatch r cs' li)
       else Nothing
   where
     chooseCase :: PreFunExpr -> Maybe PreFunExpr -> PreFunExpr
@@ -447,9 +447,9 @@ irIncDecFunExpr ctx (PreRet r li) =
       case r of
         VarRef r' -> ctx' == IntSet.singleton r'
         _ -> IntSet.null ctx'
-irIncDecFunExpr ctx (PreCase r cs li) =
+irIncDecFunExpr ctx (PreMatch r cs li) =
   let (prefix, ctx') = decDeadVars ctx li
-  in prefix (PreCase r (map (incDecCase ctx') cs) li)
+  in prefix (PreMatch r (map (incDecCase ctx') cs) li)
   where
     incDecCase ::
       LiveSet -> (CtorId, FieldCnt, PreFunExpr) ->
@@ -531,8 +531,8 @@ irPreToFunExpr (PrePforce pc v rs e2 _) =
   Pforce pc v rs (irPreToFunExpr e2)
 irPreToFunExpr (PreLet v e1 e2 _) =
   Let v (irPreToLetExpr e1) (irPreToFunExpr e2)
-irPreToFunExpr (PreCase r cs _) =
-  Case r (map (\(i, _, c) -> (i, irPreToFunExpr c)) cs)
+irPreToFunExpr (PreMatch r cs _) =
+  Match r (map (\(i, _, c) -> (i, irPreToFunExpr c)) cs)
 
 irPreToLetExpr :: PreLetExpr -> LetExpr
 irPreToLetExpr (PreAp b r rs) = Ap b r rs
@@ -656,9 +656,9 @@ writeFunExpr b (Let v e1 e2) = do
   newLine
   writeFunExpr False e2
   when b decIndent
-writeFunExpr b (Case v cs) = do
+writeFunExpr b (Match v cs) = do
   when b (incIndent >> newLine)
-  writeStr "case "
+  writeStr "match "
   writeRef v
   writeCases cs
   newLine
@@ -669,7 +669,7 @@ writeFunExpr b (Case v cs) = do
     writeCases [] = return ()
     writeCases ((i, w) : ws) = do
       newLine
-      writeStr "of "
+      writeStr "let "
       writeStr (show i)
       writeStr " => "
       writeFunExpr True w
