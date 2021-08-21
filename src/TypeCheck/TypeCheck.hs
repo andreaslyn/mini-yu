@@ -1427,6 +1427,27 @@ dataScope e = do
   put st'
   return x
 
+forceIfLazy :: Monad m => Term -> ExprT m Term
+forceIfLazy t = do
+  rm <- lift Env.getRefMap
+  let n = preTermNormalize rm (termTy t)
+  case n of
+    TermLazyArrow _ _ ->
+      doForceIfLazy
+        (termPre t) (preTermNormalize rm (termTy t))
+        (termIo t) (termNestedDefs t)
+    _ -> return t
+
+doForceIfLazy :: Monad m =>
+  PreTerm -> PreTerm -> Bool -> [RefVar] -> ExprT m Term
+doForceIfLazy te (TermLazyArrow io1 cod) io2 defs =
+  doForceIfLazy (TermLazyApp io1 te) cod (io1 || io2) defs
+doForceIfLazy te ty io defs =
+  return $ Term { termPre = te
+                , termTy = ty
+                , termNestedDefs = defs
+                , termIo = io }
+
 tcExpr :: Monad m => SubstMap -> PreTerm -> Expr -> ExprT m Term
 tcExpr subst ty e = do
   rm <- lift Env.getRefMap
@@ -1436,7 +1457,8 @@ tcExpr subst ty e = do
   where
     exprCheck :: Monad m => PreTerm -> ExprT m Term
     exprCheck expectedTy = do
-      e' <- doTcExpr False subst Nothing (Just expectedTy) e
+      e0 <- doTcExpr False subst Nothing (Just expectedTy) e
+      e' <- forceIfLazy e0
       tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
       su <- getExprSubst
       let se = substPreTerm su (termPre e')
@@ -1445,15 +1467,12 @@ tcExpr subst ty e = do
 
     exprCheckLazy :: Monad m => Bool -> PreTerm -> ExprT m Term
     exprCheckLazy io expectedTy = do
-      case e of
-        ExprLazyFun _ _ -> exprCheck ty
-        _ -> do
-          e' <- doTcExpr False subst Nothing (Just expectedTy) e
-          tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
-          su <- getExprSubst
-          let se = TermLazyFun io (substPreTerm su (termPre e'))
-          let st = TermLazyArrow io (substPreTerm su expectedTy)
-          return (mkTerm se st False)
+      e' <- tcExpr subst expectedTy e
+      tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
+      su <- getExprSubst
+      let se = TermLazyFun io (substPreTerm su (termPre e'))
+      let st = TermLazyArrow io (substPreTerm su expectedTy)
+      return (mkTerm se st False)
 
 doTcExprSubst :: Monad m =>
   Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) -> Expr -> ExprT m Term
@@ -1741,24 +1760,6 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
                   Just v' -> IntMap.insert (varId v') tvar su 
       (su'', ts) <- insertTypedParams su' xs
       return (su'', (idx, (var, t')) : ts)
-doTcExpr _ subst _ Nothing (ExprLazyFun _ e) = do
-  e' <- doTcExpr False subst Nothing Nothing e
-  let io = termIo e'
-  let lf = TermLazyFun io (termPre e')
-  let la = TermLazyArrow io (termTy e')
-  return (mkTerm lf la False)
-doTcExpr isTrial subst _ (Just ty) (ExprLazyFun lo e) = do
-  rm <- lift Env.getRefMap
-  case preTermLazyCod rm ty of
-    Nothing -> doTcExpr isTrial subst Nothing Nothing (ExprLazyFun lo e)
-    Just (cod, io) -> do
-      e' <- tcExpr subst cod e
-      let bodyIo = termIo e'
-      when (bodyIo && not io)
-        (lift $ err lo (Fatal $
-          "type of lazy is effectful, but expected pure lazy"))
-      let lf = TermLazyFun bodyIo (termPre e')
-      return (mkTerm lf ty False)
 doTcExpr _ subst _ _ (ExprArrow _ io dom cod) = do
   scope $ do
     mapM_ insertUnknownParam dom
@@ -1872,42 +1873,7 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
             "failed unifying values for implicit argument " ++ quote na
         runUnify :: Monad m => PreTerm -> Term -> ExprT m Term
         runUnify a e0 = do
-          (runExprUnifResult lo False msgPrefix a (termPre e0) >> return e0)
-            `catchRecoverable` runUnifyLazy a e0
-        runUnifyLazy :: Monad m => PreTerm -> Term -> String -> ExprT m Term
-        runUnifyLazy a e0 msg = do
-          let e1 = Term { termPre = TermLazyFun (termIo e0) (termPre e0)
-                        , termTy = TermLazyArrow (termIo e0) (termTy e0)
-                        , termNestedDefs = []
-                        , termIo = False }
-          runExprUnifResult lo False msgPrefix a (termPre e1)
-            `catchRecoverable` (\_ -> throwError (Recoverable msg))
-          return e1
-doTcExpr isTrial subst _ _ (ExprLazyApp e) = do
-  e' <- doTcExprSubst isTrial subst Nothing e
-  if not isTrial
-  then doMakeLazyApp e'
-  else do
-    rm <- lift Env.getRefMap
-    case preTermLazyCod rm (termTy e') of
-      Nothing -> doMakeLazyApp e'
-      Just (cod, _) -> do
-        opn <- lift (typeOperandName cod)
-        if isNothing opn
-        then doMakeLazyApp e'
-        else return (mkTerm TermEmpty cod False)
-  where
-    doMakeLazyApp :: Monad m => Term -> ExprT m Term
-    doMakeLazyApp e' = do
-      rm <- lift Env.getRefMap
-      case preTermLazyCod rm (termTy e') of
-        Nothing -> do
-          ss <- lift $ preTermToStringT defaultExprIndent (termTy e')
-          lift $ err (exprLoc e) (Recoverable $
-            "expected expression to have lazy function type, "
-            ++ "but type is\n" ++ ss)
-        Just (ty', io) -> do
-          return (mkTerm (TermLazyApp io (termPre e')) ty' (termIo e' || io))
+          runExprUnifResult lo False msgPrefix a (termPre e0) >> return e0
 doTcExpr _ subst _ ty (ExprSeq (Left e1) e2) =
   let p1 = ParsePatternUnit (exprLoc e1)
   in doTcExpr False subst Nothing ty (ExprSeq (Right (p1, e1)) e2)
@@ -2057,7 +2023,8 @@ doTcExprApp isTrial subst operandArg ty f args = do
 makeTermApp :: Monad m =>
   SubstMap -> Loc ->
   Maybe PreTerm -> Term -> [Expr] -> ExprT m Term
-makeTermApp subst flo preTy f' preArgs = do
+makeTermApp subst flo preTy f0 preArgs = do
+  f' <- forceIfLazy f0
   r <- lift Env.getRefMap
   let dc = preTermDomCod r (termTy f')
   case dc of
@@ -2178,7 +2145,6 @@ getAppOrderingWeight rm iv ty e =
     funWeight :: PreTerm -> Expr -> Int
     funWeight t@(TermArrow _ _ _) x = IntSet.size (funImplicits t x)
     funWeight t@(TermLazyArrow _ _) x = IntSet.size (funImplicits t x)
-    funWeight _ x@(ExprLazyFun _ _) = funWeightNoType x
     funWeight _ x@(ExprFun _ _ _) = funWeightNoType x
     funWeight t x = IntSet.size (funImplicits t x)
 
@@ -2209,12 +2175,10 @@ getAppOrderingWeight rm iv ty e =
                      ) IntSet.empty (zip d ps)
           s1 = funImplicits c b
       in IntSet.union s0 s1
-    funImplicits (TermLazyArrow _ c) (ExprLazyFun _ b) = funImplicits c b
     funImplicits (TermLazyArrow _ c) b = funImplicits c b
     funImplicits _ _ = IntSet.empty
 
     funWeightNoType :: Expr -> Int
-    funWeightNoType (ExprLazyFun _ x) = funWeightNoType x
     funWeightNoType (ExprFun _ ps x) =
       funWeightNoType x + foldl (\a (_, t) ->
                             if isNothing t then a + 1 else a) 0 ps

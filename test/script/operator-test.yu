@@ -83,11 +83,11 @@ let => _@_\ inc inc2
 
 
 val _+'_\Nat : ([] -> Nat) & Nat -> Nat
-let n 0 => n []
-let n (++ m) => ++ (n [] +' m)
+let n 0 => n
+let n (++ m) => ++ (n +' m)
 
 val inc4 : Nat -> Nat
 let (n) => 4 +' n
 
 val inc4-lazy : Nat -> Nat
-let (n) => ([] => 4) +' n .plus 0
+let n => 4 +' n .plus 0

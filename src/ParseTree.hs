@@ -65,13 +65,11 @@ type OptWhereClause = Maybe [Def]
 -- Then is has any type.
 
 data Expr = ExprFun Loc VarList Expr
-          | ExprLazyFun Loc Expr
               -- ExprArrow Bool = True if it is an IO arrow.
           | ExprArrow Loc Bool [ExprListTypedElem] Expr
           | ExprLazyArrow Loc Bool Expr
           | ExprApp Expr [Expr]
           | ExprImplicitApp Expr [((Loc, String), Expr)]
-          | ExprLazyApp Expr
           | ExprVar (Loc, String)
           | ExprSeq ExprSeqElem Expr
           | ExprMatch Loc Expr [MatchCase]
@@ -126,12 +124,10 @@ exprLoc :: Expr -> Loc
 exprLoc (ExprUnitElem lo) = lo
 exprLoc (ExprUnitTy lo) = lo
 exprLoc (ExprFun lo _ _) = lo
-exprLoc (ExprLazyFun lo _) = lo
 exprLoc (ExprArrow lo _ _ _) = lo
 exprLoc (ExprLazyArrow lo _ _) = lo
 exprLoc (ExprApp e _) = exprLoc e
 exprLoc (ExprImplicitApp e _) = exprLoc e
-exprLoc (ExprLazyApp e) = exprLoc e
 exprLoc (ExprVar (lo, _)) = lo
 exprLoc (ExprMatch lo _ _) = lo
 exprLoc (ExprTy lo) = lo
@@ -259,9 +255,6 @@ writeExpr (ExprFun _ vs e) = do
   writeVarList vs
   writeStr " => "
   writeExpr e
-writeExpr (ExprLazyFun _ e) = do
-  writeStr "[] => "
-  writeExpr e
 writeExpr (ExprArrow _ b es e) = do
   writeExprListTyped "&" es
   if b
@@ -273,12 +266,8 @@ writeExpr (ExprLazyArrow _ b e) = do
     then writeStr "[] ->> "
     else writeStr "[] -> "
   writeExpr e
-writeExpr (ExprLazyApp e) = do
-  writeExpr e
-  writeStr "[]"
 writeExpr (ExprApp e as) =
   let hasLowerPrec (ExprFun _ _ _) = True
-      hasLowerPrec (ExprLazyFun _ _) = True
       hasLowerPrec (ExprArrow _ _ _ _) = True
       hasLowerPrec (ExprLazyArrow _ _ _) = True
       hasLowerPrec _ = False
@@ -299,7 +288,6 @@ writeExpr (ExprApp e as) =
      writeStr ")" }
 writeExpr (ExprImplicitApp e as) =
   let hasLowerPrec (ExprFun _ _ _) = True
-      hasLowerPrec (ExprLazyFun _ _) = True
       hasLowerPrec (ExprArrow _ _ _ _) = True
       hasLowerPrec (ExprLazyArrow _ _ _) = True
       hasLowerPrec _ = False

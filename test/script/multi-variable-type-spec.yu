@@ -10,7 +10,7 @@ let tt : Bool
 
 val _*_\Bool : Bool & ([] -> Bool) -> Bool
 let ff _ => ff
-let tt b => b []
+let tt b => b
 
 
 data _=_\[A B : Ty] : A & B -> Ty

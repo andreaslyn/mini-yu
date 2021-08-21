@@ -304,7 +304,7 @@ parseFunExpr :: YuParsec Expr
 parseFunExpr = tryParseFunExpr <|> parseExprSeq
 
 tryParseFunExpr :: YuParsec Expr
-tryParseFunExpr = try doParseLazyFun <|> try doParseFun
+tryParseFunExpr = try doParseFun
   where
     doParseFun :: YuParsec Expr
     doParseFun = do
@@ -312,14 +312,6 @@ tryParseFunExpr = try doParseLazyFun <|> try doParseFun
       _ <- yuKeyTok TokEqGreater
       e <- parseFunExpr
       return (ExprFun lo xs e)
-
-    doParseLazyFun :: YuParsec Expr
-    doParseLazyFun = do
-      lo <- yuKeyTok TokSquareL
-      _ <- yuKeyTok TokSquareR
-      _ <- yuKeyTok TokEqGreater
-      e <- parseFunExpr
-      return (ExprLazyFun lo e)
 
 parseDoOr :: YuParsec Expr -> YuParsec Expr
 parseDoOr e = doParseDoExpr <|> e
@@ -481,7 +473,6 @@ parseAppExpr = do
       try (parsePostfixNormalAndDo e)
       <|> try (parseAppDo e)
       <|> try (parseAppNormal e)
-      <|> try (parseAppLazy e)
       <|> try (parseAppImplicit e)
       <|> return e
 
@@ -530,12 +521,6 @@ parseAppExpr = do
     parseAppImplicit e = do
       args <- many1 appImplicit
       parseApp (ExprImplicitApp e args)
-
-    parseAppLazy :: Expr -> YuParsec Expr
-    parseAppLazy e = do
-      _ <- yuKeyTok TokSquareL
-      _ <- yuKeyTok TokSquareR
-      parseApp (ExprLazyApp e)
 
     getNamedArg :: YuParsec ((Loc, String), Expr)
     getNamedArg = do

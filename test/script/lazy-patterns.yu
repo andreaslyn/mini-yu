@@ -5,25 +5,25 @@ let p : [] -> LazyNat -> [] -> LazyNat
 
 val plus : LazyNat & LazyNat -> LazyNat
 let m (0 []) => m
-let m (p [] n []) => p [] (plus m n) []
+let m (p [] n []) => p (plus m n)
 
 data LazyId [A : Ty] : A -> [] -> A -> Ty
-let refl [a : A] [A : Ty] : [] -> LazyId a [] a
+let refl [a : A] [A : Ty] : [] -> LazyId a a
 
 val 1 : LazyNat
-let => p [] (0 []) []
+let => p 0
 
 val 2 : LazyNat
-let => p [] 1 []
+let => p 1
 
 val 3 : LazyNat
-let => p [] 2 []
+let => p 2
 
-val test-plus : LazyId 3 [] (plus 1 2)
-let => refl []
+val test-plus : LazyId 3 (plus 1 2)
+let => refl
 
-val test-lazy-absurd : LazyId 2 [] 3 -> (A : Ty) & A -> A
+val test-lazy-absurd : LazyId 2 3 -> (A : Ty) & A -> A
 let {}
 
-val test : match 0 [] let 0 [] => Ty let p [] _ [] => {} end
+val test : match 0 let 0 [] => Ty let p [] _ [] => {} end
 let => {}
