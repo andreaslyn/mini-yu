@@ -6,7 +6,8 @@ features and runtime implementation.
 
 The mini yu compiler is implemented in Haskell. It compiles mini yu source code to
 C code, which is further compiled to machine code with gcc. Mini Yu uses reference counting
-as garbage collection strategy, inspired by [Lean 4](https://github.com/leanprover/lean4).
+as garbage collection strategy, inspired by [Lean 4](https://github.com/leanprover/lean4)
+and [Koka](https://github.com/koka-lang/koka).
 
 # Related Work
 
@@ -82,9 +83,9 @@ effectful `->>`, and codomain (return type) is `Unit`.
 The effectful arrow type `->>` allows us to apply the `println`
 operator and print `Hello, World!` to the standard output device.
 
-The plan is to extend mini yu with a better effect system, and allow
-users to define custom (algebraic) effects. Currently, the only
-supported effect is `->>`, which allows printing strings to standard out.
+Currently, the only supported effect is `->>`, which allows printing
+strings to standard out. I may extend mini yu with a more powerful
+effect system at some point.
 
 The point of having an effect system is to control where observable
 side effects may occur. The pure function type `->` is used for functions
