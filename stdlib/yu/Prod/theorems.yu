@@ -2,17 +2,17 @@ import "Prod.yu"
 import "yu/basic/Equal.yu"
 
 
-val pairMap.Prod[A : Ty, B : Ty, X : Ty] : (X -> A, X -> B) -> X -> A & B
-let (f, g) => (x). f(x) $ g(x)
+val pairMap.Prod [A B X : Ty] : (X -> A) & (X -> B) -> X -> A && B
+let f g => x => f x $ g x
 
 
-val pairMapProperty1.Prod[A : Ty, B : Ty, X : Ty]
-  : (f : X -> A, g : X -> B) -> (x : X) ->
-    pairMap.Prod(f, g)(x) 1 = f(x)
-let (_, _) => (_). refl
+val pairMapProperty1.Prod [A B X : Ty]
+  : (f : X -> A) & (g : X -> B) -> (x : X) ->
+    pairMap.Prod f g x .1 = f x
+let _ _ => _ => refl
 
 
-val pairMapProperty2.Prod[A : Ty, B : Ty, X : Ty]
-  : (f : X -> A, g : X -> B) -> (x : X) ->
-    pairMap.Prod(f, g)(x) 2 = g(x)
-let (_, _) => (_). refl
+val pairMapProperty2.Prod [A B X : Ty]
+  : (f : X -> A) & (g : X -> B) -> (x : X) ->
+    pairMap.Prod f g x .2 = g x
+let _ _ => _ => refl

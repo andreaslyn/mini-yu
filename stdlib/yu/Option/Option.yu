@@ -2,24 +2,28 @@ import "yu/basic/Fun.yu"
 import "yu/Bool/Bool.yu"
 
 
-data (?_\Ty) : Ty -> Ty
-let no[A : Ty] : ? A
-let yes[A : Ty] : A -> ? A
+data Option : Ty -> Ty
+let no [A : Ty] : ? A
+let yes [A : Ty] : A -> ? A
 
 
-val _isNo\?_\Ty[A : Ty] : ? A -> Bool
+val (?_\Ty) : Ty -> Ty
+let => Option
+
+
+val _.isNo\Option [A : Ty] : ? A -> Bool
 let (no) => true
 let (yes(_)) => false
 
 
-val _isYes\?_\Ty[A : Ty] : ? A -> Bool
-let => (!_) @ _isNo\?_\Ty
+val _.isYes\Option [A : Ty] : ? A -> Bool
+let => (!_) @ _.isNo\Option
 
 
-val _>>=_\?_\Ty[A; B : Ty] : (? A, A -> ? B) -> ? B
-let (no, _) => no
-let (yes(a), f) => f(a)
+val _>>=_\Option [A B : Ty] : ? A & (A -> ? B) -> ? B
+let no _ => no
+let (yes a) f => f a
 
 
-val _map\?_\Ty[A; B : Ty] : (? A, A -> B) -> ? B
-let (x, f) => x >>= yes @ f
+val _.map\Option [A B : Ty] : ? A & (A -> B) -> ? B
+let x f => x >>= yes @ f

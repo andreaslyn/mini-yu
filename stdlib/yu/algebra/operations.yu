@@ -2,17 +2,17 @@ import "yu/basic/Equal.yu"
 import "yu/Prod/Prod.yu"
 
 
-val _IsAssociative\_->_[A : Ty] : ((A, A) -> A) -> Ty
-let (f) => (x : A, y : A, z : A) -> f(x, f(y, z)) = f(f(x, y), z)
+val _.IsAssociative\_->_ [A : Ty] : (A & A -> A) -> Ty
+let f => (x y z : A) -> f x (f y z) = f (f x y) z
 
 
-val _HasLeftUnit\_->_[A : Ty] : ((A, A) -> A, A) -> Ty
-let (f, u) => (x : A) -> f(u, x) = x
+val _.HasLeftUnit\_->_ [A : Ty] : (A & A -> A) & A -> Ty
+let f u => (x : A) -> f u x = x
 
 
-val _HasRightUnit\_->_[A : Ty] : ((A, A) -> A, A) -> Ty
-let (f, u) => (x : A) -> f(x, u) = x
+val _.HasRightUnit\_->_ [A : Ty] : (A & A -> A) & A -> Ty
+let f u => (x : A) -> f x u = x
 
 
-val _HasUnit\_->_[A : Ty] : ((A, A) -> A, A) -> Ty
-let (f, u) => f HasLeftUnit(u) & f HasRightUnit(u)
+val _.HasUnit\_->_ [A : Ty] : (A & A -> A) & A -> Ty
+let f u => f .HasLeftUnit u && f .HasRightUnit u

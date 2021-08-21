@@ -219,7 +219,8 @@ checkRefNameValid (lo, na0) = do
     invalidNameSplit :: VarName -> Bool
     invalidNameSplit n =
       let (h, n', t) = nameSplit n
-      in h == '.' ||
+      in length n == 2 && head n == '_' ||
+         h == '.' ||
           if h == '_'
           then
             if not (null n')
@@ -2002,14 +2003,18 @@ doTcExprApp isTrial subst operandArg ty f args = do
     rm <- lift Env.getRefMap
     case preTermDomCod rm (termTy f') of
       Nothing -> doMakeTermApp f'
-      Just (_, cod, _) -> do
-        asp <- getArgSplit f'
-        if isNothing asp
-        then makeTrivialApp f' cod
-        else
-          case preTermDomCod rm cod of
-            Nothing -> doMakeTermApp f'
-            Just (_, cod', _) -> makeTrivialApp f' cod'
+      Just (dom, cod, _) ->
+        if length dom /= length args
+        then
+          doMakeTermApp f'
+        else do
+          asp <- getArgSplit f'
+          if isNothing asp
+          then makeTrivialApp f' cod
+          else
+            case preTermDomCod rm cod of
+              Nothing -> doMakeTermApp f'
+              Just (_, cod', _) -> makeTrivialApp f' cod'
   where
     makeTrivialApp :: Monad m => Term -> PreTerm -> ExprT m Term
     makeTrivialApp f' cod = do

@@ -951,6 +951,7 @@ writePreTerm im rm (TermFun imps _ (Just n) ct) = do
   args <- mapM (\_ -> nextVarName) [1..n]
   writeFunImplicitNames imps
   writeNameList args
+  writeStr " => "
   writeCaseTree im rm (map Left imps ++ map Left args) ct
 writePreTerm im rm (TermLazyFun _ f) =
   writeStr "[] => " >> writePreTerm im rm f

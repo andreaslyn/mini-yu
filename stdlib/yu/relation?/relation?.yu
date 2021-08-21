@@ -4,37 +4,37 @@ import "yu/basic/Bool.yu"
 import "yu/Prod/Prod.yu"
 
 
-val _IsReflexive?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => (x : A) -> ? R(x, x)
+val _.IsReflexive?\_->_ [A : Ty] : (A & A -> Bool) -> Ty
+let R => (x : A) -> ? R x x
 
 
-val _IsIrreflexive?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => (x : A) -> ? ! R(x, x)
+val _.IsIrreflexive?\_->_ [A : Ty] : (A & A -> Bool) -> Ty
+let R => (x : A) -> ? ! R x x
 
 
-val _IsSymmetric?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => (x; y : A, ? R(x, y)) -> ? R(y, x)
+val _.IsSymmetric?\_->_ [A : Ty] : (A & A -> Bool) -> Ty
+let R => (x y : A) & ? R x y -> ? R y x
 
 
-val _IsAsymmetric?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => (x; y : A, ? R(x, y)) -> ? ! R(y, x)
+val _.IsAsymmetric?\_->_ [A : Ty] : (A & A -> Bool) -> Ty
+let R => (x y : A) & ? R x y -> ? ! R y x
 
 
-val _IsTransitive?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => (x; y; z : A, ? R(x, y), ? R(y, z)) -> ? R(x, z)
+val _.IsTransitive?\_->_ [A : Ty] : (A & A -> Bool) -> Ty
+let R => (x y z : A) & ? R x y & ? R y z -> ? R x z
 
 
-val _IsConnex?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => (x; y : A) -> ? (R(x, y) | R(y, x))
+val _.IsConnex?\_->_ [A : Ty] : (A & A -> Bool) -> Ty
+let R => (x y : A) -> ? (R x y || R y x)
 
 
-val _IsPreorder?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => R IsReflexive? & R IsTransitive?
+val _.IsPreorder?\_->_ [A : Ty] : (A & A -> Bool) -> Ty
+let R => R .IsReflexive? && R .IsTransitive?
 
 
-val _IsTotalPreorder?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => R IsConnex? & R IsTransitive?
+val _.IsTotalPreorder?\_->_ [A : Ty] : (A & A -> Bool) -> Ty
+let R => R .IsConnex? && R .IsTransitive?
 
 
-val _IsEquivalence?\_->_[A : Ty] : ((A, A) -> Bool) -> Ty
-let (R) => R IsSymmetric? & R IsPreorder?
+val _.IsEquivalence?\_->_ [A : Ty] : (A & A -> Bool) -> Ty
+let R => R .IsSymmetric? && R .IsPreorder?

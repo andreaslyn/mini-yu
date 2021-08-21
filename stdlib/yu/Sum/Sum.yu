@@ -1,9 +1,13 @@
 
-data _|_\Ty : (Ty, Ty) -> Ty
-let in1[A; B : Ty] : A -> A | B
-let in2[A; B : Ty] : B -> A | B
+data Sum : Ty & Ty -> Ty
+let in1 [A B : Ty] : A -> A || B
+let in2 [A B : Ty] : B -> A || B
 
 
-val _>>=_\_|_\Ty[A; B; C : Ty] : (A | B, B -> A | C) -> A | C
-let (in1(x), _) => in1(x)
-let (in2(y), f) => f(y)
+val _||_\Ty : Ty & Ty -> Ty
+let => Sum
+
+
+val _>>=_\Sum[A B C : Ty] : A || B & (B -> A || C) -> A || C
+let (in1 x) _ => in1 x
+let (in2 y) f => f y
