@@ -2324,13 +2324,15 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
                     else a
                 ) [] (zip ias tys)
   let pmap = Map.fromList (map (\(x,y) -> (snd x, y)) pargs)
-  let (pns, pargs') = foldr (\(x, _) (a1, a2) ->
-                          if Set.member x pnames
-                            then (x : a1,
-                                  fromJust (Map.lookup x pmap) : a2)
-                            else (a1, a2)
-                        ) ([], []) ias
-  let args0 = dependencyOrderArgs (preTermVars rm) (map (\(n, d) -> (Just n, d)) tys0) pargs'
+  let trp = foldr (\((x, _), s) (a1, a2, ss) ->
+                    if Set.member x pnames
+                    then
+                      (x : a1, fromJust (Map.lookup x pmap) : a2, s : ss)
+                    else
+                      (a1, a2, ss)
+                  ) ([], [], []) (zip ias tys0)
+  let (pns, pargs', tys') = trp
+  let args0 = dependencyOrderArgs (preTermVars rm) (map (\(n, d) -> (Just n, d)) tys') pargs'
   let args = map (\(d, (i, _, a)) -> (i, d, a)) (zip z args0)
   (tsu, bsu, ps) <- tcPatternArgs newpids IntMap.empty fsu args
   let pt = patternTy f'
