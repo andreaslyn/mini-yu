@@ -37,8 +37,8 @@ let [a := false] [b := false] => refl
 val op<->ToOp=.Bool [b c : Bool] : ? b <-> ? c -> b = c
 let [b := true] [c := true](_) => refl
 let [b := false] [c := false](_) => refl
-let [b := true] [c := false](f $ _) => match f refl let {} end
-let [b := false] [c := true](_ $ g) => match g refl let {} end
+let [b := true] [c := false](f $ _) => case f refl | {} end
+let [b := false] [c := true](_ $ g) => case g refl | {} end
 
 
 val op=ToOp<->.Bool [b c : Bool] : b = c -> ? b <-> ? c
@@ -52,7 +52,7 @@ let [b := false] _ => refl
 
 val pullOutOp!.Bool [b : Bool] : ? ! b -> ! ? b
 let [b := true] {}
-let [b := false] _ => e => match e let {} end
+let [b := false] _ => e => case e | {} end
 
 
 val op!ToOp?false.Bool [b : Bool] : ? ! b -> ?false b

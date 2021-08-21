@@ -16,7 +16,7 @@ let refl [a : A] [A : Ty] : Id a a
 val test2 : List Nat
 let =>
   x := eid (List (Id 0 0)) nil;
-  match x
-  let nil => cons 0 nil
-  let cons refl _ => cons (++ 0) nil
+  case x
+  | nil => cons 0 nil
+  | cons refl _ => cons (++ 0) nil
   end

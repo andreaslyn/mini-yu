@@ -8,9 +8,9 @@ let =>
 val evens : List(Nat) -> List(Nat)
 let (xs) =>
   fold xs nil of n m =>
-    match m
-    let nil => _::_ n nil
-    let _ => _::_ n m
+    case m
+    | nil => _::_ n nil
+    | _ => _::_ n m
     end
 
 val fold' [A : Ty] [B : Ty] : (A & B -> B) & List(A) & B -> B
@@ -19,9 +19,9 @@ let f xs y => fold xs y f
 val evens' : List(Nat) -> List(Nat)
 let (xs) =>
   r := fold'(n m =>
-    match m
-    let nil => _::_ n nil
-    let _ => _::_ n m
+    case m
+    | nil => _::_ n nil
+    | _ => _::_ n m
     end) xs nil;
   r
 
@@ -34,13 +34,13 @@ let isArg : (m : Nat) & (n : Nat) & n = m -> IsArg m n
 val.. list-len [A : Ty] : List(A) -> Nat
 let =>
   tl := ((f : List(A) -> Nat) (xs : List(A)) =>
-    match xs
-    let nil => 0
-    let _ :: xs => f(xs)
+    case xs
+    | nil => 0
+    | _ :: xs => f(xs)
     end);
   aux := ((xs : List(A)) =>
-    match xs
-    let nil => 0
-    let _::_ x xs => tl ((++_) @ list-len) (_::_ x xs)
+    case xs
+    | nil => 0
+    | _::_ x xs => tl ((++_) @ list-len) (_::_ x xs)
     end);
   aux

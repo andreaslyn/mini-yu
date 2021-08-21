@@ -10,7 +10,7 @@ module ParseTree
   , Expr (..)
   , ExprSeqElem
   , ExprListTypedElem
-  , MatchCase
+  , CaseCase
   , ParsePattern (..)
 
   , astToString -- Printing
@@ -73,7 +73,7 @@ data Expr = ExprFun Loc VarList Expr
           | ExprLazyApp Expr
           | ExprVar (Loc, String)
           | ExprSeq ExprSeqElem Expr
-          | ExprMatch Loc Expr [MatchCase]
+          | ExprCase Loc Expr [CaseCase]
           | ExprUnitElem Loc
           | ExprUnitTy Loc
           | ExprTy Loc
@@ -83,7 +83,7 @@ type ExprSeqElem = Either Expr (ParsePattern, Expr)
 
 type ExprListTypedElem = Either Expr ((Loc, String), Expr)
 
-type MatchCase = Either ParsePattern (ParsePattern, Expr)
+type CaseCase = Either ParsePattern (ParsePattern, Expr)
 
 data ParsePattern = ParsePatternApp ParsePattern [ParsePattern]
                   | ParsePatternImplicitApp ParsePattern
@@ -129,7 +129,7 @@ exprLoc (ExprApp e _) = exprLoc e
 exprLoc (ExprImplicitApp e _) = exprLoc e
 exprLoc (ExprLazyApp e) = exprLoc e
 exprLoc (ExprVar (lo, _)) = lo
-exprLoc (ExprMatch lo _ _) = lo
+exprLoc (ExprCase lo _ _) = lo
 exprLoc (ExprTy lo) = lo
 exprLoc (ExprSeq e _) = exprSeqElemLoc e
 
@@ -330,14 +330,14 @@ writeExpr (ExprSeq e1 e2) = do
     writeExprSeqTail (ExprSeq e1' e2') =
       writeExprSeqElem e1' >> writeExprSeqTail e2'
     writeExprSeqTail e = writeExpr e
-writeExpr (ExprMatch _ e ofs) = do
-  writeStr "match "
+writeExpr (ExprCase _ e ofs) = do
+  writeStr "case "
   writeExpr e
   newLine
-  let writeOfs :: [MatchCase] -> ToString ()
+  let writeOfs :: [CaseCase] -> ToString ()
       writeOfs [] = return ()
       writeOfs (Right (p, x) : os) = do
-        writeStr "let "
+        writeStr "| "
         writePattern p
         writeStr " => "
         incIndent
@@ -347,7 +347,7 @@ writeExpr (ExprMatch _ e ofs) = do
         newLine
         writeOfs os
       writeOfs (Left p : os) = do
-        writeStr "let "
+        writeStr "| "
         writePattern p
         writeStr " absurd"
         newLine

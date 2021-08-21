@@ -32,9 +32,9 @@ let (n) => aux
 where
   val aux : Nat -> Nat
   let (m) =>
-    match m
-    let zero => n
-    let succ(m) => succ(aux(m))
+    case m
+    | zero => n
+    | succ m => succ (aux m)
     end
 end
 

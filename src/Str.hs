@@ -87,6 +87,7 @@ isStrictKeyword s
   | s == "of" = True
   | s == "=>" = True
   | s == "&" = True
+  | s == "|" = True
   | True = False
 
 isPunctuation :: String -> Bool

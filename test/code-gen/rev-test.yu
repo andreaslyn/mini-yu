@@ -51,15 +51,15 @@ end
 val main : {} ->> {}
 let () =>
   xs := gen-list 10000000;
-  match listFirstAndLast(reverse'(reverse'(xs)))
-  let 0 $ 0 => "0" .println
-  let _ $ 0 => "1" .println
-  let 0 $ _ => "2" .println
-  let _ $ _ => "3" .println
+  case listFirstAndLast(reverse'(reverse'(xs)))
+  | 0 $ 0 => "0" .println
+  | _ $ 0 => "1" .println
+  | 0 $ _ => "2" .println
+  | _ $ _ => "3" .println
   end;
-  match listFirstAndLast(reverse(reverse(xs)))
-  let 0 $ 0 => "0" .println
-  let _ $ 0 => "1" .println
-  let 0 $ _ => "2" .println
-  let _ $ _ => "3" .println
+  case listFirstAndLast(reverse(reverse(xs)))
+  | 0 $ 0 => "0" .println
+  | _ $ 0 => "1" .println
+  | 0 $ _ => "2" .println
+  | _ $ _ => "3" .println
   end

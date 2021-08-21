@@ -44,9 +44,9 @@ let (if true .then f) _ => f
 let (if false .then _) g => g
 let (i .or b .then f) g =>
   i .else of
-    match b []
-    let true => f
-    let false => g
+    case b []
+    | true => f
+    | false => g
     end
 
 

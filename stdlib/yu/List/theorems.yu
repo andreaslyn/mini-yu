@@ -122,14 +122,14 @@ where
     let e =>
       e .rew
         (c => ? ! c .rec lt.Order (xs .cmp ys C) gt.Order .gt? -> Empty)
-        (a => match a let {} end)
+        (a => case a | {} end)
         lxys
 
     val cmpyzGtIsEmpty : C .cmp y z = gt.Order -> Empty
     let e =>
       e .rew
         (c => ? ! c .rec lt.Order (ys .cmp zs C) gt.Order .gt? -> Empty)
-        (a => match a let {} end)
+        (a => case a | {} end)
         lyzs
 
     val cmpxyEqToGt : C .cmp x y = eq.Order -> ? ! xs .cmp ys C .gt?
@@ -225,14 +225,14 @@ where
     where
       val contraLt : ! ? C .cmp y x .lt?
       let ltyx =>
-        match ! ltToGt y x ltyx @ C .cmp x y .eq?ToOp= eqxy
-        let {}
+        case ! ltToGt y x ltyx @ C .cmp x y .eq?ToOp= eqxy
+        | {}
         end
 
       val contraGt : ! ? C .cmp y x .gt?
       let gtyx =>
-        match ! gtToLt y x gtyx @ C .cmp x y .eq?ToOp= eqxy
-        let {}
+        case ! gtToLt y x gtyx @ C .cmp x y .eq?ToOp= eqxy
+        | {}
         end
     end
   end

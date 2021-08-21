@@ -48,7 +48,7 @@ let m 0 => m
 let (++ m) (++ n) => m - n
 
 val succ-<>-0 : (n : Nat) -> ++ n <> 0
-let n => p => match p let {} end
+let n => p => case p | {} end
 
 val plus0 : (n : Nat) -> n = 0 + n
 let 0 => refl

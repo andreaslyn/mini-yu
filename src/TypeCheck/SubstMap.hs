@@ -86,10 +86,10 @@ doSubstPreTerm vi m (TermImplicitApp b f xs) =
 doSubstPreTerm vi m (TermLazyApp io f) =
   let f' = doSubstPreTerm vi m f
   in TermLazyApp io f'
-doSubstPreTerm vi m (TermMatch t ct) =
+doSubstPreTerm vi m (TermCase t ct) =
   let t' = doSubstPreTerm vi m t
       ct' = doSubstCaseTree vi m ct
-  in TermMatch t' ct'
+  in TermCase t' ct'
 doSubstPreTerm vi m (TermRef v s) =
   -- First substitute with s and then substitute with m.
   -- So the terms inside s need to be substituted with m:

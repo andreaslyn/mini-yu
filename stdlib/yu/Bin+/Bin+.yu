@@ -82,14 +82,14 @@ let 1.Bin+ (_ % _) => lt.Order
 let (m % false) (n % false) => m .cmp n
 let (m % true) (n % true) => m .cmp n
 let (m % false) (n % true) =>
-  match m .cmp n
-  let gt.Order => gt.Order
-  let _ => lt.Order
+  case m .cmp n
+  | gt.Order => gt.Order
+  | _ => lt.Order
   end
 let (m % true) (n % false) =>
-  match m .cmp n
-  let lt.Order => lt.Order
-  let _ => gt.Order
+  case m .cmp n
+  | lt.Order => lt.Order
+  | _ => gt.Order
   end
 
 

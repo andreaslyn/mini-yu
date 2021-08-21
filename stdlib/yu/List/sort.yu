@@ -8,33 +8,33 @@ let origList cmp => sequences origList .tournament merge
 where
   val sequences : List A -> DelayList1 (List A)
   let (a :: b :: xs) =>
-    match cmp .le? a b
-    let false => descending b (a :: nil) xs
-    let true => ascending b (a :: _) xs
+    case cmp .le? a b
+    | false => descending b (a :: nil) xs
+    | true => ascending b (a :: _) xs
     end
   let xs => one.DelayList1 xs
 
   val descending : A & List A & List A -> DelayList1 (List A)
   let a as (b :: bs) =>
-    match cmp .le? a b
-    let false => descending b (a :: as) bs
-    let true => (a :: as) :: of _ => sequences (b :: bs)
+    case cmp .le? a b
+    | false => descending b (a :: as) bs
+    | true => (a :: as) :: of _ => sequences (b :: bs)
     end
   let a as bs => (a :: as) :: of _ => sequences bs
 
   val ascending : A & (List A -> List A) & List A -> DelayList1 (List A)
   let a as (b :: bs) =>
-    match cmp .le? a b
-    let true => ascending b (ys => as (a :: ys)) bs
-    let false => as (a :: nil) :: of _ => sequences (b :: bs)
+    case cmp .le? a b
+    | true => ascending b (ys => as (a :: ys)) bs
+    | false => as (a :: nil) :: of _ => sequences (b :: bs)
     end
   let a as bs => as (a :: nil) :: of _ => sequences(bs)
 
   val merge : List A & List A -> List A
   let (a :: as) (b :: bs) =>
-    match cmp .le? a b
-    let false => b :: merge (a :: as) bs
-    let true => a :: merge as (b :: bs)
+    case cmp .le? a b
+    | false => b :: merge (a :: as) bs
+    | true => a :: merge as (b :: bs)
     end
   let nil bs => bs
   let as nil => as

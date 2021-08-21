@@ -20,9 +20,9 @@ let (t1 .node t2 _ black.RB) =>
 val _.blackInvariant\RBTree [A : Ty] [od : Ordering? A] :
   RBTree A od -> Bool
 let t =>
-  match t .pathCountBlackNodes
-  let nil => true
-  let n :: ns => ns .accum true of a x => a && (x =? n)
+  case t .pathCountBlackNodes
+  | nil => true
+  | n :: ns => ns .accum true of a x => a && (x =? n)
   end
 
 

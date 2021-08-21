@@ -106,7 +106,7 @@ doPreTermVars vis r (TermRef v su) = do
 doPreTermVars _ _ (TermVar _ v) = IntSet.singleton (varId v)
 doPreTermVars _ _ (TermData _) = IntSet.empty
 doPreTermVars _ _ (TermCtor _ _) = IntSet.empty
-doPreTermVars vis r (TermMatch t ct) =
+doPreTermVars vis r (TermCase t ct) =
   let t' = doPreTermVars vis r t
       ct' = caseTreeVars vis r ct
   in IntSet.union t' ct'
@@ -182,7 +182,7 @@ doPreTermRefs vis r (TermRef v su) = do
 doPreTermRefs _ _ (TermVar _ _) = IntSet.empty
 doPreTermRefs _ _ (TermData _) = IntSet.empty
 doPreTermRefs _ _ (TermCtor _ _) = IntSet.empty
-doPreTermRefs vis r (TermMatch t ct) =
+doPreTermRefs vis r (TermCase t ct) =
   let t' = doPreTermRefs vis r t
       ct' = caseTreeRefs vis r ct
   in IntSet.union t' ct'
@@ -319,7 +319,7 @@ doPreTermsAlphaEqual bi r (TermFun [] io1 _ (CaseLeaf i1 _ t1 _)) t2 =
 doPreTermsAlphaEqual bi r t1 (TermFun [] io2 _ (CaseLeaf i2 _ t2 _)) =
   doPreTermsAlphaEqual bi r
     (TermApp io2 t1 (map (\i -> TermVar False (mkVar (varId i) "_")) i2)) t2
-doPreTermsAlphaEqual bi r (TermMatch t1 ct1) (TermMatch t2 ct2) =
+doPreTermsAlphaEqual bi r (TermCase t1 ct1) (TermCase t2 ct2) =
   doPreTermsAlphaEqual bi r t1 t2
   && caseTreesAlphaEqual bi IntMap.empty r ct1 ct2
 doPreTermsAlphaEqual _ _ _ _ = False
@@ -425,10 +425,10 @@ preTermNormalize m (TermLazyApp io f) =
   in case f' of
       TermLazyFun _ t -> preTermNormalize m t
       _ -> TermLazyApp io f'
-preTermNormalize m (TermMatch t ct) =
+preTermNormalize m (TermCase t ct) =
   let t' = preTermNormalize m t
   in case caseTreeNormalize m ct [t'] of
-      Nothing -> TermMatch t' ct
+      Nothing -> TermCase t' ct
       Just r -> preTermNormalize m r
 
 normalizeAppBase :: PreTerm -> PreTerm -> PreTerm
@@ -527,7 +527,7 @@ preTermCodRootType rm pt =
     doGetRootType (TermVar b v) = Just (TermVar b v)
     doGetRootType (TermData v) = Just (TermData v)
     doGetRootType (TermCtor _ _) = Nothing
-    doGetRootType (TermMatch _ _) = Nothing
+    doGetRootType (TermCase _ _) = Nothing
     doGetRootType TermUnitElem = Nothing
     doGetRootType TermUnitTy = Just TermUnitTy
     doGetRootType TermEmpty = Nothing
@@ -712,7 +712,7 @@ preTermGetAlphaType _ _ _ TermUnitElem = Just TermUnitTy
 preTermGetAlphaType _ _ _ TermUnitTy = Just TermTy
 preTermGetAlphaType _ _ _ TermTy = Just TermTy
 preTermGetAlphaType _ _ _ (TermFun _ _ _ _) = Nothing
-preTermGetAlphaType _ _ _ (TermMatch _ _) = Nothing
+preTermGetAlphaType _ _ _ (TermCase _ _) = Nothing
 preTermGetAlphaType _ _ _ TermEmpty = Nothing
 
 preTermIsThisVar :: Var -> PreTerm -> Bool
@@ -760,7 +760,7 @@ inferVarAlphaType _ _ _ TermUnitElem _ = Nothing
 inferVarAlphaType _ _ _ TermUnitTy _ = Nothing
 inferVarAlphaType _ _ _ TermTy _ = Nothing
 inferVarAlphaType _ _ _ (TermFun _ _ _ _) _ = Nothing
-inferVarAlphaType _ _ _ (TermMatch _ _) _ = Nothing
+inferVarAlphaType _ _ _ (TermCase _ _) _ = Nothing
 inferVarAlphaType _ _ _ TermEmpty _ = Nothing
 
 getAppAlphaArgumentWeight ::
@@ -841,7 +841,7 @@ getAppliedImplicits vis rm (TermLazyArrow _ c) =
   getAppliedImplicits vis rm c
 getAppliedImplicits vis rm (TermFun _ _ _ ct) =
   getAppliedImplicitsCaseTree vis rm ct
-getAppliedImplicits vis rm (TermMatch t ct) =
+getAppliedImplicits vis rm (TermCase t ct) =
   IntSet.union
     (getAppliedImplicits vis rm t)
     (getAppliedImplicitsCaseTree vis rm ct)
@@ -1123,7 +1123,7 @@ writePreTerm _ _ TermUnitElem = writeStr "()"
 writePreTerm _ _ TermUnitTy = writeStr "{}"
 writePreTerm _ _ TermTy = writeStr "Ty"
 writePreTerm _ _ TermEmpty = writeStr "{}"
-writePreTerm im rm (TermMatch e ct) = writeCaseTree im rm [Right e] ct
+writePreTerm im rm (TermCase e ct) = writeCaseTree im rm [Right e] ct
 
 takeOperatorStr :: String -> String
 takeOperatorStr = Str.stripOperatorStr . fst . Str.operandSplit
@@ -1229,19 +1229,19 @@ writeCaseTree _ _ [] (CaseLeaf (_:_) _ _ _) =
 writeCaseTree _ _ [] (CaseEmpty _) = error "empty case tree case without argument"
 writeCaseTree im rm ps (CaseEmpty idx) = do
   let (p, _) = removeIdx idx ps
-  writeStr "match "
+  writeStr "case "
   case p of
     Left n -> writeStr n
     Right e -> writePreTerm im rm e
   incIndent
   newLine
-  writeStr "let {}"
+  writeStr "| {}"
   newLine
   writeStr "end"
   decIndent
 writeCaseTree im rm ps (CaseNode idx m d) = do
   let (p, ps') = removeIdx idx ps
-  writeStr "match "
+  writeStr "case "
   case p of
     Left n -> writeStr n
     Right e -> writePreTerm im rm e
@@ -1251,7 +1251,7 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
     Nothing -> return ()
     Just (_vs, ct) -> do
       newLine
-      writeStr "let _ => "
+      writeStr "| _ => "
       writeCaseTree im rm ps' ct
   newLine
   writeStr "end"
@@ -1262,7 +1262,7 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
       (VarId, ([Var], CaseTree)) -> ToString ()
     writeCase ps' (i, (_, ct)) = do
       newLine
-      writeStr "let "
+      writeStr "| "
       let t = Env.forceLookupRefMap i rm
       let imps = fromJust (IntMap.lookup i im)
       if not (null imps)
@@ -1348,13 +1348,13 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
 
 writeCaseTree im rm ps (CaseUnit idx (_vs, ct)) = do
   let (p, ps') = removeIdx idx ps
-  writeStr "match "
+  writeStr "case "
   case p of
     Left n -> writeStr n
     Right e -> writePreTerm im rm e
   incIndent
   newLine
-  writeStr "let [] => "
+  writeStr "| () => "
   writeCaseTree im rm ps' ct
   newLine
   writeStr "end"
@@ -1584,5 +1584,5 @@ needsAppParens TermUnitElem = False
 needsAppParens TermUnitTy = False
 needsAppParens TermTy = False
 needsAppParens TermEmpty = False
-needsAppParens (TermMatch _ _) = False
+needsAppParens (TermCase _ _) = False
 needsAppParens _ = True

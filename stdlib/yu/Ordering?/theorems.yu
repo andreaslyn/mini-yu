@@ -6,9 +6,9 @@ val leToEqIsReflexive?.Ordering? [A : Ty] :
   (le : A & A -> Bool) & le .IsTotalPreorder? ->
   leToEq?.Ordering? le .IsReflexive?
 let le (isC $ _) => x =>
-  match pullOutOp||.Bool (isC x x)
-  let in1 h => h .rew (t => ? (t && t)) refl
-  let in2 h => h .rew (t => ? (t && t)) refl
+  case pullOutOp||.Bool (isC x x)
+  | in1 h => h .rew (t => ? (t && t)) refl
+  | in2 h => h .rew (t => ? (t && t)) refl
   end
 
 
@@ -89,12 +89,12 @@ where
   let x y z ltxy ltyz lezx =>
     c := isC x y;
     c' := pullOutOp||.Bool c;
-    match c'
-    let in2 leyx =>
-      match ! leyx @ op!ToOp?false.Bool ltxy let {} end
-    let in1 lexy =>
+    case c'
+    | in2 leyx =>
+      case ! leyx @ op!ToOp?false.Bool ltxy | {} end
+    | in1 lexy =>
       lezy := isT z x y lezx lexy;
-      match ! lezy @ op!ToOp?false.Bool ltyz let {} end
+      case ! lezy @ op!ToOp?false.Bool ltyz | {} end
     end
 end
 
@@ -129,7 +129,7 @@ where
     a := R .leIsTransitive? y z x leyz lezx;
     ltxy' := R .isOrdering? .ltIsCompatible x y .resp (? _) ltxy;
     b := op!ToOp?false.Bool ltxy';
-    match ! a @ b let {} end
+    case ! a @ b | {} end
 end
 
 
@@ -152,7 +152,7 @@ where
     a := R .leIsTransitive? z x y lezx lexy;
     ltyz' := R .isOrdering? .ltIsCompatible y z .resp (? _) ltyz;
     b := op!ToOp?false.Bool ltyz';
-    match ! a @ b let {} end
+    case ! a @ b | {} end
 end
 
 
@@ -178,15 +178,15 @@ let R x y =>
   R .isOrdering? .cmpIsCompatible x y .rewL(_ .lt?) of
   (_ @ ! R .isOrdering? .ltIsCompatible x y) of
   leToCmpLtIsOp! (R .le? x y) (R .le? y x) of c =>
-    match pullOutOp||.Bool (R .leIsConnex? x y)
-    let in1 h => match ! h @ op!ToOp?false.Bool c let {} end
-    let in2 h => h
+    case pullOutOp||.Bool (R .leIsConnex? x y)
+    | in1 h => case ! h @ op!ToOp?false.Bool c | {} end
+    | in2 h => h
     end
 where
   val leToCmpLtIsOp! :
     (a : Bool) & (b : Bool) & (? ! a -> ? b) ->
     leToCmpImpl.Ordering? a b .lt? = ! b
-  let false false c => match c refl let {} end
+  let false false c => case c refl | {} end
   let false true _ => refl
   let true false _ => refl
   let true true _ => refl

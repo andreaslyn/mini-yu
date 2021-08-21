@@ -54,36 +54,36 @@ let (succ m) (succ n) => minus m n
 
 val.. lnatToStr : LNat -> Str
 let (n0) =>
-  match n0
-  let zero => "0"
-  let succ(n) =>
-    match n[]
-    let zero => "1"
-    let succ(n) =>
-      match n[]
-      let zero => "2"
-      let succ(n) =>
-        match n[]
-        let zero => "3"
-        let succ(n) =>
-          match n[]
-          let zero => "4"
-          let succ(n) =>
-            match n[]
-            let zero => "5"
-            let succ(n) =>
-              match n[]
-              let zero => "6"
-              let succ(n) =>
-                match n[]
-                let zero => "7"
-                let succ(n) =>
-                  match n[]
-                  let zero => "8"
-                  let succ(n) =>
-                    match n[]
-                    let zero => "9"
-                    let succ(_) =>
+  case n0
+  | zero => "0"
+  | succ(n) =>
+    case n[]
+    | zero => "1"
+    | succ(n) =>
+      case n[]
+      | zero => "2"
+      | succ(n) =>
+        case n[]
+        | zero => "3"
+        | succ(n) =>
+          case n[]
+          | zero => "4"
+          | succ(n) =>
+            case n[]
+            | zero => "5"
+            | succ(n) =>
+              case n[]
+              | zero => "6"
+              | succ(n) =>
+                case n[]
+                | zero => "7"
+                | succ(n) =>
+                  case n[]
+                  | zero => "8"
+                  | succ(n) =>
+                    case n[]
+                    | zero => "9"
+                    | succ(_) =>
                       x := natDiv n0 L10;
                       y := natMod n0 L10;
                       lnatToStr x :+: lnatToStr y

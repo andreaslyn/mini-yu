@@ -24,9 +24,9 @@ let ns => ns .map _.isEven
 val count-evens : List Bool -> Nat
 let ns =>
   ns .fold 0 of b x =>
-    match b
-    let true => ++ x
-    let false => x
+    case b
+    | true => ++ x
+    | false => x
     end
 
 val test : Nat

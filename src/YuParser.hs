@@ -542,7 +542,7 @@ parseExprLeaf =
   <|> parseExprUnitTy
   <|> parseExprVar
   <|> parseParenExpr
-  <|> parseMatchExpr
+  <|> parseCaseExpr
   <|> parseExprTy
   <|> parseExprStr
 
@@ -613,17 +613,17 @@ parseParenExpr = do
       _ <- yuKeyTok TokParenR
       return e
 
-parseMatchExpr :: YuParsec Expr
-parseMatchExpr = do
-  lo <- yuKeyTok TokMatch
+parseCaseExpr :: YuParsec Expr
+parseCaseExpr = do
+  lo <- yuKeyTok TokCase
   e <- parseExpr
-  ofs <- many1 matchCase
+  ofs <- many1 caseCase
   _ <- yuKeyTok TokEnd
-  return (ExprMatch lo e ofs)
+  return (ExprCase lo e ofs)
   where
-    matchCase :: YuParsec MatchCase
-    matchCase = do
-      _ <- yuKeyTok TokLet
+    caseCase :: YuParsec CaseCase
+    caseCase = do
+      _ <- yuKeyTok TokBar
       p <- parsePattern
       e <- optionMaybe caseDef
       case e of

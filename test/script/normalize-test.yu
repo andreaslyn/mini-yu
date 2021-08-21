@@ -69,9 +69,9 @@ let (++ m) n =>
 
 val _*_\Nat : Nat & Nat -> Nat
 let m n =>
-  r := match n
-    let 0 => 0
-    let ++ n => m + m * n
+  r := case n
+    | 0 => 0
+    | ++ n => m + m * n
     end;
   r
 
@@ -82,10 +82,10 @@ val test-id-trans-case :
   (A : Ty) & (x : A) & (y : A) & (z : A) & Id A x y & Id A y z ->
   Id A x z
 let A x y z e1 e2 =>
-  match e1
-  let refl _ _ =>
-    match e2
-    let refl _ _ => refl A x
+  case e1
+  | refl _ _ =>
+    case e2
+    | refl _ _ => refl A x
     end
   end
 
@@ -99,12 +99,12 @@ data Empty : Ty let {}
 
 val test-empty : Empty -> {}
 let (e) =>
-  match e let {} end
+  case e | {} end
 
 val test-empty' : Empty -> {}
 let (e) =>
-  match e
-  let e => match e let {} end
+  case e
+  | e => case e | {} end
   end
 
 data Any : Ty

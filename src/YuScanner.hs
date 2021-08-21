@@ -42,10 +42,11 @@ data TokType =
   | TokExtern
   | TokVal
   | TokValDotDot
-  | TokMatch
+  | TokCase
   | TokOf
   | TokTy
   | TokAmp
+  | TokBar
   | TokColon
   | TokColonEq
   | TokDashGreater
@@ -93,10 +94,11 @@ tokTypeString t =
     TokExtern -> "extern"
     TokVal -> "val"
     TokValDotDot -> "val.."
-    TokMatch -> "match"
+    TokCase -> "case"
     TokOf -> "of"
     TokTy -> "Ty"
     TokAmp -> "&"
+    TokBar -> "|"
     TokColon -> ":"
     TokColonEq -> ":="
     TokDashGreater -> "->"
@@ -218,9 +220,10 @@ makeWordTok s lo
   | s == ":=" = return (tok TokColonEq lo)
   | s == "Ty" = return (tok TokTy lo)
   | s == "&" = return (tok TokAmp lo)
+  | s == "|" = return (tok TokBar lo)
   | s == "->" = return (tok TokDashGreater lo)
   | s == "->>" = return (tok TokDashGreaterIo lo)
-  | s == "match" = return (tok TokMatch lo)
+  | s == "case" = return (tok TokCase lo)
   | s == "of" = return (tok TokOf lo)
   | s == "=>" = return (tok TokEqGreater lo)
   | isOp1Char (head s) = return (tok (TokOp1 s) lo)

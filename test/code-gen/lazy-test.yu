@@ -49,18 +49,18 @@ where
   val.. even : [] -> Nat -> Bool
   let => n =>
     o := odd;
-    match n
-    let 0 => !' b
-    let ++ n => o n
+    case n
+    | 0 => !' b
+    | ++ n => o n
     end
 
   val.. odd : [] -> Nat -> Bool
   let =>
     e := even[];
     n =>
-      match n
-      let 0 => b
-      let ++ n => e n
+      case n
+      | 0 => b
+      | ++ n => e n
       end
 end
 

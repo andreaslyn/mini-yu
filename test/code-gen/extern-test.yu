@@ -9,11 +9,11 @@ extern len : (A : Ty) & List A -> Nat
 
 val main : {} ->> {}
 let () =>
-  match (!_\) true
-  let false => '1 .println
-  let true => '0 .println
+  case (!_\) true
+  | false => '1 .println
+  | true => '0 .println
   end;
-  match len Nat (0 :: 0 :: 0 :: nil)
-  let 0 => "0\n" .print
-  let _ => "1\n" .print
+  case len Nat (0 :: 0 :: 0 :: nil)
+  | 0 => "0\n" .print
+  | _ => "1\n" .print
   end

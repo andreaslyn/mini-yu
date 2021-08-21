@@ -25,5 +25,5 @@ let => refl
 val test-lazy-absurd : LazyId 2 3 -> (A : Ty) & A -> A
 let {}
 
-val test : match 0 [] let 0 => Ty let p _ => {} end
+val test : case 0 [] | 0 => Ty | p _ => {} end
 let => {}

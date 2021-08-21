@@ -36,7 +36,7 @@ end
 val main : {} ->> {}
 let () =>
   xs := gen-list 1000000.Bin;
-  match rev' (rev' xs)
-  let nil => "0" .println
-  let _ => "1" .println
+  case rev' (rev' xs)
+  | nil => "0" .println
+  | _ => "1" .println
   end

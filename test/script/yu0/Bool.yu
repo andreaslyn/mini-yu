@@ -35,11 +35,11 @@ let a => a = true
 val Id-b->Id : (a : Bool) & (b : Bool) -> True (a =b b) -> a = b
 let true true => _ => refl
 let false false => _ => refl
-let true false => c => match c let {} end
-let false true => c => match c let {} end
+let true false => c => case c | {} end
+let false true => c => case c | {} end
 
 val id->==b : (a : Bool) & (b : Bool) -> a = b -> True (a =b b)
-let true b => e => match e let refl => refl end
+let true b => e => case e | refl => refl end
 let false b => e => resp e (x => True(false =b x)) refl
 
 val involutionBnot : (b : Bool) -> ! ! b = b

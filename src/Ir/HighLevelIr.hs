@@ -78,7 +78,7 @@ data Expr =
   | Fun [Var] Expr
   | Extern Int
   | Lazy Bool Expr
-  | Match Var [(CtorId, FieldCnt, Expr)]
+  | Case Var [(CtorId, FieldCnt, Expr)]
   | ConstRef Const
   | CtorRef Ctor [Var]
   | Proj Int Var
@@ -106,7 +106,7 @@ freeVars p = \e -> evalState (freev e) IntSet.empty
       return (IntSet.difference e' (IntSet.fromList vs))
     freev (Extern _) = return IntSet.empty
     freev (Lazy _ e) = freev e
-    freev (Match v cs) = do
+    freev (Case v cs) = do
       cs' <- foldlM (\a (_, _, x) -> fmap (IntSet.union a) (freev x))
                   IntSet.empty cs
       return (IntSet.insert v cs')
@@ -528,7 +528,7 @@ irExpr (Te.TermCtor v _) = do
 irExpr (Te.TermVar _ v) = do
   v' <- lookupTermVar v
   return (Ret v')
-irExpr (Te.TermMatch e ct) = do
+irExpr (Te.TermCase e ct) = do
   v <- getNextVar
   e' <- irExpr e
   ct' <- irCaseTree [v] ct
@@ -572,15 +572,15 @@ irCaseTree xs (Te.CaseNode idx m d) = do
             c <- mapM (makeCtorCase False x xs') as
             return (map snd c)
   let allCases = sortOn (\(i, _, _) -> i) (cs ++ de)
-  return (Match x allCases)
+  return (Case x allCases)
 irCaseTree xs (Te.CaseUnit idx (vs, ct)) = do
   let (x, xs') = removeIdx idx xs
   localUpdateTermVars vs (repeat x) $ do
     ct' <- irCaseTree xs' ct
-    return (Match x [(0, 0, ct')])
+    return (Case x [(0, 0, ct')])
 irCaseTree xs (Te.CaseEmpty idx) = do
   let (x, _) = removeIdx idx xs
-  return (Match x [])
+  return (Case x [])
 
 makeCtorCase ::
   Bool -> Var -> [Var] -> (Te.VarId, ([Te.Var], Te.CaseTree)) ->
@@ -690,9 +690,9 @@ simplLazyForceExpr e@(Ap _ _ _) = return e
 simplLazyForceExpr (Fun vs e) =
   fmap (Fun vs) (simplLazyForceExpr e)
 simplLazyForceExpr e@(Extern _) = return e
-simplLazyForceExpr (Match v cs) = do
+simplLazyForceExpr (Case v cs) = do
   cs' <-  mapM (\(i, n, e) -> fmap ((,,) i n) (simplLazyForceExpr e)) cs
-  return (Match v cs')
+  return (Case v cs')
 simplLazyForceExpr e@(ConstRef _) = return e
 simplLazyForceExpr e@(CtorRef _ _) = return e
 simplLazyForceExpr e@(Proj _ _) = return e
@@ -776,7 +776,7 @@ isLetExpr _ = False
 
 isLetOrCaseExpr :: Expr -> Bool
 isLetOrCaseExpr (Let _ _ _) = True
-isLetOrCaseExpr (Match _ _) = True
+isLetOrCaseExpr (Case _ _) = True
 isLetOrCaseExpr _ = False
 
 exprToString :: Program -> Expr -> String
@@ -793,10 +793,10 @@ writeExpr _ p (Fun vs e) = do
   when (isLetExpr e) (writeStr ")")
 writeExpr _ _ (Extern a) = writeStr ("extern " ++ show a)
 writeExpr _ p (Lazy _ e) = writeStr "[]. " >> writeExpr True p e
-writeExpr inci p (Match v cs) = do
+writeExpr inci p (Case v cs) = do
   when inci incIndent
   newLine
-  writeStr "match "
+  writeStr "case "
   writeVar v
   writeCases cs
   newLine

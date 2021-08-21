@@ -5,9 +5,9 @@ val partition [A : Ty] : List A & (f : A -> Bool) -> List A && List A
 let nil _ => nil $ nil
 let (x :: xs) f =>
   a $ b := partition xs f;
-  match f x
-  let true => (x :: a) $ b
-  let false => a $ (x :: b)
+  case f x
+  | true => (x :: a) $ b
+  | false => a $ (x :: b)
   end
 
 
@@ -29,25 +29,25 @@ let origList cmp => merge-all (sequences origList)
 where
   val sequences : List A -> Delay-List1 (List A)
   let (a :: b :: xs) =>
-    match cmp a b
-    let false => descending b (a :: nil) xs
-    let true => ascending b (t => a :: t) xs
+    case cmp a b
+    | false => descending b (a :: nil) xs
+    | true => ascending b (t => a :: t) xs
     end
   let xs => one.Delay-List1 xs
 
   val descending : A & List A & List A -> Delay-List1 (List A)
   let a as (b :: bs) =>
-    match cmp a b
-    let false => descending b (a :: as) bs
-    let true => (a :: as) :: of _ => sequences (b :: bs)
+    case cmp a b
+    | false => descending b (a :: as) bs
+    | true => (a :: as) :: of _ => sequences (b :: bs)
     end
   let a as bs => (a :: as) :: of _ => sequences bs
 
   val ascending : A & (List A -> List A) & List A -> Delay-List1 (List A)
   let a as (b :: bs) =>
-    match cmp a b
-    let true => ascending b (ys => as (a :: ys)) bs
-    let false => as (a :: nil) :: of _ => sequences (b :: bs)
+    case cmp a b
+    | true => ascending b (ys => as (a :: ys)) bs
+    | false => as (a :: nil) :: of _ => sequences (b :: bs)
     end
   let a as bs => as (a :: nil) :: of _ => sequences bs
 
@@ -66,9 +66,9 @@ where
 
   val merge : List A & List A -> List A
   let (a :: as) (b :: bs) =>
-    match cmp a b
-    let false => b :: merge (a :: as) bs
-    let true => a :: merge as (b :: bs)
+    case cmp a b
+    | false => b :: merge (a :: as) bs
+    | true => a :: merge as (b :: bs)
     end
   let nil bs => bs
   let as nil => as
@@ -80,25 +80,25 @@ let origList cmp => mergeAll (sequences origList)
 where
   val sequences : List A -> List (List A)
   let (a :: b :: xs) =>
-    match cmp a b
-    let false => descending b (a :: nil)  xs
-    let true => ascending b (t => a :: t) xs
+    case cmp a b
+    | false => descending b (a :: nil)  xs
+    | true => ascending b (t => a :: t) xs
     end
   let xs => xs :: nil
 
   val descending : A & List A & List A -> List (List A)
   let a as (b :: bs) =>
-    match cmp a b
-    let false => descending b (a :: as) bs
-    let true => (a :: as) :: sequences (b :: bs)
+    case cmp a b
+    | false => descending b (a :: as) bs
+    | true => (a :: as) :: sequences (b :: bs)
     end
   let a as bs => (a :: as) :: sequences bs
 
   val ascending : A & (List A -> List A) & List A -> List (List A)
   let a as (b :: bs) =>
-    match cmp a b
-    let true => ascending b (ys => as (a :: ys)) bs
-    let false => as (a :: nil) :: sequences (b :: bs)
+    case cmp a b
+    | true => ascending b (ys => as (a :: ys)) bs
+    | false => as (a :: nil) :: sequences (b :: bs)
     end
   let a as bs => as (a :: nil) :: sequences bs
 
@@ -112,9 +112,9 @@ where
 
   val merge : List A & List A -> List A
   let (a :: as) (b :: bs) =>
-    match cmp a b
-    let false => b :: merge (a :: as) bs
-    let true => a :: merge as (b :: bs)
+    case cmp a b
+    | false => b :: merge (a :: as) bs
+    | true => a :: merge as (b :: bs)
     end
   let nil bs => bs
   let as nil => as
@@ -171,29 +171,29 @@ val is-ordered : (Bool & Bool -> Bool) & List Bool -> Bool
 let _ nil => true
 let _ (_ :: nil) => true
 let cmp (x1 :: x2 :: xs) =>
-  match cmp x1 x2
-  let false => false
-  let true => is-ordered cmp (x2 :: xs)
+  case cmp x1 x2
+  | false => false
+  | true => is-ordered cmp (x2 :: xs)
   end
 
 
 val main : {} ->> {}
 let () =>
   ms := gen-list mN;
-  match is-ordered _<=_ (msort ms _<=_)
-  let true => "1" .println
-  let false => "0" .println
+  case is-ordered _<=_ (msort ms _<=_)
+  | true => "1" .println
+  | false => "0" .println
   end;
-  match is-ordered _>=_ (msort ms _>=_)
-  let true => "1" .println
-  let false => "0" .println
+  case is-ordered _>=_ (msort ms _>=_)
+  | true => "1" .println
+  | false => "0" .println
   end;
   qs := gen-list qN;
-  match is-ordered _<=_ (qsort qs _<=_)
-  let true => "1" .println
-  let false => "0" .println
+  case is-ordered _<=_ (qsort qs _<=_)
+  | true => "1" .println
+  | false => "0" .println
   end;
-  match is-ordered _>=_ (qsort qs _>=_)
-  let true => "1" .println
-  let false => "0" .println
+  case is-ordered _>=_ (qsort qs _>=_)
+  | true => "1" .println
+  | false => "0" .println
   end

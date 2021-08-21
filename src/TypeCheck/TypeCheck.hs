@@ -984,7 +984,7 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
   --rr <- lift Env.getRefMap
   --ii <- lift Env.getImplicitMap
   --let !() = trace (showCasesToCaseTree ii rr pss) ()
-  midx <- lift (findMatchIndex ps)
+  midx <- lift (findCaseIndex ps)
   case midx of
     Left False -> throwError firstLoc
     Left True -> do
@@ -1063,23 +1063,23 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
         Nothing -> return (CaseNode idx subc subd)
         Just subc' -> return (CaseUnit idx subc')
 
-    findMatchIndex :: Monad m =>
+    findCaseIndex :: Monad m =>
       [CasePatternTriple] -> TypeCheckT m (Either Bool (Int, VarId))
-    findMatchIndex patterns = doFindMatchIndex startIdx (drop startIdx patterns)
+    findCaseIndex patterns = doFindCaseIndex startIdx (drop startIdx patterns)
       where
-        doFindMatchIndex :: Monad m =>
+        doFindCaseIndex :: Monad m =>
           Int -> [CasePatternTriple] -> TypeCheckT m (Either Bool (Int, VarId))
-        doFindMatchIndex _ [] =
+        doFindCaseIndex _ [] =
           if startIdx == 0 then return (Left True) else return (Left False)
-        doFindMatchIndex idx ((_, q) : qs) =
+        doFindCaseIndex idx ((_, q) : qs) =
           case prePatternGetRoot (patternPre q) of
             PatternUnit -> return (Right (idx, -1))
             PatternCtor _ i -> do
               d <- hasLateDependency q qs
               if not d
               then return (Right (idx, i))
-              else doFindMatchIndex (idx + 1) qs
-            _ -> doFindMatchIndex (idx + 1) qs
+              else doFindCaseIndex (idx + 1) qs
+            _ -> doFindCaseIndex (idx + 1) qs
 
         hasLateDependency :: Monad m =>
           Pattern -> [CasePatternTriple] -> TypeCheckT m Bool
@@ -1938,8 +1938,8 @@ doTcExpr _ subst _ ty (ExprSeq (Left e1) e2) =
   let p1 = ParsePatternUnit (exprLoc e1)
   in doTcExpr False subst Nothing ty (ExprSeq (Right (p1, e1)) e2)
 doTcExpr _ subst _ ty (ExprSeq (Right (p1, e1)) e2) =
-  doTcExpr False subst Nothing ty (ExprMatch (patternLoc p1) e1 [Right (p1, e2)])
-doTcExpr _ subst _ ty (ExprMatch lo expr cases) = do
+  doTcExpr False subst Nothing ty (ExprCase (patternLoc p1) e1 [Right (p1, e2)])
+doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
   expr' <- doTcExprSubst False subst Nothing expr
   newpids <- lift Env.getNextVarId
   --i00 <- lift Env.getImplicitMap
@@ -1952,11 +1952,11 @@ doTcExpr _ subst _ ty (ExprMatch lo expr cases) = do
       --isu <- getExprSubst
       --let cases'' = substPatternTriples isu cases'
       (ct, io) <- lift (casesToCaseTree cases')
-      let c = TermMatch (termPre expr') ct
+      let c = TermCase (termPre expr') ct
       return (mkTerm c ty' (termIo expr' || io))
   where
     checkCases :: Monad m =>
-      VarId -> PreTerm -> [MatchCase] -> Maybe PreTerm ->
+      VarId -> PreTerm -> [CaseCase] -> Maybe PreTerm ->
       ExprT m ([(Loc, [CasePatternTriple], Maybe Term)], Maybe PreTerm)
     checkCases _ _ [] expectedTy = return ([], expectedTy)
     checkCases newpids t ((Left p) : ps) expectedTy = do

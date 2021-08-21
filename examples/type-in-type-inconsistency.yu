@@ -8,6 +8,7 @@
 
 import "yu/prelude.yu"
 
+
 data M : Ty
 let m.M : (I : Ty, I -> M) -> M
 

@@ -158,7 +158,7 @@ writeTrivialCtorsConstExpr (R.Lazy _ _ e) =
   writeTrivialCtorsFunExpr e
 
 writeTrivialCtorsFunExpr :: R.FunExpr -> StateT IntSet GenCode ()
-writeTrivialCtorsFunExpr (R.Match _ cs) =
+writeTrivialCtorsFunExpr (R.Case _ cs) =
   mapM_ (\(_, c) -> writeTrivialCtorsFunExpr c) cs
 writeTrivialCtorsFunExpr (R.Pforce _ _ _ e2) =
   writeTrivialCtorsFunExpr e2
@@ -204,7 +204,7 @@ writePapClosuresConstExpr (R.Lazy _ _ e) =
 
 writePapClosuresFunExpr ::
   R.FunExpr -> StateT (Set (R.Const, Int)) GenCode ()
-writePapClosuresFunExpr (R.Match _ cs) =
+writePapClosuresFunExpr (R.Case _ cs) =
   mapM_ (\(_, c) -> writePapClosuresFunExpr c) cs
 writePapClosuresFunExpr (R.Pforce _ _ _ e2) =
   writePapClosuresFunExpr e2
@@ -441,7 +441,7 @@ writeRefTag (R.VarRef v) = writeVar v >> writeStr "->tag"
 writeRefTag (R.ConstRef r) = writeStr (funImpl r) >> writeStr ".tag"
 
 writeFunExpr :: R.FunExpr -> GenCode ()
-writeFunExpr (R.Match r cs) = do
+writeFunExpr (R.Case r cs) = do
   writeStr "switch (" >> writeRefTag r >> writeStr ") {"
   mapM_ writeCase cs
   writeDefaultCase
