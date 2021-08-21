@@ -180,7 +180,7 @@ int main() {
   if (setrlimit(RLIMIT_DATA, &nd) == -1)
     yur_panic("failed setting stack size, %s", strerror(errno));
 
-  yu_main();
+  yu_main(&yur_unit);
 }
 
 //////////////////// Basic extern implementations ////////////////////

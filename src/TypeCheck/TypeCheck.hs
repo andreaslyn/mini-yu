@@ -253,9 +253,9 @@ checkMainExists = do
     Just (StatusTerm t) -> do
       rm <- Env.getRefMap
       case preTermNormalize rm (termTy t) of
-        TermArrow True [] TermUnitTy -> checkBody (termPre t)
+        TermArrow True [(Nothing, TermUnitTy)] TermUnitTy -> checkBody (termPre t)
         _ -> do
-          ss <- preTermToStringT defaultExprIndent (TermArrow True [] TermUnitTy)
+          ss <- preTermToStringT defaultExprIndent (TermArrow True [(Nothing, TermUnitTy)] TermUnitTy)
           err (Loc.loc 1 1)
             (Fatal $
               "expected type of " ++ quote "main" ++ " to be\n" ++ ss)
@@ -1427,22 +1427,32 @@ dataScope e = do
   put st'
   return x
 
-forceIfLazy :: Monad m => Term -> ExprT m Term
-forceIfLazy t = do
+forceIfLazyPreTerm :: Monad m => PreTerm -> ExprT m PreTerm
+forceIfLazyPreTerm t = do
+  rm <- lift Env.getRefMap
+  let n = preTermNormalize rm t
+  case n of
+    TermLazyArrow _ _ -> return (doForceIfLazyPreTerm n)
+    _ -> return t
+
+doForceIfLazyPreTerm :: PreTerm -> PreTerm
+doForceIfLazyPreTerm (TermLazyArrow _ t) = doForceIfLazyPreTerm t
+doForceIfLazyPreTerm t = t
+
+forceIfLazyTerm :: Monad m => Term -> ExprT m Term
+forceIfLazyTerm t = do
   rm <- lift Env.getRefMap
   let n = preTermNormalize rm (termTy t)
   case n of
     TermLazyArrow _ _ ->
-      doForceIfLazy
-        (termPre t) (preTermNormalize rm (termTy t))
-        (termIo t) (termNestedDefs t)
+      doForceIfLazyTerm (termPre t) n (termIo t) (termNestedDefs t)
     _ -> return t
 
-doForceIfLazy :: Monad m =>
+doForceIfLazyTerm :: Monad m =>
   PreTerm -> PreTerm -> Bool -> [RefVar] -> ExprT m Term
-doForceIfLazy te (TermLazyArrow io1 cod) io2 defs =
-  doForceIfLazy (TermLazyApp io1 te) cod (io1 || io2) defs
-doForceIfLazy te ty io defs =
+doForceIfLazyTerm te (TermLazyArrow io1 cod) io2 defs =
+  doForceIfLazyTerm (TermLazyApp io1 te) cod (io1 || io2) defs
+doForceIfLazyTerm te ty io defs =
   return $ Term { termPre = te
                 , termTy = ty
                 , termNestedDefs = defs
@@ -1458,7 +1468,7 @@ tcExpr subst ty e = do
     exprCheck :: Monad m => PreTerm -> ExprT m Term
     exprCheck expectedTy = do
       e0 <- doTcExpr False subst Nothing (Just expectedTy) e
-      e' <- forceIfLazy e0
+      e' <- forceIfLazyTerm e0
       tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
       su <- getExprSubst
       let se = substPreTerm su (termPre e')
@@ -1613,7 +1623,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
     getImplicit :: Monad m => (Var, PreTerm) -> ExprT m (Var, PreTerm)
     getImplicit (v, vt) = do
       i <- lift Env.freshVarId
-      let v' = mkVar i ('.' : varName v)
+      let v' = mkVar i ('#' : varName v)
       impMapInsert i vt lo $
         "unable to infer implicit argument " ++ varName v
       return (v, TermVar True v')
@@ -1844,15 +1854,44 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
                       (fst y, (snd y, substPreTerm su (snd x)))
                     ) tys ias
     let m = Map.fromList z
-    io <- unifyImplicits (Map.keysSet m) m args
-    return (f' {termPre = TermImplicitApp True r ias,
-                termIo = termIo f' || io})
+    rm <- lift Env.getRefMap
+    let dias = map (\(_, (n, t)) -> (justImplicitVar n, t)) z
+    let nameOrd = dependencyOrderArgs (preTermVars rm) dias (map fst z)
+    let argsOrd = orderImplicitArgsBy nameOrd args
+    (io, tias, tty) <- unifyImplicits (Map.keysSet m) m argsOrd ias (termTy f')
+    return (f' { termPre = TermImplicitApp True r tias
+               , termTy = tty
+               , termIo = termIo f' || io})
   where
+    justImplicitVar :: PreTerm -> Maybe Var
+    justImplicitVar (TermVar _ v) = Just v
+    justImplicitVar _ = error "expected implicit to be a variable"
+
+    orderImplicitArgsBy ::
+      [(Int, (Maybe Var, PreTerm), VarName)] ->
+      [((Loc, String), Expr)] -> [((Loc, String), Expr)]
+    orderImplicitArgsBy [] as = as
+    orderImplicitArgsBy ((_, _, n) : ns) as =
+      case getRemoveImplicit n as of
+        Nothing -> orderImplicitArgsBy ns as
+        Just (a, as') -> a : orderImplicitArgsBy ns as'
+
+    getRemoveImplicit ::
+      VarName -> [((Loc, String), Expr)] ->
+      Maybe (((Loc, String), Expr), [((Loc, String), Expr)])
+    getRemoveImplicit _ [] = Nothing
+    getRemoveImplicit n (((lo, m), e) : as)
+      | n == m = Just (((lo, m), e), as)
+      | True = do
+          (a, as0) <- getRemoveImplicit n as
+          Just (a, ((lo, m), e) : as0)
+
     unifyImplicits :: Monad m =>
       Set VarName -> Map VarName (PreTerm, PreTerm) ->
-      [((Loc, String), Expr)] -> ExprT m Bool
-    unifyImplicits _ _ [] = return False
-    unifyImplicits remain ias (((lo, na), e) : es) = do
+      [((Loc, String), Expr)] -> [(VarName, PreTerm)] -> PreTerm ->
+      ExprT m (Bool, [(VarName, PreTerm)], PreTerm)
+    unifyImplicits _ _ [] imap fty = return (False, imap, fty)
+    unifyImplicits remain ias (((lo, na), e) : es) imap fty = do
       case Map.lookup na ias of
         Nothing -> lift (err lo (Fatal $ "unexpected implicit argument name "
                                          ++ quote na))
@@ -1861,18 +1900,22 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
             then do
               e0 <- tcExpr subst ty e
               e' <- runUnify a e0
-              io <- unifyImplicits (Set.delete na remain) ias es
-              return (io || termIo e')
+              isu <- getExprSubst
+              let ias' = Map.map (\(n, t) -> (n, substPreTerm isu t)) ias
+              let imap' = map (\(n, t) -> (n, substPreTerm isu t)) imap
+              let fty' = substPreTerm isu fty
+              (io, imap'', fty'') <- unifyImplicits (Set.delete na remain) ias' es imap' fty'
+              return (io || termIo e', imap'', fty'')
             else
               lift (err lo (Fatal $ "implicit argument " ++ quote na
                                     ++ " is given multiple times"))
       where
         msgPrefix :: Monad m => ExprT m String
-        msgPrefix = do
+        msgPrefix =
           return $
             "failed unifying values for implicit argument " ++ quote na
         runUnify :: Monad m => PreTerm -> Term -> ExprT m Term
-        runUnify a e0 = do
+        runUnify a e0 =
           runExprUnifResult lo False msgPrefix a (termPre e0) >> return e0
 doTcExpr _ subst _ ty (ExprSeq (Left e1) e2) =
   let p1 = ParsePatternUnit (exprLoc e1)
@@ -2024,7 +2067,7 @@ makeTermApp :: Monad m =>
   SubstMap -> Loc ->
   Maybe PreTerm -> Term -> [Expr] -> ExprT m Term
 makeTermApp subst flo preTy f0 preArgs = do
-  f' <- forceIfLazy f0
+  f' <- forceIfLazyTerm f0
   r <- lift Env.getRefMap
   let dc = preTermDomCod r (termTy f')
   case dc of
@@ -2051,7 +2094,8 @@ makeTermApp subst flo preTy f0 preArgs = do
                     args
       let args1 = map (\(i, (v, (p, w)), e) -> (i, v, p, w, e)) args0
       let domVars = getDomVars d'
-      (su, ps, io') <- applyArgs ty domVars False c' IntMap.empty args1
+      cod <- forceIfLazyPreTerm c'
+      (su, ps, io') <- applyArgs ty domVars False cod IntMap.empty args1
       let ps' = map snd (sortOn fst ps)
       let c = substPreTerm su c'
       let e = TermApp io (termPre f') ps'

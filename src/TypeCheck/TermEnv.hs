@@ -953,8 +953,7 @@ writePreTerm im rm (TermFun imps _ (Just n) ct) = do
   writeNameList args
   writeStr " => "
   writeCaseTree im rm (map Left imps ++ map Left args) ct
-writePreTerm im rm (TermLazyFun _ f) =
-  writeStr "[] => " >> writePreTerm im rm f
+writePreTerm im rm (TermLazyFun _ f) = writePreTerm im rm f
 writePreTerm im rm (TermArrow io d c) = do
   writeDomainList im rm d
   if io
@@ -1099,12 +1098,7 @@ writePreTerm im rm (TermImplicitApp False f xs) = do
   if vb
   then writePreTerm im rm (TermImplicitApp True f xs)
   else writePreTerm im rm f
-writePreTerm im rm (TermLazyApp _ f) = do
-  let b = hasLowerPrecThanApp f
-  when b (writeStr "(")
-  writePreTerm im rm f
-  when b (writeStr ")")
-  writeStr " []"
+writePreTerm im rm (TermLazyApp _ f) = writePreTerm im rm f
 writePreTerm _ _ (TermRef v _) = writeStr (varName v)
 writePreTerm _ _ (TermData v) = writeStr (varName v)
 writePreTerm _ _ (TermCtor v _) = writeStr (varName v)
@@ -1563,15 +1557,16 @@ hasLowerPrecThanInfixOp5 t = hasLowerPrecThanInfixOp6 t
 hasLowerPrecThanInfixOp6 :: PreTerm -> Bool
 hasLowerPrecThanInfixOp6 (TermFun _ _ _ _) = True
 hasLowerPrecThanInfixOp6 (TermImplicitApp False (TermFun _ _ _ _) _) = True
-hasLowerPrecThanInfixOp6 (TermLazyFun _ _) = True
 hasLowerPrecThanInfixOp6 (TermLazyArrow _ _) = True
 hasLowerPrecThanInfixOp6 (TermArrow _ _ _) = True
+hasLowerPrecThanInfixOp6 (TermLazyFun _ t) =
+  hasLowerPrecThanInfixOp6 t
 hasLowerPrecThanInfixOp6 _ = False
 
 hasSeqPrecOrLower :: PreTerm -> Bool
 hasSeqPrecOrLower (TermFun _ _ _ _) = True
 hasSeqPrecOrLower (TermImplicitApp False (TermFun _ _ _ _) _) = True
-hasSeqPrecOrLower (TermLazyFun _ _) = True
+hasSeqPrecOrLower (TermLazyFun _ t) = hasSeqPrecOrLower t
 hasSeqPrecOrLower _ = False
 
 needsAppParens :: PreTerm -> Bool
