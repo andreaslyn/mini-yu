@@ -2235,7 +2235,7 @@ appOrdering (_, n1) (_, n2) = compare n1 n2
 tcPattern :: Monad m =>
   VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
 tcPattern newpids ty p = do
-  (su, p')  <- doTcPattern False False newpids ty p
+  (su, p')  <- doTcPatternForceLazy False False newpids ty p
   rm <- Env.getRefMap
   --let !() = trace ("type: " ++ preTermToString im rm 0 (patternTy p')) ()
   when (patternPreCanApply (patternPre p') && isArrowType rm (patternTy p')) $ do
@@ -2296,10 +2296,35 @@ makePatternApp flo newpids ty (fsu, f') prePargs = do
       then return (psu, p)
       else makePatternApp flo newpids ty (psu, p) postPargs
 
+
+forceIfLazyPattern :: Monad m => Pattern -> TypeCheckT m Pattern
+forceIfLazyPattern p = do
+  rm <- Env.getRefMap
+  let n = preTermNormalize rm (patternTy p)
+  case n of
+    TermLazyArrow _ _ -> doForceIfLazyPattern (patternPre p) n
+    _ -> return p
+
+doForceIfLazyPattern :: Monad m =>
+  PrePattern -> PreTerm -> TypeCheckT m Pattern
+doForceIfLazyPattern p (TermLazyArrow io cod) =
+  assert (not io) $ doForceIfLazyPattern (PatternLazyApp p) cod
+doForceIfLazyPattern p ty =
+  return $ Pattern {patternPre = p, patternTy = ty}
+
+
+doTcPatternForceLazy :: Monad m =>
+  Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
+doTcPatternForceLazy hasImplicitApp hasApp newpids ty p = do
+  (su, p0) <- doTcPattern hasImplicitApp hasApp newpids ty p
+  p' <- forceIfLazyPattern p0
+  return (su, p')
+
+
 doTcPattern :: Monad m =>
   Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
 doTcPattern _ _ newpids ty (ParsePatternApp f pargs) = do
-  f' <- doTcPattern False True newpids ty f
+  f' <- doTcPatternForceLazy False True newpids ty f
   case pargs of
     a1 : a2 : pargs' ->
       if isPostfixPattern f
@@ -2321,7 +2346,7 @@ doTcPattern _ _ newpids ty (ParsePatternApp f pargs) = do
     isPostfixPattern _ = False
 
 doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
-  (fsu, f') <- doTcPattern True hasApp newpids ty f
+  (fsu, f') <- doTcPatternForceLazy True hasApp newpids ty f
   rm <- Env.getRefMap
   (r, v, ias) <- case patternPre f' of
                   PatternImplicitApp False r@(PatternCtor v _) a -> return (r, v, a)
@@ -2399,24 +2424,6 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
         then p : remakeArgs ps vs
         else v : remakeArgs (p:ps) vs
     remakeArgs _ _ = error "unexpected arguments to remakeArgs"
-doTcPattern _ _ newpids ty (ParsePatternLazyApp f) = do
-  (fsu, f') <- doTcPattern False True newpids ty f
-  when (not $ patternPreCanApply (patternPre f')) $ do
-    ss <- preTermToStringT defaultExprIndent (patternTy f')
-    err (patternLoc f) (Recoverable $
-      "unable to match pattern with inferred type\n" ++ ss)
-  r <- Env.getRefMap
-  let c = preTermLazyCod r (patternTy f')
-  case c of
-    Nothing -> do
-      ss <- preTermToStringT defaultExprIndent (patternTy f')
-      err (patternLoc f) (Recoverable $
-        "unable to match pattern with inferred type\n" ++ ss)
-    Just (cod, io) -> do
-      let !() = assert (not io) ()
-      let p = Pattern {patternPre = PatternLazyApp (patternPre f'),
-                       patternTy = cod}
-      return (fsu, p)
 doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
   (x, na) <- if not (isOperator na0) || '\\' `elem` na0
              then fmap (\x -> (x, na0)) (Env.lookup na0)

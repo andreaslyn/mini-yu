@@ -630,7 +630,21 @@ parseMatchExpr = do
       return e
 
 parsePattern :: YuParsec ParsePattern
-parsePattern = parsePatternOp6
+parsePattern = parsePatternOp
+{-
+parsePattern = lazyPattern <|> parsePatternOp
+  where
+    lazyPattern :: YuParsec ParsePattern
+    lazyPattern = do
+      lo <- yuKeyTok TokSquareL
+      _ <- yuKeyTok TokSquareR
+      _ <- yuKeyTok TokEqGreater
+      p <- parsePattern
+      return (ParsePatternLazy lo p)
+-}
+
+parsePatternOp :: YuParsec ParsePattern
+parsePatternOp = parsePatternOp6
 
 parsePatternOp6 :: YuParsec ParsePattern
 parsePatternOp6 =
@@ -702,10 +716,6 @@ parsePatternApp = parsePatternLeaf >>= parseApp
     parseApp p =
       try (appPostfix p)
       <|> try (many1 appArg >>= parseApp . ParsePatternApp p)
-      <|> try (do
-                _ <- yuKeyTok TokSquareL
-                _ <- yuKeyTok TokSquareR
-                parseApp (ParsePatternLazyApp p))
       <|> try (do
                 args <- many1 appImplicit
                 parseApp (ParsePatternImplicitApp p args))

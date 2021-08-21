@@ -87,7 +87,6 @@ type MatchCase = Either ParsePattern (ParsePattern, Expr)
 data ParsePattern = ParsePatternApp ParsePattern [ParsePattern]
                   | ParsePatternImplicitApp ParsePattern
                                             [((Loc, String), ParsePattern)]
-                  | ParsePatternLazyApp ParsePattern
                   | ParsePatternVar (Loc, String)
                   | ParsePatternEmpty Loc
                   | ParsePatternUnit Loc
@@ -111,7 +110,6 @@ defLoc (DefData _ d _) = declLoc d
 patternLoc :: ParsePattern -> Loc
 patternLoc (ParsePatternApp p _) = patternLoc p
 patternLoc (ParsePatternImplicitApp p _) = patternLoc p
-patternLoc (ParsePatternLazyApp p) = patternLoc p
 patternLoc (ParsePatternVar (lo, _)) = lo
 patternLoc (ParsePatternUnit lo) = lo
 patternLoc (ParsePatternEmpty lo) = lo
@@ -219,7 +217,6 @@ writePattern :: ParsePattern -> ToString ()
 writePattern (ParsePatternApp p ps) = writePattern p >> writePatternArgs ps
 writePattern (ParsePatternImplicitApp p ps) =
   writePattern p >> writePatternImplicitArgs ps
-writePattern (ParsePatternLazyApp p) = writePattern p >> writeStr "[]"
 writePattern (ParsePatternUnit _) = writeStr "()"
 writePattern (ParsePatternEmpty _) = writeStr "{}"
 writePattern (ParsePatternVar (_, v)) = writeStr v
