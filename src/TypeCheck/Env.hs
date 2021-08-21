@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+
 module TypeCheck.Env
   ( VarStatus (..)
   , isStatusUnknown
@@ -47,6 +49,8 @@ module TypeCheck.Env
   )
 where
 
+import TypeCheck.Term
+import TypeCheck.HackGlobalVarId
 import Data.Maybe (isJust)
 import qualified Data.Map as Map
 import Data.IntMap (IntMap)
@@ -55,9 +59,9 @@ import qualified Data.IntSet as IntSet
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.State
 import ParseTree
-import TypeCheck.Term
 import Loc (Loc)
 import Str (quote)
+
 --import Debug.Trace (trace)
 
 type EnvDepth = Int
@@ -81,7 +85,7 @@ type ImplicitVarMap = IntMap.IntMap (PreTerm, [ScopeId])
 
 data EnvSt = EnvSt
   { env :: Env
-  , nextVarId :: VarId
+  , hackVarId :: VarId
   , nextRefId :: VarId
   , currentScopeId :: ScopeId
   , refMap :: RefMap
@@ -112,7 +116,7 @@ emptyCtxSt :: EnvSt
 emptyCtxSt =
   EnvSt
     { env = Env 0 Map.empty Nothing
-    , nextVarId = 0
+    , hackVarId = 0
     , nextRefId = 0
     , currentScopeId = 0
     , refMap = IntMap.empty
@@ -174,19 +178,12 @@ modifyUnfinishedDataMap f =
   modify (\s -> s{unfinishedDataMap = f (unfinishedDataMap s)})
 
 getNextVarId :: Monad m => EnvT m VarId
-getNextVarId = fmap nextVarId get
-
-modifyNextVarId :: Monad m => (VarId -> VarId) -> EnvT m ()
-modifyNextVarId f = modify (\s -> s{nextVarId = f (nextVarId s)})
-
-_putNextVarId :: Monad m => VarId -> EnvT m ()
-_putNextVarId i = modifyNextVarId (const i)
-
-updateNextVarId :: Monad m => (VarId -> VarId) -> EnvT m VarId
-updateNextVarId f = do
-  i <- getNextVarId
-  modifyNextVarId f
-  return i
+getNextVarId = do
+  st <- get
+  let !(n, i') = hackReadGlobalVarId (hackVarId st)
+  put (st {hackVarId = i' + 1})
+  return n
+{-# NOINLINE getNextVarId #-}
 
 getNextRefId :: Monad m => EnvT m VarId
 getNextRefId = fmap nextRefId get
@@ -326,7 +323,12 @@ scope c = do
   return x
 
 freshVarId :: Monad m => EnvT m VarId
-freshVarId = updateNextVarId (+1)
+freshVarId = do
+  st <- get
+  let !(n, i') = hackFreshGlobalVarId (hackVarId st)
+  put (st {hackVarId = i' + 1})
+  return n
+{-# NOINLINE freshVarId #-}
 
 freshRefId :: Monad m => EnvT m VarId
 freshRefId = updateNextRefId (+1)

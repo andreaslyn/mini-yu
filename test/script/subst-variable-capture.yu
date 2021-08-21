@@ -1,0 +1,9 @@
+
+val ap[A; B : Ty] : (A -> B) -> A -> B
+let (f) => (x). f(x)
+
+val apap : (Ty -> Ty) -> Ty -> Ty
+let => ap(ap)
+
+val test : apap((_). Ty)(Ty)
+let => Ty

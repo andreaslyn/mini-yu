@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+
 module TypeCheck.SubstMap
   ( substPreTerm
   , substCaseTree
@@ -8,12 +10,13 @@ import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
 import qualified Data.IntMap as IntMap
 import TypeCheck.Term
+import TypeCheck.HackGlobalVarId
 
 substPreTerm :: SubstMap -> PreTerm -> PreTerm
-substPreTerm = substPreTernNonVisited IntSet.empty
+substPreTerm = substPreTermNonVisited IntSet.empty
 
-substPreTernNonVisited :: IntSet -> SubstMap -> PreTerm -> PreTerm
-substPreTernNonVisited vi m t
+substPreTermNonVisited :: IntSet -> SubstMap -> PreTerm -> PreTerm
+substPreTermNonVisited vi m t
   | IntMap.null m = t
   | True = doSubstPreTerm vi m t
 
@@ -22,16 +25,26 @@ substCaseTree m ct
   | IntMap.null m = ct
   | True = doSubstCaseTree IntSet.empty m ct
 
+newSubstVariables :: [Var] -> SubstMap -> ([Var], SubstMap)
+newSubstVariables [] su = ([], su)
+newSubstVariables (v:vs) su = do
+  let !(i, su0) = hackFreshGlobalVarId su
+  let v' = mkVar i (varName v)
+  let (vs', su') = newSubstVariables vs su0
+  (v' : vs', IntMap.insert (varId v) (TermVar False v') su')
+
 substCaseTreeInstance ::
   IntSet -> SubstMap -> ([Var], CaseTree) -> ([Var], CaseTree)
 substCaseTreeInstance vi subst (is, ct) =
-  let subst' = IntMap.withoutKeys subst (IntSet.fromList (map varId is))
-  in (is, doSubstCaseTree vi subst' ct)
+  let (is', subst') = newSubstVariables is subst
+      vi' = IntSet.difference vi (IntSet.fromList (map varId is))
+  in (is', doSubstCaseTree vi' subst' ct)
 
 doSubstCaseTree :: IntSet -> SubstMap -> CaseTree -> CaseTree
 doSubstCaseTree vi subst (CaseLeaf is io t ws) =
-  let subst' = IntMap.withoutKeys subst (IntSet.fromList (map varId is))
-  in CaseLeaf is io (substPreTernNonVisited vi subst' t) ws
+  let (is', subst') = newSubstVariables is subst
+      vi' = IntSet.difference vi (IntSet.fromList (map varId is))
+  in CaseLeaf is' io (substPreTermNonVisited vi' subst' t) ws
 doSubstCaseTree vi subst (CaseNode idx m d) =
   let m' = IntMap.map (substCaseTreeInstance vi subst) m
       d' = fmap (substCaseTreeInstance vi subst) d
