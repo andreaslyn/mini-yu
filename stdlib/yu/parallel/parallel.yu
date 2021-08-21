@@ -1,16 +1,17 @@
+import "yu/basic/Lazy.yu"
 import "yu/Sum/Sum.yu"
 import "yu/Str/Str.yu"
 
 
-extern parallel'.parallel : (A : Ty) & ({} ->> A) ->> [] -> Str || A
+extern parallel'.parallel : (A : Ty) & ({} ->> A) ->> Lazy (Str || A)
 
 
-val parallel' [A : Ty] : ({} ->> A) ->> [] -> Str || A
+val parallel' [A : Ty] : ({} ->> A) ->> Lazy (Str || A)
 let x => parallel'.parallel A x
 
 
-extern parallel.parallel : (A : Ty) & ({} -> A) -> [] -> Str || A
+extern parallel.parallel : (A : Ty) & ({} -> A) -> Lazy (Str || A)
 
 
-val parallel [A : Ty] : ([] -> A) -> [] -> Str || A
+val parallel [A : Ty] : ([] -> A) -> Lazy (Str || A)
 let x => parallel.parallel A (_ => x)

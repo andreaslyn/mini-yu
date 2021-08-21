@@ -14,7 +14,7 @@ val 10000 : Nat
 let => 100 * 100
 
 
-val spawnLoop : Nat ->> List ([] -> Str || {})
+val spawnLoop : Nat ->> List (Lazy of Str || {})
 let 0 => nil
 let (++ n) =>
   parallel' (_ => n .println) :: spawnLoop n
@@ -34,8 +34,8 @@ let () =>
   t5 := parallel' (_ => ('t :: '5 :: nil.Str) .println);
   t6 := parallel' (_ => ('t :: '6 :: nil.Str) .println);
   t7 := parallel' (_ => ('t :: '7 :: nil.Str) .println);
-  printResult t4;
-  printResult t5;
-  printResult t6;
-  printResult t7;
-  spawnLoop (10 * 10) .foreach of t => printResult t
+  printResult (t7 .force);
+  printResult (t6 .force);
+  printResult (t5 .force);
+  printResult (t4 .force);
+  spawnLoop (10 * 10) .foreach of t => printResult of t .force

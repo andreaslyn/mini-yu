@@ -88,21 +88,38 @@ static void destructor_fn(yur_Ref *r) {
 }
 
 static yur_Ref *mk_lazy_error(int e) {
-  yur_Ref *r = yur_build(2, 0);
-  r->fields[0] = &error_fn_impl;
-  r->fields[1] = mk_error(e);
+  yur_Ref *f = yur_build(2, 0);
+  f->fields[0] = &error_fn_impl;
+  f->fields[1] = mk_error(e);
+  yur_Ref *r = yur_build(1, 0);
+  r->fields[0] = f;
   return r;
 }
 
-// (A : Ty) & (f : {} ->> A) -> [] ->> Str || A
-yur_Ref *yu_parallel_si_doparallel(yur_Ref *f, yur_Ref *A) {
-  yur_unref(A);
+static yur_Ref *mk_lazy_success(struct yur_PThread *x) {
+  yur_Ref *f = yur_build(2, 0);
+  f->fields[0] = &join_fn_impl;
+  f->fields[1] = (yur_Ref *) x;
+  yur_Ref *r = yur_build(1, 0);
+  r->fields[0] = f;
+  return r;
+}
+
+static struct yur_PThread *mk_yur_pthread(yur_Ref *f)
+{
   struct yur_PThread *x = (struct yur_PThread *) yur_malloc(sizeof(struct yur_PThread));
   yur_init((yur_Ref *) x, 1, (size_t) destructor_fn);
   x->fn = f;
   x->cache = 0;
   x->vmt_index = yur_Destructor_vmt;
   yur_mark_atomic((yur_Ref *) x);
+  return x;
+}
+
+// (A : Ty) & (f : {} ->> A) -> Lazy (Str || A)
+yur_Ref *yu_parallel_si_doparallel(yur_Ref *f, yur_Ref *A) {
+  yur_unref(A);
+  struct yur_PThread *x = mk_yur_pthread(f);
   yur_inc((yur_Ref *) x);
   int e = pthread_mutex_init(&x->mutex, NULL);
   if (e != 0)
@@ -110,10 +127,7 @@ yur_Ref *yu_parallel_si_doparallel(yur_Ref *f, yur_Ref *A) {
   e = pthread_create(&x->thread, NULL, thread_fn, x);
   if (e != 0)
     return mk_lazy_error(e);
-  yur_Ref *r = yur_build(2, 0);
-  r->fields[0] = &join_fn_impl;
-  r->fields[1] = (yur_Ref *) x;
-  return r;
+  return mk_lazy_success(x);
 }
 
 yur_Ref *yu_parallel_doparallel(yur_Ref *f, yur_Ref *A) {
