@@ -22,7 +22,7 @@ import System.Environment (getExecutablePath)
 runIr ::
   ProgramOptions -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap -> IO ()
 runIr opts vs dm im rm = do
-  let (hap, har) = Hl.highLevelIr vs dm im rm
+  let (hap, har) = Hl.highLevelIr (optionOptimize opts) vs dm im rm
   when (optionPrintHighLevelIR opts) $ do
     putStrLn "\n## High level intermediate representation\n"
     putStrLn (Hl.irToString hap har)
