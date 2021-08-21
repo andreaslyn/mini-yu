@@ -1,3 +1,0 @@
-
-val unit-fail : {}
-let unit-fail => `x`
