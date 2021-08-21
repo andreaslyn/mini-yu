@@ -226,7 +226,7 @@ checkRefNameValid (lo, na0) = do
             then
               if isOperatorChar (head n')
               then t /= '_' || elem '_' n'
-              else t == '_' || elem '_' n'
+              else head n' /= '.' || t == '_' || elem '_' n'
             else
               t == '_' || isOperatorChar t
           else

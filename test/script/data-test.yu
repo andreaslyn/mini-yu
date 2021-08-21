@@ -1,33 +1,33 @@
 
-val hard-scopes : List(Ty)
-let => cons(Ty, Ty, nil-extra(Ty))
+val hard-scopes : List Ty
+let => cons Ty Ty (nil-extra Ty)
 where
-  val test : List'(Ty)
-  let => unit; unit-elem; nil'(Ty)
+  val test : List' Ty
+  let => (); unit-elem; nil' Ty
   where
     val List' : Ty
     let => Ty
   end
 
-  val unit-elem : Unit
-  let => unit
+  val unit-elem : {}
+  let => ()
 
-  val test' : List'(Opt(Ty))
-  let => cons'(Opt(Ty), some([] -> Opt(Unit), Ty), nil'(Opt(Ty)))
+  val test' : List' (Opt(Ty))
+  let => cons' (Opt(Ty)) (some ([] -> Opt({})) Ty) (nil'(Opt(Ty)))
 
 end
 data List' : Ty -> Ty
 let nil' : (A : Ty) -> List'(A)
-let cons' : (A : Ty, A, List'(A)) -> List'(A)
+let cons' : (A : Ty) & A & List'(A) -> List'(A)
 
 data List : Ty -> Ty
 let nil-extra : (A : Ty) -> List(A)
 let nil : (A : Ty) -> List(A)
-let cons : (A, A : Ty, List(A)) -> List(A)
+let cons : A & (A : Ty) & List(A) -> List(A)
 
 data Opt : Ty -> Ty
 let none : (A : Ty) -> Opt(A)
-let some : (A, A : Ty) -> Opt(A)
+let some : A & (A : Ty) -> Opt(A)
 
 val emptyList : List(Ty)
 let => nil(Ty)
@@ -38,10 +38,10 @@ let inc : Nat -> Nat
 
 data Vec : Ty -> Nat -> Ty
 let vnil : (A : Ty) -> Vec(A)(0)
-let vcons : (A : Ty) -> (A, Vec(A)(n), n : Nat) -> Vec(A)(inc(n))
+let vcons : (A : Ty) -> A & Vec(A)(n) & (n : Nat) -> Vec(A)(inc(n))
 
 val empty-vec : Vec(Nat)(0)
 let => vnil(Nat)
 
-val singleton-vec : Vec(Unit)(inc(0))
-let => vcons(Unit)(unit, vnil(Unit), 0)
+val singleton-vec : Vec {} (inc 0)
+let => vcons {} () (vnil {}) 0

@@ -7,35 +7,35 @@ val.. f1 : Nat -> Nat
 let => f1'
 
 val.. f1' : Nat -> Nat
-let => (n).
+let => n =>
   case n
   of 0 => +1 f1'(f2(0))
   of +1 n => +1 f1'(f2(+1 n))
   end
 
 val.. f2 : Nat -> Nat
-let (n) =>
+let n =>
   case n
   of 0 => +1 f2'(f1(0))
   of (+1_)(n) => +1 f2'(f1(+1 n))
   end
 where
   val.. f2' : Nat -> Nat
-  let (n) =>
+  let n =>
     case n
     of 0 => (+1_)(f2'(f2(0)))
     of +1(n) => +1(f2'(f1(+1(n))))
     end
 end
 
-data Id : (A : Ty, A, A) -> Ty
-let refl : (A : Ty, a : A) -> Id(A, a, a)
+data Id : (A : Ty) & A & A -> Ty
+let refl : (A : Ty) & (a : A) -> Id A a a
 
-val f1-f2-Id : Id(Nat -> Nat, f1, f2)
-let => refl(Nat -> Nat, f1)
+val f1-f2-Id : Id (Nat -> Nat) f1 f2
+let => refl (Nat -> Nat) f1
 
-val test-fun-eta : (f : Nat -> Nat) -> Id(Nat -> Nat, (x : Nat). f(x), f)
-let (f) => refl(Nat -> Nat, f)
+val test-fun-eta : (f : Nat -> Nat) -> Id (Nat -> Nat) ((x : Nat) => f(x)) f
+let (f) => refl (Nat -> Nat) f
 
 data ReflectNat : Nat -> Ty
 let reflectNat : (n : Nat) -> ReflectNat(n)
@@ -44,17 +44,17 @@ val id1 : Nat -> Nat
 let (n) => n
 
 val id2 : Nat -> Nat
-let => (n). n
+let => (n) => n
 
-val test-id : Id(Nat -> Nat, id1, id2)
-let => refl(Nat -> Nat, id2)
+val test-id : Id (Nat -> Nat) id1 id2
+let => refl (Nat -> Nat) id2
 
-val test-eta-implicits1[x : Nat] : ReflectNat(x) -> Nat
+val test-eta-implicits1 [x : Nat] : ReflectNat(x) -> Nat
 let (_) => x
 
-val test-eta-implicits2[x : Nat] : ReflectNat(x) -> Nat
-let => (_). x
+val test-eta-implicits2 [x : Nat] : ReflectNat(x) -> Nat
+let => (_) => x
 
 val test-eta-implicits
-  : Id(ReflectNat(0) -> Nat, test-eta-implicits1, test-eta-implicits2)
-let => refl(ReflectNat(0) -> Nat, test-eta-implicits1)
+  : Id (ReflectNat(0) -> Nat) test-eta-implicits1 test-eta-implicits2
+let => refl (ReflectNat(0) -> Nat) test-eta-implicits1

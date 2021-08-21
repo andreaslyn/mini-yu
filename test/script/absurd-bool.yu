@@ -10,4 +10,4 @@ let is-true : IsTrue(true)
 ##let (is-true) => true
 
 val is-true-false : IsTrue(false) -> Bool
-let (())
+let {}

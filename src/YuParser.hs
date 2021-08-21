@@ -145,8 +145,8 @@ parseCtorDecls = try emptyCtor <|> many1 doCtor
     emptyCtor :: YuParsec [Decl]
     emptyCtor = do
       _ <- yuKeyTok TokLet
-      _ <- yuKeyTok TokParenL
-      _ <- yuKeyTok TokParenR
+      _ <- yuKeyTok TokCurlyL
+      _ <- yuKeyTok TokCurlyR
       return []
 
     doCtor :: YuParsec Decl
