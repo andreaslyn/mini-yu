@@ -26,7 +26,7 @@ mini-yu: $(EXE_PATH)
 .PHONY: config
 config:
 	mkdir -p mimalloc/out
-	cmake -Hmimalloc -Bmimalloc/out
+	cmake -Hmimalloc -Bmimalloc/out -DMI_OVERRIDE=OFF
 
 all: config mini-yu
 
