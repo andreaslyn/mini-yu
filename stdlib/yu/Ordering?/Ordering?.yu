@@ -59,7 +59,7 @@ val leToCmpImpl.Ordering? : Bool & Bool -> Order
 let lexy leyx =>
   if (! lexy)
   .then gt.Order
-  .or leyx
+  .elif leyx
   .then eq.Order
   .else lt.Order
 

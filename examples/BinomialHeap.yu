@@ -54,7 +54,7 @@ let ts1 nil => ts1
 let nil ts2 => ts2
 let (t1 :: ts1) (t2 :: ts2) =>
   if (t1 <rank t2) .then (t1 :: merge.BinomialTree ts1 (t2 :: ts2))
-  .or (t2 <rank t1) .then (t2 :: merge.BinomialTree (t1 :: ts1) ts2)
+  .elif (t2 <rank t1) .then (t2 :: merge.BinomialTree (t1 :: ts1) ts2)
   .else (t1 .link t2 .insert (merge.BinomialTree ts1 ts2))
 
 

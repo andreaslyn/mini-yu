@@ -148,15 +148,15 @@ let m n =>
 val.. _.str\Bin : Bin -> Str
 let n =>
   if (n =? 0.Bin) .then "0"
-  .or (n =? 1.Bin) .then "1"
-  .or (n =? 2.Bin) .then "2"
-  .or (n =? 3.Bin) .then "3"
-  .or (n =? 4.Bin) .then "4"
-  .or (n =? 5.Bin) .then "5"
-  .or (n =? 6.Bin) .then "6"
-  .or (n =? 7.Bin) .then "7"
-  .or (n =? 8.Bin) .then "8"
-  .or (n =? 9.Bin) .then "9"
+  .elif (n =? 1.Bin) .then "1"
+  .elif (n =? 2.Bin) .then "2"
+  .elif (n =? 3.Bin) .then "3"
+  .elif (n =? 4.Bin) .then "4"
+  .elif (n =? 5.Bin) .then "5"
+  .elif (n =? 6.Bin) .then "6"
+  .elif (n =? 7.Bin) .then "7"
+  .elif (n =? 8.Bin) .then "8"
+  .elif (n =? 9.Bin) .then "9"
   .else of
     q $ r := n .divmod 10.Bin;
     q .str :+: r .str

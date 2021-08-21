@@ -32,7 +32,7 @@ let true b => b
 
 data If.Bool : Ty -> Ty
 let if [A : Ty] : Bool -> If.Bool A
-let _.or\Then.Bool [A : Ty] : Then.Bool A & ([] -> Bool) -> If.Bool A
+let _.elif\Then.Bool [A : Ty] : Then.Bool A & ([] -> Bool) -> If.Bool A
 
 
 data Then.Bool : Ty -> Ty
@@ -42,7 +42,7 @@ let _.then\If.Bool [A : Ty] : If.Bool A & ([] -> A) -> Then.Bool A
 val _.else\Then.Bool [A : Ty] : Then.Bool A & ([] -> A) -> A
 let (if true .then f) _ => f
 let (if false .then _) g => g
-let (i .or b .then f) g =>
+let (i .elif b .then f) g =>
   i .else of
     case b []
     | true => f
