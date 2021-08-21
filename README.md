@@ -277,8 +277,8 @@ import "yu/List.yu"
 Take a look at the `stdlib/yu/` directory to see what is available
 in the standard library. If an import string starts with `yu/`, such
 as `"yu/List.yu"`, then mini yu will search for files in the standard
-library. If an import string starts with slash `"/"`, then it will
-search for files starting from the root of the project
+library. If an import string starts with slash `/`, then it will
+search for files starting from the root of the project.
 ```
 import "/path/to/functionality.yu"
 ```
