@@ -6,45 +6,45 @@ let false : Bool
 let true : Bool
 
 
-val _ind\Bool : (b : Bool, P : Bool -> Ty, P(false), P(true)) -> P(b)
-let (false, P, x, _) => x
-let (true, P, _, y) => y
+val _.ind\Bool : (b : Bool) & (P : Bool -> Ty) & P(false) & P(true) -> P b
+let false P x _ => x
+let true P _ y => y
 
 
 val (!_\Bool) : Bool -> Bool
-let (true) => false
-let (false) => true
+let true => false
+let false => true
 
 
-val _|_\Bool : (Bool, [] -> Bool) -> Bool
-let (true, _) => true
-let (false, b) => b[]
+val _||_\Bool : Bool & ([] -> Bool) -> Bool
+let true _ => true
+let false b => b []
 
 
-val _&_\Bool : (Bool, [] -> Bool) -> Bool
-let (false, _) => false
-let (true, b) => b[]
+val _&&_\Bool : Bool & ([] -> Bool) -> Bool
+let false _ => false
+let true b => b []
 
 
 data If.Bool : Ty -> Ty
-let if[A : Ty] : Bool -> If.Bool(A)
-let _or\Then.Bool[A : Ty] : (Then.Bool(A), [] -> Bool) -> If.Bool(A)
+let if [A : Ty] : Bool -> If.Bool A
+let _.or\Then.Bool [A : Ty] : Then.Bool A & ([] -> Bool) -> If.Bool A
 
 
 data Then.Bool : Ty -> Ty
-let _then\If.Bool[A : Ty] : (If.Bool(A), [] -> A) -> Then.Bool(A)
+let _.then\If.Bool [A : Ty] : If.Bool A & ([] -> A) -> Then.Bool A
 
 
-val _else\Then.Bool[A : Ty] : (Then.Bool(A), [] -> A) -> A
-let (if(true) then(f), _) => f[]
-let (if(false) then(_), g) => g[]
-let (i or(b) then(f), g) =>
-  i else do
-    case b[]
-    of true => f[]
-    of false => g[]
+val _.else\Then.Bool [A : Ty] : Then.Bool A & ([] -> A) -> A
+let (if true .then f) _ => f []
+let (if false .then _) g => g []
+let (i .or b .then f) g =>
+  i .else of
+    match b []
+    let true => f []
+    let false => g []
     end
 
 
 val (?_\Bool) : Bool -> Ty
-let (a) => a = true
+let a => a = true

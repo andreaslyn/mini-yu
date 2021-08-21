@@ -2,16 +2,16 @@ import "Fun.yu"
 
 
 data Empty : Ty
-let ()
+let {}
 
 
 val (!_\Ty) : Ty -> Ty
-let (A) => A -> Empty
+let A => A -> Empty
 
 
-val _ind\Empty : (e : Empty, P : Empty -> Ty) -> P(e)
-let ((), _)
+val _.ind\Empty : (e : Empty) & (P : Empty -> Ty) -> P e
+let {} _
 
 
-val _rec\Empty[A : Ty] : Empty -> A
-let => _ ind(const(A))
+val _.rec\Empty [A : Ty] : Empty -> A
+let => _ .ind (const A)
