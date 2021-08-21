@@ -2,5 +2,5 @@ import "List.yu"
 import "yu/algebra/Monoid.yu"
 
 
-val _sum\_List\Ty[A : Ty] : (A List, A IsMonoid) -> A
-let (xs, M) => xs accum(M unit, M op)
+val _.monoidProduct\List[A : Ty] : List A & IsMonoid A -> A
+let xs M => xs .accum (M .unit) (M .op)

@@ -5,7 +5,7 @@ data DProd [A : Ty] : (B : A -> Ty) -> Ty
 let _$_\ [A : Ty] [B : A -> Ty] : (a : A) & B a -> &: B
 
 
-val (&:_\_->_) [A : Ty] : (B : A -> Ty) -> Ty
+val (&:_\Ty) [A : Ty] : (B : A -> Ty) -> Ty
 let => DProd
 
 

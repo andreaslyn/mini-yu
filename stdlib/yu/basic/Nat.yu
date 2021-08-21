@@ -39,11 +39,11 @@ let => ++ 9
 
 val _.ind\Nat :
   (n : Nat) & (P : Nat -> Ty) & ([] -> P 0) & ((x : Nat) & P x -> P (++ x)) -> P n
-let 0 P z _ => z []
-let (++ n) P z s => s n (n .ind P (z []) s)
+let 0 P z _ => z
+let (++ n) P z s => s n (n .ind P z s)
 
 val _.rec\Nat [A : Ty] : Nat & ([] -> A) & (Nat & A -> A) -> A
-let n p0 pi => n .ind (const A) (p0 []) pi
+let n p0 pi => n .ind (const A) p0 pi
 
 
 val (--_\Nat) : Nat -> Nat

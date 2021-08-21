@@ -11,11 +11,11 @@ val const [A : Ty] [B : Ty] : A -> B -> A
 let a => _ => a
 
 
-val _@_\_->_[A : Ty] [B : Ty] [C : B -> Ty]
+val _@compose_\[A : Ty] [B : Ty] [C : B -> Ty]
   : ((b : B) -> C b) & (f : A -> B) -> (a : A) -> C (f a)
 let g f => a => g (f a)
 
 
-val _.flip\_->_[A : Ty] [B : Ty] [C : A & B -> Ty] :
+val flip [A : Ty] [B : Ty] [C : A & B -> Ty] :
   ((a : A) & (b : B) -> C a b) -> (b : B) & (a : A) -> C a b
 let f => b a => f a b

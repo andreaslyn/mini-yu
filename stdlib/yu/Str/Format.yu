@@ -6,59 +6,59 @@ let natPreFormat.Str : PreFormat.Str -> PreFormat.Str
 let strPreFormat.Str : PreFormat.Str -> PreFormat.Str
 let charPreFormat.Str : PreFormat.Str -> PreFormat.Str
 let boolPreFormat.Str : PreFormat.Str -> PreFormat.Str
-let constPreFormat.Str : (Char, PreFormat.Str) -> PreFormat.Str
+let constPreFormat.Str : Char & PreFormat.Str -> PreFormat.Str
 let nilPreFormat.Str : PreFormat.Str
 let errorPreFormat.Str : PreFormat.Str
 
 
-val _map\PreFormat.Str :
-  (PreFormat.Str, PreFormat.Str -> PreFormat.Str) -> PreFormat.Str
-let (errorPreFormat.Str, _) => errorPreFormat.Str
-let (p, f) => f(p)
+val _.map\PreFormat.Str :
+  PreFormat.Str & (PreFormat.Str -> PreFormat.Str) -> PreFormat.Str
+let errorPreFormat.Str _ => errorPreFormat.Str
+let p f => f p
 
 
-val listPreFormat.Str : Char List -> PreFormat.Str
+val listPreFormat.Str : List Char -> PreFormat.Str
 let (nil) => nilPreFormat.Str
-let ('% :: 'n :: cs) => listPreFormat.Str(cs) map(natPreFormat.Str)
-let ('% :: 's :: cs) => listPreFormat.Str(cs) map(strPreFormat.Str)
-let ('% :: 'c :: cs) => listPreFormat.Str(cs) map(charPreFormat.Str)
-let ('% :: 'b :: cs) => listPreFormat.Str(cs) map(boolPreFormat.Str)
-let ('% :: '% :: cs) => listPreFormat.Str(cs) map(constPreFormat.Str('%, _))
+let ('% :: 'n :: cs) => listPreFormat.Str cs .map natPreFormat.Str
+let ('% :: 's :: cs) => listPreFormat.Str cs .map strPreFormat.Str
+let ('% :: 'c :: cs) => listPreFormat.Str cs .map charPreFormat.Str
+let ('% :: 'b :: cs) => listPreFormat.Str cs .map boolPreFormat.Str
+let ('% :: '% :: cs) => listPreFormat.Str cs .map (constPreFormat.Str '% _)
 let ('% :: _ :: cs) => errorPreFormat.Str
-let (c :: cs) => listPreFormat.Str(cs) map(constPreFormat.Str(c, _))
+let (c :: cs) => listPreFormat.Str cs .map (constPreFormat.Str c _)
 
 
-val _preFormat\Str : Str -> PreFormat.Str
-let => listPreFormat.Str @ _list\Str
+val _.preFormat\Str : Str -> PreFormat.Str
+let => listPreFormat.Str @ _.list\Str
 
 
-val _Format\PreFormat.Str : PreFormat.Str -> Ty
-let (natPreFormat.Str(p)) => Nat -> p Format
-let (strPreFormat.Str(p)) => Str -> p Format
-let (charPreFormat.Str(p)) => Char -> p Format
-let (boolPreFormat.Str(p)) => Bool -> p Format
-let (constPreFormat.Str(_, p)) => p Format
-let (errorPreFormat.Str) => Unit
-let (nilPreFormat.Str) => Str
+val _.Format\PreFormat.Str : PreFormat.Str -> Ty
+let (natPreFormat.Str p) => Nat -> p .Format
+let (strPreFormat.Str p) => Str -> p .Format
+let (charPreFormat.Str p) => Char -> p .Format
+let (boolPreFormat.Str p) => Bool -> p .Format
+let (constPreFormat.Str _ p) => p .Format
+let errorPreFormat.Str => {}
+let nilPreFormat.Str => Str
 
 
-val formatAccum.Str : (p : PreFormat.Str, Str -> Str) -> p Format
-let (natPreFormat.Str(p), a) => (n). formatAccum.Str(p, (t). a(n str :+: t))
-let (strPreFormat.Str(p), a) => (s). formatAccum.Str(p, (t). a(s :+: t))
-let (charPreFormat.Str(p), a) => (c). formatAccum.Str(p, (t). a(c str :+: t))
-let (boolPreFormat.Str(p), a) => (b). formatAccum.Str(p, (t). a(b str :+: t))
-let (constPreFormat.Str(c, p), a) => formatAccum.Str(p, (t). a(c str :+: t))
-let (errorPreFormat.Str, _) => unit
-let (nilPreFormat.Str, a) => a("")
+val formatAccum.Str : (p : PreFormat.Str) & (Str -> Str) -> p .Format
+let (natPreFormat.Str p) a => n => formatAccum.Str p (t => a (n .str :+: t))
+let (strPreFormat.Str p) a => s => formatAccum.Str p (t => a (s :+: t))
+let (charPreFormat.Str p) a => c => formatAccum.Str p (t => a (c .str :+: t))
+let (boolPreFormat.Str p) a => b => formatAccum.Str p (t => a (b .str :+: t))
+let (constPreFormat.Str c p) a => formatAccum.Str p (t => a (c .str :+: t))
+let errorPreFormat.Str _ => ()
+let nilPreFormat.Str a => a ""
 
 
-val _format\PreFormat.Str : (p : PreFormat.Str) -> p Format
-let (p) => formatAccum.Str(p, id)
+val _.format\PreFormat.Str : (p : PreFormat.Str) -> p .Format
+let p => formatAccum.Str p id
 
 
-val _Format\Str : Str -> Ty
-let (s) => s preFormat Format
+val _.Format\Str : Str -> Ty
+let s => s .preFormat .Format
 
 
-val _format\Str : (s : Str) -> s Format
-let (s) => s preFormat format
+val _.format\Str : (s : Str) -> s .Format
+let s => s .preFormat .format

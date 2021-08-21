@@ -1,5 +1,5 @@
 
-data (&:_\_->_) [A : Ty] : (B : A -> Ty) -> Ty
+data (&:_\Ty) [A : Ty] : (B : A -> Ty) -> Ty
 let _$_\ [A : Ty] [B : A -> Ty] : (a : A) & B(a) -> &: B
 
 val pr1 [A : Ty] [B : A -> Ty] : &: B -> A

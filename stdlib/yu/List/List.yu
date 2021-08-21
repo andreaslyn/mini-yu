@@ -88,7 +88,7 @@ let xs ys => xs .fold ys _::_
 
 
 val _.rev\List [A : Ty] : List A -> List A
-let => _ .accum nil (_::_\List .flip)
+let => _ .accum nil (flip _::_\List)
 
 
 val _.concat\List [A : Ty] : List (List A) -> List A
@@ -135,10 +135,18 @@ let nil nil _ => eq.Order
 let nil (_ :: _) _ => lt.Order
 let (_ :: _) nil _ => gt.Order
 let (x :: xs) (y :: ys) C =>
-  match C .cmp x y
-  let eq.Order => xs .cmp ys C
-  let ord => ord
-  end
+  C .cmp x y .rec lt.Order (xs .cmp ys C) gt.Order
+
+
+val _.eq?\List [A : Ty] : List A & List A & Equivalence? A -> Bool
+let nil nil _ => true
+let (_ :: _) nil _ => false
+let nil (_ :: _) _ => false
+let (x :: xs) (y :: ys) E => E .eq? x y && xs .eq? ys E
+
+
+val _.neq?\List [A : Ty] : List A & List A & Equivalence? A -> Bool
+let xs ys E => ! xs .eq? ys E
 
 
 data _.Has\List [A : Ty] : List A & A -> Ty

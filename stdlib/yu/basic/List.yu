@@ -12,10 +12,10 @@ val _.ind\List [A : Ty] :
   ([] -> P nil) &
   ((y : A) & (ys : List A) & P ys -> P (y :: ys)) ->
   P xs
-let nil P p0 pi => p0 []
-let (x :: xs) P p0 pi => pi x xs (xs .ind P (p0 []) pi)
+let nil P p0 pi => p0
+let (x :: xs) P p0 pi => pi x xs (xs .ind P p0 pi)
 
 
 val _.rec\List [A : Ty] [B : Ty] :
   (xs : List A) & ([] -> B) & ((y : A) & List A & B -> B) -> B
-let xs p0 pi => xs .ind (const B) (p0 []) pi
+let xs p0 pi => xs .ind (const B) p0 pi

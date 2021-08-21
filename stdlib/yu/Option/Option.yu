@@ -17,7 +17,7 @@ let (yes(_)) => false
 
 
 val _.isYes\Option [A : Ty] : ? A -> Bool
-let => (!_) @ _.isNo\Option
+let => (!_) @compose _.isNo\Option
 
 
 val _>>=_\Option [A B : Ty] : ? A & (A -> ? B) -> ? B
@@ -26,4 +26,4 @@ let (yes a) f => f a
 
 
 val _.map\Option [A B : Ty] : ? A & (A -> B) -> ? B
-let x f => x >>= yes @ f
+let x f => x >>= yes @compose f

@@ -363,13 +363,10 @@ typeOperandName :: Monad m => PreTerm -> TypeCheckT m (Maybe VarName)
 typeOperandName aty = do
   rm <- Env.getRefMap
   let aty' = preTermNormalize rm aty
-  case aty' of
-    TermArrow _ (_:_) _ -> return (Just "_->_")
-    _ ->
-      case preTermCodRootType rm aty' of
-        Just (TermData v, _) -> return (Just (varName v))
-        Just (TermTy, _) -> return (Just "Ty")
-        _ -> return Nothing
+  case preTermCodRootType rm aty' of
+    Just (TermData v, _) -> return (Just (varName v))
+    Just (TermTy, _) -> return (Just "Ty")
+    _ -> return Nothing
 
 tcDef :: Monad m => SubstMap -> Bool -> Def -> TypeCheckT m Term
 tcDef subst _ (DefExtern d) = do
@@ -1628,11 +1625,6 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
         "unable to infer implicit argument " ++ varName v
       return (v, TermVar True v')
 doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
- if isTrial && length as > 0
- then return (mkTerm TermEmpty
-              (TermArrow False
-                  [(Just (mkVar 0 ""), TermEmpty)] TermEmpty) False)
- else
   scope $ do
     as' <- mapM (\a -> fmap ((,) a) (lift Env.freshVarId)) as
     case ty of
@@ -1640,7 +1632,7 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
         implicits <- mapM insertImplicit as
         ats <- mapM insertUnknownUntypedParam (zip as' implicits)
         dom' <- mapM checkParam (zip as' ats)
-        body' <- doTcExpr False subst Nothing Nothing body
+        body' <- doTcExpr isTrial subst Nothing Nothing body
         let io = termIo body'
         let fte = TermFun [] io (Just (length dom'))
                     (CaseLeaf (map fst dom') io (termPre body') [])
@@ -1654,7 +1646,7 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             implicits <- mapM insertImplicit as
             ats <- mapM insertUnknownUntypedParam (zip as' implicits)
             dom' <- mapM checkParam (zip as' ats)
-            body' <- doTcExpr False subst Nothing Nothing body
+            body' <- doTcExpr isTrial subst Nothing Nothing body
             let io = termIo body'
             let fte = TermFun [] io (Just (length dom'))
                         (CaseLeaf (map fst dom') io (termPre body') [])

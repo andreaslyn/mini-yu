@@ -23,10 +23,10 @@ let _ => false
 val _.ind\Order :
   (c : Order) & (P : Order -> Ty) &
     ([] -> P lt.Order) & ([] -> P eq.Order) & ([] -> P gt.Order) -> P c
-let lt.Order P x _ _ => x []
-let eq.Order P _ y _ => y []
-let gt.Order P _ _ z => z []
+let lt.Order P x _ _ => x
+let eq.Order P _ y _ => y
+let gt.Order P _ _ z => z
 
 
 val _.rec\Order[A : Ty] : Order & ([] -> A) & ([] -> A) & ([] -> A) -> A
-let c lt eq gt => c .ind (const A) (lt []) (eq []) (gt [])
+let c lt eq gt => c .ind (const A) lt eq gt

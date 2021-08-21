@@ -277,7 +277,7 @@ let le isLe =>
 
 
 val cmpToLeToLt?.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Bool
-let => leToLt?.Ordering? @ cmpToLe?.Ordering?
+let => leToLt?.Ordering? @compose cmpToLe?.Ordering?
 
 val cmpToLt?IsCompatible.Ordering? [A : Ty] :
   (cmp : A & A -> Order) &
@@ -289,7 +289,7 @@ let cmp isC => x y => isC x y @ ! involutionOp!.Bool
 
 
 val cmpToLeToEq?.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Bool
-let => leToEq?.Ordering? @ cmpToLe?.Ordering?
+let => leToEq?.Ordering? @compose cmpToLe?.Ordering?
 
 val cmpToEq?IsCompatible.Ordering? [A : Ty] :
   (cmp : A & A -> Order) &
@@ -333,7 +333,7 @@ end
 
 
 val cmpToLeToCmp.Ordering? [A : Ty] : (A & A -> Order) -> A & A -> Order
-let => leToCmp.Ordering? @ cmpToLe?.Ordering?
+let => leToCmp.Ordering? @compose cmpToLe?.Ordering?
 
 val cmpToCmpIsCompatible.Ordering [A : Ty] :
   (cmp : A & A -> Order) &

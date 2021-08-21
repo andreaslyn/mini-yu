@@ -1,15 +1,15 @@
 import "yu/Vec/Vec.yu"
 
 
-data _Vec\_->_[A : Ty, n : Nat] : (A -> Ty, A Vec(n)) -> Ty
-let nil.HeteroVec[A : Ty, P : A -> Ty] : P Vec(nil.Vec)
-let _::_\_Vec\_->_[A : Ty, P : A -> Ty, n : Nat, x : A, xs : A Vec(n)] :
+data HVec[A : Ty, n : Nat] : (A -> Ty, A Vec(n)) -> Ty
+let nil.HVec[A : Ty, P : A -> Ty] : P Vec(nil.Vec)
+let _::_\HVec[A : Ty, P : A -> Ty, n : Nat, x : A, xs : A Vec(n)] :
   (P(x), P Vec(xs)) -> P Vec(x :: xs)
 
 
-val _index\_Vec\_->_[A : Ty, P : A -> Ty, n : Nat, as : A Vec(n)] :
+val _index\HVec[A : Ty, P : A -> Ty, n : Nat, as : A Vec(n)] :
   (P Vec(as), i : Nat, L : ?(i <? n)) -> P(as index(i, L))
-let (nil.HeteroVec, 0, ())
-let (nil.HeteroVec, ++ _, ())
+let (nil.HVec, 0, ())
+let (nil.HVec, ++ _, ())
 let (x :: xs, 0, _) => x
 let (_ :: xs, ++ i, L) => xs index(i, L)

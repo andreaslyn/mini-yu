@@ -5,8 +5,8 @@ data IsMonoid : Ty -> Ty
 let is.Monoid[A : Ty] :
   (op : A & A -> A) &
   (unt : A) &
-  op .IsAssociative &
-  (op .HasUnit unt) ->
+  IsAssociative op &
+  (HasUnit op unt) ->
   IsMonoid A
 
 
@@ -19,12 +19,12 @@ let (is.Monoid _ u _ _) => u
 
 
 val _.isAssociative\IsMonoid [A : Ty] :
-  (M : IsMonoid A) -> M .op .IsAssociative
+  (M : IsMonoid A) -> IsAssociative (M .op)
 let (is.Monoid _ _ a _) => a
 
 
 val _.hasUnit\IsMonoid [A : Ty] :
-  (M : IsMonoid A) -> M .op .HasUnit (M .unit)
+  (M : IsMonoid A) -> HasUnit (M .op) (M .unit)
 let (is.Monoid _ _ _ h) => h
 
 
@@ -48,9 +48,9 @@ val _.unit\Monoid : (M : Monoid) -> M .Carrier
 let M => M .isMonoid .unit
 
 
-val _.isAssociative\Monoid : (M : Monoid) -> M .op .IsAssociative
+val _.isAssociative\Monoid : (M : Monoid) -> IsAssociative (M .op)
 let M => M .isMonoid .isAssociative
 
 
-val _.hasUnit\Monoid : (M : Monoid) -> M .op .HasUnit (M .unit)
+val _.hasUnit\Monoid : (M : Monoid) -> HasUnit (M .op) (M .unit)
 let M => M .isMonoid .hasUnit

@@ -48,7 +48,7 @@ let a b => ! (a = b)
 
 
 val _.sym!=\Equal [A B : Ty] [a : A] [b : B] : a != b -> b != a
-let e => e @ (!_\Equal)
+let e => e @compose (!_\Equal)
 
 
 extern funext.Equal :

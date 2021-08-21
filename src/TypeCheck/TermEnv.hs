@@ -905,7 +905,7 @@ nextVarName :: ToString String
 nextVarName = do
   (x, n, v) <- get
   put (x+1, n, v)
-  return ('.' : show x)
+  return ('#' : show x)
 
 writeIndent :: ToString ()
 writeIndent = get >>= \(_, n, _) -> doWrite n
@@ -940,6 +940,7 @@ writeFunImplicitNames (i : is) = do
 writePreTerm :: ImplicitMap -> RefMap -> PreTerm -> ToString ()
 writePreTerm im rm (TermFun imps _ (Just _) (CaseLeaf vs _ t _)) = do
   writeFunImplicitNames imps
+  when (not (null imps)) (writeStr " ")
   writeVarList (drop (length imps) vs)
   writeStr " => "
   writePreTerm im rm t
@@ -950,10 +951,12 @@ writePreTerm im rm (TermFun imps _ Nothing ct) = do
 writePreTerm im rm (TermFun imps _ (Just n) ct) = do
   args <- mapM (\_ -> nextVarName) [1..n]
   writeFunImplicitNames imps
+  when (not (null imps)) (writeStr " ")
   writeNameList args
   writeStr " => "
   writeCaseTree im rm (map Left imps ++ map Left args) ct
-writePreTerm im rm (TermLazyFun _ f) = writePreTerm im rm f
+writePreTerm im rm (TermLazyFun _ f) =
+  writeStr "[] => " >> writePreTerm im rm f
 writePreTerm im rm (TermArrow io d c) = do
   writeDomainList im rm d
   if io
@@ -1098,7 +1101,12 @@ writePreTerm im rm (TermImplicitApp False f xs) = do
   if vb
   then writePreTerm im rm (TermImplicitApp True f xs)
   else writePreTerm im rm f
-writePreTerm im rm (TermLazyApp _ f) = writePreTerm im rm f
+writePreTerm im rm (TermLazyApp _ f) = do
+  let b = hasLowerPrecThanApp f
+  when b (writeStr "(")
+  writePreTerm im rm f
+  when b (writeStr ")")
+  writeStr " []"
 writePreTerm _ _ (TermRef v _) = writeStr (varName v)
 writePreTerm _ _ (TermData v) = writeStr (varName v)
 writePreTerm _ _ (TermCtor v _) = writeStr (varName v)
@@ -1109,7 +1117,7 @@ writePreTerm _ _ (TermVar _ v) = do
   when pre (writeStr ")")
   vb <- isVerbose
   when vb $ do
-    writeStr "."
+    writeStr "#"
     writeStr (show (varId v))
 writePreTerm _ _ TermUnitElem = writeStr "()"
 writePreTerm _ _ TermUnitTy = writeStr "{}"
@@ -1203,7 +1211,7 @@ writeCaseTree im rm (x : xs) (CaseLeaf (i : is) _ t _) = do
     writeStr (varName i)
     vb <- isVerbose
     when vb $ do
-      writeStr "."
+      writeStr "#"
       writeStr (show (varId i))
     writeStr " := "
     case x of
@@ -1263,7 +1271,7 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
         writeStr (varName v)
         vb <- isVerbose
         when vb $ do
-          writeStr "."
+          writeStr "#"
           writeStr (show (varId v))
         when (not (null imps)) (writeStr " ")
         imps' <- writeImplicits imps
@@ -1284,7 +1292,7 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
       writeStr (varName v)
       vb <- isVerbose
       when vb $ do
-        writeStr "."
+        writeStr "#"
         writeStr (show (varId v))
       writeStr " := "
       writeStr n
@@ -1300,13 +1308,12 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
           case preTermLazyCod rm ty of
             Nothing -> return []
             Just (c', _) -> do
-              writeStr "[]"
+              writeStr " []"
               writeArgs c'
         Just (d', c', _) -> do
-          writeStr "("
           ns <- mapM (\_ -> nextVarName) [1 .. length d']
+          when (not (null ns)) (writeStr " ")
           writeNameList ns
-          writeStr ")"
           nss <- writeArgs c'
           return (map Left ns ++ nss)
 
@@ -1391,13 +1398,13 @@ writeVarList [v] = do
   writeStr (varName v)
   vb <- isVerbose
   when vb $ do
-    writeStr "."
+    writeStr "#"
     writeStr (show (varId v))
 writeVarList (v:vs) = do
   writeStr (varName v)
   vb <- isVerbose
   when vb $ do
-    writeStr "."
+    writeStr "#"
     writeStr (show (varId v))
   writeStr " "
   writeVarList vs
@@ -1428,7 +1435,7 @@ writeOptNamedPreTerm im rm (Just v, t) = do
   writeStr (varName v)
   vb <- isVerbose
   when vb $ do
-    writeStr "."
+    writeStr "#"
     writeStr (show (varId v))
   writeStr " : "
   writePreTerm im rm t
@@ -1559,14 +1566,13 @@ hasLowerPrecThanInfixOp6 (TermFun _ _ _ _) = True
 hasLowerPrecThanInfixOp6 (TermImplicitApp False (TermFun _ _ _ _) _) = True
 hasLowerPrecThanInfixOp6 (TermLazyArrow _ _) = True
 hasLowerPrecThanInfixOp6 (TermArrow _ _ _) = True
-hasLowerPrecThanInfixOp6 (TermLazyFun _ t) =
-  hasLowerPrecThanInfixOp6 t
+hasLowerPrecThanInfixOp6 (TermLazyFun _ _) = True
 hasLowerPrecThanInfixOp6 _ = False
 
 hasSeqPrecOrLower :: PreTerm -> Bool
 hasSeqPrecOrLower (TermFun _ _ _ _) = True
 hasSeqPrecOrLower (TermImplicitApp False (TermFun _ _ _ _) _) = True
-hasSeqPrecOrLower (TermLazyFun _ t) = hasSeqPrecOrLower t
+hasSeqPrecOrLower (TermLazyFun _ _) = True
 hasSeqPrecOrLower _ = False
 
 needsAppParens :: PreTerm -> Bool

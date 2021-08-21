@@ -2,18 +2,19 @@ import "Str.yu"
 import "yu/List/theorems.yu"
 
 
-val cmpIsTransitive?.Str : cmpToLe?.Ordering?(_cmp\Str) IsTransitive?
-let (r, s, t, lrs, lst) =>
-  cmpIsTransitive?.List(ordering?.Char)(r list, s list, t list, lrs, lst)
+val cmpIsTransitive?.Str : cmpToLe?.Ordering? _.cmp\Str .IsTransitive?
+let r s t lrs lst =>
+  cmpIsTransitive?.List
+    ordering?.Char (r .list) (s .list) (t .list) lrs lst
 
 
-val cmpIsCompatible.Str : (r; s : Str) -> r cmp(s) lt? = s cmp(r) gt?
-let (r, s) => cmpIsCompatible.List(ordering?.Char)(r list, s list)
+val cmpIsCompatible.Str : (r s : Str) -> r .cmp s .lt? = s .cmp r .gt?
+let r s => cmpIsCompatible.List ordering?.Char (r .list) (s .list)
 
 
-val ordering?.Str : Str Ordering?
-let => fromCmp.Ordering?(_cmp\Str, cmpIsTransitive?.Str, cmpIsCompatible.Str)
+val ordering?.Str : Ordering? Str
+let => fromCmp.Ordering? _.cmp\Str cmpIsTransitive?.Str cmpIsCompatible.Str
 
 
-val equivalence?.Str : Str Equivalence?
-let => ordering?.Str equivalence?
+val equivalence?.Str : Equivalence? Str
+let => ordering?.Str .equivalence?

@@ -25,7 +25,7 @@ let vnil[A : Ty] : A .Vec 0
 let _::_\_.Vec\Ty[A : Ty] [n : Nat] : A & A .Vec n -> A .Vec (++ n)
 
 
-data _.IsTyTy\_->_ : (Ty -> Ty) -> Ty
+data _.IsTyTy\Ty : (Ty -> Ty) -> Ty
 let mkIsTyTy[F : Ty -> Ty] : F .IsTyTy
 
 
@@ -39,7 +39,7 @@ let =>
   ()
 
 
-data _.IsTyTy'\_->_ : (Ty -> Ty) & Ty -> Ty
+data _.IsTyTy'\Ty : (Ty -> Ty) & Ty -> Ty
 let mkIsTyTy'[F : Ty -> Ty] [A : Ty] : F .IsTyTy' A
 
 
@@ -62,7 +62,7 @@ let =>
   ()
 
 
-data _.IsTyTyTy\_->_ : (Ty & Ty -> Ty) -> Ty
+data _.IsTyTyTy\Ty : (Ty & Ty -> Ty) -> Ty
 let mkIsTyTyTy[F : Ty & Ty -> Ty] : F .IsTyTyTy
 
 

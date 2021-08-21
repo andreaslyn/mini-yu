@@ -570,7 +570,7 @@ parseExprStr = do
     yuCharsToExpr :: [String] -> Loc -> Expr
     yuCharsToExpr [] lo = ExprVar (lo, "nil")
     yuCharsToExpr (c : cs) lo =
-      ExprApp (ExprVar (lo, "_::_\\_List\\Ty"))
+      ExprApp (ExprVar (lo, "_::_\\List"))
         [ExprVar (lo, c), yuCharsToExpr cs lo]
 
 parseExprVar :: YuParsec Expr

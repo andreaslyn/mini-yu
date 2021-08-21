@@ -4,41 +4,41 @@ import "yu/Prod/Prod.yu"
 import "yu/Sum/Sum.yu"
 
 
-val _IsReflexive\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => (x : A) -> R(x, x)
+val _.IsReflexive\Ty [A : Ty] : (A & A -> Ty) -> Ty
+let R => (x : A) -> R x x
 
 
-val _IsIrreflexive\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => (x : A) -> ! R(x, x)
+val _.IsIrreflexive\Ty [A : Ty] : (A & A -> Ty) -> Ty
+let (R) => (x : A) -> ! R x x
 
 
-val _IsSymmetric\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => (x; y : A, R(x, y)) -> R(y, x)
+val _.IsSymmetric\Ty [A : Ty] : (A & A -> Ty) -> Ty
+let R => (x y : A) & R x y -> R y x
 
 
-val _IsAsymmetric\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => (x; y : A, R(x, y)) -> ! R(y, x)
+val _.IsAsymmetric\Ty [A : Ty] : (A & A -> Ty) -> Ty
+let R => (x y : A) & R x y -> ! R y x
 
 
-val _IsAntisymmetric\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => (x; y : A, R(x, y), R(y, x)) -> x = y
+val _.IsAntisymmetric\Ty [A : Ty] : (A & A -> Ty) -> Ty
+let R => (x y : A) & R x y & R y x -> x = y
 
 
-val _IsTransitive\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => (x; y; z : A, R(x, y), R(y, z)) -> R(x, z)
+val _.IsTransitive\Ty [A : Ty] : (A & A -> Ty) -> Ty
+let R => (x y z : A) & R x y & R y z -> R x z
 
 
-val _IsConnex\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => (x; y : A) -> R(x, y) | R(y, x)
+val _.IsConnex\Ty [A : Ty] : (A & A -> Ty) -> Ty
+let R => (x y : A) -> R x y || R y x
 
 
-val _IsPreorder\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => R IsReflexive & R IsTransitive
+val _.IsPreorder\Ty [A : Ty] : (A & A -> Ty) -> Ty
+let R => R .IsReflexive && R .IsTransitive
 
 
-val _IsEquivalence\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => R IsSymmetric & R IsPreorder
+val _.IsEquivalence\Ty [A : Ty] : (A & A -> Ty) -> Ty
+let R => R .IsSymmetric && R .IsPreorder
 
 
-val _IsPartialOrder\_->_[A : Ty] : ((A, A) -> Ty) -> Ty
-let (R) => R IsAntisymmetric & R IsPreorder
+val _.IsPartialOrder\Ty [A : Ty] : (A & A -> Ty) -> Ty
+let R => R .IsAntisymmetric && R .IsPreorder

@@ -14,8 +14,8 @@ struct yur_PThread {
 
 static void *thread_fn(void *x0) {
   struct yur_PThread *x = x0;
-  yur_Ref *(*f)(yur_Ref *) = (yur_Ref *(*)(yur_Ref *)) x->fn->tag;
-  yur_Ref *r = f(x->fn);
+  yur_Ref *(*f)(yur_Ref *) = (yur_Ref *(*)(yur_Ref *, yur_Ref *)) x->fn->tag;
+  yur_Ref *r = f(&yur_unit, x->fn);
   yur_unref((yur_Ref *) x);
   return r;
 }
@@ -94,7 +94,7 @@ static yur_Ref *mk_lazy_error(int e) {
   return r;
 }
 
-// (A : Ty, () ->> A) -> () ->> Str | A
+// (A : Ty) & ({} ->> A) -> [] ->> Str || A
 yur_Ref *yu_parallel_si_doparallel(yur_Ref *f, yur_Ref *A) {
   yur_unref(A);
   struct yur_PThread *x = (struct yur_PThread *) yur_malloc(sizeof(struct yur_PThread));

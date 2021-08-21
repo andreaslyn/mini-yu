@@ -1213,7 +1213,7 @@ yur_Ref *yu__poprint_baChar(yur_Ref *x) {
   return &yur_unit;
 }
 
-yur_Ref *yu__pocmp_baChar(yur_Ref *c, yur_Ref *b) {
+yur_Ref *yu__po_docmp_baChar(yur_Ref *c, yur_Ref *b) {
   size_t t;
   if (b->tag < c->tag) {
     t = 0;
