@@ -5,139 +5,143 @@ import "yu/Option/Option.yu"
 import "yu/Equivalence?/Equivalence?.yu"
 
 
-data _IsNonempty\_List\Ty[A : Ty] : A List -> Ty
-let mkIsNonempty.List[A : Ty, a : A, as : A List] : (a :: as) IsNonempty
+data _.Is::\List [A : Ty] : List A -> Ty
+let is::.List [A : Ty] [a : A] [as : List A] : (a :: as) .Is::
 
 
-val _empty?\_List\Ty[A : Ty] : A List -> Bool
-let (nil) => true
+val _.empty?\List [A : Ty] : List A -> Bool
+let nil => true
 let (_ :: _) => false
 
 
-val _head?\_List\Ty[A : Ty] : A List -> ? A
-let (nil) => no
-let (x :: _) => yes(x)
+val _.head?\List [A : Ty] : List A -> ? A
+let nil => no
+let (x :: _) => yes x
 
 
-val _head\_List\Ty[A : Ty] : (as : A List, as IsNonempty) -> A
-let (x :: _, mkIsNonempty.List) => x
+val _.head\List [A : Ty] : (as : List A) & as .Is:: -> A
+let (x :: _) is::.List => x
 
 
-val _tail?\_List\Ty[A : Ty] : A List -> ? A List
-let (nil) => no
-let (_ :: xs) => yes(xs)
+val _.tail?\List [A : Ty] : List A -> ? List A
+let nil => no
+let (_ :: xs) => yes xs
 
 
-val _tail!\_List\Ty[A : Ty] : A List -> A List
-let (nil) => nil
+val _.tail!\List [A : Ty] : List A -> List A
+let nil => nil
 let (_ :: xs) => xs
 
 
-val _tail\_List\Ty[A : Ty] : (as : A List, as IsNonempty) -> A List
-let (_ :: as, mkIsNonempty.List) => as
+val _.tail\List [A : Ty] : (as : List A) & as .Is:: -> List A
+let (_ :: as) is::.List => as
 
 
-val _len\_List\Ty[A : Ty] : A List -> Nat
-let (nil) => 0
-let (_ :: xs) => ++ xs len
+val _.len\List [A : Ty] : List A -> Nat
+let nil => 0
+let (_ :: xs) => ++ xs .len
 
 
-val _update?\_List\Ty[A : Ty] : (A List, A, Nat) -> ? A List
-let (nil, _, _) => no
-let (_ :: xs, a, 0) => yes(a :: xs)
-let (x :: xs, a, ++ n) =>
-  xs update?(a, n) >>= (xs'). yes(x :: xs')
+val _.update?\List [A : Ty] : List A & A & Nat -> ? List A
+let nil _ _ => no
+let (_ :: xs) a 0 => yes(a :: xs)
+let (x :: xs) a (++ n) =>
+  xs .update? a n >>= of xs' => yes (x :: xs')
 
 
-val _update!\_List\Ty[A : Ty] : (A List, A, Nat) -> A List
-let (nil, _, _) => nil
-let (_ :: xs, a, 0) => a :: xs
-let (x :: xs, a, ++ n) => x :: xs update!(a, n)
+val _.update!\List [A : Ty] : List A & A & Nat -> List A
+let nil _ _ => nil
+let (_ :: xs) a 0 => a :: xs
+let (x :: xs) a (++ n) => x :: xs .update! a n
 
 
-val _map\_List\Ty[A; B : Ty] : (A List, A -> B) -> B List
-let (nil, _) => nil
-let (x :: xs, f) => f(x) :: xs map(f)
+val _.map\List [A B : Ty] : List A & (A -> B) -> List B
+let nil _ => nil
+let (x :: xs) f => f x :: xs .map f
 
 
-val _filter\_List\Ty[A : Ty] : (A List, A -> Bool) -> A List
-let (nil, _) => nil
-let (x :: xs, p) =>
-  if(p(x)) then(x :: xs filter(p)) else(xs filter(p))
+val _.filter\List [A : Ty] : List A & (A -> Bool) -> List A
+let nil _ => nil
+let (x :: xs) p =>
+  if (p x) .then (x :: xs .filter p) .else (xs .filter p)
 
 
-val _partition\_List\Ty[A : Ty] : (A List, A -> Bool) -> A List & A List
-let (nil, _) => nil $ nil
-let (x :: xs, p) =>
-  l $ r := xs partition(p);
-  if(p(x)) then((x :: l) $ r) else(l $ (x :: r))
+val _.partition\List [A : Ty] : List A & (A -> Bool) -> List A && List A
+let nil _ => nil $ nil
+let (x :: xs) p =>
+  l $ r := xs .partition p;
+  if (p x) .then ((x :: l) $ r) .else (l $ (x :: r))
 
 
-val _accum\_List\Ty[A; B : Ty] : (B List, A, (A, B) -> A) -> A
-let (nil, a, _) => a
-let (x :: xs, a, f) => xs accum(f(a, x), f)
+val _.accum\List [A B : Ty] : List B & A & (A & B -> A) -> A
+let nil a _ => a
+let (x :: xs) a f => xs .accum (f a x) f
 
 
-val _fold\_List\Ty[A; B : Ty] : (B List, A, (B, A) -> A) -> A
-let (nil, a, _) => a
-let (x :: xs, a, f) => f(x, xs fold(a, f))
+val _.fold\List [A B : Ty] : List B & A & (B & A -> A) -> A
+let nil a _ => a
+let (x :: xs) a f => f x (xs .fold a f)
 
 
-val _:+:_\_List\Ty[A : Ty] : (A List, A List) -> A List
-let (xs, ys) => xs fold(ys, _::_)
+val _:+:_\List [A : Ty] : List A & List A -> List A
+let xs ys => xs .fold ys _::_
 
 
-val _rev\_List\Ty[A : Ty] : A List -> A List
-let => _ accum(nil, _::_\_List\Ty flip)
+val _.rev\List [A : Ty] : List A -> List A
+let => _ .accum nil (_::_\List .flip)
 
 
-val _concat\_List\Ty[A : Ty] : (A List List) -> A List
-let (as) => as fold(nil, _:+:_)
+val _.concat\List [A : Ty] : List (List A) -> List A
+let as => as .fold nil _:+:_
 
 
-val _accumScan\_List\Ty[A; B : Ty] : (A List, B, (B, A) -> B) -> B List
-let (xs, y, f) =>
-  xs accum(y $ (t : B List). y :: t, (b, a). do
-    b' := f(b 1, a);
-    b' $ (t : B List). b 2(b' :: t)
-  ) 2(nil)
+val _.accumScan\List [A B : Ty] : List A & B & (B & A -> B) -> List B
+let xs y f =>
+  xs .accum (y $ of (t : List B) => y :: t) (b a =>
+    b' := f (b .1) a;
+    b' $ of (t : List B) => b .2 (b' :: t)
+  ) .2 nil
 
 
-val _foldScan\_List\Ty[A; B : Ty] : (A List, B, (A, B) -> B) -> B List
-let (xs, y, f) =>
-  xs fold(y $ (y :: nil), (a, b). do
-    b' := f(a, b 1);
-    b' $ (b' :: b 2)) 2
+val _.foldScan\List [A B : Ty] : List A & B & (A & B -> B) -> List B
+let xs y f =>
+  xs .fold (y $ (y :: nil)) (a b =>
+    b' := f a (b .1);
+    b' $ (b' :: b .2)
+  ) .2
 
 
-val _intercalate\_List\Ty[A : Ty] : (A List List, A List) -> A List
-let (nil, _) => nil
-let (xs :: nil, s) => xs
-let (xs :: xss, s) => xs :+: s :+: xss intercalate(s)
+val _.intercalate\List [A : Ty] : List (List A) & List A -> List A
+let nil _ => nil
+let (xs :: nil) s => xs
+let (xs :: xss) s => xs :+: s :+: xss .intercalate s
 
 
-val _sublistOf\_List\Ty[A : Ty] : (A List, A List, A Equivalence?) -> Bool
-let (nil, _, _) => true
-let (_ :: _, nil, _) => false
-let (x :: xs, y :: ys, q) =>
-  (q eq?(x, y) & xs sublistOf(ys, q)) | xs sublistOf(y :: ys, q)
+val _.isSublist\List [A : Ty] : List A & List A & Equivalence? A -> Bool
+let nil _ _ => true
+let (_ :: _) nil _ => false
+let (x :: xs) (y :: ys) q =>
+  (q .eq? x y && xs .isSublist ys q) || xs .isSublist (y :: ys) q
 
 
-data _All\_List\Ty[A : Ty] : (A List, A -> Ty) -> Ty
-let allNil.List[A : Ty, P : A -> Ty] : nil All(P)
-let _::_\_All\_List\Ty[A : Ty, P : A -> Ty, x : A, xs : A List] :
-  (P(x), xs All(P)) -> (x :: xs) All(P)
+data _.All\List [A : Ty] : List A & (A -> Ty) -> Ty
+let allNil.List [A : Ty] [P : A -> Ty] : nil .All P
+let _::_\_.All\List [A : Ty] [P : A -> Ty] [x : A] [xs : List A] :
+  P x & xs .All P -> (x :: xs) .All P
 
 
-val _cmp\_List\Ty[A : Ty] : (A List, A List, A Ordering?) -> Order
-let (nil, nil, _) => eq.Order
-let (nil, _ :: _, _) => lt.Order
-let (_ :: _, nil, _) => gt.Order
-let (x :: xs, y :: ys, C) =>
-  C cmp(x, y) rec(lt.Order, xs cmp(ys, C), gt.Order)
+val _.cmp\List [A : Ty] : List A & List A & Ordering? A -> Order
+let nil nil _ => eq.Order
+let nil (_ :: _) _ => lt.Order
+let (_ :: _) nil _ => gt.Order
+let (x :: xs) (y :: ys) C =>
+  match C .cmp x y
+  let eq.Order => xs .cmp ys C
+  let ord => ord
+  end
 
 
-data _Has\_List\Ty[A : Ty] : (A List, A) -> Ty
-let here.List[A : Ty, xs : A List, x : A] : (x :: xs) Has(x)
-let _there\_Has\_List\Ty[A : Ty, xs : A List, x; y : A] :
-  xs Has(x) -> (y :: xs) Has(x)
+data _.Has\List [A : Ty] : List A & A -> Ty
+let here.List [A : Ty] [xs : List A] [x : A] : (x :: xs) .Has x
+let _.there\_.Has\List [A : Ty] [xs : List A] [x y : A] :
+  xs .Has x -> (y :: xs) .Has x

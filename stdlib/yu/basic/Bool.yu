@@ -6,9 +6,13 @@ let false : Bool
 let true : Bool
 
 
-val _.ind\Bool : (b : Bool) & (P : Bool -> Ty) & P(false) & P(true) -> P b
-let false P x _ => x
-let true P _ y => y
+val _.ind\Bool : (b : Bool) & (P : Bool -> Ty) & ([] -> P false) & ([] -> P true) -> P b
+let false P x _ => x []
+let true P _ y => y []
+
+
+val _.rec\Bool [A : Ty] : (b : Bool) & ([] -> A) & ([] -> A) -> A
+let b x y => b .ind (const A) (x []) (y [])
 
 
 val (!_\Bool) : Bool -> Bool

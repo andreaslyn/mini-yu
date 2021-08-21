@@ -8,11 +8,11 @@ import "yu/Option/Option.yu"
 
 
 data _.Is++\Nat : Nat -> Ty
-let isNonzero.Nat [n : Nat] : (++ n) .Is++
+let is++.Nat [n : Nat] : (++ n) .Is++
 
 
 val _.divmod\Nat : Nat & (n : Nat) & n .Is++ -> Nat && Nat
-let m (++ n) isNonzero.Nat => q $ r := aux m 0 n; q $ (n - r)
+let m (++ n) is++.Nat => q $ r := aux m 0 n; q $ (n - r)
 where
   val aux : Nat & Nat & Nat -> Nat && Nat
   let 0 q u => q $ u
@@ -23,7 +23,7 @@ end
 
 val _.divmod?\Nat : Nat & Nat -> ? (Nat && Nat)
 let _ 0 => no
-let m (++ n) => yes of m .divmod (++ n) isNonzero.Nat
+let m (++ n) => yes of m .divmod (++ n) is++.Nat
 
 
 val _.div?\Nat : Nat & Nat -> ? Nat
