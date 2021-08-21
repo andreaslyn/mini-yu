@@ -20,7 +20,8 @@ let =>
       bind.Comp(areSt, here.In there choose(areSt, testList), _) (x). do
       bind.Comp(areSt, here.In there choose(areSt, testList), _) (y). do
       bind.Comp(areSt, here.In there choose(areSt, testList), _) (z). do
-      bind.Comp(areSt, here.In there there put(areSt, 1.Bin), _) (_). do
+      bind.Comp(areSt, here.In get(areSt), _) (s). do
+      bind.Comp(areSt, here.In there there put(areSt, case s of 0.Bin => 0.Bin of _ => 1.Bin end), _) (_). do
       pure.Comp(areSt, x $ y $ z)
     , 0.Bin)
   , 0.Bin)
@@ -34,7 +35,8 @@ let =>
       bind.Comp(areSt, here.In there choose(areSt, testList), _) (x). do
       bind.Comp(areSt, here.In there choose(areSt, testList), _) (y). do
       bind.Comp(areSt, here.In there choose(areSt, testList), _) (z). do
-      bind.Comp(areSt, here.In there there put(areSt, 1.Bin), _) (_). do
+      bind.Comp(areSt, here.In get(areSt), _) (s). do
+      bind.Comp(areSt, here.In there there put(areSt, case s of 0.Bin => 0.Bin of _ => 1.Bin end), _) (_). do
       here.In there none(areSt)
     , 0.Bin)
   , 0.Bin)

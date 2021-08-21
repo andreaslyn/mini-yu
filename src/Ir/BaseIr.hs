@@ -29,6 +29,8 @@ import qualified Str
 import Data.Maybe (fromJust, isNothing)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Control.Monad.State
@@ -203,6 +205,11 @@ data St = St
   , nextVar :: Int
   , optimize :: Bool
   , needsMain :: Bool
+  , partialSpecializationMap :: Map (Int, Int) (Const, [Bool])
+      -- Partial specializations:
+      --   (Const, number of partial args) ->
+      --     (specialized const,
+      --       map i -> true if argument at that index i is used)
   }
 
 type StM = State St
@@ -222,6 +229,7 @@ baseIr doOptimize doNeedMain p r =
               , nextVar = 0
               , optimize = doOptimize
               , needsMain = doNeedMain
+              , partialSpecializationMap = Map.empty
               }
   in program (execState (irInitProgram r) st)
 
@@ -268,14 +276,6 @@ getNextVar = do
   put (st {nextVar = i + 1})
   return i
 
-{-
-updateNextVar :: Hl.Var -> StM Var
-updateNextVar v = do
-  v' <- getNextVar
-  updateVarMap v (VarRef v', IntSet.singleton v', IntSet.empty)
-  return v'
--}
-
 updateConstMap :: Hl.Const -> Const -> StM ()
 updateConstMap c0 c1 = do
   let upd st = IntMap.insert (Hl.prConst c0) c1 (constMap st)
@@ -284,6 +284,27 @@ updateConstMap c0 c1 = do
 lookupConstMap :: Hl.Const -> StM Const
 lookupConstMap c =
   fmap (fromJust . IntMap.lookup (Hl.prConst c) . constMap) get
+
+updatePartialSpecializationMap :: Const -> Int -> Const -> [Bool] -> StM ()
+updatePartialSpecializationMap c n d bs = do
+  let upd st = Map.insert (prConst c, n) (d, bs) (partialSpecializationMap st)
+  modify (\st -> st {partialSpecializationMap = upd st})
+
+removePartialSpecialization :: Const -> Int -> StM ()
+removePartialSpecialization c n = do
+  let upd st = Map.delete (prConst c, n) (partialSpecializationMap st)
+  modify (\st -> st {partialSpecializationMap = upd st})
+
+tryLookupPartialSpecializationMap :: Const -> Int -> StM (Maybe (Const, [Bool]))
+tryLookupPartialSpecializationMap c n = do
+  sp <- fmap (Map.lookup (prConst c, n) . partialSpecializationMap) get
+  case sp of
+    Nothing -> return Nothing
+    Just (c', _) -> do
+      mb <- memberProgramConst c'
+      if mb
+      then return sp
+      else removePartialSpecialization c' n >> return Nothing
 
 updateConstToVarMap :: Const -> Var -> StM ()
 updateConstToVarMap c v = do
@@ -466,8 +487,8 @@ type DeadCodeConsts = IntSet
 
 irOptimizeLoop :: Hl.ProgramRoots -> DeadCodeConsts -> Bool -> StM ()
 irOptimizeLoop roots cs hasInlinedCases = do
-  b1 <- funInline False
-  (b2, cs') <- removeDeadLets cs
+  (b1, cs') <- removeDeadLets cs
+  b2 <- funInline False
   removeUnusedVals roots
   if b1 || b2
     then irOptimizeLoop roots cs' hasInlinedCases
@@ -751,6 +772,9 @@ nonStaticConstUnits = \e -> do
       (as1, as2) <- unitsFromVarList xs
       return (IntSet.union as1 a1, IntSet.union as2 a2)
 
+memberProgramConst :: Const -> StM Bool
+memberProgramConst c = fmap (IntMap.member (prConst c) . program) get
+
 lookupProgramConst :: Const -> StM (Const, ConstExpr)
 lookupProgramConst c = do
   p <- fmap program get
@@ -972,6 +996,7 @@ irLetExpr f (Hl.Where e p) = do
 
 funInline :: Bool -> StM Bool
 funInline inlineCases = do
+  fmap program get >>= mapM_ (\(_, e) -> papSpecializeConstExpr e)
   p <- fmap program get
   let (b1, p1) = (False, p)
   (b2, p2) <- doFunInline inlineCases p1
@@ -1132,56 +1157,79 @@ funInlineLetExpr v pm cand con vs e x@(Ap _ (ConstRef c) rs)
       return (True, pm, \d -> updateLeafsFunExpr v d e1)
 
 papInline :: Var -> Const -> [Ref] -> StM (Bool, FunExpr -> FunExpr)
-papInline letVar con rs = do
-  (_, e) <- lookupProgramConst con
-  return (doInline e)
+papInline letVar partialCon [] =
+  return (True, Let letVar (Pap partialCon []))
+papInline letVar partialCon partialRefs = do
+  sp0 <- tryLookupPartialSpecializationMap partialCon numberPartialRefs
+  case sp0 of
+    Nothing -> return (False, Let letVar (Pap partialCon partialRefs))
+    Just (con, bs) -> do
+      let !() = assert (length bs == length partialRefs) ()
+      let ps = zip bs partialRefs
+      let rs = foldr (\(b, r) a -> if b then r : a else a) [] ps
+      let progress = length rs < numberPartialRefs
+      if null rs
+      then return (progress, listSubst [letVar] [ConstRef con])
+      else return (progress, Let letVar (Pap con rs))
   where
-    doInline :: ConstExpr -> (Bool, FunExpr -> FunExpr)
-    doInline (Fun vs1 (Let v1 (Ap _ (ConstRef c) vs2) (Ret v2)))
-      | not (sameRef (VarRef v1) v2) = defaultRet
-      | True =
-        {- if foo(x1,x2,x3,x4) = bar(x2,x3,x4)
-           then foo{a,b,c,d} -> bar{b,c,d}
-           and  foo{a,b,c}   -> bar{b,c}
-           and  foo{a,b}     -> bar{b}
-           and  foo{a}       -> bar
-        -}
-        let n = length rs
-            !() = assert (n <= length vs1) ()
-            (h, t) = splitAt n vs1
-        in
-        case projIfAllVars vs2 of
-          Just vs2' ->
-            let idx = suffixIndex 0 vs2' t
-            in
-              if idx == -1
-              then defaultRet
-              else
-                let h' = take idx vs2'
-                    m = IntMap.fromList (zip h rs)
-                    rs' = map (\x -> fromJust (IntMap.lookup x m)) h'
-                in
-                  if not (null rs')
-                  then (True, Let letVar (Pap c rs'))
-                  else (True, listSubst [letVar] [ConstRef c])
-          Nothing -> defaultRet
-    doInline _ = defaultRet
+    numberPartialRefs :: Int
+    numberPartialRefs = length partialRefs
 
-    defaultRet :: (Bool, FunExpr -> FunExpr)
-    defaultRet = (False, Let letVar (Pap con rs))
+papSpecializeConstExpr :: ConstExpr -> StM ()
+papSpecializeConstExpr (Fun _ e) = papSpecializeFunExpr e
+papSpecializeConstExpr (Lazy _ _ e) = papSpecializeFunExpr e
+papSpecializeConstExpr (Extern _) = return ()
 
-    suffixIndex :: Int -> [Var] -> [Var] -> Int
-    suffixIndex _ xs [] = length xs
-    suffixIndex i (x:xs) (y:ys) =
-      if y == x
-      then if (x:xs) == (y:ys) then i else -1
-      else suffixIndex (i+1) xs (y:ys)
-    suffixIndex _ [] (_:_) = -1
+papSpecializeFunExpr :: FunExpr -> StM ()
+papSpecializeFunExpr (Case _ cs) =
+  mapM_ (\(_, _, e) -> papSpecializeFunExpr e) cs
+papSpecializeFunExpr (Let _ el ef) =
+  papSpecializeLetExpr el >> papSpecializeFunExpr ef
+papSpecializeFunExpr _ = return ()
 
-    projIfAllVars :: [Ref] -> Maybe [Var]
-    projIfAllVars [] = Just []
-    projIfAllVars (VarRef v : vs) = fmap (v:) (projIfAllVars vs)
-    projIfAllVars (_:_) = Nothing
+papSpecializeLetExpr :: LetExpr -> StM ()
+papSpecializeLetExpr (Pap c rs) = specializePap c rs
+papSpecializeLetExpr _ = return ()
+
+specializePap :: Const -> [Ref] -> StM ()
+specializePap partialCon partialRefs = do
+  (_, e) <- lookupProgramConst partialCon
+  specializeNewPap e
+  where
+    numberPartialRefs :: Int
+    numberPartialRefs = length partialRefs
+
+    specializeNewPap :: ConstExpr -> StM ()
+    specializeNewPap (Fun vs e) = do
+      let !() = assert (length vs >= numberPartialRefs) ()
+      let (vs0, ws1) = splitAt numberPartialRefs vs
+      let li = liveSetFunExpr e
+      let bs = map (flip IntSet.member li) vs0
+      let ws0 = filter (flip IntSet.member li) vs0
+      when (not (and bs)) (tryInsertNewPartial (ws0 ++ ws1) e bs)
+    specializeNewPap _ = return ()
+
+    tryInsertNewPartial :: [Var] -> FunExpr -> [Bool] -> StM ()
+    tryInsertNewPartial vs e bs = do
+      sp0 <- tryLookupPartialSpecializationMap partialCon numberPartialRefs
+      case sp0 of
+        Nothing -> insertNewPartial vs e bs
+        Just (_, bs') -> when (bs' /= bs) (insertNewPartial vs e bs)
+
+    insertNewPartial :: [Var] -> FunExpr -> [Bool] -> StM ()
+    insertNewPartial vs e bs = do
+      con <- newPartialConstFun vs e bs
+      updatePartialSpecializationMap partialCon numberPartialRefs con bs
+
+    newPartialConstFun :: [Var] -> FunExpr -> [Bool] -> StM Const
+    newPartialConstFun vs body bs = do
+      let nused = foldl (\a b -> if b then a + 1 else a) 0 bs
+      con <- getNextConst
+               (Str.partialSpecializationString numberPartialRefs nused
+                ++ nameConst partialCon)
+      fn <- makeFreshVarsConstExpr (Fun vs body)
+      updateProgram con fn
+      return con
 
 listSubst :: [Var] -> [Ref] -> FunExpr -> FunExpr
 listSubst vs rs =
@@ -1434,6 +1482,56 @@ removeDeadLets dead = do
 type LiveSet = IntSet
 type VarContext = IntSet
 
+changeRemovedFunConstExpr ::
+  Const -> Const -> [Bool] -> ConstExpr -> StM ConstExpr
+changeRemovedFunConstExpr old new uses (Fun vs e) = do
+  e' <- changeRemovedFunFunExpr old new uses e
+  return (Fun vs e')
+changeRemovedFunConstExpr _ _ _ _ =
+  error "unexpected ConstExpr to change removed fun"
+
+changeRemovedFunFunExpr ::
+  Const -> Const -> [Bool] -> FunExpr -> StM FunExpr
+changeRemovedFunFunExpr old new uses (Case r cs) = do
+  cs' <- foreachChange cs
+  return (Case r cs')
+  where
+    foreachChange ::
+      [(CtorId, FieldCnt, FunExpr)] -> StM [(CtorId, FieldCnt, FunExpr)]
+    foreachChange [] = return []
+    foreachChange ((i, n, e) : ds) = do
+      e' <- changeRemovedFunFunExpr old new uses e
+      ds' <- foreachChange ds
+      return ((i, n, e') : ds')
+changeRemovedFunFunExpr old new uses (Let v e1 e2) = do
+  e1' <- changeRemovedFunLetExpr old new uses e1
+  e2' <- changeRemovedFunFunExpr old new uses e2
+  return (Let v e1' e2')
+changeRemovedFunFunExpr old new uses (VarFieldCnt v0 n0 e) = do
+  e' <- changeRemovedFunFunExpr old new uses e
+  return (VarFieldCnt v0 n0 e')
+changeRemovedFunFunExpr _ _ _ (Ret r) = return (Ret r)
+
+takeUsedArgs :: [Bool] -> [Ref] -> [Ref]
+takeUsedArgs _ [] = []
+takeUsedArgs [] (_ : _) = error "more arguments than use list"
+takeUsedArgs (True : us) (r : rs) = r : takeUsedArgs us rs
+takeUsedArgs (False : us) (_ : rs) = takeUsedArgs us rs
+
+changeRemovedFunLetExpr ::
+  Const -> Const -> [Bool] -> LetExpr -> StM LetExpr
+changeRemovedFunLetExpr old new uses (Ap io r rs) =
+  if r /= ConstRef old
+  then return (Ap io r rs)
+  else return (Ap io (ConstRef new) (takeUsedArgs uses rs))
+changeRemovedFunLetExpr old new uses (Pap c rs) =
+  if c /= old
+  then return (Pap c rs)
+  else return (Pap new (takeUsedArgs uses rs))
+changeRemovedFunLetExpr _ _ _ (Force io r Nothing) =
+  return (Force io r Nothing)
+changeRemovedFunLetExpr _ _ _ e = return e
+
 removeDeadCodeConstExpr ::
   DeadCodeConsts -> Const -> ConstExpr ->
   StM (Bool, ConstExpr, DeadCodeConsts)
@@ -1453,7 +1551,9 @@ removeDeadCodeConstExpr dead c (Fun vs e) = do
                             ++ nameConst c)
         let dead' = IntSet.insert (prConst c) dead
         f <- makeFreshVarsConstExpr (Fun vs' e')
-        updateProgram c' f
+        let useList = map (flip IntSet.member li) vs
+        f' <- changeRemovedFunConstExpr c c' useList f
+        updateProgram c' f'
         v0 <- getNextVar
         let a = Ap False (ConstRef c') (map VarRef vs')
         let a' = Let v0 a (Ret (VarRef v0))
@@ -1462,24 +1562,6 @@ removeDeadCodeConstExpr dead c (Lazy iss vs e) = do
   let g = IntSet.fromList vs
   (b, _li, e') <- removeDeadCodeFunExpr c vs g e
   return (b, Lazy iss vs e', dead)
-{-
-  let vs' = filter (flip IntSet.member li) vs
-  if length vs == length vs'
-    then return (b, Lazy iss vs e', dead)
-    else
-      if IntSet.member (prConst c) dead
-      then return (b, Lazy iss vs e', dead)
-      else do
-        c' <- getNextConst (Str.anonymousDuplicateString
-                            ++ nameConst c)
-        let dead' = IntSet.insert (prConst c) dead
-        f <- makeFreshVarsConstExpr (Lazy iss vs' e')
-        updateProgram c' f
-        v0 <- getNextVar
-        let a = Force False (ConstRef c') (map VarRef vs')
-        let a' = Let v0 a (Ret (VarRef v0))
-        return (True, Lazy iss vs a', dead')
--}
 
 removeDeadCodeFunExpr ::
   Const -> [Var] -> VarContext -> FunExpr -> StM (Bool, LiveSet, FunExpr)
@@ -1518,18 +1600,20 @@ removeDeadCodeLetExpr con params (Ap io r rs) = do
 removeDeadCodeLetExpr con params (Pap c rs) = do
   (li2, rs') <- removeDeadCodeRefs rs
   let li = tryRemoveArgsIfSameRef con params (ConstRef c) rs' li2
-  return (li, Pap c rs', False)
+  let forceUsed = if prConst c == prConst con
+                  then IntSet.fromList (drop (length rs) params)
+                  else IntSet.empty
+  return (IntSet.union li forceUsed, Pap c rs', False)
 removeDeadCodeLetExpr _ _ (MkLazy isForced lp c) =
   return (IntSet.empty, MkLazy isForced lp c, False)
-removeDeadCodeLetExpr con params (Force io r rs) = do
+removeDeadCodeLetExpr _ _ (Force io r rs) = do
   (li1, r') <- removeDeadCodeRef r
   (li2, rs') <- case rs of
                   Nothing -> return (IntSet.empty, Nothing)
                   Just (c, xs) -> do
                     (li, xs') <- removeDeadCodeRefs xs
                     return (li, Just (c, xs'))
-  let xs = projForceArgs rs'
-  let li = tryRemoveArgsIfSameRef con params r' xs (IntSet.union li1 li2)
+  let li = IntSet.union li1 li2
   return (li, Force io r' rs', io)
 removeDeadCodeLetExpr _ _ (Pforce pc v rs) = do
   (li1, v') <- removeDeadCodeVar v
@@ -1591,6 +1675,36 @@ removeDeadCodeRefs (r:rs) = do
   (li1, r') <- removeDeadCodeRef r
   (li2, rs') <- removeDeadCodeRefs rs
   return (IntSet.union li1 li2, r' : rs')
+
+liveSetFunExpr :: FunExpr -> LiveSet
+liveSetFunExpr (Case r cs) =
+  let r' = liveSetRef r
+  in foldl (\a (_, _, e) -> IntSet.union a (liveSetFunExpr e)) r' cs
+liveSetFunExpr (Let v e1 e2) =
+  let e1' = liveSetLetExpr e1
+      e2' = liveSetFunExpr e2
+  in IntSet.union e1' (IntSet.delete v e2')
+liveSetFunExpr (Ret r) = liveSetRef r
+liveSetFunExpr (VarFieldCnt _ _ e) = liveSetFunExpr e
+
+liveSetLetExpr :: LetExpr -> LiveSet
+liveSetLetExpr (Ap _ r rs) = liveSetRefs (r : rs)
+liveSetLetExpr (Pap _ rs) = liveSetRefs rs
+liveSetLetExpr (MkLazy _ _ _) = IntSet.empty
+liveSetLetExpr (Force _ r Nothing) = liveSetRef r
+liveSetLetExpr (Force _ r (Just (_, rs))) = liveSetRefs (r : rs)
+liveSetLetExpr (Pforce _ v rs) = IntSet.insert v (liveSetRefs rs)
+liveSetLetExpr (CtorBox _ rs) = liveSetRefs rs
+liveSetLetExpr (Proj _ r) = liveSetRef r
+
+liveSetRefs :: [Ref] -> LiveSet
+liveSetRefs [] = IntSet.empty
+liveSetRefs (ConstRef _ : rs) = liveSetRefs rs
+liveSetRefs (VarRef v : rs) = IntSet.insert v (liveSetRefs rs)
+
+liveSetRef :: Ref -> LiveSet
+liveSetRef (ConstRef _) = IntSet.empty
+liveSetRef (VarRef v) = IntSet.singleton v
 
 ------------------- Printing -----------------------------
 

@@ -333,10 +333,15 @@ updateRefMap (Te.RefData v) = do
 updateRefMap (Te.RefCtor _) = return ()
 
 isRelevantTy :: Te.RefMap -> Te.PreTerm -> Bool
-isRelevantTy rm t =
-  case TE.preTermFinalCod rm t of
-    (Te.TermTy, _) -> False
-    _ -> True
+isRelevantTy rm t = isRelevantTyNormalized (TE.preTermNormalize rm t)
+
+isRelevantTyNormalized :: Te.PreTerm -> Bool
+isRelevantTyNormalized (Te.TermArrow True _ _) = True
+isRelevantTyNormalized (Te.TermArrow False _ c) = isRelevantTyNormalized c
+isRelevantTyNormalized (Te.TermLazyArrow True _) = True
+isRelevantTyNormalized (Te.TermLazyArrow False c) = isRelevantTyNormalized c
+isRelevantTyNormalized Te.TermTy = False
+isRelevantTyNormalized _ = True
 
 makeFunVars :: Int -> StM [Var]
 makeFunVars 0 = return []
@@ -361,19 +366,19 @@ makeFunRVars f (x : xs) = do
   then return (Relevant v : vs)
   else return (Irrelevant v : vs)
 
-makeIrrelevantFun :: Te.PreTerm -> StM Expr
-makeIrrelevantFun t = do
+makeIrrelevantFunNormalized :: Te.PreTerm -> StM Expr
+makeIrrelevantFunNormalized t = do
   rm <- getRefMap
   case TE.preTermDomCod rm t of
     Nothing ->
       case TE.preTermLazyCod rm t of
         Nothing -> return (CtorRef dataCtor [])
         Just (c, io) -> do
-          e <- makeIrrelevantFun c
+          e <- makeIrrelevantFunNormalized c
           return (Lazy io e)
     Just (d, c, _) -> do
       vs <- makeFunVars (length d)
-      e <- makeIrrelevantFun c
+      e <- makeIrrelevantFunNormalized c
       return (Fun vs e)
 
 filterRelevantRVars :: [RVar] -> [Var]
@@ -433,6 +438,67 @@ irFun n1 (Just n2) ct = do
   vs2 <- makeFunVars n2
   fmap (Fun vs1 . Fun vs2) (irCaseTree (vs1 ++ vs2) ct)
 
+irAppExpr ::
+  Bool -> Bool -> Te.PreTerm -> [Te.PreTerm] -> StM Expr
+irAppExpr isImplicit io f as = do
+  v <- getNextVar
+  f' <- irExpr f
+  ts <- argTypes
+  let !() = assert (length as == length ts) ()
+  (vs, p) <- foldrM addArg ([], id) (zip as ts)
+  return (Let v f' (p (Ap io v vs)))
+  where
+    addArg ::
+      (Te.PreTerm, Maybe Te.PreTerm) ->
+      ([Var], Expr -> Expr) ->
+      StM ([Var], Expr -> Expr)
+    addArg (b, t) (vs, p) = do
+      v' <- getNextVar
+      b' <- irArg b t
+      return (v' : vs, Let v' b' . p)
+
+    irArg :: Te.PreTerm -> Maybe Te.PreTerm -> StM Expr
+    irArg b Nothing = irExpr b
+    irArg b (Just t) = do
+      rm <- getRefMap
+      let t' = TE.preTermNormalize rm t
+      if isRelevantTyNormalized t'
+      then irExpr b
+      else makeIrrelevantFunNormalized t'
+
+    argTypes :: StM [Maybe Te.PreTerm]
+    argTypes = do
+      t0 <- getTypeFromRef f
+      case t0 of
+        Nothing -> return (map (\_ -> Nothing) as)
+        Just t -> argTypesFromType t
+
+    getTypeFromRef :: Te.PreTerm -> StM (Maybe Te.PreTerm)
+    getTypeFromRef (Te.TermApp False f' _) = do
+      t0 <- getTypeFromRef f'
+      case t0 of
+        Nothing -> return Nothing
+        Just (Te.TermArrow _ _ c) -> return (Just c)
+        Just _ -> error "application of non-function"
+    getTypeFromRef (Te.TermImplicitApp False f' _) = getTypeFromRef f'
+    getTypeFromRef (Te.TermRef r _) = do
+      rm <- getRefMap
+      case IntMap.lookup (Te.varId r) rm of
+        Nothing -> return Nothing
+        Just (r', _) -> do
+          t <- if not isImplicit
+               then return (Te.termTy r')
+               else do
+                is <- lookupImplicit (Te.varId r)
+                let is' = map (\(x, y) -> (Just x, y)) is
+                return (Te.TermArrow False is' (Te.termTy r'))
+          return (Just (TE.preTermNormalize rm t))
+    getTypeFromRef _ = return Nothing
+
+    argTypesFromType :: Te.PreTerm -> StM [Maybe Te.PreTerm]
+    argTypesFromType (Te.TermArrow _ ts _) = return (map (Just . snd) ts)
+    argTypesFromType _ = return (map (\_ -> Nothing) as)
+
 irExpr :: Te.PreTerm -> StM Expr
 irExpr (Te.TermFun ias _ n ct) = irFun (length ias) n ct
 irExpr (Te.TermLazyFun io t) = fmap (Lazy io) (irExpr t)
@@ -442,19 +508,8 @@ irExpr (Te.TermArrow _ _ _) = do
 irExpr (Te.TermLazyArrow _ _) = do
   c <- fmap unitConst get
   return (ConstRef c)
-irExpr (Te.TermApp io f as) = do
-  v <- getNextVar
-  f' <- irExpr f
-  (vs, p) <- foldrM addArg ([], id) as
-  return (Let v f' (p (Ap io v vs)))
-  where
-    addArg ::
-      Te.PreTerm -> ([Var], Expr -> Expr) -> StM ([Var], Expr -> Expr)
-    addArg t (vs, p) = do
-      v' <- getNextVar
-      t' <- irExpr t
-      return (v' : vs, Let v' t' . p)
-irExpr (Te.TermImplicitApp _ f as) = irExpr (Te.TermApp False f (map snd as))
+irExpr (Te.TermApp io f as) = irAppExpr False io f as
+irExpr (Te.TermImplicitApp _ f as) = irAppExpr True False f (map snd as)
 irExpr (Te.TermLazyApp io f) = do
   v <- getNextVar
   f' <- irExpr f
@@ -561,7 +616,7 @@ makeCtorCase makeProjects x xs' (i, (vs, ct)) = do
     makeProjs _ _ [] = return ([], id)
     makeProjs n dataId ((Irrelevant y', (_, t)) : ys) = do
       (ys', p) <- makeProjs n dataId ys
-      dataVal <- makeIrrelevantFun t
+      dataVal <- makeIrrelevantFunNormalized t
       return (y' : ys', Let y' dataVal . p)
     makeProjs n dataId ((Relevant y', _) : ys) = do
       (ys', p) <- makeProjs (n + 1) dataId ys
