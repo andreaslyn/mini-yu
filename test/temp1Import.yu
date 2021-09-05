@@ -1,0 +1,17 @@
+
+module T2 := /temp1Import2
+export
+| other-unit
+
+val my-unit : {}
+let => other-unit
+
+data CustomUnit : Ty
+| customUnit : CustomUnit
+
+val _.customUnitId1\CustomUnit :
+  CustomUnit -> CustomUnit
+let customUnit => customUnit
+
+val try-custom-id1 : CustomUnit -> CustomUnit
+let c => c .customUnitId1

@@ -26,6 +26,7 @@ module Str
   , isRightAssocInfixOp
   , isLeftAssocInfixOp
   , stripOperatorStr
+  , varNameModuleSplit
   , operandDelim
   , operandSplit
   , operandConcat
@@ -168,6 +169,19 @@ isPrefixOp s = isOperatorChar (head s)
 
 isOperator :: String -> Bool
 isOperator na = isPostfixOp na || isInfixOp na || isPrefixOp na
+
+doVarNameModuleSplit :: String -> (String, Maybe String)
+doVarNameModuleSplit vn =
+  let (v1, w2) = span (/= '.') vn
+  in case w2 of
+      _ : v2 -> (v1, Just v2)
+      "" -> (v1, Nothing)
+
+varNameModuleSplit :: String -> (String, Maybe String)
+varNameModuleSplit ('_' : '.' : vn) =
+  let (v1, v2) = doVarNameModuleSplit vn
+  in ("_." ++ v1, v2)
+varNameModuleSplit vn = doVarNameModuleSplit vn
 
 operandSplit :: String -> (String, Maybe String)
 operandSplit "" = ("", Nothing)

@@ -1,0 +1,47 @@
+
+module L := /temp1Import
+import
+| my-unit
+| CustomUnit
+| customUnit
+| \CustomUnit
+
+module G := /temp1Import
+export
+| other-unit
+
+val test : {}
+let => other-unit.L
+
+val test-other-unit0 : {}
+let => other-unit
+
+val other-unit-test : {}
+let => my-unit.L
+
+val other-unit2 : {}
+let => my-unit.G
+
+val other-unit0 : {}
+let => my-unit
+
+val other-unit1 : {}
+let => my-unit./temp1Import
+
+val use-custom-id-1 : CustomUnit.L
+let => customUnit.L .customUnitId1
+
+val use-custom-id-0 : CustomUnit
+let => customUnit .customUnitId1.L
+
+val use-custom-id-2 : CustomUnit./temp1Import
+let => customUnit .customUnitId1\CustomUnit
+
+val use-custom-id-3 : CustomUnit.L
+let => customUnit.G .customUnitId1
+
+val _.my-unit-id\CustomUnit. : CustomUnit -> CustomUnit.L
+let => _.customUnitId1
+
+val use-my-unit-id : CustomUnit
+let => use-custom-id-2 .my-unit-id

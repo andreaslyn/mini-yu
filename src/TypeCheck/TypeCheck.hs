@@ -48,14 +48,14 @@ _useIntercalate = intercalate
 
 runTypeCheckT ::
   MonadIO m =>
-  Bool -> Bool -> PackageMap -> FilePath -> Program ->
+  Bool -> Bool -> PackageMap -> FilePath -> String -> Program ->
   m (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
-runTypeCheckT verbose compiling packagePaths file prog = do
+runTypeCheckT verbose compiling packagePaths file moduleName prog = do
   r <- runExceptT
         (runReaderT
           (evalStateT
             (Env.runEnvT (tcInitProgram compiling packagePaths prog))
-              (Set.singleton file)) (verbose, file))
+              (Map.singleton file Map.empty)) (verbose, file, moduleName))
   case r of
     Left e -> return (Left (typeCheckErrMsg e))
     Right x -> return (Right x)
@@ -74,9 +74,8 @@ importFilePath packagePaths p =
           return $ Left $
             "unknown package prefix " ++ quote pack
             ++ " in import " ++ quote p
-        Just prefix -> do
-          --liftIO (putStrLn (prefix ++ postfix))
-          fmap Right (liftIO $ canonicalizePath (prefix ++ postfix))
+        Just prefix ->
+          fmap Right (liftIO $ canonicalizePath (prefix ++ postfix ++ ".yu"))
 
 runTT ::
   MonadIO m =>
@@ -96,7 +95,7 @@ runTT verbose compiling packagePaths file = do
         Left e -> return (Left e)
         Right prog' -> do
           file' <- liftIO (canonicalizePath file)
-          runTypeCheckT verbose compiling packagePaths file' prog'
+          runTypeCheckT verbose compiling packagePaths file' "" prog'
 
 varStatusTerm :: Monad m => VarStatus -> TypeCheckT m Term
 varStatusTerm (StatusTerm te) = return te
@@ -119,20 +118,22 @@ verifyMultipleUsesIdent False _ = return ()
 insertUnknownCtor :: Monad m =>
   SubstMap -> (Loc, VarName) -> Decl -> TypeCheckT m ()
 insertUnknownCtor subst da d = do
-  let na = declName d
+  let (dna, dop) = operandSplit (declName d)
+  na <- updateOperandTypeString (declLoc d, dna) dop
   let lo = declLoc d
-  checkRefNameValid (lo, na)
+  checkRefNameValid False (lo, na)
   depth <- Env.getDepth
-  x <- Env.tryInsert na (StatusUnknownCtor subst depth da d)
+  x <- Env.tryInsert na (StatusUnknownCtor subst depth da d) (depth == 0)
   verifyMultipleUsesIdent (isJust x) (lo, na)
 
 insertUnknownRef :: Monad m => SubstMap -> Def -> TypeCheckT m ()
 insertUnknownRef subst d = do
-  let na = defName d
+  let (dna, dop) = operandSplit (defName d)
+  na <- updateOperandTypeString (defLoc d, dna) dop
   let lo = defLoc d
-  checkRefNameValid (lo, na)
+  checkRefNameValid False (lo, na)
   depth <- Env.getDepth
-  x <- Env.tryInsert na (StatusUnknownRef subst depth d)
+  x <- Env.tryInsert na (StatusUnknownRef subst depth d) (depth == 0)
   verifyMultipleUsesIdent (isJust x) (lo, na)
   case d of
     DefData _ _ ctors -> mapM_ (insertUnknownCtor subst (lo, na)) ctors
@@ -148,7 +149,7 @@ insertUnknownVar subst (lo, na) i e = do
       return ()
     else do
       checkVarNameValid (lo, na)
-      x <- Env.tryInsert na s
+      x <- Env.tryInsert na s False
       verifyMultipleUsesIdent (isJust x) (lo, na)
 
 markInProgress :: Monad m => Bool -> (Loc, VarName) -> TypeCheckT m (Maybe Term)
@@ -186,7 +187,7 @@ insertNonblankVariable (lo, na) i te = do
       return v
     else do
       checkVarNameValid (lo, na)
-      x <- Env.tryInsert na y
+      x <- Env.tryInsert na y False
       verifyMultipleUsesIdent (isJust x) (lo, na)
       return v
 
@@ -201,8 +202,8 @@ checkVarNameValid (lo, na) = do
     invalidName :: Bool
     invalidName = '.' `elem` na || '\\' `elem` na || '_' `elem` na
 
-checkRefNameValid :: Monad m => (Loc, VarName) -> TypeCheckT m ()
-checkRefNameValid (lo, na0) = do
+checkRefNameValid :: Monad m => Bool -> (Loc, VarName) -> TypeCheckT m ()
+checkRefNameValid allowDot (lo, na0) = do
   when (isStrictKeyword (stripOperatorStr (head nas)))
           (err lo (Fatal $
                     "invalid identifier " ++ quote na0
@@ -212,7 +213,7 @@ checkRefNameValid (lo, na0) = do
   let b = if le > 1 && lnas == ""
           then any invalidName fnas
           else any invalidName nas
-  when b (err lo (Fatal $ "invalid identifier " ++ quote na0))
+  when b (err lo (Fatal $ "invalid name " ++ quote na0))
   where
     nas :: [VarName]
     nas = splitOn '\\' na0
@@ -226,7 +227,11 @@ checkRefNameValid (lo, na0) = do
           else (x : head s) : tail s
 
     invalidName :: VarName -> Bool
-    invalidName n = null n || invalidNameSplit n
+    invalidName n = null n || hasInvalidDot || invalidNameSplit n
+
+    hasInvalidDot :: Bool
+    hasInvalidDot =
+      not allowDot && elem '.' (drop 2 (takeWhile (/= '\\') na0))
 
     invalidNameSplit :: VarName -> Bool
     invalidNameSplit n =
@@ -317,34 +322,105 @@ tcInitProgram compiling packagePaths prog = doTcInitProgram
           strictPositivityCheck (refMetaLoc meta) dv imps (termTy c)
     checkPositivity _ = return ()
 
+stripImportName :: Monad m => Loc -> VarName -> TypeCheckT m VarName
+stripImportName _ ('_' : '/' : na) = return ('/' : filter (/= '_') na)
+stripImportName lo i = do
+  when (isOperator i)
+    (err lo (Fatal $ "invalid import path " ++ quote i))
+  return i
+
+insertAllImportExport :: Monad m =>
+  Loc -> Bool -> [(VarName, (VarStatus, Bool))] -> TypeCheckT m ()
+insertAllImportExport _ _ [] = return ()
+insertAllImportExport lo b ((na, (t, _)) : imex) = do
+  x <- Env.tryInsert na t b
+  verifyMultipleUsesIdent (isJust x) (lo, na)
+  insertAllImportExport lo b imex
+
+insertImportExport :: Monad m =>
+  VarName -> Env.ScopeMap -> [(Loc, VarName, Bool)] -> TypeCheckT m ()
+insertImportExport _ _ [] = return ()
+insertImportExport ina em ((lo, '\\' : na0, b) : imex) = do
+  t <- Env.lookup na0
+  case t of
+    Nothing -> err lo (Fatal $ "unexpected operand type " ++ quote na0)
+    Just t1 ->
+      case t1 of
+        StatusTerm t2 ->
+          case termPre t2 of
+            TermData v -> do
+              em' <- filterM (isOperatorOf (varName v)) (Map.toList em)
+              insertAllImportExport lo b em'
+              insertImportExport ina em imex
+            _ -> err lo (Fatal $ "unexpected operand type "
+                                 ++ quote na0 ++ ", not a data type")
+        _ -> error "expected status term for import/export"
+  where
+    isOperatorOf :: Monad m =>
+      VarName -> (VarName, (VarStatus, Bool)) -> TypeCheckT m Bool
+    isOperatorOf v (vn, (_, c)) =
+      if not c
+      then return False
+      else
+        let (_, vtn) = operandSplit vn
+        in return (Just v == vtn)
+insertImportExport ina em ((lo, na0, b) : imex) = do
+  checkRefNameValid False (lo, na0)
+  let (na1, opty) = operandSplit na0
+  na <- updateOperandTypeString (lo, na1) opty
+  case Map.lookup na em of
+    Nothing ->
+      err lo (Fatal $ "unable to find " ++ quote na
+                      ++ " in module " ++ quote ina)
+    Just (StatusTerm tm, True) -> do
+      x <- Env.tryInsert na (StatusTerm tm) b
+      verifyMultipleUsesIdent (isJust x) (lo, na)
+      insertImportExport ina em imex
+    Just (_, c) -> do
+      let !() = assert (not c) ()
+      err lo (Fatal $ "name " ++ quote na
+                      ++ " is not exported by module " ++ quote ina)
+
 tcProgram :: MonadIO m => PackageMap -> Program -> TypeCheckT m [RefVar]
 tcProgram _ ([], defs) = do
   rs <- tcDefsToVars IntMap.empty defs
   Env.clearImplicitVarMap
   return rs
-tcProgram packagePaths ((lo, ina) : imps, defs) = do
-  (verbose, _) <- ask
-  ina0 <- importFilePath packagePaths ina
-  case ina0 of
+tcProgram packagePaths (((alo, alias), (lo, ina0), imex) : imps, defs) = do
+  ina <- stripImportName lo ina0
+  canInsert <- Env.tryInsertModuleExpand alias ina
+  when (not canInsert)
+    (err alo (Fatal $ "multiple module aliases " ++ quote alias))
+  (verbose, _, _) <- ask
+  inaPath0 <- importFilePath packagePaths ina
+  case inaPath0 of
     Left e0 -> err lo (Fatal e0)
-    Right ina' -> do
-      isf <- liftIO (doesFileExist ina')
+    Right inaPath -> do
+      isf <- liftIO (doesFileExist inaPath)
       when (not isf)
         (err lo (Fatal $ "unable to find import file \"" ++ ina ++ "\""))
-      perms <- liftIO (getPermissions ina')
+      perms <- liftIO (getPermissions inaPath)
       when (not (readable perms))
         (err lo (Fatal $ "unable to read file \"" ++ ina ++ "\""))
       is <- lift get
-      if Set.member ina' is
-        then tcProgram packagePaths (imps, defs)
-        else do
-          lift (put (Set.insert ina' is))
-          prog <- runParse ina'
+      case Map.lookup inaPath is of
+        Just em -> do
+          insertImportExport ina em imex
+          tcProgram packagePaths (imps, defs)
+        Nothing -> do
+          lift (put (Map.insert inaPath Map.empty is))
+          prog <- runParse inaPath
           case prog of
             Left e -> throwError (Fatal e)
             Right prog' -> do
-              vs <- local (const (verbose, ina'))
-                          (tcProgram packagePaths prog')
+              (em, vs) <- local (const (verbose, inaPath, ina)) $
+                          Env.localEnv $ do
+                            r <- tcProgram packagePaths prog'
+                            Env.addToGlobals ina
+                            em <- Env.getScopeMap
+                            lift (put (Map.insert inaPath em is))
+                            return (em, r)
+              insertImportExport ina em imex
               fmap (++vs) (tcProgram packagePaths (imps, defs))
 
 tcDefsToVars :: Monad m => SubstMap -> [Def] -> TypeCheckT m [RefVar]
@@ -404,10 +480,13 @@ tcDef subst _ (DefExtern d) = do
                      ++ " to have function type "
                      ++ quote "->" ++ " or " ++ quote "->>")
       i <- Env.freshRefId
-      let rv = mkVar i (declName d)
+      fullEname <- fullRefName (declLoc d) (declName d)
+      let rv = mkVar i fullEname
       Env.forceInsertImplicit i []
       let r = mkTerm (TermRef rv IntMap.empty) (termPre ty) False
-      updateToStatusTerm (declName d) r
+      let (stna0, stopt) = operandSplit (declName d)
+      stna <- updateOperandTypeString (declLoc d, stna0) stopt
+      updateToStatusTerm stna r
       Env.forceInsertExtern i
       return r
 tcDef subst _ (DefVal isPure d lets) = do
@@ -416,12 +495,15 @@ tcDef subst _ (DefVal isPure d lets) = do
     Left term -> return term
     Right (imps, ty) -> do
       i <- Env.freshRefId
-      let rv = mkVar i (declName d)
+      fullVname <- fullRefName (declLoc d) (declName d)
+      let rv = mkVar i fullVname
       Env.forceInsertImplicit i imps
       let r = mkTerm (TermRef rv IntMap.empty) (termPre ty) False
-      updateToStatusTerm (declName d) r
-      e <- tcValCases subst (declName d) imps (termPre ty) lets
-      Env.forceInsertRef (declLoc d) (declName d) isPure i e
+      let (stna0, stopt) = operandSplit (declName d)
+      stna <- updateOperandTypeString (declLoc d, stna0) stopt
+      updateToStatusTerm stna r
+      e <- tcValCases subst stna imps (termPre ty) lets
+      Env.forceInsertRef (declLoc d) fullVname isPure i e
       terminationCheck (declLoc d) rv
       return r
 tcDef subst True (DefData isPure d ctors) = do
@@ -442,14 +524,23 @@ tcDef subst False def@(DefData isPure d _) = do
     Left dt -> return dt
     Right (imps, ty) -> do
       i <- Env.freshRefId
-      let v = mkVar i (declName d)
+      fullDname <- fullRefName (declLoc d) (declName d)
+      let v = mkVar i fullDname
       let r = mkTerm (TermData v) (termPre ty) False
-      updateToStatusTerm (declName d) r
+      let (stna0, stopt) = operandSplit (declName d)
+      stna <- updateOperandTypeString (declLoc d, stna0) stopt
+      updateToStatusTerm stna r
       Env.forceInsertImplicit i imps
-      Env.forceInsertRef (declLoc d) (declName d) isPure i r
+      Env.forceInsertRef (declLoc d) fullDname isPure i r
       Env.forceInsertDataCtor i []
       Env.forceInsertUnfinishedData i depth subst def
       return r
+
+fullRefName :: Monad m => Loc -> VarName -> TypeCheckT m VarName
+fullRefName lo na = do
+  let (na0, opty) = operandSplit na
+  (_, _, modName) <- ask
+  updateOperandTypeString (lo, na0 ++ "." ++ modName) opty
 
 tcDataAndCtors :: Monad m =>
   SubstMap -> Bool -> Decl -> [Decl] -> TypeCheckT m Term
@@ -464,12 +555,14 @@ tcDataAndCtors subst isPure d ctors = do
           let css = Set.fromList (map varName cis0)
           cis1 <- foldrM (addVarNotIn css) [] ctors
           let cis' = cis0 ++ cis1
-          let cis = map (takeCtorFormVarList cis') ctors
+          cis <- mapM (takeCtorFormVarList cis') ctors
           Env.removeUnfinishedData (varId v)
           Env.forceInsertDataCtor (varId v) cis
-          updateToStatusTerm (varName v) dt
+          let (stna0, stopt) = operandSplit (declName d)
+          stna <- updateOperandTypeString (declLoc d, stna0) stopt
+          updateToStatusTerm stna dt
           mapM_ (tcDataDefCtor subst v) (zip cis ctors)
-          Env.forceInsertRef (declLoc d) (declName d) isPure (varId v) dt
+          Env.forceInsertRef (declLoc d) (varName v) isPure (varId v) dt
           return dt
         _ -> do
           ss <- preTermToStringT 0 (termPre dt)
@@ -484,32 +577,40 @@ tcDataAndCtors subst isPure d ctors = do
           (Recoverable $
               "invalid type, the codomain root type needs to be " ++ quote "Ty"))
       i <- Env.freshRefId
-      let v = mkVar i (declName d)
+      fullDname <- fullRefName (declLoc d) (declName d)
+      let v = mkVar i fullDname
       cis <- mapM (\x ->
-                    Env.freshRefId >>= \j ->
-                      return $ mkVar j (declName x)) ctors
+                    Env.freshRefId >>= \j -> do
+                      fullCname <- fullRefName (declLoc x) (declName x)
+                      return $ mkVar j fullCname) ctors
       let r = mkTerm (TermData v) (termPre ty) False
       Env.forceInsertDataCtor (varId v) cis
-      updateToStatusTerm (declName d) r
+      let (stna0, stopt) = operandSplit (declName d)
+      stna <- updateOperandTypeString (declLoc d, stna0) stopt
+      updateToStatusTerm stna r
       Env.forceInsertImplicit i imps
-      Env.forceInsertRef (declLoc d) (declName d) isPure i r
+      Env.forceInsertRef (declLoc d) fullDname isPure i r
       mapM_ (tcDataDefCtor subst v) (zip cis ctors)
       return r
   where
     addVarNotIn :: Monad m => Set VarName -> Decl -> [Var] -> TypeCheckT m [Var]
-    addVarNotIn s x vs
-      | Set.member (declName x) s =
-          return vs
-      | True = do
-          j <- Env.freshRefId
-          return (mkVar j (declName x) : vs)
+    addVarNotIn s x vs = do
+      fullCname <- fullRefName (declLoc x) (declName x)
+      if Set.member fullCname s
+      then return vs
+      else do
+        j <- Env.freshRefId
+        return (mkVar j fullCname : vs)
 
-    takeCtorFormVarList :: [Var] -> Decl -> Var
-    takeCtorFormVarList [] c =
-      error ("unable to find ctor " ++ declName c ++ " in var list")
-    takeCtorFormVarList (v : vs) c
-      | varName v == declName c = v
-      | True = takeCtorFormVarList vs c
+    takeCtorFormVarList :: Monad m => [Var] -> Decl -> TypeCheckT m Var
+    takeCtorFormVarList [] c = do
+      fullCname <- fullRefName (declLoc c) (declName c)
+      error ("unable to find ctor " ++ fullCname ++ " in var list")
+    takeCtorFormVarList (v : vs) c = do
+      fullCname <- fullRefName (declLoc c) (declName c)
+      if varName v == fullCname
+      then return v
+      else takeCtorFormVarList vs c
 
 tcDataDefCtor :: Monad m =>
   SubstMap -> Var -> (Var, Decl) -> TypeCheckT m Term
@@ -528,9 +629,11 @@ tcDataDefCtor subst v (cva, ctor) = do
             else return ()
         _ -> badCtorType
       let r = mkTerm (TermCtor cva (varId v)) (termPre ty) False
-      updateToStatusTerm (declName ctor) r
+      let (stna0, stopt) = operandSplit (declName ctor)
+      stna <- updateOperandTypeString (declLoc ctor, stna0) stopt
+      updateToStatusTerm stna r
       Env.forceInsertImplicit (varId cva) imps
-      Env.forceInsertRef (declLoc ctor) (declName ctor) True (varId cva) r
+      Env.forceInsertRef (declLoc ctor) (varName cva) True (varId cva) r
       return r
   where
     badCtorType =
@@ -558,32 +661,32 @@ verifyNoUnfinishedRefs lo na t = do
 
 tcDecl :: Monad m =>
   SubstMap -> Bool -> Decl -> TypeCheckT m (Either Term (Implicits, Term))
-tcDecl subst isCtor d = do
-  doTcDecl subst isCtor d `catchError`
+tcDecl subst isCtor (Decl (lo, na) impls ty) =
+  doTcDecl subst isCtor (Decl (lo, na) impls ty) `catchError`
     (\e -> case e of
             Recoverable m -> throwError (Fatal m)
             Fatal m -> throwError (Fatal m))
 
 doTcDecl :: Monad m =>
   SubstMap -> Bool -> Decl -> TypeCheckT m (Either Term (Implicits, Term))
-doTcDecl subst isCtor (Decl (lo, na) impls ty) = do
-  let (na0, opty) = operandSplit na
-  checkOperandTypeString (lo, na0) opty
+doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
+  let (na0, opty) = operandSplit prena
+  na <- updateOperandTypeString (lo, na0) opty
   t <- markInProgress isCtor (lo, na)
   case t of
     Nothing -> do
       mapM_ insertUnknownImplicit impls
       impls' <- mapM checkImplicit impls
       ty' <- evalTcExpr subst TermTy ty
-      verifyNoIoEscapeFromType lo na ty'
-      verifyNoUnfinishedRefs lo na (termPre ty')
-      verifyOperandArgument (termPre ty')
+      verifyNoIoEscapeFromType lo prena ty'
+      verifyNoUnfinishedRefs lo prena (termPre ty')
+      verifyOperandArgument na (termPre ty')
       return (Right (impls', ty'))
     Just t' ->
       return (Left t')
   where
-    verifyOperandArgument :: Monad m => PreTerm -> TypeCheckT m ()
-    verifyOperandArgument dty
+    verifyOperandArgument :: Monad m => VarName -> PreTerm -> TypeCheckT m ()
+    verifyOperandArgument na dty
       | isRightAssocInfixOp na = do
           rm <- Env.getRefMap
           case preTermDomCod rm dty of
@@ -612,18 +715,18 @@ doTcDecl subst isCtor (Decl (lo, na) impls ty) = do
 
     errorInfixArgs :: Monad m => TypeCheckT m ()
     errorInfixArgs =
-      err lo (Fatal $ "expected infix operator to have exactly two function arguments")
+      err lo (Fatal $ "expected infix operator to have exactly two arguments")
 
     errorPrefixArgs :: Monad m => TypeCheckT m ()
     errorPrefixArgs =
-      err lo (Fatal $ "expected prefix operator to have exactly one function argument")
+      err lo (Fatal $ "expected prefix operator to have exactly one argument")
 
     errorPostfixArgs :: Monad m => TypeCheckT m ()
     errorPostfixArgs =
-      err lo (Fatal $ "expected postfix operator to have at least one function argument")
+      err lo (Fatal $ "expected postfix operator to have at least one argument")
 
     verifyOperandType :: Monad m => PreTerm -> TypeCheckT m ()
-    verifyOperandType _ = return ()
+    verifyOperandType _ = return () -- Operand type is not being checked.
 
     insertUnknownImplicit :: Monad m => VarListElem -> TypeCheckT m ()
     insertUnknownImplicit (_, Nothing) =
@@ -655,29 +758,32 @@ doTcDecl subst isCtor (Decl (lo, na) impls ty) = do
             _ ->
               error $ "not a variable term " ++ quote vna
 
-checkOperandTypeString :: Monad m => (Loc, VarName) -> Maybe VarName -> TypeCheckT m ()
-checkOperandTypeString (nlo, na) Nothing =
+updateOperandTypeString :: Monad m => (Loc, VarName) -> Maybe VarName -> TypeCheckT m VarName
+updateOperandTypeString (nlo, na) Nothing = do
   when (isOperator na)
-    (err nlo (Fatal $ "operator declaration is missing operand type argument "
+    (err nlo (Fatal $ "missing operand type argument "
                       ++ quote "\\..."))
-checkOperandTypeString (nlo, na) (Just ss) = do
+  return na
+updateOperandTypeString (nlo, na) (Just ss) = do
   when (not (isOperator na))
     (err nlo (Fatal $ "operand type argument " ++ quote "\\..."
                       ++ " is valid only for operators"))
-  when (not (null ss) && not (isKeyOperandType ss)) $ do
+  if (not (null ss) && not (isKeyOperandType ss))
+  then do
     st <- Env.lookup ss
     case st of
       Nothing -> err nlo (Fatal $ "unexpected operand type " ++ quote ss) 
       Just st' -> do
         vt <- varStatusTerm st'
         case termPre vt of
-          TermData _ -> return ()
+          TermData d -> return (na ++ "\\" ++ varName d)
           _ -> err nlo (Fatal $ "unexpected operand type " ++ quote ss
                                 ++ ", not a data type")
+  else
+    return na
   where
     isKeyOperandType :: String -> Bool
     isKeyOperandType "Ty" = True
-    isKeyOperandType "_->_" = True
     isKeyOperandType _ = False
 
 tcVar :: Monad m => SubstMap -> (Loc, VarName) -> VarId -> Expr -> TypeCheckT m Term
@@ -715,7 +821,10 @@ tcDataDefCtorLookup subst (dlo, dna) d = do
   case termPre dt of
     TermData v -> do
       dis <- Env.forceLookupDataCtor (varId v)
-      ctor <- Env.lookup (declName d)
+      ctor <- do
+        let (stna0, stopt) = operandSplit (declName d)
+        stna <- updateOperandTypeString (declLoc d, stna0) stopt
+        Env.lookup stna
       case ctor of
         Just (StatusTerm ctor') ->
           return ctor'
@@ -725,10 +834,11 @@ tcDataDefCtorLookup subst (dlo, dna) d = do
                     ++ " has cyclic type")
         Just (StatusUnknownCtor _ _ _ _) -> do
           eis <- Env.forceLookupDataCtor (varId v)
-          case find (\ei -> varName ei == declName d) eis of
+          fullCname <- fullRefName (declLoc d) (declName d)
+          case find (\ei -> varName ei == fullCname) eis of
             Nothing -> do
               i <- Env.freshRefId
-              let cv = mkVar i (declName d)
+              let cv = mkVar i fullCname
               Env.forceInsertDataCtor (varId v) (cv : dis)
               tcDataDefCtor subst v (cv, d)
             Just cv ->
@@ -1512,7 +1622,7 @@ doTcExpr _ _ _ _ (ExprUnitElem _) = return mkTermUnitElem
 doTcExpr _ _ _ _ (ExprUnitTy _) = return mkTermUnitTy
 doTcExpr _ _ _ _ (ExprTy _) = return mkTermTy
 doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
-  lift (checkRefNameValid (lo, na0))
+  lift (checkRefNameValid True (lo, na0))
   na <- operandVarName
   x <- lift (Env.lookup na)
   case x of
@@ -1535,7 +1645,10 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
       then return na0
       else
         if '\\' `elem` na0
-        then return na0
+        then do
+          let (na1, opty) = operandSplit na0
+          na1' <- lift (Env.expandVarName na1)
+          lift (updateOperandTypeString (lo, na1') opty)
         else
           if isRightAssocInfixOp na0
           then do
@@ -1593,8 +1706,9 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
       case n of
         Nothing -> unableToInferOperand
         Just n' -> do
-          let na0' = na0 ++ "\\"
-          let na' = operandConcat na0 n'
+          na00 <- lift (Env.expandVarName na0)
+          let na0' = na00 ++ "\\"
+          let na' = operandConcat na00 n'
           x1 <- lift $ Env.lookup na0'
           x2 <- lift $ Env.lookup na'
           when (isJust x1 && isJust x2)

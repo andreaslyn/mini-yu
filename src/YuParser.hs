@@ -41,6 +41,21 @@ yuVarTok = do
                 TokVar s -> Just (tokLoc t, s)
                 _ -> Nothing
 
+yuAnyOpTok :: YuParsec (Loc, String)
+yuAnyOpTok = do
+  f <- tokToPos
+  token (\x -> show (tokType x)) f getVar
+  where
+    getVar t =
+      case tokType t of
+        TokOp6 s -> Just (tokLoc t, '_' : s ++ "_")
+        TokOp5 s -> Just (tokLoc t, '_' : s ++ "_")
+        TokOp4 s -> Just (tokLoc t, '_' : s ++ "_")
+        TokOp3 s -> Just (tokLoc t, '_' : s ++ "_")
+        TokOp2 s -> Just (tokLoc t, '_' : s ++ "_")
+        TokOp1 s -> Just (tokLoc t, '_' : s ++ "_")
+        _ -> Nothing
+
 yuOpTok :: Int -> YuParsec (Loc, String)
 yuOpTok idx = do
   f <- tokToPos
@@ -120,15 +135,37 @@ parseTypeSpec = do
 
 parseProgram :: YuParsec Program
 parseProgram = do
-  is <- many parseImport
+  is <- many parseModuleIntro
   ds <- many parseDef
   _ <- yuKeyTok TokEof
   return (is, ds)
 
-parseImport :: YuParsec ImportPath
-parseImport = do
-  _ <- yuKeyTok TokImport
-  yuStringLitTok
+parseModuleIntro :: YuParsec ModuleIntro
+parseModuleIntro = do
+  _ <- yuKeyTok TokModule
+  m <- yuVarTok
+  _ <- yuKeyTok TokColonEq
+  path <- yuVarTok <|> yuAnyOpTok
+  imex <- many importExportList
+  return (m, path, concat imex)
+  where
+    importExportList :: YuParsec [(Loc, String, Bool)]
+    importExportList =
+      (yuKeyTok TokImport >> many1 importElem)
+      <|> (yuKeyTok TokExport >> many1 exportElem)
+
+    importElem :: YuParsec (Loc, String, Bool)
+    importElem = do
+      _ <- yuKeyTok TokBar
+      (lo, na) <- parseVarOrPrefix
+      return (lo, na, False)
+
+    exportElem :: YuParsec (Loc, String, Bool)
+    exportElem = do
+      _ <- yuKeyTok TokBar
+      (lo, na) <- parseVarOrPrefix
+      return (lo, na, True)
+
 
 parseDef :: YuParsec Def
 parseDef = parseExternDef <|> parseValDef <|> parseDataDef
@@ -144,13 +181,13 @@ parseCtorDecls = try emptyCtor <|> many1 doCtor
   where
     emptyCtor :: YuParsec [Decl]
     emptyCtor = do
-      _ <- yuKeyTok TokLet
+      _ <- yuKeyTok TokBar
       _ <- yuKeyTok TokCurlyL
       _ <- yuKeyTok TokCurlyR
       return []
 
     doCtor :: YuParsec Decl
-    doCtor = yuKeyTok TokLet >> parseDecl
+    doCtor = yuKeyTok TokBar >> parseDecl
 
 parseVarOrPrefix :: YuParsec (Loc, String)
 parseVarOrPrefix = do

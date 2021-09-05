@@ -1,6 +1,6 @@
 module ParseTree
   ( Program
-  , ImportPath
+  , ModuleIntro
   , Def (..)
   , Decl (..)
   , ValCase (..)
@@ -32,9 +32,21 @@ import Control.Monad.Trans.State
 import Control.Monad.Writer
 import Loc (Loc)
 
-type ImportPath = (Loc, String)
+-- module M := path/to/mod
+-- import
+-- | i1 (= False)
+-- | i2 (= False)
+-- export
+-- | e1 (= True)
+-- | e2 (= True)
+-- import
+-- ...
+-- export
+-- ...
+type ModuleIntro =
+  ((Loc, String), (Loc, String), [(Loc, String, Bool)])
 
-type Program = ([ImportPath], [Def])
+type Program = ([ModuleIntro], [Def])
 
 data Def = DefVal Bool Decl [ValCase] -- Bool = True if pure
          | DefExtern Decl
@@ -459,20 +471,43 @@ writeDefs (x : xs) = do
   newLine
   writeDefs xs
 
-writeImports :: [ImportPath] -> ToString ()
-writeImports [] = return ()
-writeImports [x] = do
-  writeStr ("import \"" ++ snd x ++ "\"")
+writeModuleIntros :: [ModuleIntro] -> ToString ()
+writeModuleIntros [] = return ()
+writeModuleIntros [x] = do
+  writeModuleIntro x
   newLine
   newLine
-writeImports (x : xs) = do
-  writeStr ("import \"" ++ snd x ++ "\"")
+writeModuleIntros (x : xs) = do
+  writeModuleIntro x
   newLine
-  writeImports xs
+  writeModuleIntros xs
+
+writeModuleIntro :: ModuleIntro -> ToString ()
+writeModuleIntro (m, path, ies) = do
+  writeStr "module "
+  writeStr (snd m)
+  writeStr " := "
+  writeStr (snd path)
+  writeModuleImportExportList ies
+
+writeModuleImportExportList :: [(Loc, String, Bool)] -> ToString ()
+writeModuleImportExportList [] = return ()
+writeModuleImportExportList [(_, s, b)] = do
+  if b
+  then writeStr "export | "
+  else writeStr "import | "
+  writeStr s
+writeModuleImportExportList ((_, s, b) : ss) = do
+  if b
+  then writeStr "export | "
+  else writeStr "import | "
+  writeStr s
+  newLine
+  writeModuleImportExportList ss
 
 writeProgram :: Program -> ToString ()
 writeProgram (is, ds) = do
-  writeImports is
+  writeModuleIntros is
   writeDefs ds
 
 runToString :: Program -> String

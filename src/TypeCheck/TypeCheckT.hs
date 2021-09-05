@@ -20,7 +20,7 @@ import TypeCheck.Term
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Except
-import Data.Set (Set)
+import Data.Map (Map)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -33,11 +33,11 @@ typeCheckErrMsg (Fatal s) = s
 typeCheckErrMsg (Recoverable s) = s
 
 type TypeCheckT m =
-  Env.EnvT (StateT (Set FilePath) (ReaderT (Bool, FilePath) (ExceptT TypeCheckErr m)))
+  Env.EnvT (StateT (Map FilePath Env.ScopeMap) (ReaderT (Bool, FilePath, String) (ExceptT TypeCheckErr m)))
 
 err :: Monad m => Loc -> TypeCheckErr -> TypeCheckT m a
 err lo msg = do
-  (_, f) <- ask
+  (_, f, _) <- ask
   case msg of
     Fatal msg' ->
       throwError (Fatal (f ++ ":" ++ show lo ++ ": " ++ msg'))

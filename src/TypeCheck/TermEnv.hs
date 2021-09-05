@@ -869,7 +869,7 @@ getAppliedImplicitsCaseTree _ _ (CaseEmpty _) = IntSet.empty
 
 preTermToStringT :: Monad m => Int -> PreTerm -> TypeCheckT m String
 preTermToStringT indent t = do
-  (vb, _) <- ask
+  (vb, _, _) <- ask
   im <- Env.getImplicitMap
   rm <- Env.getRefMap
   return (preTermToString vb im rm indent t)
@@ -880,7 +880,7 @@ preTermToString verbose i r indent t =
 
 prePatternToStringT :: Monad m => Int -> PrePattern -> TypeCheckT m String
 prePatternToStringT indent p = do
-  (vb, _) <- ask
+  (vb, _, _) <- ask
   im <- Env.getImplicitMap
   rm <- Env.getRefMap
   return (prePatternToString vb im rm indent p)

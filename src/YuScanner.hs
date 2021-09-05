@@ -33,7 +33,9 @@ data TokType =
   | TokOp4 String --  + -        (left associative)
   | TokOp5 String --  = : ? !    (right associative)
   | TokOp6 String --  < > ~      (left associative)
+  | TokModule
   | TokImport
+  | TokExport
   | TokWhere
   | TokEnd
   | TokData
@@ -85,7 +87,9 @@ tokTypeString t =
     TokOp5 s -> s
     TokOp6 s -> s
     TokStringLit s -> "\"" ++ s ++ "\""
+    TokModule -> "module"
     TokImport -> "import"
+    TokExport -> "export"
     TokWhere -> "where"
     TokEnd -> "end"
     TokData -> "data"
@@ -207,7 +211,9 @@ failHere msg = getLoc >>= failLoc msg
 
 makeWordTok :: String -> Loc -> SScanner Tok
 makeWordTok s lo
+  | s == "module" = return (tok TokModule lo)
   | s == "import" = return (tok TokImport lo)
+  | s == "export" = return (tok TokExport lo)
   | s == "where" = return (tok TokWhere lo)
   | s == "end" = return (tok TokEnd lo)
   | s == "data" = return (tok TokData lo)

@@ -6,15 +6,23 @@ module TypeCheck.Env
   , isStatusInProgress
   , isStatusTerm
   , EnvT
+  , ScopeMap
+  , GlobalMap
   , getRefMap
   , getImplicitMap
   , runEnvT
+  , forceInsertGlobal
+  , addToGlobals
   , TypeCheck.Env.lookup
   , member
+  , tryInsertModuleExpand
+  , expandVarName
+  , localEnv
   , forceInsert
   , tryInsert
   , tryUpdateIf
   , tryUpdate
+  , getScopeMap
   , isInThisScope
   , scope
   , freshVarId
@@ -51,7 +59,7 @@ where
 
 import TypeCheck.Term
 import TypeCheck.HackGlobalVarId
-import Data.Maybe (isJust)
+import Data.Maybe (isNothing, isJust)
 import qualified Data.Map as Map
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -60,7 +68,8 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Trans.State
 import ParseTree
 import Loc (Loc)
-import Str (quote)
+import Str (quote, varNameModuleSplit)
+import Control.Exception (assert)
 
 --import Debug.Trace (trace)
 
@@ -77,7 +86,12 @@ data VarStatus = StatusTerm Term
 
 type UnfinishedDataMap = IntMap (EnvDepth, SubstMap, Def)
 
-type ScopeMap = Map.Map VarName VarStatus
+type GlobalMap = Map.Map VarName Term
+
+type ModuleExpandMap = Map.Map VarName VarName
+
+-- Bool = true if name is to be exported.
+type ScopeMap = Map.Map VarName (VarStatus, Bool)
 
 data Env = Env ScopeId ScopeMap (Maybe Env) deriving Show
 
@@ -85,6 +99,8 @@ type ImplicitVarMap = IntMap.IntMap (PreTerm, [ScopeId])
 
 data EnvSt = EnvSt
   { env :: Env
+  , globalEnv :: GlobalMap
+  , moduleExpandMap :: ModuleExpandMap
   , hackVarId :: VarId
   , nextRefId :: VarId
   , currentScopeId :: ScopeId
@@ -116,6 +132,8 @@ emptyCtxSt :: EnvSt
 emptyCtxSt =
   EnvSt
     { env = Env 0 Map.empty Nothing
+    , globalEnv = Map.empty
+    , moduleExpandMap = Map.empty
     , hackVarId = 0
     , nextRefId = 0
     , currentScopeId = 0
@@ -200,6 +218,18 @@ updateNextRefId f = do
   modifyNextRefId f
   return i
 
+getGlobalEnv :: Monad m => EnvT m GlobalMap
+getGlobalEnv = fmap globalEnv get
+
+modifyGlobalEnv :: Monad m => (GlobalMap -> GlobalMap) -> EnvT m ()
+modifyGlobalEnv f = modify (\s -> s{globalEnv = f (globalEnv s)})
+
+putGlobalEnv :: Monad m => GlobalMap -> EnvT m ()
+putGlobalEnv g = modifyGlobalEnv (const g)
+
+forceInsertGlobal :: Monad m => VarName -> Term -> EnvT m ()
+forceInsertGlobal na t = modifyGlobalEnv (Map.insert na t)
+
 getEnv :: Monad m => EnvT m Env
 getEnv = fmap env get
 
@@ -209,38 +239,102 @@ modifyEnv f = modify (\s -> s{env = f (env s)})
 putEnv :: Monad m => Env -> EnvT m ()
 putEnv s = modifyEnv (const s)
 
-doLookup :: VarName -> Env -> Maybe VarStatus
-doLookup v (Env _ m Nothing) = Map.lookup v m
-doLookup v (Env _ m (Just p)) =
+tryInsertModuleExpand :: Monad m => VarName -> VarName -> EnvT m Bool
+tryInsertModuleExpand alias mo = do
+  s <- get
+  let m = moduleExpandMap s
+  if Map.member alias m
+  then return False
+  else do
+    put (s {moduleExpandMap = Map.insert alias mo m})
+    return True
+
+localEnv :: Monad m => EnvT m a -> EnvT m a
+localEnv c = do
+  s <- get
+  let Env sid _ _ = env s
+  (x, s') <- lift (runStateT c (s {moduleExpandMap = Map.empty, env = Env sid Map.empty Nothing}))
+  put (s' {moduleExpandMap = moduleExpandMap s, env = env s})
+  return x
+
+expandModuleName :: Monad m => VarName -> EnvT m VarName
+expandModuleName mn = do
+  ma <- fmap moduleExpandMap get
+  case Map.lookup mn ma of
+    Nothing -> return mn
+    Just ex -> return ex
+
+expandVarName :: Monad m => VarName -> EnvT m VarName
+expandVarName vn = do
+  let (v1, w2) = varNameModuleSplit vn
+  case w2 of
+    Nothing -> return v1
+    Just v2 -> do
+      v2' <- expandModuleName v2
+      if v2' == ""
+      then return v1
+      else return (v1 ++ "." ++ v2')
+
+doLookup :: GlobalMap -> VarName -> Env -> Maybe VarStatus
+doLookup g v (Env _ m Nothing) =
   case Map.lookup v m of
-    Nothing -> doLookup v p
-    Just e -> Just e
+    Nothing -> fmap StatusTerm (Map.lookup v g)
+    Just (x, _) -> Just x
+doLookup g v (Env _ m (Just p)) =
+  case Map.lookup v m of
+    Nothing -> doLookup g v p
+    Just (e, _) -> Just e
 
 lookup :: Monad m => VarName -> EnvT m (Maybe VarStatus)
-lookup n = fmap (doLookup n) getEnv
+lookup n = do
+  n' <- expandVarName n
+  g <- getGlobalEnv
+  fmap (doLookup g n') getEnv
 
 member :: Monad m => VarName -> EnvT m Bool
 member = fmap isJust . TypeCheck.Env.lookup
 
-doForceInsert :: VarName -> VarStatus -> Env -> Env
-doForceInsert n x (Env sid m p) = Env sid (Map.insert n x m) p
+doForceInsert :: VarName -> VarStatus -> Bool -> Env -> Env
+doForceInsert n x b (Env sid m p) = Env sid (Map.insert n (x, b) m) p
 
-forceInsert :: Monad m => VarName -> VarStatus -> EnvT m ()
-forceInsert n p = modifyEnv (doForceInsert n p)
+forceInsert :: Monad m => VarName -> VarStatus -> Bool -> EnvT m ()
+forceInsert n p b = modifyEnv (doForceInsert n p b)
 
-doTryInsert :: VarName -> VarStatus -> Env -> Either VarStatus Env
-doTryInsert n x (Env sid m p) =
+doTryInsert :: VarName -> VarStatus -> Bool -> Env -> Either VarStatus Env
+doTryInsert n x b (Env sid m p) =
   case Map.lookup n m of
-    Nothing -> Right (Env sid (Map.insert n x m) p)
-    Just s -> Left s
+    Nothing -> Right (Env sid (Map.insert n (x, b) m) p)
+    Just (s, _) -> Left s
 
 tryInsert ::
-  Monad m => VarName -> VarStatus -> EnvT m (Maybe VarStatus)
-tryInsert n x = do
-  a <- fmap (doTryInsert n x) getEnv
+  Monad m => VarName -> VarStatus -> Bool -> EnvT m (Maybe VarStatus)
+tryInsert n x b = do
+  a <- fmap (doTryInsert n x b) getEnv
   case a of
     Right c -> putEnv c >> return Nothing
     Left s -> return (Just s)
+
+getScopeMap :: Monad m => EnvT m ScopeMap
+getScopeMap = do
+  Env _ em _ <- getEnv
+  return em
+
+addToGlobals :: Monad m => VarName -> EnvT m ()
+addToGlobals moduleName = do
+  Env _ em p <- getEnv
+  let !() = assert (isNothing p) ()
+  g <- getGlobalEnv
+  putGlobalEnv (Map.foldrWithKey insertGlob g em)
+  where
+    insertGlob :: VarName -> (VarStatus, Bool) -> GlobalMap -> GlobalMap
+    insertGlob na (StatusTerm tm, True) g =
+      Map.insert (insertModuleName na) tm g
+    insertGlob _ (_, b) g = assert (not b) g
+
+    insertModuleName :: VarName -> VarName
+    insertModuleName na =
+      let (start, end) = span (/= '\\') na
+      in start ++ "." ++ moduleName ++ end
 
 isInThisScope :: Monad m => VarName -> EnvT m Bool
 isInThisScope n = do
@@ -255,9 +349,9 @@ doUpdateIf p n x (Env sid m c) =
     Nothing -> do
       (c', r) <- c >>= doUpdateIf p n x
       return (Env sid m (Just c'), r)
-    Just s -> if p s
-                then Just (Env sid (Map.insert n x m) c, s)
-                else Nothing
+    Just (s, b) -> if p s
+                   then Just (Env sid (Map.insert n (x, b) m) c, s)
+                   else Nothing
 
 tryUpdateIf :: Monad m =>
   (VarStatus -> Bool) -> VarName -> VarStatus -> EnvT m (Maybe VarStatus)
