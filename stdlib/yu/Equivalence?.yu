@@ -1,1 +1,5 @@
-import "yu/Equivalence?/Equivalence?.yu"
+import Equivalence? => yu/Equivalence?/Equivalence?
+export
+| Equivalence?
+| mk
+| (...#Equivalence?)

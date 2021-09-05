@@ -1,60 +1,66 @@
-import "yu/Nat/Nat.yu"
-import "yu/basic/Equal.yu"
+import bN => yu/basic/Nat
+| (...)
+
+import NN => yu/Nat/Nat
+| (...)
+
+import basic => yu/basic
+| (...)
 
 
-########################## Addition theormes #########################
+\\\\\\\\\\\\\\\\\\\\\\\\\\ Addition theormes \\\\\\\\\\\\\\\\\\\\\\\\\
 
 
-val simplOp++Op+.Nat [m n : Nat] : ++ m + n = ++ (m + n)
+val simplOp++Op+ [m n : Nat] : ++ m + n = ++ (m + n)
 let [n := 0] => refl
-let [n := ++ n] => simplOp++Op+.Nat[n := n]
+let [n := ++ n] => simplOp++Op+[n := n]
 
 
-val op+IsOp+r.Nat [m n : Nat] : m + n = m +r n
+val op+IsOp+r [m n : Nat] : m + n = m +r n
 let [n := 0] => refl
-let [n := ++ n] => simplOp++Op+.Nat @ op+IsOp+r.Nat .ap (++ _)
+let [n := ++ n] => simplOp++Op+ @ op+IsOp+r .ap (++ _)
 
 
-val simplOp++Op+r.Nat [m n : Nat] : ++ m +r n = ++ (m +r n)
+val simplOp++Op+r [m n : Nat] : ++ m +r n = ++ (m +r n)
 let [n := 0] => refl
-let [n := ++ n] => simplOp++Op+r.Nat .ap (++ _)
+let [n := ++ n] => simplOp++Op+r .ap (++ _)
 
 
-val simpl0Op+r.Nat [n : Nat] : 0 +r n = n
+val simpl0Op+r [n : Nat] : 0 +r n = n
 let [n := 0] => refl
-let [n := ++ n] => simpl0Op+r.Nat .ap (++ _)
+let [n := ++ n] => simpl0Op+r .ap (++ _)
 
 
-val simpl0Op+.Nat [n : Nat] : 0 + n = n
-let => op+IsOp+r.Nat @ simpl0Op+r.Nat
+val simpl0Op+ [n : Nat] : 0 + n = n
+let => op+IsOp+r @ simpl0Op+r
 
 
-val commutativeOp+r.Nat [m n : Nat] : m +r n = n +r m
-let [n := 0] => ! simpl0Op+r.Nat
+val commutativeOp+r [m n : Nat] : m +r n = n +r m
+let [n := 0] => ! simpl0Op+r
 let [n := ++ n] =>
-  commutativeOp+r.Nat .ap(++ _) @ ! simplOp++Op+r.Nat
+  commutativeOp+r .ap(++ _) @ ! simplOp++Op+r
 
 
-val commutativeOp+.Nat [m n : Nat] : m + n = n + m
-let => op+IsOp+r.Nat @ commutativeOp+r.Nat @ ! op+IsOp+r.Nat
+val commutativeOp+ [m n : Nat] : m + n = n + m
+let => op+IsOp+r @ commutativeOp+r @ ! op+IsOp+r
 
 
-val associativeOp+r.Nat [k m n : Nat] : (k +r m) +r n = k +r (m +r n)
+val associativeOp+r [k m n : Nat] : (k +r m) +r n = k +r (m +r n)
 let [n := 0] => refl
-let [n := ++ n] => associativeOp+r.Nat .ap (++ _)
+let [n := ++ n] => associativeOp+r .ap (++ _)
 
 
-val associativeOp+.Nat [k m n : Nat] : (k + m) + n = k + (m + n)
+val associativeOp+ [k m n : Nat] : (k + m) + n = k + (m + n)
 let =>
-  op+IsOp+r.Nat
-  @ op+IsOp+r.Nat .ap (_ +r n)
-  @ associativeOp+r.Nat
-  @ ! op+IsOp+r.Nat
-  @ (! op+IsOp+r.Nat) .ap (k + _)
+  op+IsOp+r
+  @ op+IsOp+r .ap (_ +r n)
+  @ associativeOp+r
+  @ ! op+IsOp+r
+  @ (! op+IsOp+r) .ap (k + _)
 
 
-val op+rIsOp+l.Nat [m n : Nat] : m +r n = m +l n
-let => commutativeOp+r.Nat @ aux m n
+val op+rIsOp+l [m n : Nat] : m +r n = m +l n
+let => commutativeOp+r @ aux m n
 where
   val aux : (m n : Nat) -> n +r m = m +l n
   let 0 n => refl
@@ -62,17 +68,17 @@ where
 end
 
 
-###################### Multiplication theormes #######################
+\\\\\\\\\\\\\\\\\\\\\\ Multiplication theormes \\\\\\\\\\\\\\\\\\\\\\\
 
 
-val op*IsOp*r.Nat [m n : Nat] : m * n = m *r n
+val op*IsOp*r [m n : Nat] : m * n = m *r n
 let [n := 0] => refl
-let [n := ++ n] => op+IsOp+r.Nat @ op*IsOp*r.Nat .ap (_ +r m)
+let [n := ++ n] => op+IsOp+r @ op*IsOp*r .ap (_ +r m)
 
 
-######################## Ordering theormes ###########################
+\\\\\\\\\\\\\\\\\\\\\\\\ Ordering theormes \\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 
-val op++Is<?.Nat [n : Nat] : ? (n <? ++ n)
+val op++Is<? [n : Nat] : ? (n <? ++ n)
 let [n := 0] => refl
-let [n := ++ n] => op++Is<?.Nat [n := n]
+let [n := ++ n] => op++Is<? [n := n]

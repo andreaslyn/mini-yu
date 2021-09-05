@@ -151,7 +151,7 @@ insertUnknownVar subst (lo, na) i e = do
 
 markInProgress :: Monad m => Bool -> (Loc, VarName) -> TypeCheckT m (Maybe Term)
 markInProgress isCtor (lo, na) = do
-  x <- Env.lookup na
+  x <- lookupEnv na
   case x of
     Just (StatusTerm t) ->
       return (Just t)
@@ -232,7 +232,7 @@ checkRefNameValid allowDot (lo, na0) = do
 
 checkMainExists :: Monad m => TypeCheckT m ()
 checkMainExists = do
-  ma <- Env.lookup "main"
+  ma <- lookupEnv "main"
   case ma of
     Nothing ->
       err (Loc.loc 1 1) (Fatal $ "missing " ++ quote "main" ++ " function")
@@ -328,7 +328,7 @@ insertImportExport vis ina em (ii@(lo, dna@('.' : '.' : '.' : '#' : na0), b) : i
     insertAllImportExport lo b em'
     insertImportExport Set.empty ina em imex
   else do
-    t <- Env.lookup na0
+    t <- lookupEnv na0
     case t of
       Nothing -> do
         when (Set.member dna vis) $
@@ -770,36 +770,37 @@ updateOperandTypeString (nlo, na) Nothing = do
     (err nlo (Fatal $ "missing operand type argument "
                       ++ quote "#..."))
   return na
-updateOperandTypeString (nlo, na) (Just ss) = do
+updateOperandTypeString (nlo, na) (Just ss0) = do
   when (not (isOperator na))
     (err nlo (Fatal $ "operand type argument " ++ quote "#..."
                       ++ " is valid only for operators"))
-  if (not (null ss) && not (isKeyOperandType ss))
+  if (not (null ss0) && not (isKeyOperandType ss0))
   then do
-    st <- Env.lookup ss
+    ss <- expandVarNameEnv ss0
+    st <- lookupEnv ss
     case st of
       Nothing ->
-        err nlo (Fatal $ "cannot find such operand type " ++ quote ss) 
+        err nlo (Fatal $ "cannot find such operand type " ++ quote ss0) 
       Just st' -> do
         case st' of
           StatusTerm vt ->
             case termPre vt of
               TermData d -> return (na ++ "#" ++ varName d)
               _ -> errorNotData
-          StatusUnknownRef _ _ _ -> addCurrentModule
-          StatusInProgress _ _ -> addCurrentModule
+          StatusUnknownRef _ _ _ -> addCurrentModule ss
+          StatusInProgress _ _ -> addCurrentModule ss
           StatusUnknownCtor _ _ _ _ -> errorNotData
           StatusUnknownVar _ _ _ _ _ -> errorNotData
   else
-    return (na ++ "#" ++ ss)
+    return (na ++ "#" ++ ss0)
   where
     errorNotData :: Monad m => TypeCheckT m a
     errorNotData =
       err nlo $ Fatal $
-        "unexpected operand type " ++ quote ss ++ ", not a data type"
+        "unexpected operand type " ++ quote ss0 ++ ", not a data type"
 
-    addCurrentModule :: Monad m => TypeCheckT m VarName
-    addCurrentModule = do
+    addCurrentModule :: Monad m => VarName -> TypeCheckT m VarName
+    addCurrentModule ss = do
       let (s0, s1) = operandSplit ss
       (_, _, modName) <- ask
       let s0' = case modName of
@@ -823,7 +824,7 @@ tcVar subst (lo, na) i e = do
 tcDataDefCtorLookup :: Monad m =>
   SubstMap -> (Loc, VarName) -> Decl -> TypeCheckT m Term
 tcDataDefCtorLookup subst (dlo, dna) d = do
-  x <- Env.lookup dna
+  x <- lookupEnv dna
   dt <- case x of
           Nothing ->
             error ("cannot find data type " ++ quote dna
@@ -846,7 +847,7 @@ tcDataDefCtorLookup subst (dlo, dna) d = do
       ctor <- do
         let (stna0, stopt) = operandSplit (declName d)
         stna <- updateOperandTypeString (declLoc d, stna0) stopt
-        Env.lookup stna
+        lookupEnv stna
       case ctor of
         Just (StatusTerm ctor') ->
           return ctor'
@@ -1646,7 +1647,7 @@ doTcExpr _ _ _ _ (ExprTy _) = return mkTermTy
 doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
   lift (checkRefNameValid True (lo, na0))
   na <- operandVarName
-  x <- lift (Env.lookup na)
+  x <- lift (lookupEnv na)
   case x of
     Nothing -> lift $ err lo (Fatal $ "identifier not in scope " ++ quote na)
     Just x' -> do
@@ -1691,7 +1692,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
         if '#' `elem` na0
         then do
           let (na1, opty) = operandSplit na0
-          na1' <- lift (Env.expandVarName na1)
+          na1' <- lift (expandVarNameEnv na1)
           lift (updateOperandTypeString (lo, na1') opty)
         else do
           ctx <- lift getOperatorContext
@@ -1738,11 +1739,11 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
       case n of
         Nothing -> unableToInferOperand
         Just n' -> do
-          na00 <- lift (Env.expandVarName na0)
+          na00 <- lift (expandVarNameEnv na0)
           let na0' = na00 ++ "#"
           let na' = operandConcat na00 n'
-          x1 <- lift $ Env.lookup na0'
-          x2 <- lift $ Env.lookup na'
+          x1 <- lift $ lookupEnv na0'
+          x2 <- lift $ lookupEnv na'
           when (isJust x1 && isJust x2)
             (lift $ err lo (Fatal $
                              "multiple candidates for operator "
@@ -1756,9 +1757,9 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
 
     unableToInferOperand :: Monad m => ExprT m VarName
     unableToInferOperand = do
-      na00 <- lift (Env.expandVarName na0)
+      na00 <- lift (expandVarNameEnv na0)
       let na0' = na00 ++ "#"
-      x <- lift $ Env.lookup na0'
+      x <- lift $ lookupEnv na0'
       when (isNothing x)
         (lift $ err lo (Recoverable $
                   "unable to infer operand type of " ++ quote na0))
@@ -2610,12 +2611,12 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
   (x, na) <- if not (isOperator na0) || '#' `elem` na0
              then do
               let (na1, opty) = operandSplit na0
-              na1' <- Env.expandVarName na1
+              na1' <- expandVarNameEnv na1
               na2 <- updateOperandTypeString (lo, na1') opty
-              fmap (\x -> (x, na2)) (Env.lookup na2)
+              fmap (\x -> (x, na2)) (lookupEnv na2)
              else do
               na <- getDataCtorMatching
-              x1 <- Env.lookup na
+              x1 <- lookupEnv na
               return (x1, na)
   case x of
     Just (StatusTerm (Term {termPre = TermCtor v did, termTy = ty'})) -> do
@@ -2641,7 +2642,7 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
     getDataCtorMatching :: Monad m => TypeCheckT m VarName
     getDataCtorMatching = do
       cs <- getDataCtors
-      na0' <- Env.expandVarName na0
+      na0' <- expandVarNameEnv na0
       case cs of
         Nothing -> return na0'
         Just cs' -> do

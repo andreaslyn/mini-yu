@@ -1,1 +1,5 @@
-import "yu/Stream/Stream.yu"
+import Stream => yu/Stream/Stream
+export
+| Stream
+| nil
+| (...#Stream)

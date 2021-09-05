@@ -1,2 +1,25 @@
-import "yu/Ordering?/Ordering?.yu"
-import "yu/Ordering?/Bool.yu"
+import Ordering? => yu/Ordering?/Ordering?
+export
+| OrderRelation?
+| mkRel
+| (...#OrderRelation?)
+| cmpToLt?
+| cmpToEq?
+| cmpToGt?
+| cmpToNeq?
+| cmpToGe?
+| cmpToLe?
+| leToCmp
+| leToLt?
+| leToEq?
+| leToNeq?
+| leToGt?
+| leToGe?
+| IsOrdering?
+| mkIs
+| (...#IsOrdering?) 
+| Ordering?
+| mk
+| (...#Ordering?)
+| fromLe
+| fromCmp

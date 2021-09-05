@@ -1,34 +1,52 @@
-import "yu/RBTree/RBTree.yu"
-import "yu/List/theorems.yu"
+import RB => yu/RBTree/RBTree
+| RBTree
+| (...#RBTree)
+| (...#Color.RB)
+
+import Ord? => yu/Ordering?/Ordering?
+| Ordering?
+| (...#Ordering?)
+
+import L => yu/List/List
+| List
+| (...#List)
+
+import N => yu/Nat/Nat
+| Nat
+| (...#Nat)
+
+import B => yu/Bool/Bool
+| Bool
+| (...#Bool)
 
 
-val _.rootColor\RBTree [A : Ty] [od : Ordering? A] :
+val (.rootColor#RBTree) [A : Ty] [od : Ordering? A] :
   RBTree A od -> Color.RB
 let leaf.RB => black.RB
 let (_ .node _ _ c) => c
 
 
-val _.pathCountBlackNodes\RBTree [A : Ty] [od : Ordering? A] :
+val (.pathCountBlackNodes#RBTree) [A : Ty] [od : Ordering? A] :
   RBTree A od -> List Nat
-let leaf.RB => 0 :: nil
+let leaf.RB => 0.N :: nil.L
 let (t1 .node t2 _ red.RB) =>
   t1 .pathCountBlackNodes :+: t2 .pathCountBlackNodes
 let (t1 .node t2 _ black.RB) =>
-  (t1 .pathCountBlackNodes :+: t2 .pathCountBlackNodes) .map (++_)
+  (t1 .pathCountBlackNodes :+: t2 .pathCountBlackNodes) .map (++)
 
 
-val _.blackInvariant\RBTree [A : Ty] [od : Ordering? A] :
+val (.blackInvariant#RBTree) [A : Ty] [od : Ordering? A] :
   RBTree A od -> Bool
 let t =>
   case t .pathCountBlackNodes
-  | nil => true
-  | n :: ns => ns .accum true of a x => a && (x =? n)
+  | nil.L => true.B
+  | n :: ns => ns .accum true.B of a x => a && (x =? n)
   end
 
 
-val _.redInvariant\RBTree [A : Ty] [od : Ordering? A]
+val (.redInvariant#RBTree) [A : Ty] [od : Ordering? A]
   : RBTree A od -> Bool
-let leaf.RB => true
+let leaf.RB => true.B
 let (t1 .node t2 _ black.RB) =>
   t1 .redInvariant && t2 .redInvariant
 let (t1 .node t2 _ red.RB) =>
@@ -38,6 +56,6 @@ let (t1 .node t2 _ red.RB) =>
   t2 .redInvariant
 
 
-val _.invariant\RBTree [A : Ty] [od : Ordering? A]
+val (.invariant#RBTree) [A : Ty] [od : Ordering? A]
   : RBTree A od -> Bool
 let t => t .blackInvariant && t .redInvariant

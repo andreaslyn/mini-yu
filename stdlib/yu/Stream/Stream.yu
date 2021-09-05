@@ -1,43 +1,49 @@
-import "yu/Nat/Nat.yu"
+import N => yu/Nat/Nat
+| Nat
+| (...#Nat)
+
+import L => yu/List/List
+| List
+| (...#List)
 
 
 data Stream : Ty -> Ty
-let nil.Stream [A : Ty] : Stream A
-let _::_\Stream [A : Ty] : A & ([] -> Stream A) -> Stream A
+| nil [A : Ty] : Stream A
+| (::#Stream) [A : Ty] : A & ([] -> Stream A) -> Stream A
 
 
-val _:+:_\Stream [A : Ty] : Stream A & Stream A -> Stream A
-let nil.Stream ys => ys
+val (:+:#Stream) [A : Ty] : Stream A & Stream A -> Stream A
+let nil ys => ys
 let (x :: xs) ys => x :: xs :+: ys
 
 
-val _.take!\Stream [A : Ty] : Stream A & Nat -> Stream A
-let _ 0 => nil.Stream
-let nil.Stream _ => nil.Stream
+val (.take!#Stream) [A : Ty] : Stream A & Nat -> Stream A
+let _ 0.N => nil
+let nil _ => nil
 let (x :: xs) (++ n) => x :: xs .take! n
 
 
-val _.takeList!\Stream [A : Ty] : Stream A & Nat -> List A
-let nil.Stream _ => nil
-let _ 0 => nil
+val (.takeList!#Stream) [A : Ty] : Stream A & Nat -> List A
+let nil _ => nil.L
+let _ 0.N => nil.L
 let (x :: xs) (++ n) => x :: xs .takeList! n
 
 
-val _.drop!\Stream [A : Ty] : Stream A & Nat -> Stream A
-let xs 0 => xs
-let nil.Stream _ => nil.Stream
+val (.drop!#Stream) [A : Ty] : Stream A & Nat -> Stream A
+let xs 0.N => xs
+let nil _ => nil
 let (_ :: xs) (++ n) => xs .drop! n
 
 
-val _.accum\Stream [A B : Ty] : Stream A & B & (B & A -> B) -> B
-let nil.Stream y _ => y
+val (.accum#Stream) [A B : Ty] : Stream A & B & (B & A -> B) -> B
+let nil y _ => y
 let (x :: xs) y f => xs .accum (f y x) f
 
 
-val _.fold\Stream [A B : Ty] : Stream A & B & (A & B -> B) -> B
-let nil.Stream y _ => y
+val (.fold#Stream) [A B : Ty] : Stream A & B & (A & B -> B) -> B
+let nil y _ => y
 let (x :: xs) y f => f x (xs .fold y f)
 
 
-val _.rev\Stream [A : Ty] : Stream A -> Stream A
-let => _ .accum nil.Stream (s x => x :: s)
+val (.rev#Stream) [A : Ty] : Stream A -> Stream A
+let => _ .accum nil (s x => x :: s)

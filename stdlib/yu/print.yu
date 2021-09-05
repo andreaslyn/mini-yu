@@ -1,2 +1,22 @@
-import "yu/print/print.yu"
-import "yu/print/printf.yu"
+import basic => yu/basic
+| Bool
+| Nat
+| List
+
+import C => yu/Char/Type
+| Char
+
+import S => yu/Str/Str
+| Str
+
+import print => yu/print/print
+export
+| (...#Char)
+| (...#Str)
+| (...#Bool)
+| (...#Nat)
+| (...#List)
+
+import printf => yu/print/printf
+export
+| (...#Str)

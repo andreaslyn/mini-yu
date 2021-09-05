@@ -1,20 +1,49 @@
-import "yu/Str/Str.yu"
-import "yu/List/theorems.yu"
+import Str => yu/Str/Str
+| Str
+| (...#Str)
+
+import C => yu/Char/Char
+
+import Eq => yu/basic/Equal
+| (=#)
+
+import List-th => yu/List/theorems
+
+import Ord => yu/Order/Order
+| Order
+| (...#Order)
+
+import B => yu/Bool/Bool
+| Bool
+
+import relation? => yu/relation?/relation?
+| (...#Bool)
+
+import Ord? => yu/Ordering?/Ordering?
+| Ordering?
+| (...#Ordering?)
+
+import Ord?-th => yu/Ordering?/theorems
+| (...#Ordering?)
+
+import Equivalence? => yu/Equivalence?/Equivalence?
+| Equivalence?
+| (...#Equivalence?)
 
 
-val cmpIsTransitive?.Str : cmpToLe?.Ordering? _.cmp\Str .IsTransitive?
+val cmpIsTransitive? : cmpToLe?.Ord? (.cmp#Str) .IsTransitive?
 let r s t lrs lst =>
-  cmpIsTransitive?.List
-    ordering?.Char (r .list) (s .list) (t .list) lrs lst
+  cmpIsTransitive?.List-th
+    ordering?.C (r .list) (s .list) (t .list) lrs lst
 
 
-val cmpIsCompatible.Str : (r s : Str) -> r .cmp s .lt? = s .cmp r .gt?
-let r s => cmpIsCompatible.List ordering?.Char (r .list) (s .list)
+val cmpIsCompatible : (r s : Str) -> r .cmp s .lt? = s .cmp r .gt?
+let r s => cmpIsCompatible.List-th ordering?.C (r .list) (s .list)
 
 
-val ordering?.Str : Ordering? Str
-let => fromCmp.Ordering? _.cmp\Str cmpIsTransitive?.Str cmpIsCompatible.Str
+val ordering? : Ordering? Str
+let => fromCmp.Ord? (.cmp#Str) cmpIsTransitive? cmpIsCompatible
 
 
-val equivalence?.Str : Equivalence? Str
-let => ordering?.Str .equivalence?
+val equivalence? : Equivalence? Str
+let => ordering? .equivalence?

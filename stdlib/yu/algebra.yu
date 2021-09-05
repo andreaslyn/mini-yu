@@ -1,2 +1,14 @@
-import "yu/algebra/operations.yu"
-import "yu/algebra/Monoid.yu"
+import ops => yu/algebra/operations
+export
+| IsAssociative
+| HasLeftUnit
+| HasRightUnit
+| HasUnit
+
+import Mon => yu/algebra/Monoid
+| IsMonoid
+| mkIs
+| (...#IsMonoid)
+| Monoid
+| mk
+| (...#Monoid)

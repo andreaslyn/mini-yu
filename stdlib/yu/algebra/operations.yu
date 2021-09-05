@@ -1,5 +1,9 @@
-import "yu/basic/Equal.yu"
-import "yu/Prod/Prod.yu"
+
+import Eq => yu/basic/Equal
+| (=#)
+
+import Prod => yu/Prod/Prod
+| (&&#Ty)
 
 
 val IsAssociative [A : Ty] : (A & A -> A) -> Ty

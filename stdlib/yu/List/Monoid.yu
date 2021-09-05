@@ -1,6 +1,11 @@
-import "yu/List/List.yu"
-import "yu/algebra/Monoid.yu"
+import L => yu/List/List
+| List
+| (...#List)
+
+import Mon => yu/algebra/Monoid
+| IsMonoid
+| (...#IsMonoid)
 
 
-val _.monoidProduct\List[A : Ty] : List A & IsMonoid A -> A
+val (.monoidProduct#List) [A : Ty] : List A & IsMonoid A -> A
 let xs M => xs .accum (M .unit) (M .op)

@@ -1,1 +1,3 @@
-import "yu/undefined/undefined.yu"
+import undefined => yu/undefined/undefined
+export
+| undefined

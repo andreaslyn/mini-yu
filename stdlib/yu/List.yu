@@ -1,1 +1,23 @@
-import "yu/List/List.yu"
+import List => yu/List/List
+export
+| List
+| nil
+| (...#List)
+| is::
+| allNil
+| (...#.All#List)
+| here
+| (...#.Has#List)
+
+import List-th => yu/List/theorems
+export
+| ordering?
+| equivalence?
+
+import StrStr => yu/Str/StrStr
+export
+| (...#List)
+
+import print => yu/print
+export
+| (...#List)

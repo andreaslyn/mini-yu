@@ -1,1 +1,4 @@
-import "yu/parallel/parallel.yu"
+import parallel => yu/parallel/parallel
+export
+| parallel'
+| parallel

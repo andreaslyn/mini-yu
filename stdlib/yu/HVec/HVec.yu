@@ -1,15 +1,25 @@
-import "yu/Vec/Vec.yu"
+import Vec => yu/Vec/Vec
+| Vec
+| (...#Vec)
+
+import N => yu/Nat/Nat
+| Nat
+| (...#Nat)
+
+import B => yu/Bool/Bool
+| Bool
+| (...#Bool)
 
 
 data HVec [A : Ty] [n : Nat] : Vec n A & (A -> Ty) -> Ty
-let nil.HVec [A : Ty] [P : A -> Ty] : HVec nil.Vec P
-let _::_\HVec [A : Ty] [P : A -> Ty] [n : Nat] [x : A] [xs : Vec n A] :
+| nil [A : Ty] [P : A -> Ty] : HVec nil.Vec P
+| (::#HVec) [A : Ty] [P : A -> Ty] [n : Nat] [x : A] [xs : Vec n A] :
   P x & HVec xs P -> HVec (x :: xs) P
 
 
-val _.index\HVec [A : Ty] [P : A -> Ty] [n : Nat] [as : Vec n A] :
+val (.index#HVec) [A : Ty] [P : A -> Ty] [n : Nat] [as : Vec n A] :
   HVec as P & (i : Nat) & (L : ? (i <? n)) -> P (as .index i L)
-let nil.HVec 0 {}
-let nil.HVec (++ _) {}
-let (x :: xs) 0 _ => x
+let nil 0.N {}
+let nil (++ _) {}
+let (x :: xs) 0.N _ => x
 let (_ :: xs) (++ i) L => xs .index i L

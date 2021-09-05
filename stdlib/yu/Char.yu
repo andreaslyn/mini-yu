@@ -1,1 +1,9 @@
-import "yu/Char/Char.yu"
+import CharType => yu/Char/Type
+export
+| (...)
+
+import Char => yu/Char/Char
+export
+| (...#Char)
+| ordering?
+| equivalence?

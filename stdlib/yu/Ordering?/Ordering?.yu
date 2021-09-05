@@ -1,5 +1,5 @@
 
-import B => yu/Bool
+import B => yu/Bool/Bool
 | Bool
 | (...#Bool)
 | if

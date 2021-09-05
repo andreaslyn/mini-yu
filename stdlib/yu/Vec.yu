@@ -1,1 +1,5 @@
-import "yu/Vec/Vec.yu"
+import Vec => yu/Vec/Vec
+export
+| Vec
+| nil
+| (...#Vec)

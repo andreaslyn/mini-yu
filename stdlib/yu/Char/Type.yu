@@ -1,0 +1,129 @@
+data Char : Ty
+| '0 : Char \\ "0"
+| '1 : Char \\ "1"
+| '2 : Char \\ "2"
+| '3 : Char \\ "3"
+| '4 : Char \\ "4"
+| '5 : Char \\ "5"
+| '6 : Char \\ "6"
+| '7 : Char \\ "7"
+| '8 : Char \\ "8"
+| '9 : Char \\ "9"
+| 'a : Char \\ "a"
+| 'b : Char \\ "b"
+| 'c : Char \\ "c"
+| 'd : Char \\ "d"
+| 'e : Char \\ "e"
+| 'f : Char \\ "f"
+| 'g : Char \\ "g"
+| 'h : Char \\ "h"
+| 'i : Char \\ "i"
+| 'j : Char \\ "j"
+| 'k : Char \\ "k"
+| 'l : Char \\ "l"
+| 'm : Char \\ "m"
+| 'n : Char \\ "n"
+| 'o : Char \\ "o"
+| 'p : Char \\ "p"
+| 'q : Char \\ "q"
+| 'r : Char \\ "r"
+| 's : Char \\ "s"
+| 't : Char \\ "t"
+| 'u : Char \\ "u"
+| 'v : Char \\ "v"
+| 'w : Char \\ "w"
+| 'x : Char \\ "x"
+| 'y : Char \\ "y"
+| 'z : Char \\ "z"
+| 'A : Char \\ "A"
+| 'B : Char \\ "B"
+| 'C : Char \\ "C"
+| 'D : Char \\ "D"
+| 'E : Char \\ "E"
+| 'F : Char \\ "F"
+| 'G : Char \\ "G"
+| 'H : Char \\ "H"
+| 'I : Char \\ "I"
+| 'J : Char \\ "J"
+| 'K : Char \\ "K"
+| 'L : Char \\ "L"
+| 'M : Char \\ "M"
+| 'N : Char \\ "N"
+| 'O : Char \\ "O"
+| 'P : Char \\ "P"
+| 'Q : Char \\ "Q"
+| 'R : Char \\ "R"
+| 'S : Char \\ "S"
+| 'T : Char \\ "T"
+| 'U : Char \\ "U"
+| 'V : Char \\ "V"
+| 'W : Char \\ "W"
+| 'X : Char \\ "X"
+| 'Y : Char \\ "Y"
+| 'Z : Char \\ "Z"
+| 'nul : Char \\ Null character
+| 'lf : Char  \\ Line feed "\n"
+| 'tab : Char \\ Horizontal tab "\t"
+| 'sp : Char  \\ Space " "
+| 'qu : Char  \\ Double quote "\""
+| 'po : Char  \\ Pound sign "#"
+| '' : Char   \\ Single quote "'"
+| '^ : Char   \\ "^"
+| '@ : Char   \\ "@"
+| 'ba : Char  \\ Back slash "\\"
+| '/ : Char   \\ "/"
+| '* : Char   \\ "*"
+| '% : Char   \\ "%"
+| '$ : Char   \\ "$"
+| '| : Char   \\ "|"
+| '& : Char   \\ "&"
+| '+ : Char   \\ "+"
+| '- : Char   \\ "-"
+| '? : Char   \\ "?"
+| '! : Char   \\ "!"
+| '< : Char   \\ "<"
+| '> : Char   \\ ">"
+| '= : Char   \\ "="
+| ': : Char   \\ ":"
+| '~ : Char   \\ "~"
+| 'soh : Char \\ Start of heading character
+| 'stx : Char \\ Start of text character
+| 'etx : Char \\ End of header character
+| 'eot : Char \\ End of transmission character
+| 'enq : Char \\ Enquiry character
+| 'ack : Char \\ Acknowledge
+| 'bel : Char \\ Bell character
+| 'bs : Char  \\ Back space character
+| 'vt : Char  \\ Vertical tab character
+| 'ff : Char  \\ Form feed character
+| 'cr : Char  \\ Carriage return character
+| 'so : Char  \\ Shift out character
+| 'si : Char  \\ Shift in character
+| 'dle : Char \\ Data link escape character
+| 'dc1 : Char \\ Device control 1 character
+| 'dc2 : Char \\ Device control 2 character
+| 'dc3 : Char \\ Device control 3 character
+| 'dc4 : Char \\ Device control 4 character
+| 'nak : Char \\ Negative acknowledge character
+| 'syn : Char \\ Synchronous idle character
+| 'etb : Char \\ End of transmission block character
+| 'can : Char \\ Cancel character
+| 'em : Char  \\ End of medium character
+| 'sub : Char \\ Substitute character
+| 'esc : Char \\ Escape character
+| 'fs : Char  \\ File seperator character
+| 'gs : Char  \\ Group seperator character
+| 'rs : Char  \\ REecord seperator character
+| 'us : Char  \\ Unit seperator character
+| 'lpa : Char \\ Left parenthesis "("
+| 'rpa : Char \\ Right parenthesis ")"
+| 'lsq : Char \\ Left square bracket "]"
+| 'rsq : Char \\ Right square bracket "]"
+| 'lcu : Char \\ Left curly bracket "{"
+| 'rcu : Char \\ Right curly bracket "}"
+| 'pe : Char  \\ Period "."
+| 'co : Char  \\ Comma ","
+| 'se : Char  \\ Semicolon ";"
+| 'un : Char  \\ Underscore "_"
+| 'gr : Char  \\ Grave accent "`"
+| 'del : Char \\ De|e character

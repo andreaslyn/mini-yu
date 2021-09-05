@@ -1,39 +1,55 @@
-import "yu/print/print.yu"
-import "yu/Str/Format.yu"
+import basic => yu/basic
+| Nat
+| Bool
+
+import C => yu/Char/Type
+| Char
+
+import S => yu/Str/Str
+| Str
+
+import print => yu/print/print
+| (...#Str)
+| (...#Nat)
+| (...#Char)
+| (...#Bool)
+
+import Fmt => yu/Str/Format
+| (...#Str)
 
 
-val _.Printf\PreFormat.Str : PreFormat.Str -> Ty
-let (natPreFormat.Str p) => Nat ->> p .Printf
-let (strPreFormat.Str p) => Str ->> p .Printf
-let (charPreFormat.Str p) => Char ->> p .Printf
-let (boolPreFormat.Str p) => Bool ->> p .Printf
-let (constPreFormat.Str _ p) => p .Printf
-let errorPreFormat.Str => {}
-let nilPreFormat.Str => {}
+val (.Printf#PreFormat.Fmt) : PreFormat.Fmt -> Ty
+let (natPreFormat.Fmt p) => Nat ->> p .Printf
+let (strPreFormat.Fmt p) => Str ->> p .Printf
+let (charPreFormat.Fmt p) => Char ->> p .Printf
+let (boolPreFormat.Fmt p) => Bool ->> p .Printf
+let (constPreFormat.Fmt _ p) => p .Printf
+let errorPreFormat.Fmt => {}
+let nilPreFormat.Fmt => {}
 
 
-val _.Printf\Str : Str -> Ty
+val (.Printf#Str) : Str -> Ty
 let s => s .preFormat .Printf
 
 
-val printfAccum.print : (p : PreFormat.Str) & ({} ->> {}) ->> p .Printf
-let (natPreFormat.Str p) a =>
-  n => printfAccum.print p (_ => a (); n .print) 
-let (strPreFormat.Str p) a =>
-  s => printfAccum.print p (_ => a (); s .print)
-let (charPreFormat.Str p) a =>
-  c => printfAccum.print p (_ => a (); c .print)
-let (boolPreFormat.Str p) a =>
-  b => printfAccum.print p (_ => a (); b .print)
-let (constPreFormat.Str c p) a =>
-  printfAccum.print p (_ => a (); c .print)
-let errorPreFormat.Str _ => ()
-let nilPreFormat.Str a => a ()
+val printfAccum : (p : PreFormat.Fmt) & ({} ->> {}) ->> p .Printf
+let (natPreFormat.Fmt p) a =>
+  n => printfAccum p (_ => a (); n .print) 
+let (strPreFormat.Fmt p) a =>
+  s => printfAccum p (_ => a (); s .print)
+let (charPreFormat.Fmt p) a =>
+  c => printfAccum p (_ => a (); c .print)
+let (boolPreFormat.Fmt p) a =>
+  b => printfAccum p (_ => a (); b .print)
+let (constPreFormat.Fmt c p) a =>
+  printfAccum p (_ => a (); c .print)
+let errorPreFormat.Fmt _ => ()
+let nilPreFormat.Fmt a => a ()
 
 
-val _.printf\PreFormat.Str : (p : PreFormat.Str) ->> p .Printf
-let p => printfAccum.print p (_ => ())
+val (.printf#PreFormat.Fmt) : (p : PreFormat.Fmt) ->> p .Printf
+let p => printfAccum p (_ => ())
 
 
-val _.printf\Str : (s : Str) ->> s .Printf
+val (.printf#Str) : (s : Str) ->> s .Printf
 let s => s .preFormat .printf

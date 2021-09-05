@@ -1,2 +1,43 @@
-import "yu/Str/Str.yu"
-import "yu/Str/Format.yu"
+import Str => yu/Str/Str
+export
+| Str
+| mk
+| (...#Str)
+| nil
+| one
+
+import Bool => yu/basic/Bool
+| Bool
+
+import Char => yu/Char/Char
+| Char
+
+import Nat => yu/basic/Nat
+| Nat
+
+import Option => yu/Option/Option
+| Option
+
+import DProd => yu/DProd/DProd
+| DProd
+
+import List => yu/basic/List
+| List
+
+import StrStr => yu/Str/StrStr
+export
+| (.str#Bool)
+| (.str#Char)
+| (.str#Nat)
+| (.str#Option)
+| (.str#DProd)
+| (.str#List)
+
+import Format => yu/Str/Format
+export
+| (...#Str)
+
+import Str-th => yu/Str/theorems
+export
+| ordering?
+| equivalence?

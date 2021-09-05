@@ -1,1 +1,5 @@
-import "yu/DelayList1/DelayList1.yu"
+import DelayList1 => yu/DelayList1/DelayList1
+export
+| DelayList1
+| one
+| (...#DelayList1)

@@ -1,117 +1,136 @@
-import "yu/basic/Fun.yu"
-import "yu/Bool/Bool.yu"
-import "yu/Str/Str.yu"
+
+import Fun => yu/basic/Fun
+| const
+
+import B => yu/Bool/Bool
+| Bool
+| false
+| true
+| (...#Bool)
+
+import S => yu/Str/Str
+| Str
+| (...#Str)
+
+import Ord => yu/Order/Order
+| Order
+| (...#Order)
+
+import Eq => yu/basic/Equal
+| (=#)
+| refl
+| (...#Equal.Eq)
 
 
 data Bin+ : Ty
-let 1.Bin+ : Bin+
-let _%_\Bin+ : Bin+ & Bool -> Bin+
+| 1 : Bin+
+| (%#Bin+) : Bin+ & Bool -> Bin+
 
 
-val 2.Bin+ : Bin+
-let => 1.Bin+ % false
+val 2 : Bin+
+let => 1 % false
 
 
-val 3.Bin+ : Bin+
-let => 1.Bin+ % true
+val 3 : Bin+
+let => 1 % true
 
 
-val 4.Bin+ : Bin+
-let => 1.Bin+ % false % false
+val 4 : Bin+
+let => 1 % false % false
 
 
-val 5.Bin+ : Bin+
-let => 1.Bin+ % false % true
+val 5 : Bin+
+let => 1 % false % true
 
 
-val 6.Bin+ : Bin+
-let => 1.Bin+ % true % false
+val 6 : Bin+
+let => 1 % true % false
 
 
-val 7.Bin+ : Bin+
-let => 1.Bin+ % true % true
+val 7 : Bin+
+let => 1 % true % true
 
 
-val 8.Bin+ : Bin+
-let => 1.Bin+ % false % false % false
+val 8 : Bin+
+let => 1 % false % false % false
 
 
-val 9.Bin+ : Bin+
-let => 1.Bin+ % false % false % true
+val 9 : Bin+
+let => 1 % false % false % true
 
 
-val 10.Bin+ : Bin+
-let => 1.Bin+ % false % true % false
+val 10 : Bin+
+let => 1 % false % true % false
 
 
-val (++_\Bin+) : Bin+ -> Bin+
-let 1.Bin+ => 2.Bin+
+val (++#Bin+) : Bin+ -> Bin+
+let 1 => 2
 let (n % false) => n % true
 let (n % true) => ++ n % false
 
 
-val _+_\Bin+ : Bin+ & Bin+ -> Bin+
-let 1.Bin+ n => ++ n
-let m 1.Bin+ => ++ m
+val (+#Bin+) : Bin+ & Bin+ -> Bin+
+let 1 n => ++ n
+let m 1 => ++ m
 let (m % a) (n % false) => (m + n) % a
 let (m % false) (n % b) => (m + n) % b
 let (m % true) (n % true) => (++ m + n) % false
 
 
-val _*_\Bin+ : Bin+ & Bin+ -> Bin+
-let m 1.Bin+ => m
+val (*#Bin+) : Bin+ & Bin+ -> Bin+
+let m 1 => m
 let m (n % false) => (m * n) % false
 let m (n % true) => ((m * n) % false) + m
 
 
-val (*2_\Bin+) : Bin+ -> Bin+
+val (*2#Bin+) : Bin+ -> Bin+
 let => _ % false
 
 
-val (--_\Bin+) : Bin+ -> Bin+
-let 1.Bin+ => 1.Bin+
+val (--#Bin+) : Bin+ -> Bin+
+let 1 => 1
 let (n % true) => n % false
-let (1.Bin+ % false) => 1.Bin+
+let (1 % false) => 1
 let (n % false) => -- n % true
 
 
-val _.cmp\Bin+ : Bin+ & Bin+ -> Order
-let 1.Bin+ 1.Bin+ => eq.Order
-let (_ % _) 1.Bin+ => gt.Order
-let 1.Bin+ (_ % _) => lt.Order
+val (.cmp#Bin+) : Bin+ & Bin+ -> Order
+let 1 1 => eq.Ord
+let (_ % _) 1 => gt.Ord
+let 1 (_ % _) => lt.Ord
 let (m % false) (n % false) => m .cmp n
 let (m % true) (n % true) => m .cmp n
 let (m % false) (n % true) =>
   case m .cmp n
-  | gt.Order => gt.Order
-  | _ => lt.Order
+  | gt.Ord => gt.Ord
+  | _ => lt.Ord
   end
 let (m % true) (n % false) =>
   case m .cmp n
-  | lt.Order => lt.Order
-  | _ => gt.Order
+  | lt.Ord => lt.Ord
+  | _ => gt.Ord
   end
 
 
-val _.simplOp++Op--\Bin+
+val (.simplOp++Op--#Bin+)
   : (n : Bin+) & (b : Bool) -> ++ -- (n % b) = n % b
 let n true => refl
-let 1.Bin+ false => refl
+let 1 false => refl
 let (n % a) false => n .simplOp++Op-- a .ap (_ % false)
 
 
-val _.simplOp--Op++\Bin+ : (n : Bin+) -> -- ++ n = n
-let 1.Bin+ => refl
+val (.simplOp--Op++#Bin+) : (n : Bin+) -> -- ++ n = n
+let 1 => refl
 let (_ % false) => refl
-let (1.Bin+ % true) => refl
+let (1 % true) => refl
 let (n % true % true) => (n % true) .simplOp--Op++ .ap (_ % true)
 let (n % false % true) => (n % false) .simplOp--Op++ .ap (_ % true)
 
 
-val.. _.ind\Bin+
-  : (b : Bin+) & (P : Bin+ -> Ty) & P 1.Bin+ &
+val.. (.ind#Bin+)
+  : (b : Bin+) & (P : Bin+ -> Ty) & P 1 &
       ((x : Bin+) & P x -> P (++ x)) -> P b
-let 1.Bin+ P p1 _ => p1
+let 1 P p1 _ => p1
 let (n % a) P p1 pi =>
   h := n' .ind P p1 pi;
   n .simplOp++Op-- a .resp P (pi n' h)
@@ -121,5 +140,5 @@ where
 end
 
 
-val _.rec\Bin+ [A : Ty] : (b : Bin+) & A & (Bin+ & A -> A) -> A
+val (.rec#Bin+) [A : Ty] : (b : Bin+) & A & (Bin+ & A -> A) -> A
 let n a0 ai => n .ind (const A) a0 ai

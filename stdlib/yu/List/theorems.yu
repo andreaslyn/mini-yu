@@ -1,21 +1,52 @@
-import "yu/basic/Equal.yu"
-import "yu/List/List.yu"
-import "yu/Order/theorems.yu"
+import basic => yu/basic
+| Empty
+| (...#Empty)
+| Bool
+| (...#Bool)
+| (=#)
+| refl
+| (...#Equal.basic)
+| flip
+| (...#Ty)
+
+import L => yu/List/List
+| (...)
+
+import relation? => yu/relation?/relation?
+| (...#Bool)
+
+import Ord => yu/Order/Order
+| Order
+| (...#Order)
+
+import Ord-th => yu/Order/theorems
+| (...#Order)
+
+import Eq? => yu/Equivalence?/Equivalence?
+| Equivalence?
+| (...#Equivalence?)
+
+import Ord? => yu/Ordering?/Ordering?
+| Ordering?
+| (...#Ordering?)
+
+import Ord?-th => yu/Ordering?/theorems
+| (...#Ordering?)
 
 
-val _.nilLeftIdentityOp:+:\List [A : Ty]
+val (.nilLeftIdentityOp:+:#List) [A : Ty]
   : (xs : List A) -> (nil :+: xs) = xs
 let _ => refl
 
 
-val _.nilRightIdentityOp:+:\List [A : Ty]
+val (.nilRightIdentityOp:+:#List) [A : Ty]
   : (xs : List A) -> (xs :+: nil) = xs
 let nil => refl
 let (x :: xs) =>
   xs .nilRightIdentityOp:+: .ap (x :: _)
 
 
-val _.associativeOp:+:\List [A : Ty]
+val (.associativeOp:+:#List) [A : Ty]
   : (xs : List A) & (ys : List A) & (zs : List A) ->
     (xs :+: (ys :+: zs)) = ((xs :+: ys) :+: zs)
 let nil _ _ => refl
@@ -23,32 +54,32 @@ let (x :: xs) ys zs =>
   xs .associativeOp:+: ys zs .ap (x :: _)
 
 
-val _.is::Op:+:Left\List [A : Ty] :
+val (.is::Op:+:Left#List) [A : Ty] :
   (xs : List A) & (ys : List A) & xs .Is:: -> (xs :+: ys) .Is::
-let (x :: xs) ys is::.List => is::.List
+let (x :: xs) ys is:: => is::
 
 
-val _.is::Map\List [A : Ty] [B : Ty] :
+val (.is::Map#List) [A : Ty] [B : Ty] :
   (xs : List A) & (f : A -> B) & xs .Is:: -> xs .map f .Is::
-let (x :: xs) f is::.List => is::.List
+let (x :: xs) f is:: => is::
 
 
-val _.simplRevOp::Aux\List [A : Ty] :
+val (.simplRevOp::Aux#List) [A : Ty] :
   (xs ys : List A) ->
-  xs .accum ys (flip _::_) = xs .accum nil (flip _::_) :+: ys
+  xs .accum ys (flip (::)) = xs .accum nil (flip (::)) :+: ys
 let nil ys => refl
 let (x :: xs) ys =>
   xs .simplRevOp::Aux (x :: nil) .rewR (_ :+: ys) of
   xs .simplRevOp::Aux (x :: ys)
-  @ xs .accum nil (flip _::_) .associativeOp:+: (x :: nil) ys
+  @ xs .accum nil (flip (::)) .associativeOp:+: (x :: nil) ys
 
 
-val _.simplRevOp::\List [A : Ty] :
+val (.simplRevOp::#List) [A : Ty] :
   (xs : List A) & (x : A) -> (x :: xs) .rev = xs .rev :+: x :: nil
 let xs x => xs .simplRevOp::Aux (x :: nil)
 
 
-val _.revDistributesOp:+:\List [A : Ty] :
+val (.revDistributesOp:+:#List) [A : Ty] :
   (xs ys : List A) -> (xs :+: ys) .rev = ys .rev :+: xs .rev
 let nil ys => ! ys .rev .nilRightIdentityOp:+:
 let (x :: xs) ys =>
@@ -58,28 +89,28 @@ let (x :: xs) ys =>
   ! ys .rev .associativeOp:+: (xs .rev) (x :: nil)
 
 
-val _.op:+:PreservesAll\List [A : Ty] [P : A -> Ty] :
+val (.op:+:PreservesAll#List) [A : Ty] [P : A -> Ty] :
   (xs ys : List A) & xs .All P & ys .All P ->
   (xs :+: ys) .All P
-let nil ys allNil.List Ys => Ys
+let nil ys allNil Ys => Ys
 let (x :: xs) ys (X :: Xs) Ys => X :: xs .op:+:PreservesAll ys Xs Ys
 
 
-val _.revPreservesAll\List [A : Ty] [P : A -> Ty] :
+val (.revPreservesAll#List) [A : Ty] [P : A -> Ty] :
   (xs : List A) & xs .All P -> xs .rev .All P
-let nil H => allNil.List
+let nil H => allNil
 let (x :: xs) (X :: Xs) =>
   xs .simplRevOp:: x .rew(_ .All P) of
   xs .rev .op:+:PreservesAll
-    (x :: nil) (xs .revPreservesAll Xs) (X :: allNil.List)
+    (x :: nil) (xs .revPreservesAll Xs) (X :: allNil)
 
 
-val cmpIsTransitive?.List[A : Ty] :
-  (C : Ordering? A) -> cmpToLe?.Ordering? (_ .cmp\List _ C) .IsTransitive?
+val cmpIsTransitive?[A : Ty] :
+  (C : Ordering? A) -> cmpToLe?.Ord? (_ .cmp#List _ C) .IsTransitive?
 let C => isTrans
 where
   val R : List A & List A -> Bool
-  let => cmpToLe?.Ordering? (_ .cmp\List _ C)
+  let => cmpToLe?.Ord? (_ .cmp#List _ C)
 
   val isTrans : (xs ys zs : List A) & ? R xs ys & ? R ys zs -> ? R xs zs
   let nil _ nil _ _ => refl
@@ -93,55 +124,55 @@ where
   where
     val aux :
       (xy yz xz : Order) &
-      (xy = gt.Order -> Empty) &
-      (yz = gt.Order -> Empty) &
-      (xy = eq.Order -> ? ! xs .cmp ys C .gt?) &
-      (yz = eq.Order -> ? ! ys .cmp zs C .gt?) &
-      (? xy .eq? & ? yz .eq? -> xz = eq.Order) &
-      (? xy .eq? & ? yz .lt? -> xz = lt.Order) &
-      (? xy .lt? & ? yz .eq? -> xz = lt.Order) &
-      (? xy .lt? & ? yz .lt? -> xz = lt.Order) ->
-      ? ! xz .rec lt.Order (xs .cmp zs C) gt.Order .gt?
-    let gt.Order _ _ c _ _ _ _ _ _ _ => c refl .rec
-    let _ gt.Order _ _ c _ _ _ _ _ _ => c refl .rec
-    let eq.Order eq.Order xz _ _ exy eyz e _ _ _ =>
+      (xy = gt.Ord -> Empty) &
+      (yz = gt.Ord -> Empty) &
+      (xy = eq.Ord -> ? ! xs .cmp ys C .gt?) &
+      (yz = eq.Ord -> ? ! ys .cmp zs C .gt?) &
+      (? xy .eq? & ? yz .eq? -> xz = eq.Ord) &
+      (? xy .eq? & ? yz .lt? -> xz = lt.Ord) &
+      (? xy .lt? & ? yz .eq? -> xz = lt.Ord) &
+      (? xy .lt? & ? yz .lt? -> xz = lt.Ord) ->
+      ? ! xz .rec lt.Ord (xs .cmp zs C) gt.Ord .gt?
+    let gt.Ord _ _ c _ _ _ _ _ _ _ => c refl .rec
+    let _ gt.Ord _ _ c _ _ _ _ _ _ => c refl .rec
+    let eq.Ord eq.Ord xz _ _ exy eyz e _ _ _ =>
       e refl refl .rewL
-        (a => ! a .rec lt.Order (xs .cmp zs C) gt.Order .gt?) of
+        (a => ! a .rec lt.Ord (xs .cmp zs C) gt.Ord .gt?) of
       isTrans xs ys zs (exy refl) (eyz refl)
-    let eq.Order lt.Order xz _ _ _ _ _ e _ _ =>
+    let eq.Ord lt.Ord xz _ _ _ _ _ e _ _ =>
       e refl refl .rewL
-          (a => ! a .rec lt.Order (xs .cmp zs C) gt.Order .gt?) refl
-    let lt.Order eq.Order xz _ _ _ _ _ _ e _ =>
+          (a => ! a .rec lt.Ord (xs .cmp zs C) gt.Ord .gt?) refl
+    let lt.Ord eq.Ord xz _ _ _ _ _ _ e _ =>
       e refl refl .rewL
-          (a => ! a .rec lt.Order (xs .cmp zs C) gt.Order .gt?) refl
-    let lt.Order lt.Order xz _ _ _ _ _ _ _ e =>
+          (a => ! a .rec lt.Ord (xs .cmp zs C) gt.Ord .gt?) refl
+    let lt.Ord lt.Ord xz _ _ _ _ _ _ _ e =>
       e refl refl .rewL
-          (a => ! a .rec lt.Order (xs .cmp zs C) gt.Order .gt?) refl
+          (a => ! a .rec lt.Ord (xs .cmp zs C) gt.Ord .gt?) refl
 
-    val cmpxyGtIsEmpty : C .cmp x y = gt.Order -> Empty
+    val cmpxyGtIsEmpty : C .cmp x y = gt.Ord -> Empty
     let e =>
       e .rew
-        (c => ? ! c .rec lt.Order (xs .cmp ys C) gt.Order .gt? -> Empty)
+        (c => ? ! c .rec lt.Ord (xs .cmp ys C) gt.Ord .gt? -> Empty)
         (a => case a | {} end)
         lxys
 
-    val cmpyzGtIsEmpty : C .cmp y z = gt.Order -> Empty
+    val cmpyzGtIsEmpty : C .cmp y z = gt.Ord -> Empty
     let e =>
       e .rew
-        (c => ? ! c .rec lt.Order (ys .cmp zs C) gt.Order .gt? -> Empty)
+        (c => ? ! c .rec lt.Ord (ys .cmp zs C) gt.Ord .gt? -> Empty)
         (a => case a | {} end)
         lyzs
 
-    val cmpxyEqToGt : C .cmp x y = eq.Order -> ? ! xs .cmp ys C .gt?
+    val cmpxyEqToGt : C .cmp x y = eq.Ord -> ? ! xs .cmp ys C .gt?
     let e =>
-      e .resp (c => ? ! c .rec lt.Order (xs .cmp ys C) gt.Order .gt?) lxys
+      e .resp (c => ? ! c .rec lt.Ord (xs .cmp ys C) gt.Ord .gt?) lxys
 
-    val cmpyzEqToGt : C .cmp y z = eq.Order -> ? ! ys .cmp zs C .gt?
+    val cmpyzEqToGt : C .cmp y z = eq.Ord -> ? ! ys .cmp zs C .gt?
     let e =>
-      e .resp (c => ? ! c .rec lt.Order (ys .cmp zs C) gt.Order .gt?) lyzs
+      e .resp (c => ? ! c .rec lt.Ord (ys .cmp zs C) gt.Ord .gt?) lyzs
 
     val composeEqEq :
-      ? C .cmp x y .eq? & ? C .cmp y z .eq? -> C .cmp x z = eq.Order
+      ? C .cmp x y .eq? & ? C .cmp y z .eq? -> C .cmp x z = eq.Ord
     let eqxy eqyz =>
       eqxy' := C .cmpEqIsEq? x y .resp (? _) eqxy;
       eqyz' := C .cmpEqIsEq? y z .resp (? _) eqyz;
@@ -149,7 +180,7 @@ where
       C .cmp x z .eq?ToOp= (C .cmpEqIsEq? x z .rew (? _) t)
 
     val composeEqLt :
-      ? C .cmp x y .eq? & ? C .cmp y z .lt? -> C .cmp x z = lt.Order
+      ? C .cmp x y .eq? & ? C .cmp y z .lt? -> C .cmp x z = lt.Ord
     let eqxy ltyz =>
       eqxy' := C .cmpEqIsEq? x y .resp (? _) eqxy;
       ltyz' := C .cmpLtIsLt? y z .resp (? _) ltyz;
@@ -157,7 +188,7 @@ where
       C .cmp x z .lt?ToOp= (C .cmpLtIsLt? x z .rew (? _) t)
 
     val composeLtEq :
-      ? C .cmp x y .lt? & ? C .cmp y z .eq? -> C .cmp x z = lt.Order
+      ? C .cmp x y .lt? & ? C .cmp y z .eq? -> C .cmp x z = lt.Ord
     let ltxy eqyz =>
       ltxy' := C .cmpLtIsLt? x y .resp (? _) ltxy;
       eqyz' := C .cmpEqIsEq? y z .resp (? _) eqyz;
@@ -165,7 +196,7 @@ where
       C .cmp x z .lt?ToOp= (C .cmpLtIsLt? x z .rew (? _) t)
 
     val composeLtLt :
-      ? C .cmp x y .lt? & ? C .cmp y z .lt? -> C .cmp x z = lt.Order
+      ? C .cmp x y .lt? & ? C .cmp y z .lt? -> C .cmp x z = lt.Ord
     let ltxy ltyz =>
       ltxy' := C .cmpLtIsLt? x y .resp (? _) ltxy;
       ltyz' := C .cmpLtIsLt? y z .resp (? _) ltyz;
@@ -175,7 +206,7 @@ where
 end
 
 
-val cmpIsCompatible.List [A : Ty] :
+val cmpIsCompatible [A : Ty] :
   (C : Ordering? A) -> (xs ys : List A) ->
   xs .cmp ys C .lt? = ys .cmp xs C .gt?
 let C => isCompat
@@ -192,33 +223,33 @@ where
   where
     val aux :
       (xy yx : Order) &
-      (? xy .lt? -> yx = gt.Order) &
-      (? xy .gt? -> yx = lt.Order) &
-      (? xy .eq? -> yx = eq.Order) ->
-      xy .rec lt.Order (xs .cmp ys C) gt.Order .lt?
-      = yx .rec lt.Order (ys .cmp xs C) gt.Order .gt?
-    let lt.Order yx e _ _ =>
+      (? xy .lt? -> yx = gt.Ord) &
+      (? xy .gt? -> yx = lt.Ord) &
+      (? xy .eq? -> yx = eq.Ord) ->
+      xy .rec lt.Ord (xs .cmp ys C) gt.Ord .lt?
+      = yx .rec lt.Ord (ys .cmp xs C) gt.Ord .gt?
+    let lt.Ord yx e _ _ =>
       e refl .rewR
-        (a => a .rec lt.Order (ys .cmp xs C) gt.Order .gt?) refl
-    let gt.Order yx _ e _ =>
+        (a => a .rec lt.Ord (ys .cmp xs C) gt.Ord .gt?) refl
+    let gt.Ord yx _ e _ =>
       e refl .rewR
-        (a => a .rec lt.Order (ys .cmp xs C) gt.Order .gt?) refl
-    let eq.Order yx _ _ e =>
+        (a => a .rec lt.Ord (ys .cmp xs C) gt.Ord .gt?) refl
+    let eq.Ord yx _ _ e =>
       e refl .rewR
-        (a => a .rec lt.Order (ys .cmp xs C) gt.Order .gt?) (isCompat xs ys)
+        (a => a .rec lt.Ord (ys .cmp xs C) gt.Ord .gt?) (isCompat xs ys)
 
-    val ltToGt : (x y : A) & ? C .cmp x y .lt? -> C .cmp y x = gt.Order
+    val ltToGt : (x y : A) & ? C .cmp x y .lt? -> C .cmp y x = gt.Ord
     let x y ltxy =>
-      C .cmp y x .gt?ToOp= (C .cmpLtIsGt? x y .resp (?_) ltxy)
+      C .cmp y x .gt?ToOp= (C .cmpLtIsGt? x y .resp (?) ltxy)
 
-    val gtToLt : (x y : A) & ? C .cmp x y .gt? -> C .cmp y x = lt.Order
+    val gtToLt : (x y : A) & ? C .cmp x y .gt? -> C .cmp y x = lt.Ord
     let x y gtxy =>
-      C .cmp y x .lt?ToOp= (C .cmpLtIsGt? y x .rew (?_) gtxy)
+      C .cmp y x .lt?ToOp= (C .cmpLtIsGt? y x .rew (?) gtxy)
 
-    val eqToEq : (x y : A) & ? C .cmp x y .eq? -> C .cmp y x = eq.Order
+    val eqToEq : (x y : A) & ? C .cmp x y .eq? -> C .cmp y x = eq.Ord
     let x y eqxy =>
       C .cmp y x .ind
-        (a => (? a .lt? -> Empty) & (? a .gt? -> Empty) -> a = eq.Order)
+        (a => (? a .lt? -> Empty) & (? a .gt? -> Empty) -> a = eq.Ord)
         (f _ => f refl .rec) (_ _ => refl) (_ g => g refl .rec)
         contraLt
         contraGt
@@ -239,11 +270,11 @@ where
 end
 
 
-val ordering?.List [A : Ty] : (C : Ordering? A) -> Ordering? (List A)
+val ordering? [A : Ty] : (C : Ordering? A) -> Ordering? (List A)
 let C =>
-  fromCmp.Ordering? (_ .cmp _ C)
-    (cmpIsTransitive?.List C) (cmpIsCompatible.List C)
+  fromCmp.Ord? (_ .cmp _ C)
+    (cmpIsTransitive? C) (cmpIsCompatible C)
 
 
-val equivalence?.List [A : Ty] : (C : Ordering? A) -> Equivalence? (List A)
-let C => ordering?.List C .equivalence?
+val equivalence? [A : Ty] : (C : Ordering? A) -> Equivalence? (List A)
+let C => ordering? C .equivalence?

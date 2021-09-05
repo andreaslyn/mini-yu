@@ -1,101 +1,139 @@
-import "yu/basic/List.yu"
-import "yu/Nat/Nat.yu"
-import "yu/Prod/Prod.yu"
-import "yu/Option/Option.yu"
-import "yu/Equivalence?/Equivalence?.yu"
+import L => yu/basic/List
+export
+| (...)
+
+import Fun => yu/basic/Fun
+| flip
+
+import N => yu/basic/Nat
+| Nat
+| 0
+| (...#Nat)
+
+import B => yu/basic/Bool
+| Bool
+| true
+| false
+| if
+| (...#Bool)
+| (...#If.B)
+| (...#Then.B)
+
+import Prod => yu/Prod/Prod
+| (&&#Ty)
+| ($#)
+| (...#DProd.Prod)
+
+import Opt => yu/Option/Option
+| (?#Ty)
+| yes
+| no
+| (...#Option.Opt)
+
+import Eq? => yu/Equivalence?/Equivalence?
+| Equivalence?
+| (...#Equivalence?)
+
+import Ord? => yu/Ordering?/Ordering?
+| Ordering?
+| (...#Ordering?)
+
+import Ord => yu/Order/Order
+| Order
+| (...#Order)
 
 
-data _.Is::\List [A : Ty] : List A -> Ty
-let is::.List [A : Ty] [a : A] [as : List A] : (a :: as) .Is::
+data (.Is::#List) [A : Ty] : List A -> Ty
+| is:: [A : Ty] [a : A] [as : List A] : (a :: as) .Is::
 
 
-val _.empty?\List [A : Ty] : List A -> Bool
+val (.empty?#List) [A : Ty] : List A -> Bool
 let nil => true
 let (_ :: _) => false
 
 
-val _.head?\List [A : Ty] : List A -> ? A
+val (.head?#List) [A : Ty] : List A -> ? A
 let nil => no
 let (x :: _) => yes x
 
 
-val _.head\List [A : Ty] : (as : List A) & as .Is:: -> A
-let (x :: _) is::.List => x
+val (.head#List) [A : Ty] : (as : List A) & as .Is:: -> A
+let (x :: _) is:: => x
 
 
-val _.tail?\List [A : Ty] : List A -> ? List A
+val (.tail?#List) [A : Ty] : List A -> ? List A
 let nil => no
 let (_ :: xs) => yes xs
 
 
-val _.tail!\List [A : Ty] : List A -> List A
+val (.tail!#List) [A : Ty] : List A -> List A
 let nil => nil
 let (_ :: xs) => xs
 
 
-val _.tail\List [A : Ty] : (as : List A) & as .Is:: -> List A
-let (_ :: as) is::.List => as
+val (.tail#List) [A : Ty] : (as : List A) & as .Is:: -> List A
+let (_ :: as) is:: => as
 
 
-val _.len\List [A : Ty] : List A -> Nat
+val (.len#List) [A : Ty] : List A -> Nat
 let nil => 0
 let (_ :: xs) => ++ xs .len
 
 
-val _.update?\List [A : Ty] : List A & A & Nat -> ? List A
+val (.update?#List) [A : Ty] : List A & A & Nat -> ? List A
 let nil _ _ => no
 let (_ :: xs) a 0 => yes(a :: xs)
 let (x :: xs) a (++ n) =>
   xs .update? a n >>= of xs' => yes (x :: xs')
 
 
-val _.update!\List [A : Ty] : List A & A & Nat -> List A
+val (.update!#List) [A : Ty] : List A & A & Nat -> List A
 let nil _ _ => nil
 let (_ :: xs) a 0 => a :: xs
 let (x :: xs) a (++ n) => x :: xs .update! a n
 
 
-val _.map\List [A B : Ty] : List A & (A -> B) -> List B
+val (.map#List) [A B : Ty] : List A & (A -> B) -> List B
 let nil _ => nil
 let (x :: xs) f => f x :: xs .map f
 
 
-val _.filter\List [A : Ty] : List A & (A -> Bool) -> List A
+val (.filter#List) [A : Ty] : List A & (A -> Bool) -> List A
 let nil _ => nil
 let (x :: xs) p =>
   if (p x) .then (x :: xs .filter p) .else (xs .filter p)
 
 
-val _.partition\List [A : Ty] : List A & (A -> Bool) -> List A && List A
+val (.partition#List) [A : Ty] : List A & (A -> Bool) -> List A && List A
 let nil _ => nil $ nil
 let (x :: xs) p =>
   l $ r := xs .partition p;
   if (p x) .then ((x :: l) $ r) .else (l $ (x :: r))
 
 
-val _.accum\List [A B : Ty] : List B & A & (A & B -> A) -> A
+val (.accum#List) [A B : Ty] : List B & A & (A & B -> A) -> A
 let nil a _ => a
 let (x :: xs) a f => xs .accum (f a x) f
 
 
-val _.fold\List [A B : Ty] : List B & A & (B & A -> A) -> A
+val (.fold#List) [A B : Ty] : List B & A & (B & A -> A) -> A
 let nil a _ => a
 let (x :: xs) a f => f x (xs .fold a f)
 
 
-val _:+:_\List [A : Ty] : List A & List A -> List A
-let xs ys => xs .fold ys _::_
+val (:+:#List) [A : Ty] : List A & List A -> List A
+let xs ys => xs .fold ys (::)
 
 
-val _.rev\List [A : Ty] : List A -> List A
-let => _ .accum nil (flip _::_\List)
+val (.rev#List) [A : Ty] : List A -> List A
+let => _ .accum nil (flip (::#List))
 
 
-val _.concat\List [A : Ty] : List (List A) -> List A
-let as => as .fold nil _:+:_
+val (.concat#List) [A : Ty] : List (List A) -> List A
+let as => as .fold nil (:+:)
 
 
-val _.accumScan\List [A B : Ty] : List A & B & (B & A -> B) -> List B
+val (.accumScan#List) [A B : Ty] : List A & B & (B & A -> B) -> List B
 let xs y f =>
   xs .accum (y $ of (t : List B) => y :: t) (b a =>
     b' := f (b .1) a;
@@ -103,7 +141,7 @@ let xs y f =>
   ) .2 nil
 
 
-val _.foldScan\List [A B : Ty] : List A & B & (A & B -> B) -> List B
+val (.foldScan#List) [A B : Ty] : List A & B & (A & B -> B) -> List B
 let xs y f =>
   xs .fold (y $ (y :: nil)) (a b =>
     b' := f a (b .1);
@@ -111,45 +149,45 @@ let xs y f =>
   ) .2
 
 
-val _.intercalate\List [A : Ty] : List (List A) & List A -> List A
+val (.intercalate#List) [A : Ty] : List (List A) & List A -> List A
 let nil _ => nil
 let (xs :: nil) s => xs
 let (xs :: xss) s => xs :+: s :+: xss .intercalate s
 
 
-val _.isSublist\List [A : Ty] : List A & List A & Equivalence? A -> Bool
+val (.isSublist#List) [A : Ty] : List A & List A & Equivalence? A -> Bool
 let nil _ _ => true
 let (_ :: _) nil _ => false
 let (x :: xs) (y :: ys) q =>
   (q .eq? x y && xs .isSublist ys q) || xs .isSublist (y :: ys) q
 
 
-data _.All\List [A : Ty] : List A & (A -> Ty) -> Ty
-let allNil.List [A : Ty] [P : A -> Ty] : nil .All P
-let _::_\_.All\List [A : Ty] [P : A -> Ty] [x : A] [xs : List A] :
+data (.All#List) [A : Ty] : List A & (A -> Ty) -> Ty
+| allNil [A : Ty] [P : A -> Ty] : nil .All P
+| (::#.All#List) [A : Ty] [P : A -> Ty] [x : A] [xs : List A] :
   P x & xs .All P -> (x :: xs) .All P
 
 
-val _.cmp\List [A : Ty] : List A & List A & Ordering? A -> Order
-let nil nil _ => eq.Order
-let nil (_ :: _) _ => lt.Order
-let (_ :: _) nil _ => gt.Order
+val (.cmp#List) [A : Ty] : List A & List A & Ordering? A -> Order
+let nil nil _ => eq.Ord
+let nil (_ :: _) _ => lt.Ord
+let (_ :: _) nil _ => gt.Ord
 let (x :: xs) (y :: ys) C =>
-  C .cmp x y .rec lt.Order (xs .cmp ys C) gt.Order
+  C .cmp x y .rec lt.Ord (xs .cmp ys C) gt.Ord
 
 
-val _.eq?\List [A : Ty] : List A & List A & Equivalence? A -> Bool
+val (.eq?#List) [A : Ty] : List A & List A & Equivalence? A -> Bool
 let nil nil _ => true
 let (_ :: _) nil _ => false
 let nil (_ :: _) _ => false
 let (x :: xs) (y :: ys) E => E .eq? x y && xs .eq? ys E
 
 
-val _.neq?\List [A : Ty] : List A & List A & Equivalence? A -> Bool
+val (.neq?#List) [A : Ty] : List A & List A & Equivalence? A -> Bool
 let xs ys E => ! xs .eq? ys E
 
 
-data _.Has\List [A : Ty] : List A & A -> Ty
-let here.List [A : Ty] [xs : List A] [x : A] : (x :: xs) .Has x
-let _.there\_.Has\List [A : Ty] [xs : List A] [x y : A] :
+data (.Has#List) [A : Ty] : List A & A -> Ty
+| here [A : Ty] [xs : List A] [x : A] : (x :: xs) .Has x
+| (.there#.Has#List) [A : Ty] [xs : List A] [x y : A] :
   xs .Has x -> (y :: xs) .Has x

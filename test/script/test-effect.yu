@@ -1,12 +1,5 @@
-import C => yu/Char
-| Char
-
-import S => yu/Str
-| Str
-
-import print => yu/print/print
-| (.print#Char)
-| (...#Str)
+import base => yu/base
+| (...)
 
 val main : {} ->> {}
 let () =>

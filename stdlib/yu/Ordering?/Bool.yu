@@ -1,4 +1,4 @@
-import B => yu/Bool
+import B => yu/Bool/Bool
 | Bool
 | false
 | true

@@ -572,7 +572,7 @@ parseExprStr = do
       ExprVar (lo, "nil.yu/List/List")
     yuCharsToExpr (c : cs) lo =
       ExprApp
-        (ExprVar (lo, "_::.yu/List/List#List.yu/List/List"))
+        (ExprVar (lo, "::.yu/List/List#List.yu/List/List"))
         [ExprVar (lo, c), yuCharsToExpr cs lo]
 
 parseExprVar :: YuParsec Expr
@@ -772,7 +772,7 @@ parsePatternLeaf = patStr <|> patEmpty <|> patVar <|> patPat
         yuCharsToPat (c : cs) lo =
           ParsePatternApp
             (ParsePatternVar
-              (lo, "_::.yu/List/List#List.yu/List/List"))
+              (lo, "::.yu/List/List#List.yu/List/List"))
             [ParsePatternVar (lo, c), yuCharsToPat cs lo]
 
     patPat :: YuParsec ParsePattern

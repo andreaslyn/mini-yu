@@ -1,9 +1,23 @@
-import "yu/List/List.yu"
-import "yu/DelayList1/DelayList1.yu"
-import "yu/Ordering?/Ordering?.yu"
+import L => yu/List/List
+| List
+| nil
+| (...#List)
+
+import basic => yu/basic
+| Bool
+| false
+| true
+
+import DL1 => yu/DelayList1/DelayList1
+| DelayList1
+| (...#DelayList1)
+
+import Ord? => yu/Ordering?/Ordering?
+| Ordering?
+| (...#Ordering?)
 
 
-val _.sort\List [A : Ty] : List A & Ordering? A -> List A
+val (.sort#List) [A : Ty] : List A & Ordering? A -> List A
 let origList cmp => sequences origList .tournament merge
 where
   val sequences : List A -> DelayList1 (List A)
@@ -12,7 +26,7 @@ where
     | false => descending b (a :: nil) xs
     | true => ascending b (a :: _) xs
     end
-  let xs => one.DelayList1 xs
+  let xs => one.DL1 xs
 
   val descending : A & List A & List A -> DelayList1 (List A)
   let a as (b :: bs) =>

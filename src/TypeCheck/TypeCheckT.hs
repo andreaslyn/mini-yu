@@ -3,6 +3,8 @@ module TypeCheck.TypeCheckT
   , TypeCheckErr (..)
   , typeCheckErrMsg
   , err
+  , lookupEnv
+  , expandVarNameEnv
   , catchRecoverable
   , ImpMap (..)
   , impMapTopSet
@@ -43,6 +45,16 @@ err lo msg = do
       throwError (Fatal (f ++ ":" ++ show lo ++ ": " ++ msg'))
     Recoverable msg' ->
       throwError (Recoverable (f ++ ":" ++ show lo ++ ": " ++ msg'))
+
+expandVarNameEnv :: Monad m => VarName -> TypeCheckT m VarName
+expandVarNameEnv n = do
+  (_, _, modName) <- ask
+  Env.expandVarName modName n
+
+lookupEnv :: Monad m => VarName -> TypeCheckT m (Maybe Env.VarStatus)
+lookupEnv n = do
+  (_, _, modName) <- ask
+  Env.lookup modName n
 
 data ImpMap = ImpMap (IntMap (Loc, String)) (Maybe ImpMap)
 

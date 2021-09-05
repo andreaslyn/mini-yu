@@ -9,3 +9,9 @@ export
 | (...#Bool)
 | (...#If)
 | (...#Then)
+
+import Ord?-Bool => yu/Ordering?/Bool
+export
+| ordering?
+| equivalence?
+| (...#Bool)

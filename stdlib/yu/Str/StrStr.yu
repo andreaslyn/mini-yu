@@ -1,0 +1,86 @@
+import L => yu/List/List
+| List
+| (...#List)
+
+import B => yu/basic/Bool
+| Bool
+| false
+| true
+
+import C => yu/Char/Char
+| Char
+
+import N => yu/Nat/Nat
+| Nat
+| 0
+| (...#Nat)
+
+import Str => yu/Str/Str
+export
+| Str
+| mk
+| (...#Str)
+| nil
+| one
+
+import Ord => yu/Order/Order
+| Order
+| (...#Order)
+
+import Opt => yu/Option/Option
+| Option
+| (?#Ty)
+
+import DProd => yu/DProd/DProd
+| DProd
+| ($#)
+| (&:#Ty)
+
+import Fun => yu/basic/Fun
+| (@compose#)
+
+
+val (.str#List) [A : Ty] : List A & (A -> Str) & Str -> Str
+let nil.L _ _ => nil
+let (x :: nil.L) f _ => f x
+let (x :: xs) f s => f x :+: s :+: xs .str f s
+
+
+val (.str#Bool) : Bool -> Str
+let true => mk ('t.C :: 'r.C :: 'u.C :: 'e.C :: nil.L)
+let false => mk ('f.C :: 'a.C :: 'l.C :: 's.C :: 'e.C :: nil.L)
+
+
+val (.str#Char) : Char -> Str
+let => mk @compose (_ :: nil.L)
+
+
+val.. (.str#Nat) : Nat -> Str
+let 0 => "0"
+let (++ 0) => "1"
+let (++ ++ 0) => "2"
+let (++ ++ ++ 0) => "3"
+let (++ ++ ++ ++ 0) => "4"
+let (++ ++ ++ ++ ++ 0) => "5"
+let (++ ++ ++ ++ ++ ++ 0) => "6"
+let (++ ++ ++ ++ ++ ++ ++ 0) => "7"
+let (++ ++ ++ ++ ++ ++ ++ ++ 0) => "8"
+let (++ ++ ++ ++ ++ ++ ++ ++ ++ 0) => "9"
+let n =>
+  q $ r := n .divmod 10.N is++.N;
+  q .str :+: r .str
+
+
+val (.str#Order) : Order -> Str
+let => _ .rec "lt" "eq" "gt"
+
+
+val (.str#Option) [A : Ty] : ? A & (A -> Str) -> Str
+let no.Opt _ => "no"
+let (yes.Opt a) f => "yes (" :+: f a :+: ")"
+
+
+val (.str#DProd) [A : Ty] [B : A -> Ty] :
+  &: B & (A -> Str) & (B a & (a : A) -> Str) -> Str
+let (a $ b) f g =>
+  "(" :+: f a :+: ") && (" :+: g b a :+: ")"

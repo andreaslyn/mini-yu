@@ -6,6 +6,7 @@ module TypeCheck.Env
   , isStatusInProgress
   , isStatusTerm
   , EnvT
+  , getEnv
   , ScopeMap
   , GlobalMap
   , getRefMap
@@ -14,7 +15,6 @@ module TypeCheck.Env
   , forceInsertGlobal
   , addToGlobals
   , TypeCheck.Env.lookup
-  , member
   , tryInsertModuleExpand
   , expandVarName
   , localEnv
@@ -69,7 +69,7 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Trans.State
 import ParseTree
 import Loc (Loc)
-import Str (quote, varNameModuleSplit)
+import Str (quote, operandSplit, operandConcatMaybe, varNameModuleSplit)
 import Control.Exception (assert)
 
 --import Debug.Trace (trace)
@@ -274,14 +274,36 @@ expandModuleName mn = do
     Nothing -> return mn
     Just ex -> return ex
 
-expandVarName :: Monad m => VarName -> EnvT m VarName
-expandVarName vn = do
-  let (v1, w2) = varNameModuleSplit vn
-  case w2 of
-    Nothing -> return v1
-    Just v2 -> do
-      v2' <- expandModuleName v2
-      return (v1 ++ "." ++ v2')
+expandVarName :: Monad m => VarName -> VarName -> EnvT m VarName
+expandVarName modName vn = do
+  let (vn', vm) = operandSplit vn
+  let (v1, w2) = varNameModuleSplit vn'
+  w <- case w2 of
+        Nothing -> return v1
+        Just v2 -> do
+          v2' <- expandModuleName v2
+          return (v1 ++ "." ++ v2')
+  case vm of
+    Nothing -> return w
+    Just vm' -> do
+      wm <- expandVarName modName vm'
+      s <- TypeCheck.Env.lookup modName wm
+      case s of
+        Just (StatusTerm t) -> do
+          case termPre t of
+            TermData d -> return (w ++ "#" ++ varName d)
+            _ -> return (w ++ "#" ++ wm)
+        Just (StatusUnknownRef _ _ _) -> return (w ++ "#" ++ addCurrentModule wm)
+        Just (StatusInProgress _ _) -> return (w ++ "#" ++ addCurrentModule wm)
+        _ -> return (w ++ "#" ++ wm)
+  where
+    addCurrentModule :: VarName -> VarName
+    addCurrentModule ss =
+      let (s0, s1) = operandSplit ss
+          s0' = case modName of
+                  "" -> s0
+                  _ -> s0 ++ "." ++ modName
+      in operandConcatMaybe s0' s1
 
 doLookup :: GlobalMap -> VarName -> Env -> Maybe VarStatus
 doLookup g v (Env _ m Nothing) =
@@ -293,14 +315,11 @@ doLookup g v (Env _ m (Just p)) =
     Nothing -> doLookup g v p
     Just (e, _) -> Just e
 
-lookup :: Monad m => VarName -> EnvT m (Maybe VarStatus)
-lookup n = do
-  n' <- expandVarName n
+lookup :: Monad m => VarName -> VarName -> EnvT m (Maybe VarStatus)
+lookup modName n = do
+  n' <- expandVarName modName n
   g <- getGlobalEnv
   fmap (doLookup g n') getEnv
-
-member :: Monad m => VarName -> EnvT m Bool
-member = fmap isJust . TypeCheck.Env.lookup
 
 doForceInsert :: VarName -> VarStatus -> Bool -> Env -> Env
 doForceInsert n x b (Env sid m p) = Env sid (Map.insert n (x, b) m) p

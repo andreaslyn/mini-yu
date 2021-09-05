@@ -1,13 +1,22 @@
-import "yu/algebra/Monoid.yu"
-import "yu/Nat/theorems.yu"
+import Mon => yu/algebra/Monoid
+| IsMonoid
+| Monoid
+
+import basic => yu/basic
+| (...)
+
+import Prod => yu/Prod/Prod
+| ($#)
+
+import N-th => yu/Nat/theorems
 
 
-val isMonoid+.Nat : IsMonoid Nat
+val isMonoid+ : IsMonoid Nat
 let =>
-  is.Monoid (_+_) 0
-    (k m n => ! associativeOp+.Nat)
-    ((n => simpl0Op+.Nat) $ of n => refl)
+  mkIs.Mon (+) 0
+    (k m n => ! associativeOp+.N-th)
+    ((n => simpl0Op+.N-th) $ of n => refl)
 
 
-val monoid+.Nat : Monoid
-let => mk.Monoid isMonoid+.Nat
+val monoid+ : Monoid
+let => mk.Mon isMonoid+

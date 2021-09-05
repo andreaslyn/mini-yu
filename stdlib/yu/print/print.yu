@@ -1,41 +1,57 @@
-import "yu/Str/Str.yu"
+import basic => yu/basic
+| Bool
+| Nat
+| List
+| (::#List)
+
+import C => yu/Char/Type
+| Char
+
+import S => yu/Str/Str
+| Str
+| (...#Str)
+
+import SS => yu/Str/StrStr
+| (.str#Bool)
+| (.str#Nat)
+| (.str#List)
+| (.str#Char)
 
 
-## TODO When effects are implemented, this should be effectful, since it may fail.
-extern _.print\Char : Char ->> {}
+extern (.print#Char) : Char ->> {}
 
-val _.println\Char : Char ->> {}
-let c => c .print; 'lf .print
+val (.println#Char) : Char ->> {}
+let c => c .print; 'lf.C .print
 
 
-val _.print\Str : Str ->> {}
+val (.print#Str) : Str ->> {}
 let str => aux (str .list)
 where
   val aux : List Char ->> {}
-  let nil => ()
+  let nil.basic => ()
   let (c :: cs) => c .print; aux cs
 end
 
-val _.println\Str : Str ->> {}
-let s => s .print; 'lf .print
+val (.println#Str) : Str ->> {}
+let s => s .print; 'lf.C .print
 
 
-val _.print\Bool : Bool ->> {}
+val (.print#Bool) : Bool ->> {}
 let b => b .str .print
 
-val _.println\Bool : Bool ->> {}
-let b => b .print; 'lf .print
+val (.println#Bool) : Bool ->> {}
+let b => b .print; 'lf.C .print
 
 
-val _.print\Nat : Nat ->> {}
+val (.print#Nat) : Nat ->> {}
 let n => n .str .print
 
-val _.println\Nat : Nat ->> {}
-let n => n .print; 'lf .print
+val (.println#Nat) : Nat ->> {}
+let n => n .print; 'lf.C .print
 
 
-val _.print\List [A : Ty] : List A & (A -> Str) & Str ->> {}
+val (.print#List) [A : Ty] : List A & (A -> Str) & Str ->> {}
 let xs f s => xs .str f s .print
 
-val _.println\List [A : Ty] : List A & (A -> Str) & Str ->> {}
-let xs f s => xs .print f s; 'lf .print
+val (.println#List) [A : Ty] : List A & (A -> Str) & Str ->> {}
+let xs f s => xs .print f s; 'lf.C .print

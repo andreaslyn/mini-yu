@@ -1,17 +1,23 @@
-import "yu/basic/Lazy.yu"
-import "yu/Sum/Sum.yu"
-import "yu/Str/Str.yu"
+import Lazy => yu/basic/Lazy
+| Lazy
+| lazy
+
+import Sum => yu/Sum/Sum
+| (||#Ty)
+
+import S => yu/Str/Str
+| Str
 
 
-extern parallel'.parallel : (A : Ty) & ({} ->> A) ->> Lazy (Str || A)
+extern parallelAxiom' : (A : Ty) & ({} ->> A) ->> Lazy (Str || A)
 
 
 val parallel' [A : Ty] : ({} ->> A) ->> Lazy (Str || A)
-let x => parallel'.parallel A x
+let x => parallelAxiom' A x
 
 
-extern parallel.parallel : (A : Ty) & ({} -> A) -> Lazy (Str || A)
+extern parallelAxiom : (A : Ty) & ({} -> A) -> Lazy (Str || A)
 
 
 val parallel [A : Ty] : ([] -> A) -> Lazy (Str || A)
-let x => parallel.parallel A (_ => x)
+let x => parallelAxiom A (_ => x)

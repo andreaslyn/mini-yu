@@ -1,110 +1,70 @@
-import "yu/List/List.yu"
-import "yu/Char/Char.yu"
-import "yu/basic/Bool.yu"
-import "yu/basic/Nat.yu"
+import L => yu/List/List
+| List
+| (...#List)
+
+import C => yu/Char/Char
+| Char
+| (...#Char)
+
+import Ord => yu/Order/Order
+| Order
 
 
 data Str : Ty
-let mk.Str : List Char -> Str
+| mk : List Char -> Str
 
 
-val _.list\Str : Str -> List Char
-let (mk.Str cs) => cs
+val (.list#Str) : Str -> List Char
+let (mk cs) => cs
 
 
-val nil.Str : Str
-let => mk.Str(nil)
+val nil : Str
+let => mk nil.L
 
 
-val singleton.Str : Char -> Str
-let c => mk.Str (c :: nil)
+val one : Char -> Str
+let c => mk (c :: nil.L)
 
 
-val _.modify\Str : Str & (List Char -> List Char) -> Str
-let (mk.Str cs) f => mk.Str (f cs)
+val (.modify#Str) : Str & (List Char -> List Char) -> Str
+let (mk cs) f => mk (f cs)
 
 
-val _.accum\Str [A : Ty] : Str & A & (A & Char -> A) -> A
+val (.accum#Str) [A : Ty] : Str & A & (A & Char -> A) -> A
 let s x f => s .list .accum x f
 
 
-val _.fold\Str [A : Ty] : Str & A & (Char & A -> A) -> A
+val (.fold#Str) [A : Ty] : Str & A & (Char & A -> A) -> A
 let s x f => s .list .fold x f
 
 
-val _::_\Str : Char & Str -> Str
+val (::#Str) : Char & Str -> Str
 let c s => s .modify (c :: _)
 
 
-val _:+:_\Str : Str & Str -> Str
+val (:+:#Str) : Str & Str -> Str
 let s1 s2 => s1 .modify (_ :+: s2 .list)
 
 
-val _.rev\Str : Str -> Str
-let s => s .modify _.rev
+val (.rev#Str) : Str -> Str
+let s => s .modify (.rev)
 
 
-val _.Is::\Str : Str -> Ty
+val (.Is::#Str) : Str -> Ty
 let s => s .list .Is::
 
 
-val _.All\Str : Str & (Char -> Ty) -> Ty
+val (.All#Str) : Str & (Char -> Ty) -> Ty
 let s P => s .list .All P
 
 
-val _.toUpper\Str : Str -> Str
-let s => s .modify (_ .map _.toUpper)
+val (.toUpper#Str) : Str -> Str
+let s => s .modify (_ .map (.toUpper))
 
 
-val _.toLower\Str : Str -> Str
-let s => s .modify (_ .map _.toLower)
+val (.toLower#Str) : Str -> Str
+let s => s .modify (_ .map (.toLower))
 
 
-val _.str\List [A : Ty] : List A & (A -> Str) & Str -> Str
-let nil _ _ => nil.Str
-let (x :: nil) f _ => f x
-let (x :: xs) f s => f x :+: s :+: xs .str f s
-
-
-val _.str\Bool : Bool -> Str
-let true => mk.Str ('t :: 'r :: 'u :: 'e :: nil)
-let false => mk.Str ('f :: 'a :: 'l :: 's :: 'e :: nil)
-
-
-val _.str\Char : Char -> Str
-let => mk.Str @compose (_ :: nil)
-
-
-val.. _.str\Nat : Nat -> Str
-let 0 => mk.Str ('0 :: nil)
-let (++ 0) => mk.Str ('1 :: nil)
-let (++ ++ 0) => mk.Str ('2 :: nil)
-let (++ ++ ++ 0) => mk.Str ('3 :: nil)
-let (++ ++ ++ ++ 0) => mk.Str ('4 :: nil)
-let (++ ++ ++ ++ ++ 0) => mk.Str ('5 :: nil)
-let (++ ++ ++ ++ ++ ++ 0) => mk.Str ('6 :: nil)
-let (++ ++ ++ ++ ++ ++ ++ 0) => mk.Str ('7 :: nil)
-let (++ ++ ++ ++ ++ ++ ++ ++ 0) => mk.Str ('8 :: nil)
-let (++ ++ ++ ++ ++ ++ ++ ++ ++ 0) => mk.Str ('9 :: nil)
-let n =>
-  q $ r := n .divmod 10 is++.Nat;
-  q .str :+: r .str
-
-
-val _.str\Order : Order -> Str
-let => _ .rec "lt" "eq" "gt"
-
-
-val _.str\Option [A : Ty] : ? A & (A -> Str) -> Str
-let no _ => "no"
-let (yes a) f => "yes (" :+: f a :+: ")"
-
-
-val _.str\DProd [A : Ty] [B : A -> Ty] :
-  &: B & (A -> Str) & (B a & (a : A) -> Str) -> Str
-let (a $ b) f g =>
-  "(" :+: f a :+: ") && (" :+: g b a :+: ")"
-
-
-val _.cmp\Str : Str & Str -> Order
-let s t => s .list .cmp (t .list) ordering?.Char
+val (.cmp#Str) : Str & Str -> Order
+let s t => s .list .cmp (t .list) ordering?.C

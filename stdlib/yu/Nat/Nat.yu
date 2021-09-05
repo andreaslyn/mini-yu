@@ -1,18 +1,61 @@
-import "yu/basic/Nat.yu"
-import "yu/basic/Bool.yu"
-import "yu/basic/List.yu"
-import "yu/Ordering?/Ordering?.yu"
-import "yu/Ordering?/theorems.yu"
-import "yu/Prod/Prod.yu"
-import "yu/Option/Option.yu"
+
+import Fun => yu/basic/Fun
+| id
+
+import B => yu/basic/Bool
+| Bool
+| false
+| true
+| (...#Bool)
+
+import N => yu/basic/Nat
+export
+| (...)
+
+import L => yu/basic/List
+| List
+| nil
+| (...#List)
+
+import Eq => yu/basic/Equal
+| (=#)
+| refl
+
+import Ord => yu/Order/Order
+| Order
+| (...#Order)
+
+import Eq? => yu/Equivalence?/Equivalence?
+| Equivalence?
+| (...#Equivalence?)
+
+import Ord? => yu/Ordering?/Ordering?
+| Ordering?
+| (...#Ordering?)
+
+import Ord?-th => yu/Ordering?/theorems
+
+import relation? => yu/relation?/relation?
+| (...#Bool)
+
+import Prod => yu/Prod/Prod
+| (&&#Ty)
+| ($#)
+| (...#DProd.Prod)
+
+import Option => yu/Option/Option
+| (?#Ty)
+| no
+| yes
+| (...#Option.Option)
 
 
-data _.Is++\Nat : Nat -> Ty
-let is++.Nat [n : Nat] : (++ n) .Is++
+data (.Is++#Nat) : Nat -> Ty
+| is++ [n : Nat] : (++ n) .Is++
 
 
-val _.divmod\Nat : Nat & (n : Nat) & n .Is++ -> Nat && Nat
-let m (++ n) is++.Nat => q $ r := aux m 0 n; q $ (n - r)
+val (.divmod#Nat) : Nat & (n : Nat) & n .Is++ -> Nat && Nat
+let m (++ n) is++ => q $ r := aux m 0 n; q $ (n - r)
 where
   val aux : Nat & Nat & Nat -> Nat && Nat
   let 0 q u => q $ u
@@ -21,89 +64,89 @@ where
 end
 
 
-val _.divmod?\Nat : Nat & Nat -> ? (Nat && Nat)
+val (.divmod?#Nat) : Nat & Nat -> ? (Nat && Nat)
 let _ 0 => no
-let m (++ n) => yes of m .divmod (++ n) is++.Nat
+let m (++ n) => yes of m .divmod (++ n) is++
 
 
-val _.div?\Nat : Nat & Nat -> ? Nat
-let => m n => m .divmod? n .map (_.1)
+val (.div?#Nat) : Nat & Nat -> ? Nat
+let => m n => m .divmod? n .map (.1)
 
 
-val _.div\Nat : Nat & (n : Nat) & n .Is++ -> Nat
+val (.div#Nat) : Nat & (n : Nat) & n .Is++ -> Nat
 let m n D => m .divmod n D .1
 
 
-val _.mod?\Nat : Nat & Nat -> ? Nat
-let => m n => m .divmod? n .map (_.2)
+val (.mod?#Nat) : Nat & Nat -> ? Nat
+let => m n => m .divmod? n .map (.2)
 
 
-val _.mod\Nat : Nat & (n : Nat) & n .Is++ -> Nat
+val (.mod#Nat) : Nat & (n : Nat) & n .Is++ -> Nat
 let m n D => m .divmod n D .2
 
 
-val _.isEven\Nat : Nat -> Bool
+val (.isEven#Nat) : Nat -> Bool
 let 0 => true
 let (++ n) => n .isOdd
 
-val _.isOdd\Nat : Nat -> Bool
+val (.isOdd#Nat) : Nat -> Bool
 let 0 => false
 let (++ n) => n .isEven
 
 
-val _.cmp\Nat : Nat & Nat -> Order
-let 0 0 => eq.Order
-let 0 (++ _) => lt.Order
-let (++ _) 0 => gt.Order
+val (.cmp#Nat) : Nat & Nat -> Order
+let 0 0 => eq.Ord
+let 0 (++ _) => lt.Ord
+let (++ _) 0 => gt.Ord
 let (++ m) (++ n) => m .cmp n
 
 
-val cmpIsTransitive?.Nat : cmpToLe?.Ordering? _.cmp\Nat .IsTransitive?
+val cmpIsTransitive? : cmpToLe?.Ord? (.cmp#Nat) .IsTransitive?
 let 0 _ 0 _ _ => refl
 let 0 _ (++ _) _ _ => refl
 let (++ _) 0 _ {} _
 let (++ _) (++ _) 0 _ {}
-let (++ l) (++ m) (++ n) t1 t2 => cmpIsTransitive?.Nat l m n t1 t2
+let (++ l) (++ m) (++ n) t1 t2 => cmpIsTransitive? l m n t1 t2
 
 
-val cmpIsCompatible.Nat :
+val cmpIsCompatible :
   (m n : Nat) -> m .cmp n .lt? = n .cmp m .gt?
 let 0 0 => refl
 let 0 (++ _) => refl
 let (++ _) 0 => refl
-let (++ m) (++ n) => cmpIsCompatible.Nat m n
+let (++ m) (++ n) => cmpIsCompatible m n
 
 
-val ordering?.Nat : Ordering? Nat
-let => fromCmp.Ordering? _.cmp cmpIsTransitive?.Nat cmpIsCompatible.Nat
+val ordering? : Ordering? Nat
+let => fromCmp.Ord? (.cmp) cmpIsTransitive? cmpIsCompatible
 
 
-val equivalence?.Nat : Equivalence? Nat
-let => ordering?.Nat .equivalence?
+val equivalence? : Equivalence? Nat
+let => ordering? .equivalence?.Ord?-th
 
 
-val _<?_\Nat : Nat & Nat -> Bool
-let => ordering?.Nat .lt?
+val (<?#Nat) : Nat & Nat -> Bool
+let => ordering? .lt?
 
-val _<=?_\Nat : Nat & Nat -> Bool
-let => ordering?.Nat .le?
+val (<=?#Nat) : Nat & Nat -> Bool
+let => ordering? .le?
 
-val _>?_\Nat : Nat & Nat -> Bool
-let => ordering?.Nat .gt?
+val (>?#Nat) : Nat & Nat -> Bool
+let => ordering? .gt?
 
-val _>=?_\Nat : Nat & Nat -> Bool
-let => ordering?.Nat .ge?
+val (>=?#Nat) : Nat & Nat -> Bool
+let => ordering? .ge?
 
-val _=?_\Nat : Nat & Nat -> Bool
-let => equivalence?.Nat .eq?
+val (=?#Nat) : Nat & Nat -> Bool
+let => equivalence? .eq?
 
-val _!=?_\Nat : Nat & Nat -> Bool
-let => equivalence?.Nat .neq?
+val (!=?#Nat) : Nat & Nat -> Bool
+let => equivalence? .neq?
 
 
-val _.divides\Nat : (m : Nat) & Nat & m .Is++ -> Bool
+val (.divides#Nat) : (m : Nat) & Nat & m .Is++ -> Bool
 let m n D => n .mod m D =? 0
 
 
-val _.listSmaller\Nat : Nat -> List Nat
+val (.listSmaller#Nat) : Nat -> List Nat
 let n => n .rec [A := List Nat -> List Nat] id (m f => t => f (m :: t)) nil
