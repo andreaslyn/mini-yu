@@ -3,6 +3,9 @@ export
 | Bool
 | false
 | true
+| If
+| if
+| Then
 | (...#Bool)
-| (...#If.Bool)
-| (...#Then.Bool)
+| (...#If)
+| (...#Then)

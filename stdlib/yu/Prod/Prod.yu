@@ -1,6 +1,6 @@
 import DProd => yu/DProd/DProd
-| DProd
 export
+| DProd
 | ($#)
 | (...#DProd)
 | pair=

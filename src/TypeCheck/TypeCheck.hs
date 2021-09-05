@@ -354,8 +354,6 @@ insertImportExport vis ina em (ii@(lo, dna@('.' : '.' : '.' : '#' : na0), b) : i
 insertImportExport _ ina em ((lo, ('.' : '.' : '.' : []), b) : imex) = do
   insertAllImportExport lo b (Map.toList em)
   insertImportExport Set.empty ina em imex
-insertImportExport _ _ _ ((lo, dna@('.' : _), _) : _) =
-  err lo $ Fatal $ "invalid import " ++ quote dna
 insertImportExport vis ina em (ii@(lo, na0, b) : imex) = do
   checkRefNameValid False (lo, na0)
   let (na1, opty) = operandSplit na0

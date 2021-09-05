@@ -1,32 +1,39 @@
-import "yu/Bool/Bool.yu"
-import "yu/relation?/relation?.yu"
+
+import B => yu/Bool/Bool
+| Bool
+
+import relation? => yu/relation?/relation?
+| (...#Bool)
+
+import Prod => yu/Prod
+| (...#DProd.Prod)
 
 
 data Equivalence? : Ty -> Ty
-let mk.Equivalence? [A : Ty] :
+| mk [A : Ty] :
   (R : A & A -> Bool) & R .IsEquivalence? -> Equivalence? A
 
 
-val _.eq?\Equivalence? [A : Ty] : Equivalence? A -> A & A -> Bool
-let (mk.Equivalence? R _) => R
+val (.eq?#Equivalence?) [A : Ty] : Equivalence? A -> A & A -> Bool
+let (mk R _) => R
 
 
-val _.neq?\Equivalence?[A : Ty] : Equivalence? A -> A & A -> Bool
-let E => x y => ! E .eq? x y
+val (.neq?#Equivalence?) [A : Ty] : Equivalence? A -> A & A -> Bool
+let E => x y => !.B E .eq? x y
 
 
-val _.isEquivalence\Equivalence? [A : Ty] :
+val (.isEquivalence#Equivalence?) [A : Ty] :
   (E : Equivalence? A) -> E .eq? .IsEquivalence?
-let (mk.Equivalence? _ isR) => isR
+let (mk _ isR) => isR
 
-val _.isSymmetric\Equivalence? [A : Ty] :
+val (.isSymmetric#Equivalence?) [A : Ty] :
   (E : Equivalence? A) -> E .eq? .IsSymmetric?
 let E => E .isEquivalence .1
 
-val _.isReflexive\Equivalence? [A : Ty] :
+val (.isReflexive#Equivalence?) [A : Ty] :
   (E : Equivalence? A) -> E .eq? .IsReflexive?
 let E => E .isEquivalence .2 .1
 
-val _.isTransitive\Equivalence?[A : Ty] :
+val (.isTransitive#Equivalence?) [A : Ty] :
   (E : Equivalence? A) -> E .eq? .IsTransitive?
 let E => E .isEquivalence .2 .2
