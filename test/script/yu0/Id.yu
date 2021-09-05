@@ -1,8 +1,8 @@
 
-import "/yu0/Empty.yu"
+module O := /yu0/Empty
 
 data _=_\ [A : Ty] [B : Ty] : A & B -> Ty
-let refl [A : Ty] [a : A] : a = a
+| refl [A : Ty] [a : A] : a = a
 
 val sym [A : Ty] [B : Ty] [a : A] [b : B] : a = b -> b = a
 let refl => refl
@@ -25,4 +25,4 @@ val resp [A : Ty] [a1 : A] [a2 : A]
 let refl _ x => x
 
 val _<>_\ [A : Ty] [B : Ty] : A & B -> Ty
-let a b => not(a = b)
+let a b => not.O (a = b)

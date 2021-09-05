@@ -1,43 +1,43 @@
 data Nat : Ty
-let 0 : Nat
-let (++_\) : Nat -> Nat
+| 0 : Nat
+| (++_\) : Nat -> Nat
 
 data _.List\Ty : Ty -> Ty
-let nil[A : Ty] : A .List
-let _::_\_.List\Ty[A : Ty] : A & A .List -> A .List
+| nil[A : Ty] : A .List
+| _::_\_.List\Ty[A : Ty] : A & A .List -> A .List
 
-val last-nat.List : Nat .List -> Nat
+val last-nat : Nat .List -> Nat
 let nil => 0
 let (x :: xs) =>
   case xs
   | nil => x
-  | y :: ys => last-nat.List xs
+  | y :: ys => last-nat xs
   end
 
-val last-nat'.List : Nat .List -> Nat
+val last-nat' : Nat .List -> Nat
 let nil => 0
 let (x :: xs) =>
   case xs
   | nil => x
-  | y :: ys => last-nat'.List (y :: ys)
+  | y :: ys => last-nat' (y :: ys)
   end
 
 data _.Stream\Ty : Ty -> Ty
-let nils[A : Ty] : [] -> A .Stream
-let _::_\_.Stream\Ty[A : Ty] : ([] -> A) & ([] -> A .Stream) -> [] -> A .Stream
+| nils[A : Ty] : [] -> A .Stream
+| _::_\_.Stream\Ty[A : Ty] : ([] -> A) & ([] -> A .Stream) -> [] -> A .Stream
 
-val last-nat.Stream : Nat .Stream -> Nat
+val last-nat-Stream : Nat .Stream -> Nat
 let nils => 0
 let (x :: xs) =>
   case xs []
   | nils => x
-  | y :: ys => last-nat.Stream xs
+  | y :: ys => last-nat-Stream xs
   end
 
-val last-nat'.Stream : Nat .Stream -> Nat
+val last-nat'-Stream : Nat .Stream -> Nat
 let nils => 0
 let (x :: xs) =>
   case xs []
   | nils => x
-  | y :: ys => last-nat'.Stream (y :: ys)
+  | y :: ys => last-nat'-Stream (y :: ys)
   end

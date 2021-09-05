@@ -1,14 +1,14 @@
 
 data LazyNat : Ty
-let 0 : [] -> LazyNat
-let p : [] -> [] -> LazyNat -> [] -> [] -> LazyNat
+| 0 : [] -> LazyNat
+| p : [] -> [] -> LazyNat -> [] -> [] -> LazyNat
 
 val plus : LazyNat & LazyNat -> LazyNat
 let m 0 => m
 let m (p n) => p (plus m n)
 
 data LazyId [A : Ty] : A -> [] -> A -> Ty
-let refl [a : A] [A : Ty] : [] -> LazyId a a
+| refl [a : A] [A : Ty] : [] -> LazyId a a
 
 val 1 : LazyNat
 let => p 0

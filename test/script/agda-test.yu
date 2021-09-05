@@ -1,10 +1,10 @@
 
 data Id [A : Ty] : A & A -> Ty
-let refl [A : Ty] : (a : A) -> Id a a
+| refl [A : Ty] : (a : A) -> Id a a
 
 data Nat : Ty
-let zero : Nat
-let succ : Nat -> Nat
+| zero : Nat
+| succ : Nat -> Nat
 
 val ff : Nat -> Nat
 let zero => zero
@@ -51,9 +51,9 @@ val succ-inj [x : Nat] [y : Nat] : Id (succ(x)) (succ(y)) -> Id x y
 let (refl(succ(_))) => refl(x)
 
 data my-new-id[A : Ty] : A -> A -> Ty
-let my-new-id-ctor1[A : Ty] : (x : A) -> of (y : A) -> of my-new-id(x)(y)
-let my-new-id-ctor2[A : Ty] : of () := (); (x : A) -> (y : A) -> my-new-id(x)(y)
-let my-new-id-refl[A : Ty] : (x : A) -> my-new-id(x)(x)
+| my-new-id-ctor1[A : Ty] : (x : A) -> of (y : A) -> of my-new-id(x)(y)
+| my-new-id-ctor2[A : Ty] : of () := (); (x : A) -> (y : A) -> my-new-id(x)(y)
+| my-new-id-refl[A : Ty] : (x : A) -> my-new-id(x)(x)
 
 val test-my-new-id[n : Nat] : my-new-id(n)(plus(zero)(n)) -> Nat
 let (my-new-id-ctor1(x)(y)) => zero

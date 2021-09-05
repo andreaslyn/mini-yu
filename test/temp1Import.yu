@@ -2,6 +2,11 @@
 module T2 := /temp1Import2
 export
 | other-unit
+| _.List\Ty
+
+data _.Is::\_.List\Ty [A : Ty] : A .List -> Ty
+| is:: [A : Ty] [a : A] [as : A .List] :
+  (_::_.T2 a as) .Is::
 
 val my-unit : {}
 let => other-unit
@@ -14,4 +19,4 @@ val _.customUnitId1\CustomUnit :
 let customUnit => customUnit
 
 val try-custom-id1 : CustomUnit -> CustomUnit
-let c => c .customUnitId1
+let c => c .customUnitId1.\CustomUnit.

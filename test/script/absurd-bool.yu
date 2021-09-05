@@ -1,10 +1,10 @@
 
 data Bool : Ty
-let false : Bool
-let true : Bool
+| false : Bool
+| true : Bool
 
 data IsTrue : Bool -> Ty
-let is-true : IsTrue(true)
+| is-true : IsTrue(true)
 
 ##val is-true-false : IsTrue(false) -> Bool
 ##let (is-true) => true

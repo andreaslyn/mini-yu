@@ -1,6 +1,6 @@
 data Nat : Ty
-let 0 : Nat
-let (++_\Nat) : Nat -> Nat
+| 0 : Nat
+| (++_\Nat) : Nat -> Nat
 
 val ackermann : Nat & Nat -> Nat
 let 0 n => ++ n

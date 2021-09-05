@@ -1,14 +1,14 @@
 
 data Nat : Ty
-let 0 : Nat
-let (+_\Nat) : Nat -> Nat
+| 0 : Nat
+| (+_\Nat) : Nat -> Nat
 
 val plus [m : Nat] [n : Nat] : Nat
 let [n := 0] => m
 let [n := +(n)] => +(plus [m := m] [n := n])
 
 data Id [a1 : A'] [A' : Ty] [a2 : A'] : Ty
-let refl [a : A] [A : Ty] : Id [a2 := a] [a1 := a]
+| refl [a : A] [A : Ty] : Id [a2 := a] [a1 := a]
 
 val test-Id : Id [a1 := plus [n := +(+(0))] [m := +(0)]] [a2 := +(+(+(0)))]
 let => refl [A := Nat] [a := +(+(+(0)))]

@@ -1,4 +1,7 @@
 
+data _.List\Ty : Ty -> Ty
+| nil [A : Ty] : A .List
+| _::_\_.List\Ty [A : Ty] : A & A .List -> A .List
 
 val other-unit : {}
 let => ()

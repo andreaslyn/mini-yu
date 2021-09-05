@@ -243,7 +243,7 @@ checkRefNameValid allowDot (lo, na0) = do
             if not (null n')
             then
               if isOperatorChar (head n')
-              then t /= '_' || elem '_' n'
+              then not allowDot && (t /= '_' || elem '_' n')
               else head n' /= '.' || t == '_' || elem '_' n'
             else
               t == '_' || isOperatorChar t
@@ -388,7 +388,9 @@ tcProgram _ ([], defs) = do
   return rs
 tcProgram packagePaths (((alo, alias), (lo, ina0), imex) : imps, defs) = do
   ina <- stripImportName lo ina0
-  canInsert <- Env.tryInsertModuleExpand alias ina
+  canInsert <- if alias == "_"
+               then return True
+               else Env.tryInsertModuleExpand alias ina
   when (not canInsert)
     (err alo (Fatal $ "multiple module aliases " ++ quote alias))
   (verbose, _, _) <- ask
@@ -418,8 +420,9 @@ tcProgram packagePaths (((alo, alias), (lo, ina0), imex) : imps, defs) = do
                             r <- tcProgram packagePaths prog'
                             Env.addToGlobals ina
                             em <- Env.getScopeMap
-                            lift (put (Map.insert inaPath em is))
                             return (em, r)
+              is' <- lift get
+              lift (put (Map.insert inaPath em is'))
               insertImportExport ina em imex
               fmap (++vs) (tcProgram packagePaths (imps, defs))
 
@@ -540,7 +543,9 @@ fullRefName :: Monad m => Loc -> VarName -> TypeCheckT m VarName
 fullRefName lo na = do
   let (na0, opty) = operandSplit na
   (_, _, modName) <- ask
-  updateOperandTypeString (lo, na0 ++ "." ++ modName) opty
+  if modName /= ""
+  then updateOperandTypeString (lo, na0 ++ "." ++ modName) opty
+  else updateOperandTypeString (lo, na0) opty
 
 tcDataAndCtors :: Monad m =>
   SubstMap -> Bool -> Decl -> [Decl] -> TypeCheckT m Term
@@ -772,7 +777,7 @@ updateOperandTypeString (nlo, na) (Just ss) = do
   then do
     st <- Env.lookup ss
     case st of
-      Nothing -> err nlo (Fatal $ "unexpected operand type " ++ quote ss) 
+      Nothing -> err nlo (Fatal $ "cannot find such operand type " ++ quote ss) 
       Just st' -> do
         vt <- varStatusTerm st'
         case termPre vt of
@@ -780,7 +785,7 @@ updateOperandTypeString (nlo, na) (Just ss) = do
           _ -> err nlo (Fatal $ "unexpected operand type " ++ quote ss
                                 ++ ", not a data type")
   else
-    return na
+    return (na ++ "\\" ++ ss)
   where
     isKeyOperandType :: String -> Bool
     isKeyOperandType "Ty" = True

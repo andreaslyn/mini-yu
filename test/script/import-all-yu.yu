@@ -1,13 +1,13 @@
-import "/yu0/Empty.yu"
-import "/yu0/Fun.yu"
-import "/yu0/Id.yu"
-import "/yu0/List.yu"
-import "/yu0/Bool.yu"
-import "/yu0/Nat.yu"
-import "/yu0/BinNat.yu"
-import "/yu0/Prod.yu"
-import "/yu0/Sigma.yu"
-import "/yu0/Str.yu"
-import "/yu0/Char.yu"
-import "/yu0/very-weak-funext.yu"
-import "/yu0/Category.yu"
+module _ := /yu0/Empty
+module _ := /yu0/Fun
+module _ := /yu0/Id
+module _ := /yu0/List
+module _ := /yu0/Bool
+module _ := /yu0/Nat
+module _ := /yu0/BinNat
+module _ := /yu0/Prod
+module _ := /yu0/Sigma
+module _ := /yu0/Str
+module _ := /yu0/Char
+module _ := /yu0/very-weak-funext
+module _ := /yu0/Category

@@ -1,23 +1,23 @@
 
 data Nat : Ty
-let 0 : Nat
-let (++_\Nat) : Nat -> Nat
+| 0 : Nat
+| (++_\Nat) : Nat -> Nat
 
 val 1 : Nat
 let => ++ 0
 
 
 data Nat' : Ty
-let 0' : Nat'
-let (++_\Nat') : Nat' -> Nat'
+| 0' : Nat'
+| (++_\Nat') : Nat' -> Nat'
 
 val 1' : Nat'
 let => ++ 0'
 
 
 data (::_\Ty) : Ty -> Ty
-let nil[A : Ty] : :: A
-let _::_\::_\Ty[A : Ty] : A & :: A -> :: A
+| nil[A : Ty] : :: A
+| _::_\::_\Ty[A : Ty] : A & :: A -> :: A
 
 
 val _+_\::_\Ty[A : Ty] : :: A & :: A -> :: A

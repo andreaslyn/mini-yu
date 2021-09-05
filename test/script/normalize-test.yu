@@ -1,10 +1,10 @@
 
 data Id : (A : Ty) & A & A -> Ty
-let refl : (A : Ty) & (a : A) -> Id A a a
+| refl : (A : Ty) & (a : A) -> Id A a a
 
 data Nat : Ty
-let 0 : Nat
-let (++_\Nat) : Nat -> Nat
+| 0 : Nat
+| (++_\Nat) : Nat -> Nat
 
 val _+_\ : Nat & Nat -> Nat
 let m 0 => m
@@ -95,7 +95,7 @@ val test-id-trans-assign :
 let _ _ _ _ e1 e2 =>
   refl X a := e1; refl Y b := e2; refl Y a
 
-data Empty : Ty let {}
+data Empty : Ty | {}
 
 val test-empty : Empty -> {}
 let (e) =>
@@ -108,7 +108,7 @@ let (e) =>
   end
 
 data Any : Ty
-let any : (A : Ty) & A -> Any
+| any : (A : Ty) & A -> Any
 
 val test-escape : {}
 let =>

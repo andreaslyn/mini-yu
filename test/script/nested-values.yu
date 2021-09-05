@@ -1,7 +1,7 @@
 
 data Nat : Ty
-let 0 : Nat
-let (++_\) : Nat -> Nat
+| 0 : Nat
+| (++_\) : Nat -> Nat
 
 val test1 : (m : Nat) & (n : Nat) -> Nat
 let m n => const first (plusn m)
@@ -43,9 +43,9 @@ where
 end
 
 data ListOfX : Ty -> Ty
-let nilX[X : Ty] : ListOfX (X)
-let consX[X : Ty] : (x : X) -> ListOfX(X) -> ListOfX(X)
+| nilX[X : Ty] : ListOfX (X)
+| consX[X : Ty] : (x : X) -> ListOfX(X) -> ListOfX(X)
 
 data List : Ty -> Ty
-let nil[A : Ty] : List(A)
-let cons[A : Ty] : A & List(A) -> List(A)
+| nil[A : Ty] : List(A)
+| cons[A : Ty] : A & List(A) -> List(A)

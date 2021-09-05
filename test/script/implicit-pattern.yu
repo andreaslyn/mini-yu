@@ -1,13 +1,13 @@
 
 data Nat : Ty
-let 0 : Nat
-let (++_\Nat) : Nat -> Nat
+| 0 : Nat
+| (++_\Nat) : Nat -> Nat
 
 val eid : (A : Ty) & A -> A
 let A a => a
 
 data ReflectNat : Nat -> Ty
-let reflectNat [n : Nat] : ReflectNat (++ n)
+| reflectNat [n : Nat] : ReflectNat (++ n)
 
 val plus : Nat & Nat -> Nat
 let m 0 => m
@@ -19,7 +19,7 @@ let [m := 0] reflectNat {}
 let reflectNat reflectNat => plus m n
 
 data Id [A : Ty] : A & A -> Ty
-let refl [A : Ty] [a : A] : Id a a
+| refl [A : Ty] [a : A] : Id a a
 
 val test-incReflect1 :
   Id

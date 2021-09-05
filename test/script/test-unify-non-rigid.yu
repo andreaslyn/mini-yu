@@ -4,8 +4,8 @@ let a A => a
 
 
 data Nat : Ty
-let 0 : Nat
-let (++_\Nat) : Nat -> Nat
+| 0 : Nat
+| (++_\Nat) : Nat -> Nat
 
 
 val _+_\Nat : Nat & Nat -> Nat
@@ -27,7 +27,7 @@ let x => test-id(x)
 
 
 data _&&_\Ty : Ty & Ty -> Ty
-let _$_\[A : Ty] [B : Ty] : A & B -> A && B
+| _$_\[A : Ty] [B : Ty] : A & B -> A && B
 
 
 val use-test-pair : Const-Unit (0 + ++ 0) && Const-Unit (++ 0 + ++ 0) -> Const-Unit 0

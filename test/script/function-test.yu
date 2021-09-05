@@ -1,10 +1,10 @@
 
 data Nat : Ty
-let 0 : Nat
-let (+1_\Nat) : Nat -> Nat
+| 0 : Nat
+| (+1_\Nat) : Nat -> Nat
 
 data Unit' : Ty
-let unit' : Unit'
+| unit' : Unit'
 
 val nat-id : Nat -> Nat
 let (n) => n
@@ -26,16 +26,16 @@ val id-real-unit' : {} -> {}
 let () => ()
 
 data NatList : Ty
-let nnil : NatList
-let ncons : Nat & NatList -> NatList
+| nnil : NatList
+| ncons : Nat & NatList -> NatList
 
 val ntail : NatList -> NatList
 let (nnil) => nnil
 let (ncons _ tl) => tl
 
 data Vec : Ty & Nat -> Ty
-let vnil : (A : Ty) -> Vec A 0
-let vcons : A & Vec A n & (n : Nat) & (A : Ty) -> Vec A (+1 n)
+| vnil : (A : Ty) -> Vec A 0
+| vcons : A & Vec A n & (n : Nat) & (A : Ty) -> Vec A (+1 n)
 
 val vzeros : (n : Nat) -> Vec Nat n
 let (0) => vnil(Nat)
@@ -57,7 +57,7 @@ let v 0 X => vnil(X)
 let v (+1 _) _ => v
 
 data Empty : Ty
-let {}
+| {}
 
 val empty-id : Empty -> Empty
 let (e) => e
@@ -66,7 +66,7 @@ val empty-match : Empty -> {}
 let {}
 
 data DepEmpty : Empty -> Ty
-let makeDepEmpty : (e : Empty) -> DepEmpty(e)
+| makeDepEmpty : (e : Empty) -> DepEmpty(e)
 
 val match-dep-empty : (e : Empty) & DepEmpty e -> DepEmpty e
 let {} d
@@ -76,8 +76,8 @@ let 0 m => m
 let (+1 n) m => +1(plus n m)
 
 data Bool : Ty
-let false : Bool
-let true : Bool
+| false : Bool
+| true : Bool
 
 val nfilter : NatList & (Nat -> Bool) -> NatList
 let nnil _ => nnil
@@ -94,7 +94,7 @@ let A _ (vcons x xs n A') (vcons y ys n'' A'') plus =>
   vcons (plus x y) (vsum A n xs ys plus) n A
 
 data Id : (A : Ty) & A & A -> Ty
-let refl : (A : Ty) & (x : A) -> Id A x x
+| refl : (A : Ty) & (x : A) -> Id A x x
 
 val hard-vsum : (A : Ty) & (m : Nat) & (n : Nat) & Vec A m & Vec A n & Id Nat m n & (A & A -> A) -> Vec A n
 let A m n v (vnil X) (refl Y k) _ => vec-id2 (vec-id2 v 0 X) k A
@@ -102,9 +102,9 @@ let A _ _ (vcons x xs _ _) (vcons y ys n _) (refl _ _) plus =>
   vcons (plus x y) (hard-vsum A n n xs ys (refl Nat n) plus) n A
 
 data Interleave : Nat & Nat & Nat -> Ty
-let inter-zero : Interleave 0 0 0
-let inter-left : (k : Nat) & (m : Nat) & (n : Nat) -> Interleave k m n -> Interleave (+1 k) m (+1 n)
-let inter-right : (k : Nat) & (m : Nat) & (n : Nat) -> Interleave k m n -> Interleave k (+1 m) (+1 n)
+| inter-zero : Interleave 0 0 0
+| inter-left : (k : Nat) & (m : Nat) & (n : Nat) -> Interleave k m n -> Interleave (+1 k) m (+1 n)
+| inter-right : (k : Nat) & (m : Nat) & (n : Nat) -> Interleave k m n -> Interleave k (+1 m) (+1 n)
 
 val shuffle : (A : Ty) & (k : Nat) & (m : Nat) & (n : Nat) & Interleave k m n & Vec A k & Vec A m -> Vec A n
 let _ _ _ _ inter-zero v w => w
@@ -116,7 +116,7 @@ let A _ _ _ (inter-right k' m n i) v (vcons y w _ _) =>
 data Deal
   : (A : Ty) & (k : Nat) & (m : Nat) & (n : Nat) &
       (i : Interleave k m n) & Vec A n -> Ty
-let deal
+| deal
     : (A : Ty) & (k : Nat) & (m : Nat) & (n : Nat) &
         (i : Interleave k m n) & (xs : Vec A k) & (ys : Vec A m) ->
       Deal A k m n i (shuffle A k m n i xs ys)
@@ -149,17 +149,17 @@ val transitive-Id : (A : Ty) & (x y z : A) & Id A x y & Id A y z -> Id A x z
 let A _ y _ (refl _ _) (refl _ _) => refl A y
 
 data id-fun-type : Ty -> Ty
-let fun-ctor1 : (A : Ty) -> id-fun-type (A -> A)
+| fun-ctor1 : (A : Ty) -> id-fun-type (A -> A)
 
 val id-fun-test : (A : Ty) & (id-fun-type (A -> Nat)) -> Id Ty A Nat
 let _ (fun-ctor1 _) => refl Ty Nat
 
 data (?_\Ty) : Ty -> Ty
-let none : (A : Ty) -> ?(A)
-let some : (A : Ty) & A -> ?(A)
+| none : (A : Ty) -> ?(A)
+| some : (A : Ty) & A -> ?(A)
 
 data unif : (A : Ty) & (F : A -> Ty) & ((a : A) -> F(a)) -> Ty
-let unif-ctor : unif Ty (?_) none
+| unif-ctor : unif Ty (?_) none
 
 val test :
   Id Ty
@@ -222,7 +222,7 @@ where
 end
 
 data NatPair : Ty
-let mkNatPair : Nat & Nat -> NatPair
+| mkNatPair : Nat & Nat -> NatPair
 
 val test-seq0-2 : Id Nat (+1 +1 0) (seq-norm-test2(0))
 let => refl Nat (+1 +1 0)

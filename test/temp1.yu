@@ -5,6 +5,11 @@ import
 | CustomUnit
 | customUnit
 | \CustomUnit
+| _.List\Ty
+
+module I := /temp1Import2
+import
+| \_.List\Ty
 
 module G := /temp1Import
 export
@@ -45,3 +50,6 @@ let => _.customUnitId1
 
 val use-my-unit-id : CustomUnit
 let => use-custom-id-2 .my-unit-id
+
+val oneIs:: : (() :: nil.I) .Is::.G
+let => is::.L

@@ -1,11 +1,11 @@
 
 data _*_\Ty : Ty & Ty -> Ty
-let _$_\[A B : Ty] : A & B -> A * B
+| _$_\[A B : Ty] : A & B -> A * B
 
 
 data Bool : Ty
-let ff : Bool
-let tt : Bool
+| ff : Bool
+| tt : Bool
 
 
 val _*_\Bool : Bool & ([] -> Bool) -> Bool
@@ -14,7 +14,7 @@ let tt b => b
 
 
 data _=_\[A B : Ty] : A & B -> Ty
-let refl [A : Ty] [a : A] : a = a
+| refl [A : Ty] [a : A] : a = a
 
 
 val _.op*IsCommutative\Bool : (a b : Bool) -> a * b = b * a

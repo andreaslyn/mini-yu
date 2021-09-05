@@ -1,13 +1,13 @@
 
 
 data Nat : Ty
-let 0 : Nat
-let (++_\Nat) : Nat -> Nat
+| 0 : Nat
+| (++_\Nat) : Nat -> Nat
 
 
 data _.List\Ty : Ty -> Ty
-let nil [A : Ty] : A .List
-let _::_\_.List\Ty[A : Ty] : A & A .List -> A .List
+| nil [A : Ty] : A .List
+| _::_\_.List\Ty[A : Ty] : A & A .List -> A .List
 
 
 val id-F[F : Ty -> Ty] [A : Ty] : F A -> F A
@@ -21,12 +21,12 @@ let =>
 
 
 data _.Vec\Ty : Ty & Nat -> Ty
-let vnil[A : Ty] : A .Vec 0
-let _::_\_.Vec\Ty[A : Ty] [n : Nat] : A & A .Vec n -> A .Vec (++ n)
+| vnil[A : Ty] : A .Vec 0
+| _::_\_.Vec\Ty[A : Ty] [n : Nat] : A & A .Vec n -> A .Vec (++ n)
 
 
 data _.IsTyTy\Ty : (Ty -> Ty) -> Ty
-let mkIsTyTy[F : Ty -> Ty] : F .IsTyTy
+| mkIsTyTy[F : Ty -> Ty] : F .IsTyTy
 
 
 val id-F-IsTyTy[F : Ty -> Ty] [A : Ty] : F A & F .IsTyTy -> F A
@@ -40,7 +40,7 @@ let =>
 
 
 data _.IsTyTy'\Ty : (Ty -> Ty) & Ty -> Ty
-let mkIsTyTy'[F : Ty -> Ty] [A : Ty] : F .IsTyTy' A
+| mkIsTyTy'[F : Ty -> Ty] [A : Ty] : F .IsTyTy' A
 
 
 val id-F-IsTyTy'1[F G : Ty -> Ty] [A B : Ty] : F A & G B & F .IsTyTy' (G A) & (G .IsTyTy) -> F A
@@ -63,7 +63,7 @@ let =>
 
 
 data _.IsTyTyTy\Ty : (Ty & Ty -> Ty) -> Ty
-let mkIsTyTyTy[F : Ty & Ty -> Ty] : F .IsTyTyTy
+| mkIsTyTyTy[F : Ty & Ty -> Ty] : F .IsTyTyTy
 
 
 val id-F-IsTyTyTy[F : Ty & Ty -> Ty] [A B : Ty] : F A B & F .IsTyTyTy -> F A B
@@ -71,8 +71,8 @@ let x _ => x
 
 
 data _.PairList\Ty : Ty & Ty -> Ty
-let pnil[A B : Ty] : A .PairList B
-let pcons[A B : Ty] : A & B & A .PairList B -> A .PairList B
+| pnil[A B : Ty] : A .PairList B
+| pcons[A B : Ty] : A & B & A .PairList B -> A .PairList B
 
 
 val test-id-F-PairList : {}

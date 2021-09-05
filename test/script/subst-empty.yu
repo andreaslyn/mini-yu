@@ -1,13 +1,13 @@
 
 data Empty : Ty
-let {}
+| {}
 
 data Nat : Ty
-let 0 : Nat
-let (++_\Nat) : Nat -> Nat
+| 0 : Nat
+| (++_\Nat) : Nat -> Nat
 
 data Id[A : Ty] [B : Ty] : A & B -> Ty
-let refl[A : Ty] [a : A] : Id a a
+| refl[A : Ty] [a : A] : Id a a
 
 val 1 : Nat
 let => ++ 0

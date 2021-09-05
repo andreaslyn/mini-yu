@@ -2,7 +2,7 @@ import "/yu0/Bin0.yu"
 import "/yu0/Bin1-theorems.yu"
 
 data Reflect : Bool -> Ty
-let reflect : (b : Bool) -> Reflect(b)
+| reflect : (b : Bool) -> Reflect(b)
 
 val test1 : (b : Bool) & Reflect(b) -> {}
 let true (reflect true) => ()
@@ -29,21 +29,23 @@ let (reflect(_)) true => ()
 let (reflect(_)) false => ()
 
 data Reflect' : Ty -> Ty
-let reflect' : (A : Ty) & A -> Reflect'(A)
+| reflect' : (A : Ty) & A -> Reflect'(A)
 
 val test1' : (Reflect'(Bool)) -> {}
 let (reflect' A false) => ()
 let (xs) => ()
 
 data Is-::[A : Ty] : List A -> Ty
-let is-::[A : Ty] : (a : A) & (as : List(A)) -> Is-::(a :: as)
+| is-::[A : Ty] : (a : A) & (as : List(A)) -> Is-::(a :: as)
 
 val head[A : Ty] : (as : List(A)) & Is-:: as -> A
 let (x :: _) (is-:: _ _) => x
-#{
-val test0 : (b : Bool, Empty) -> Bool
-let (true, ())
-let (false, ())
+
+## TODO TODO TODO ???
+
+val test0 : (b : Bool) & Empty -> Bool
+let true {}
+let false {}
 
 val compute-++-<.Bin0'a
   : (a : Bin0, ++ a < b, b : Bin0) -> a < -- b
@@ -83,4 +85,3 @@ let mk-Is-Nonempty.List[A : Ty, x : A, xs : List(A)] : Is-Nonempty.List(x :: xs)
 
 val absurd-sum-case[A : Ty] : & Is-Nonempty.List[A := A] -> {}
 let ((a :: as) $ mk-Is-Nonempty.List) => ()
-#}

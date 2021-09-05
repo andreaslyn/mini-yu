@@ -1,12 +1,15 @@
 
-import "/yu0/Nat.yu"
+module N := /yu0/Nat
+import
+| Nat
+| \Nat
 
 data List : Ty -> Ty
-let nil [A : Ty] : List A
-let _::_\List [A : Ty] : A & List(A) -> List(A)
+| nil [A : Ty] : List A
+| _::_\List [A : Ty] : A & List(A) -> List(A)
 
 val len [A : Ty] : List(A) -> Nat
-let (nil) => 0
+let (nil) => 0.N
 let (_ :: xs) => ++ len xs
 
 val map [A : Ty] [B : Ty] : List(A) & (A -> B) -> List(B)
