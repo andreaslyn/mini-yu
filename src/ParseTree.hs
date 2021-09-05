@@ -32,17 +32,13 @@ import Control.Monad.Trans.State
 import Control.Monad.Writer
 import Loc (Loc)
 
--- module M := path/to/mod
--- import
+-- import M => path/to/mod
 -- | i1 (= False)
 -- | i2 (= False)
 -- export
 -- | e1 (= True)
 -- | e2 (= True)
--- import
--- ...
--- export
--- ...
+--
 type ModuleIntro =
   ((Loc, String), (Loc, String), [(Loc, String, Bool)])
 
@@ -484,26 +480,33 @@ writeModuleIntros (x : xs) = do
 
 writeModuleIntro :: ModuleIntro -> ToString ()
 writeModuleIntro (m, path, ies) = do
-  writeStr "module "
+  writeStr "import "
   writeStr (snd m)
-  writeStr " := "
+  writeStr " => "
   writeStr (snd path)
   writeModuleImportExportList ies
 
 writeModuleImportExportList :: [(Loc, String, Bool)] -> ToString ()
 writeModuleImportExportList [] = return ()
-writeModuleImportExportList [(_, s, b)] = do
-  if b
-  then writeStr "export | "
-  else writeStr "import | "
-  writeStr s
-writeModuleImportExportList ((_, s, b) : ss) = do
-  if b
-  then writeStr "export | "
-  else writeStr "import | "
-  writeStr s
+writeModuleImportExportList [(_, s, False)] = do
+  writeStr " |" >> writeStr s
+writeModuleImportExportList ((_, s, False) : ss) = do
+  writeStr " |" >> writeStr s
   newLine
   writeModuleImportExportList ss
+writeModuleImportExportList ss@((_, _, True) : _) = do
+  writeStr "export"
+  newLine
+  writeModuleExportList ss
+
+writeModuleExportList :: [(Loc, String, Bool)] -> ToString ()
+writeModuleExportList [] = return ()
+writeModuleExportList [(_, s, _)] =
+  writeStr " |" >> writeStr s
+writeModuleExportList ((_, s, _) : ss) = do
+  writeStr " |" >> writeStr s
+  newLine
+  writeModuleExportList ss
 
 writeProgram :: Program -> ToString ()
 writeProgram (is, ds) = do

@@ -905,7 +905,7 @@ nextVarName :: ToString String
 nextVarName = do
   (x, n, v) <- get
   put (x+1, n, v)
-  return ('#' : show x)
+  return ('_' : show x)
 
 writeIndent :: ToString ()
 writeIndent = get >>= \(_, n, _) -> doWrite n
@@ -1114,11 +1114,11 @@ writePreTerm _ _ (TermVar _ v) = do
   let pre = Str.isPrefixOp (varName v)
   when pre (writeStr "(")
   writeStr (varName v)
-  when pre (writeStr ")")
   vb <- isVerbose
   when vb $ do
-    writeStr "#"
+    writeStr "_"
     writeStr (show (varId v))
+  when pre (writeStr ")")
 writePreTerm _ _ TermUnitElem = writeStr "()"
 writePreTerm _ _ TermUnitTy = writeStr "{}"
 writePreTerm _ _ TermTy = writeStr "Ty"
@@ -1211,7 +1211,7 @@ writeCaseTree im rm (x : xs) (CaseLeaf (i : is) _ t _) = do
     writeStr (varName i)
     vb <- isVerbose
     when vb $ do
-      writeStr "#"
+      writeStr "_"
       writeStr (show (varId i))
     writeStr " := "
     case x of
@@ -1271,7 +1271,7 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
         writeStr (varName v)
         vb <- isVerbose
         when vb $ do
-          writeStr "#"
+          writeStr "_"
           writeStr (show (varId v))
         when (not (null imps)) (writeStr " ")
         imps' <- writeImplicits imps
@@ -1292,7 +1292,7 @@ writeCaseTree im rm ps (CaseNode idx m d) = do
       writeStr (varName v)
       vb <- isVerbose
       when vb $ do
-        writeStr "#"
+        writeStr "_"
         writeStr (show (varId v))
       writeStr " := "
       writeStr n
@@ -1398,13 +1398,13 @@ writeVarList [v] = do
   writeStr (varName v)
   vb <- isVerbose
   when vb $ do
-    writeStr "#"
+    writeStr "_"
     writeStr (show (varId v))
 writeVarList (v:vs) = do
   writeStr (varName v)
   vb <- isVerbose
   when vb $ do
-    writeStr "#"
+    writeStr "_"
     writeStr (show (varId v))
   writeStr " "
   writeVarList vs
@@ -1435,7 +1435,7 @@ writeOptNamedPreTerm im rm (Just v, t) = do
   writeStr (varName v)
   vb <- isVerbose
   when vb $ do
-    writeStr "#"
+    writeStr "_"
     writeStr (show (varId v))
   writeStr " : "
   writePreTerm im rm t

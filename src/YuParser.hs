@@ -585,13 +585,15 @@ parseExprTy = liftM ExprTy (yuKeyTok TokTy)
 parseExprStr :: YuParsec Expr
 parseExprStr = do
   (lo, s) <- yuStringLitTok
-  return (ExprApp (ExprVar (lo, "mk.Str"))
+  return (ExprApp (ExprVar (lo, "mk.yu/Str/Str"))
             [yuCharsToExpr (stringToYuChars s) lo])
   where
     yuCharsToExpr :: [String] -> Loc -> Expr
-    yuCharsToExpr [] lo = ExprVar (lo, "nil")
+    yuCharsToExpr [] lo =
+      ExprVar (lo, "nil.yu/List/List")
     yuCharsToExpr (c : cs) lo =
-      ExprApp (ExprVar (lo, "_::_\\List"))
+      ExprApp
+        (ExprVar (lo, "_::_.yu/List/List\\List.yu/List/List"))
         [ExprVar (lo, c), yuCharsToExpr cs lo]
 
 parseExprVar :: YuParsec Expr
@@ -659,17 +661,6 @@ parseCaseExpr = do
 
 parsePattern :: YuParsec ParsePattern
 parsePattern = parsePatternOp
-{-
-parsePattern = lazyPattern <|> parsePatternOp
-  where
-    lazyPattern :: YuParsec ParsePattern
-    lazyPattern = do
-      lo <- yuKeyTok TokSquareL
-      _ <- yuKeyTok TokSquareR
-      _ <- yuKeyTok TokEqGreater
-      p <- parsePattern
-      return (ParsePatternLazy lo p)
--}
 
 parsePatternOp :: YuParsec ParsePattern
 parsePatternOp = parsePatternOp6
@@ -793,13 +784,16 @@ parsePatternLeaf = patStr <|> patEmpty <|> patVar <|> patPat
     patStr :: YuParsec ParsePattern
     patStr = do
       (lo, s) <- yuStringLitTok
-      return (ParsePatternApp (ParsePatternVar (lo, "mk.Str"))
+      return (ParsePatternApp (ParsePatternVar (lo, "mk.yu/Str/Str"))
                 [yuCharsToPat (stringToYuChars s) lo])
       where
         yuCharsToPat :: [String] -> Loc -> ParsePattern
-        yuCharsToPat [] lo = ParsePatternVar (lo, "nil")
+        yuCharsToPat [] lo =
+          ParsePatternVar (lo, "nil.yu/List/List")
         yuCharsToPat (c : cs) lo =
-          ParsePatternApp (ParsePatternVar (lo, "_::_\\_.List\\Ty"))
+          ParsePatternApp
+            (ParsePatternVar
+              (lo, "_::_.yu/List/List\\List.yu/List/List"))
             [ParsePatternVar (lo, c), yuCharsToPat cs lo]
 
     patPat :: YuParsec ParsePattern

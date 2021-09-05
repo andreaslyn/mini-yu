@@ -356,7 +356,8 @@ doExprUnify normalize = \t1 t2 -> do
     makeNewVarIds (i:is) = do
       (vs, su) <- makeNewVarIds is
       i' <- Env.freshVarId
-      let v = TermVar False (mkVar i' ('#' : varName i))
+      l <- Env.getNextLocalVarName
+      let v = TermVar False (mkVar i' (varName i ++ "_" ++ l))
       let vs' = v : vs
       let su' = IntMap.insert (varId i) v su
       return (vs', su')

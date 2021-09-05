@@ -49,6 +49,7 @@ module TypeCheck.Env
   , toString
   , withDepth
   , getDepth
+  , getNextLocalVarName
   , getNextVarId
   , ImplicitVarMap
   , getImplicitVarMap
@@ -101,6 +102,7 @@ data EnvSt = EnvSt
   { env :: Env
   , globalEnv :: GlobalMap
   , moduleExpandMap :: ModuleExpandMap
+  , nextLocalVarName :: VarId
   , hackVarId :: VarId
   , nextRefId :: VarId
   , currentScopeId :: ScopeId
@@ -134,6 +136,7 @@ emptyCtxSt =
     { env = Env 0 Map.empty Nothing
     , globalEnv = Map.empty
     , moduleExpandMap = Map.empty
+    , nextLocalVarName = 0
     , hackVarId = 0
     , nextRefId = 0
     , currentScopeId = 0
@@ -194,6 +197,13 @@ modifyUnfinishedDataMap :: Monad m =>
   (UnfinishedDataMap -> UnfinishedDataMap) -> EnvT m ()
 modifyUnfinishedDataMap f =
   modify (\s -> s{unfinishedDataMap = f (unfinishedDataMap s)})
+
+getNextLocalVarName :: Monad m => EnvT m VarName
+getNextLocalVarName = do
+  st <- get
+  let n = nextLocalVarName st
+  put (st {nextLocalVarName = n + 1})
+  return (show n)
 
 getNextVarId :: Monad m => EnvT m VarId
 getNextVarId = do
@@ -403,7 +413,12 @@ withDepth i c = do
 
 scope :: Monad m => EnvT m a -> EnvT m a
 scope c = do
-  s <- get
+  e0 <- getEnv
+  s <- case e0 of
+        Env _ _ Nothing -> do
+          s0 <- get
+          return (s0 {nextLocalVarName = 0})
+        _ -> get
   incCurrentScopeId
   nid <- getCurrentScopeId
   let e = Env nid Map.empty (Just (env s))

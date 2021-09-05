@@ -1775,7 +1775,8 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
     getImplicit :: Monad m => (Var, PreTerm) -> ExprT m (Var, PreTerm)
     getImplicit (v, vt) = do
       i <- lift Env.freshVarId
-      let v' = mkVar i ('#' : varName v)
+      l <- lift Env.getNextLocalVarName
+      let v' = mkVar i (varName v ++ "_" ++ l)
       impMapInsert i vt lo $
         "unable to infer implicit argument " ++ varName v
       return (v, TermVar True v')
@@ -1839,7 +1840,8 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
       VarListElem -> ExprT m (Maybe PreTerm)
     insertImplicit ((vlo, vna), Nothing) = do
       i <- lift Env.freshVarId
-      let e = TermVar True (mkVar i ("TypeOf#" ++ vna))
+      l <- lift Env.getNextLocalVarName
+      let e = TermVar True (mkVar i ("Ty_" ++ vna ++ "_" ++ l))
       impMapInsert i TermTy vlo $ "unable to infer type of " ++ quote vna
       return (Just e)
     insertImplicit (_, Just _) = return Nothing
@@ -1996,7 +1998,7 @@ doTcExpr isTrial subst _ ty (ExprApp f args0) = do
     updateBlanks [] _ = ([], [])
     updateBlanks (ExprVar (vlo, "_") : es) i =
       let (bs, es') = updateBlanks es (i + 1)
-          vna = '#' : show i
+          vna = '_' : show i
       in (((vlo, vna), Nothing) : bs, ExprVar (vlo, vna) : es')
     updateBlanks (e : es) i =
       let (bs, es') = updateBlanks es i
@@ -2698,7 +2700,8 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
     getImplicit :: Monad m => (Var, PreTerm) -> TypeCheckT m (Var, PrePattern)
     getImplicit (v, _) = do
       i <- Env.freshVarId
-      let v' = mkVar i (varName v ++ "#" ++ na0)
+      l <- Env.getNextLocalVarName
+      let v' = mkVar i (varName v ++ "_" ++ l)
       return (v, PatternVar v')
 doTcPattern _ _ newpids ty (ParsePatternEmpty lo) = do
   verifyIsEmptyType lo newpids ty
