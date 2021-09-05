@@ -7,7 +7,7 @@ import Prod => yu0/Prod
 import Empty => yu0/Empty
 
 import Id => yu0/Id
-| _=_\
+| _=\
 
 
 val not-reflexive-op< [a : Bin1] : not.Empty (a < a)

@@ -5,6 +5,7 @@ import List => yu0/List
 import Bool => yu0/Bool
 import Nat => yu0/Nat
 import Bin1 => yu0/Bin1
+import Bin1-theorems => yu0/Bin1-theorems
 import Bin0 => yu0/Bin0
 import BinNat+ => yu0/BinNat+
 import BinNat => yu0/BinNat

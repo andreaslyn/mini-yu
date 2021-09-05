@@ -8,7 +8,7 @@ val const : (A : Ty) & A & Ty -> Ty
 let A _ X => X
 
 data Nat : Ty
-| (++_\Nat) : const Ty Test Nat -> const Nat 0 Nat
+| (++\Nat) : const Ty Test Nat -> const Nat 0 Nat
 | 0 : Nat
 
 val rec-match : Rec -> Rec

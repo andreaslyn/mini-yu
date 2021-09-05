@@ -5,7 +5,7 @@ import N => yu0/Nat
 
 data List : Ty -> Ty
 | nil [A : Ty] : List A
-| _::_\List [A : Ty] : A & List(A) -> List(A)
+| _::\List [A : Ty] : A & List(A) -> List(A)
 
 val len [A : Ty] : List(A) -> Nat
 let (nil) => 0.N
@@ -23,8 +23,8 @@ val fold [A : Ty] [B : Ty] : List(B) & A & (B & A -> A) -> A
 let nil a _ => a
 let (x :: xs) a f => f x (fold xs a f)
 
-val _:+:_\List[A : Ty] : List(A) & List(A) -> List(A)
-let xs ys => fold xs ys (_::_)
+val _:+:\List[A : Ty] : List(A) & List(A) -> List(A)
+let xs ys => fold xs ys _::
 
 val reverse [A : Ty] : List(A) -> List(A)
 let xs => accum xs nil (a x => x :: a)

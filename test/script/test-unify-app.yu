@@ -2,12 +2,12 @@
 
 data Nat : Ty
 | 0 : Nat
-| (++_\Nat) : Nat -> Nat
+| (++\Nat) : Nat -> Nat
 
 
 data _.List\Ty : Ty -> Ty
 | nil [A : Ty] : A .List
-| _::_\_.List\Ty[A : Ty] : A & A .List -> A .List
+| _::\_.List\Ty[A : Ty] : A & A .List -> A .List
 
 
 val id-F[F : Ty -> Ty] [A : Ty] : F A -> F A
@@ -22,7 +22,7 @@ let =>
 
 data _.Vec\Ty : Ty & Nat -> Ty
 | vnil[A : Ty] : A .Vec 0
-| _::_\_.Vec\Ty[A : Ty] [n : Nat] : A & A .Vec n -> A .Vec (++ n)
+| _::\_.Vec\Ty[A : Ty] [n : Nat] : A & A .Vec n -> A .Vec (++ n)
 
 
 data _.IsTyTy\Ty : (Ty -> Ty) -> Ty

@@ -1,7 +1,6 @@
 
 import Bin1 => yu0/Bin1
 | Bin1
-| ...\Bin1
 
 import Empty => yu0/Empty
 | ...
@@ -55,35 +54,35 @@ val 10 : Bin0
 let => pos(10.Bin1)
 
 
-val (+++_\Bin0) : Bin0 -> Bin1
+val (+++\Bin0) : Bin0 -> Bin1
 let (0) => 1.Bin1
-let (pos(b)) => ++ b
+let (pos(b)) => ++.Bin1 b
 
 
-val (++_\Bin0) : Bin0 -> Bin0
+val (++\Bin0) : Bin0 -> Bin0
 let (b) => pos(+++ b)
 
 
-val (---_\Bin1) : Bin1 -> Bin0
+val (---\Bin1) : Bin1 -> Bin0
 let (bin+.Bin1(nil.yu0/List)) => 0
-let (bin+.Bin1(bs)) => pos(-- bin+.Bin1(bs))
+let (bin+.Bin1(bs)) => pos(--.Bin1\Bin1 bin+.Bin1(bs))
 
 
-val (--_\Bin0) : Bin0 -> Bin0
+val (--\Bin0) : Bin0 -> Bin0
 let (0) => 0
 let (pos(bs)) => --- bs
 
 
-val _+_\Bin0 : Bin0 & Bin0 -> Bin0
+val _+\Bin0 : Bin0 & Bin0 -> Bin0
 let b1 0 => b1
 let 0 b2 => b2
-let (pos b1) (pos b2) => pos (b1 + b2)
+let (pos b1) (pos b2) => pos (b1 +.Bin1 b2)
 
 
-val _*_\Bin0 : Bin0 & Bin0 -> Bin0
+val _*\Bin0 : Bin0 & Bin0 -> Bin0
 let b1 0 => 0
 let 0 b2 => 0
-let (pos b1) (pos b2) => pos (b1 * b2)
+let (pos b1) (pos b2) => pos (b1 *.Bin1 b2)
 
 
 val ind
@@ -98,7 +97,7 @@ val rec [A : Ty] : (b : Bin0) & A & (Bin0 & A -> A) -> A
 let n a0 ai => ind n (const A) a0 ai
 
 
-val _<_\Bin0 : Bin0 & Bin0 -> Ty
+val _<\Bin0 : Bin0 & Bin0 -> Ty
 let _ 0 => Empty
 let 0 (pos _) => {}
-let (pos a) (pos b) => a < b
+let (pos a) (pos b) => a <.Bin1 b

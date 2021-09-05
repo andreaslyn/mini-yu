@@ -1107,9 +1107,15 @@ writePreTerm im rm (TermLazyApp _ f) = do
   writePreTerm im rm f
   when b (writeStr ")")
   writeStr " []"
-writePreTerm _ _ (TermRef v _) = writeStr (varName v)
-writePreTerm _ _ (TermData v) = writeStr (varName v)
-writePreTerm _ _ (TermCtor v _) = writeStr (varName v)
+writePreTerm _ _ (TermRef v _) = do
+  writeStr (varName v)
+  when (Str.isInfixOp (varName v)) (writeStr "_")
+writePreTerm _ _ (TermData v) = do
+  writeStr (varName v)
+  when (Str.isInfixOp (varName v)) (writeStr "_")
+writePreTerm _ _ (TermCtor v _) = do
+  writeStr (varName v)
+  when (Str.isInfixOp (varName v)) (writeStr "_")
 writePreTerm _ _ (TermVar _ v) = do
   let pre = Str.isPrefixOp (varName v)
   when pre (writeStr "(")
@@ -1119,6 +1125,7 @@ writePreTerm _ _ (TermVar _ v) = do
     writeStr "_"
     writeStr (show (varId v))
   when pre (writeStr ")")
+  when (Str.isInfixOp (varName v)) (writeStr "_")
 writePreTerm _ _ TermUnitElem = writeStr "()"
 writePreTerm _ _ TermUnitTy = writeStr "{}"
 writePreTerm _ _ TermTy = writeStr "Ty"

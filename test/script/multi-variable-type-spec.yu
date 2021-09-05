@@ -1,6 +1,6 @@
 
-data _*_\Ty : Ty & Ty -> Ty
-| _$_\[A B : Ty] : A & B -> A * B
+data _*\Ty : Ty & Ty -> Ty
+| _$\[A B : Ty] : A & B -> A * B
 
 
 data Bool : Ty
@@ -8,12 +8,12 @@ data Bool : Ty
 | tt : Bool
 
 
-val _*_\Bool : Bool & ([] -> Bool) -> Bool
+val _*\Bool : Bool & ([] -> Bool) -> Bool
 let ff _ => ff
 let tt b => b
 
 
-data _=_\[A B : Ty] : A & B -> Ty
+data _=\[A B : Ty] : A & B -> Ty
 | refl [A : Ty] [a : A] : a = a
 
 

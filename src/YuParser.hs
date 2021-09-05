@@ -49,22 +49,22 @@ yuOpTok idx = do
     getVar t =
       case idx of
         6 -> case tokType t of
-                TokOp6 s -> Just (tokLoc t, '_' : s ++ "_")
+                TokOp6 s -> Just (tokLoc t, '_' : s)
                 _ -> Nothing
         5 -> case tokType t of
-                TokOp5 s -> Just (tokLoc t, '_' : s ++ "_")
+                TokOp5 s -> Just (tokLoc t, '_' : s)
                 _ -> Nothing
         4 -> case tokType t of
-                TokOp4 s -> Just (tokLoc t, '_' : s ++ "_")
+                TokOp4 s -> Just (tokLoc t, '_' : s)
                 _ -> Nothing
         3 -> case tokType t of
-                TokOp3 s -> Just (tokLoc t, '_' : s ++ "_")
+                TokOp3 s -> Just (tokLoc t, '_' : s)
                 _ -> Nothing
         2 -> case tokType t of
-                TokOp2 s -> Just (tokLoc t, '_' : s ++ "_")
+                TokOp2 s -> Just (tokLoc t, '_' : s)
                 _ -> Nothing
         1 -> case tokType t of
-                TokOp1 s -> Just (tokLoc t, '_' : s ++ "_")
+                TokOp1 s -> Just (tokLoc t, '_' : s)
                 _ -> Nothing
         _ -> error ("invalid operator index " ++ show idx)
 
@@ -75,27 +75,6 @@ yuPreOpTok = do
   where
     getVar t =
       case tokType t of
-        TokOp6 s -> Just (tokLoc t, s ++ "_")
-        TokOp5 s -> Just (tokLoc t, s ++ "_")
-        TokOp4 s -> Just (tokLoc t, s ++ "_")
-        TokOp3 s -> Just (tokLoc t, s ++ "_")
-        TokOp2 s -> Just (tokLoc t, s ++ "_")
-        TokOp1 s -> Just (tokLoc t, s ++ "_")
-        _ -> Nothing
-
-yuPostfixOpTok :: YuParsec (Loc, String)
-yuPostfixOpTok = do
-  (lo, op) <- yuPostfixVarTok
-  return (lo, '_' : op)
-
-yuPreOpTok' :: YuParsec (Loc, String)
-yuPreOpTok' = do
-  f <- tokToPos
-  (lo, s) <- token (\x -> show (tokType x)) f getVar
-  return (lo, s)
-  where
-    getVar t =
-      case tokType t of
         TokOp6 s -> Just (tokLoc t, s)
         TokOp5 s -> Just (tokLoc t, s)
         TokOp4 s -> Just (tokLoc t, s)
@@ -103,6 +82,11 @@ yuPreOpTok' = do
         TokOp2 s -> Just (tokLoc t, s)
         TokOp1 s -> Just (tokLoc t, s)
         _ -> Nothing
+
+yuPostfixOpTok :: YuParsec (Loc, String)
+yuPostfixOpTok = do
+  (lo, op) <- yuPostfixVarTok
+  return (lo, '_' : op)
 
 yuStringLitTok :: YuParsec (Loc, String)
 yuStringLitTok = do
@@ -179,7 +163,7 @@ parseVarOrPrefix = do
   case pre of
     Nothing -> yuVarTok
     Just _ -> do
-      v <- yuPreOpTok'
+      v <- yuPreOpTok
       _ <- yuKeyTok TokParenR
       return v
 
@@ -593,7 +577,7 @@ parseExprStr = do
       ExprVar (lo, "nil.yu/List/List")
     yuCharsToExpr (c : cs) lo =
       ExprApp
-        (ExprVar (lo, "_::_.yu/List/List\\List.yu/List/List"))
+        (ExprVar (lo, "_::.yu/List/List\\List.yu/List/List"))
         [ExprVar (lo, c), yuCharsToExpr cs lo]
 
 parseExprVar :: YuParsec Expr
@@ -626,7 +610,7 @@ parseParenExpr = do
   where
     parenPrefixOp :: YuParsec Expr
     parenPrefixOp = do
-      v <- yuPreOpTok'
+      v <- yuPreOpTok
       _ <- yuKeyTok TokParenR
       return (ExprVar v)
 
@@ -793,7 +777,7 @@ parsePatternLeaf = patStr <|> patEmpty <|> patVar <|> patPat
         yuCharsToPat (c : cs) lo =
           ParsePatternApp
             (ParsePatternVar
-              (lo, "_::_.yu/List/List\\List.yu/List/List"))
+              (lo, "_::.yu/List/List\\List.yu/List/List"))
             [ParsePatternVar (lo, c), yuCharsToPat cs lo]
 
     patPat :: YuParsec ParsePattern
@@ -803,7 +787,7 @@ parsePatternLeaf = patStr <|> patEmpty <|> patVar <|> patPat
       where
         patPrefixOp :: YuParsec ParsePattern
         patPrefixOp = do
-          v <- yuPreOpTok'
+          v <- yuPreOpTok
           _ <- yuKeyTok TokParenR
           return (ParsePatternVar v)
 

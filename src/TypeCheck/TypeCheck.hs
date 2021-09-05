@@ -5,6 +5,7 @@ where
 
 import Str
 import Loc (Loc)
+import Data.Char (isAlphaNum)
 import PackageMap (PackageMap, takePackage)
 import qualified Loc
 import qualified TypeCheck.Env as Env
@@ -200,7 +201,14 @@ checkVarNameValid (lo, na) = do
   when invalidName (err lo (Fatal $ "invalid variable name " ++ quote na))
   where
     invalidName :: Bool
-    invalidName = '.' `elem` na || '\\' `elem` na || '_' `elem` na
+    invalidName =
+      let i = '.' `elem` na || '\\' `elem` na || '_' `elem` na
+      in case na of
+          '_' : c : _ ->
+            if isAlphaNum c
+            then False
+            else i
+          _ -> i
 
 checkRefNameValid :: Monad m => Bool -> (Loc, VarName) -> TypeCheckT m ()
 checkRefNameValid allowDot (lo, na0) = do
@@ -235,31 +243,23 @@ checkRefNameValid allowDot (lo, na0) = do
 
     invalidNameSplit :: VarName -> Bool
     invalidNameSplit n =
-      let (h, n', t) = nameSplit n
-      in length n == 2 && head n == '_' ||
-         h == '.' ||
+      let (h, n') = nameSplit n
+      in h == '.' ||
           if h == '_'
           then
-            if not (null n')
-            then
-              if isOperatorChar (head n')
-              then not allowDot && (t /= '_' || elem '_' n')
-              else head n' /= '.' || t == '_' || elem '_' n'
-            else
-              t == '_' || isOperatorChar t
+            null n'
+            || elem '_' n'
+            || not (isOperatorChar (head n')
+                    || isAlphaNum (head n')
+                    || head n' == '.')
           else
-            if isOperatorChar h
-            then t /= '_' || elem '_' n'
-            else elem '_' n
+            elem '_' n'
 
-    nameSplit :: VarName -> (Char, VarName, Char)
+    nameSplit :: VarName -> (Char, VarName)
     nameSplit n =
       case n of
         "" -> error "empty identifier"
-        h : n' ->
-          case splitAt (length n' - 1) n' of
-            (n'', [t]) -> (h, n'', t)
-            _ -> (h, [h], h)
+        h : n' -> (h, n')
 
 checkMainExists :: Monad m => TypeCheckT m ()
 checkMainExists = do

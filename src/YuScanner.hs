@@ -13,7 +13,7 @@ where
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
-import Data.Char (isPrint)
+import Data.Char (isPrint, isAlphaNum)
 import Scanner (Scanner, scanOnly, anyChar8, lookAheadChar8)
 import Control.Monad
 import Loc
@@ -236,7 +236,14 @@ makeWordTok s lo
   | isOp5Char (head s) = return (tok (TokOp5 s) lo)
   | isOp6Char (head s) = return (tok (TokOp6 s) lo)
   | head s == '.' = return (tok (TokPostfixOp s) lo)
-  | otherwise = return (tok (TokVar s) lo)
+  | otherwise =
+      case s of
+        '_' : c : _ -> do
+          when (isAlphaNum c)
+            (failHere $ "invalid identifier " ++ quote s)
+          return (tok (TokVar s) lo)
+        _ ->
+          return (tok (TokVar s) lo)
 
 skipRestOfLine :: SScanner ()
 skipRestOfLine = do

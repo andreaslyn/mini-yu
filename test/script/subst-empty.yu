@@ -4,7 +4,7 @@ data Empty : Ty
 
 data Nat : Ty
 | 0 : Nat
-| (++_\Nat) : Nat -> Nat
+| (++\Nat) : Nat -> Nat
 
 data Id[A : Ty] [B : Ty] : A & B -> Ty
 | refl[A : Ty] [a : A] : Id a a

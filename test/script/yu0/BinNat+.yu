@@ -14,10 +14,10 @@ import B => yu0/Bool
 | false
 
 import Fun => yu0/Fun
-| _@_\
+| _@\
 
 import Id => yu0/Id
-| _=_\
+| _=\
 | rew
 | trans
 
@@ -134,7 +134,7 @@ let (false :: bs1) (true :: bs2) =>
   rew
     (aux-plus-inj-Bin+-Nat bs1 bs2)
     (x => ++ (x * 2.N) = a1 + a1 + ++ (a2 + a2))
-    (ap=.Id (aux-plus-22-swap-23 a1 a2) (++_))
+    (ap=.Id (aux-plus-22-swap-23 a1 a2) (++))
 where
   val a1 : Nat
   let => aux-inj-Bin+-Nat(bs1)
@@ -146,7 +146,7 @@ let (true :: bs1) (false :: bs2) =>
     (aux-plus-inj-Bin+-Nat bs1 bs2)
     (x => ++ (x * 2.N) = ++ (a1 + a1) + (a2 + a2))
     (trans
-      (ap=.Id (aux-plus-22-swap-23 a1 a2) (++_))
+      (ap=.Id (aux-plus-22-swap-23 a1 a2) (++))
       (plus-+.N (a1 + a1) (a2 + a2)))
 where
   val a1 : Nat
@@ -165,9 +165,9 @@ let (true :: bs1) (true :: bs2) =>
         (trans
           (sym.Id (plus-+.N a12 a12))
           (trans
-            (ap=.Id (aux-plus-22-swap-23 a1 a2) (++_))
+            (ap=.Id (aux-plus-22-swap-23 a1 a2) (++))
             (plus-+.N a11 a22)))
-        (++_)))
+        (++)))
 where
   val a1 : Nat
   let => aux-inj-Bin+-Nat(bs1)

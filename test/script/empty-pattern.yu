@@ -4,7 +4,7 @@ data Id : (A : Ty) & A & A -> Ty
 
 data Nat : Ty
 | 0 : Nat
-| (+1_\Nat) : Nat -> Nat
+| (+1\Nat) : Nat -> Nat
 
 data Vec : Ty -> Nat -> Ty
 | vnil : (A : Ty) -> Vec(A)(0)

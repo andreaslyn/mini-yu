@@ -39,7 +39,7 @@ let (n) =>
   natToStr x :+: natToStr y
 
 val listToStr[A : Ty] : List(A) & (A -> Str) -> Str
-let xs f => fold.List (map.List xs f) nil.List _:+:_
+let xs f => fold.List (map.List xs f) nil.List _:+:
 
 val boolToStr : Bool -> Str
 let true.B => 't.Char :: 'r.Char :: 'u.Char :: 'e.Char :: nil.List

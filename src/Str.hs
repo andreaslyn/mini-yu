@@ -163,7 +163,7 @@ isInfixOp1 s
 
 isPostfixOp :: String -> Bool
 isPostfixOp "_" = False
-isPostfixOp ('_' : x : _) = not (isOperatorChar x)
+isPostfixOp ('_' : '.' : _) = True
 isPostfixOp _ = False
 
 isPrefixOp :: String -> Bool
@@ -215,7 +215,7 @@ operandConcat :: String -> String -> String
 operandConcat s1 s2 = s1 ++ '\\' : s2
 
 stripOperatorStr :: String -> String
-stripOperatorStr = filter (\x -> not (x `elem` "_"))
+stripOperatorStr = filter (\x -> x /= "_")
 
 errorMsg :: FilePath -> Loc -> String -> String
 errorMsg p lo s = p ++ ":" ++ show lo ++ ": error: " ++ s
@@ -250,15 +250,14 @@ doGenMachineName (c : s) = genChar ++ doGenMachineName s
         '?' -> "_qu"
         ':' -> "_co"
         '|' -> "_ve"
+        '#' -> "_nu" -- This should become the new operandDelim
         _ -> c : ""
 
 operandDelim :: String
 operandDelim = "_ba"
 
 funcNameSep :: String
-funcNameSep = "___"
-
--- moduleNameSep = "__"
+funcNameSep = "__"
 
 anonymousFunString :: String
 anonymousFunString = "_fn"

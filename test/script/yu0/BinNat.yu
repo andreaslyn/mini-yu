@@ -44,12 +44,12 @@ val inj-Bin-Nat : Bin -> Nat
 let (0) => 0.N
 let (pos(b)) => inj-Bin+-Nat.B+(b)
 
-val _+_\Bin : Bin & Bin -> Bin
+val _+\Bin : Bin & Bin -> Bin
 let b1 0 => b1
 let 0 b2 => b2
 let (pos b1) (pos b2) => pos (plus.B+ b1 b2)
 
-val _*_\Bin : Bin & Bin -> Bin
+val _*\Bin : Bin & Bin -> Bin
 let b1 0 => 0
 let 0 b2 => 0
 let (pos b1) (pos b2) => pos (mul.B+ b1 b2)
