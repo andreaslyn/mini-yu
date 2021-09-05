@@ -1,4 +1,4 @@
-import Nat => yu/Nat/Nat
+import yu/Nat/Nat
 export
 | Nat
 | (...#Nat)
@@ -17,10 +17,10 @@ export
 | ordering?
 | equivalence?
 
-import StrStr => yu/Str/StrStr
+import yu/Str/StrStr
 export
 | (...#Nat)
 
-import print => yu/print
+import yu/print
 export
 | (...#Nat)

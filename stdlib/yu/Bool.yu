@@ -1,4 +1,4 @@
-import Bool => yu/Bool/Bool
+import yu/Bool/Bool
 export
 | Bool
 | false
@@ -10,7 +10,7 @@ export
 | (...#If)
 | (...#Then)
 
-import Ord?-Bool => yu/Ordering?/Bool
+import yu/Ordering?/Bool
 export
 | ordering?
 | equivalence?

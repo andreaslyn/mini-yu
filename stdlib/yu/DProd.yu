@@ -1,4 +1,4 @@
-import DProd => yu/DProd/DProd
+import yu/DProd/DProd
 export
 | DProd
 | ($#)

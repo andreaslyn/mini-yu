@@ -1,4 +1,4 @@
-import RBTree => yu/RBTree/RBTree
+import yu/RBTree/RBTree
 export
 | RBTree
 | leaf

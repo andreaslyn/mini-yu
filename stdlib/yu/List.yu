@@ -1,4 +1,4 @@
-import List => yu/List/List
+import yu/List/List
 export
 | List
 | nil
@@ -9,15 +9,15 @@ export
 | here
 | (...#.Has#List)
 
-import List-th => yu/List/theorems
+import yu/List/theorems
 export
 | ordering?
 | equivalence?
 
-import StrStr => yu/Str/StrStr
+import yu/Str/StrStr
 export
 | (...#List)
 
-import print => yu/print
+import yu/print
 export
 | (...#List)

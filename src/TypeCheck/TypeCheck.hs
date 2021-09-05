@@ -378,11 +378,14 @@ tcProgram _ ([], defs) = do
   rs <- tcDefsToVars IntMap.empty defs
   Env.clearImplicitVarMap
   return rs
-tcProgram packagePaths (((alo, alias), (lo, ina), imex) : imps, defs) = do
-  checkVarNameValid (alo, alias)
-  canInsert <- Env.tryInsertModuleExpand alias ina
-  when (not canInsert)
-    (err alo (Fatal $ "multiple module aliases " ++ quote alias))
+tcProgram packagePaths ((malias, (lo, ina), imex) : imps, defs) = do
+  case malias of
+    Nothing -> return ()
+    Just (alo, alias) -> do
+      checkVarNameValid (alo, alias)
+      canInsert <- Env.tryInsertModuleExpand alias ina
+      when (not canInsert)
+        (err alo (Fatal $ "multiple module aliases " ++ quote alias))
   (verbose, _, _) <- ask
   inaPath0 <- importFilePath packagePaths ina
   case inaPath0 of

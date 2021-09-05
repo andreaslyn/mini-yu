@@ -107,8 +107,7 @@ parseProgram = do
 parseModuleIntro :: YuParsec ModuleIntro
 parseModuleIntro = do
   _ <- yuKeyTok TokImport
-  m <- yuVarTok
-  _ <- yuKeyTok TokEqGreater
+  m <- optionMaybe (try $ yuVarTok <* yuKeyTok TokEqGreater)
   path <- yuVarTok
   im <- many importElem
   ex0 <- optionMaybe (yuKeyTok TokExport >> many1 exportElem)

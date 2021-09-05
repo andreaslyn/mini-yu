@@ -1,7 +1,7 @@
-import Bin+ => yu/Bin+/Bin+
+import yu/Bin+/Bin+
 | Bin+
 
-import Bin => yu/Bin/Bin
+import yu/Bin/Bin
 export
 | Bin
 | 0

@@ -1,4 +1,4 @@
-import Str => yu/Str/Str
+import yu/Str/Str
 export
 | Str
 | mk
@@ -6,25 +6,25 @@ export
 | nil
 | one
 
-import Bool => yu/basic/Bool
+import yu/basic/Bool
 | Bool
 
-import Char => yu/Char/Char
+import yu/Char/Char
 | Char
 
-import Nat => yu/basic/Nat
+import yu/basic/Nat
 | Nat
 
-import Option => yu/Option/Option
+import yu/Option/Option
 | Option
 
-import DProd => yu/DProd/DProd
+import yu/DProd/DProd
 | DProd
 
-import List => yu/basic/List
+import yu/basic/List
 | List
 
-import StrStr => yu/Str/StrStr
+import yu/Str/StrStr
 export
 | (.str#Bool)
 | (.str#Char)
@@ -33,11 +33,11 @@ export
 | (.str#DProd)
 | (.str#List)
 
-import Format => yu/Str/Format
+import yu/Str/Format
 export
 | (...#Str)
 
-import Str-th => yu/Str/theorems
+import yu/Str/theorems
 export
 | ordering?
 | equivalence?

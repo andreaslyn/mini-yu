@@ -1,11 +1,11 @@
-import ops => yu/algebra/operations
+import yu/algebra/operations
 export
 | IsAssociative
 | HasLeftUnit
 | HasRightUnit
 | HasUnit
 
-import Mon => yu/algebra/Monoid
+import yu/algebra/Monoid
 | IsMonoid
 | mkIs
 | (...#IsMonoid)

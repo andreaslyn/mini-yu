@@ -1,4 +1,4 @@
-import Stream => yu/Stream/Stream
+import yu/Stream/Stream
 export
 | Stream
 | nil

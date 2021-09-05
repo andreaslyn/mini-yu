@@ -1,8 +1,8 @@
-import CharType => yu/Char/Type
+import yu/Char/Type
 export
 | (...)
 
-import Char => yu/Char/Char
+import yu/Char/Char
 export
 | (...#Char)
 | ordering?

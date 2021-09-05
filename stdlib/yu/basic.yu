@@ -1,4 +1,4 @@
-import Bool => yu/basic/Bool
+import yu/basic/Bool
 export
 | Bool
 | false
@@ -10,13 +10,13 @@ export
 | (...#If)
 | (...#Then)
 
-import Empty => yu/basic/Empty
+import yu/basic/Empty
 export
 | Empty
 | (!#Ty)
 | (...#Empty)
 
-import Equal => yu/basic/Equal
+import yu/basic/Equal
 export
 | Equal
 | refl
@@ -25,7 +25,7 @@ export
 | (...#Equal)
 | funext
 
-import Fun => yu/basic/Fun
+import yu/basic/Fun
 export
 | id
 | (:!#Ty)
@@ -33,13 +33,13 @@ export
 | (@compose#)
 | flip
 
-import List => yu/basic/List
+import yu/basic/List
 export
 | List
 | nil
 | (...#List)
 
-import Nat => yu/basic/Nat
+import yu/basic/Nat
 export
 | Nat
 | (...#Nat)
@@ -55,7 +55,7 @@ export
 | 9
 | 10
 
-import Lazy => yu/basic/Lazy
+import yu/basic/Lazy
 export
 | Lazy
 | lazy

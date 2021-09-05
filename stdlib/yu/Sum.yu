@@ -1,4 +1,4 @@
-import Sum => yu/Sum/Sum
+import yu/Sum/Sum
 export
 | Sum
 | in1

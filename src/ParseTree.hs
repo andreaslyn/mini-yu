@@ -40,7 +40,7 @@ import Loc (Loc)
 -- | e2 (= True)
 --
 type ModuleIntro =
-  ((Loc, String), (Loc, String), [(Loc, String, Bool)])
+  (Maybe (Loc, String), (Loc, String), [(Loc, String, Bool)])
 
 type Program = ([ModuleIntro], [Def])
 
@@ -479,7 +479,11 @@ writeModuleIntros (x : xs) = do
   writeModuleIntros xs
 
 writeModuleIntro :: ModuleIntro -> ToString ()
-writeModuleIntro (m, path, ies) = do
+writeModuleIntro (Nothing, path, ies) = do
+  writeStr "import "
+  writeStr (snd path)
+  writeModuleImportExportList ies
+writeModuleIntro (Just m, path, ies) = do
   writeStr "import "
   writeStr (snd m)
   writeStr " => "

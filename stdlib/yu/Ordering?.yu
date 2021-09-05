@@ -1,4 +1,4 @@
-import Ordering? => yu/Ordering?/Ordering?
+import yu/Ordering?/Ordering?
 export
 | OrderRelation?
 | mkRel

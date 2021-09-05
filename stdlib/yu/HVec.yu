@@ -1,4 +1,4 @@
-import HVec => yu/HVec/HVec
+import yu/HVec/HVec
 export
 | HVec
 | nil

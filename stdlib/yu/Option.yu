@@ -1,4 +1,4 @@
-import Option => yu/Option/Option
+import yu/Option/Option
 export
 | Option
 | no

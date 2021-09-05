@@ -1,4 +1,4 @@
-import Order => yu/Order/Order
+import yu/Order/Order
 export
 | Order
 | lt

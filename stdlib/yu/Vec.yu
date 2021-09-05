@@ -1,4 +1,4 @@
-import Vec => yu/Vec/Vec
+import yu/Vec/Vec
 export
 | Vec
 | nil

@@ -1,6 +1,6 @@
-import Bool => yu/basic/Bool
+import yu/basic/Bool
 | Bool
 
-import relation? => yu/relation?/relation?
+import yu/relation?/relation?
 export
 | (...#Bool)

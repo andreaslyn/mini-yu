@@ -1,4 +1,4 @@
-import Bool => yu/basic/Bool
+import yu/basic/Bool
 export
 | Bool
 | false
@@ -10,13 +10,13 @@ export
 | (...#If)
 | (...#Then)
 
-import Empty => yu/basic/Empty
+import yu/basic/Empty
 export
 | Empty
 | (!#Ty)
 | (...#Empty)
 
-import Equal => yu/basic/Equal
+import yu/basic/Equal
 export
 | Equal
 | refl
@@ -25,7 +25,7 @@ export
 | (...#Equal)
 | funext
 
-import Fun => yu/basic/Fun
+import yu/basic/Fun
 export
 | id
 | (:!#Ty)
@@ -33,31 +33,31 @@ export
 | (@compose#)
 | flip
 
-import Option => yu/Option
+import yu/Option
 export
 | (...)
 
-import Sum => yu/Sum
+import yu/Sum
 export
 | (...)
 
-import DProd => yu/DProd
+import yu/DProd
 export
 | (...)
 
-import Prod => yu/Prod
+import yu/Prod
 export
 | (...)
 
-import Char-Type => yu/Char/Type
+import yu/Char/Type
 export
 | (...)
 
-import Char => yu/Char
+import yu/Char
 export
 | (...#Char)
 
-import Str-Str => yu/Str/Str
+import yu/Str/Str
 export
 | Str
 | mk
@@ -65,18 +65,18 @@ export
 | one
 | (...#Str)
 
-import Str-StrStr => yu/Str/StrStr
+import yu/Str/StrStr
 export
 | (...#Bool)
 | (...#Char)
 | (...#Option)
 | (...#DProd)
 
-import Str-Format => yu/Str/Format
+import yu/Str/Format
 export
 | (...#Str)
 
-import print => yu/print
+import yu/print
 export
 | (...#Str)
 | (...#Char)
