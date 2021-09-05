@@ -54,8 +54,8 @@ runPatUnifResult lo ts x = do
       case ts of
         Nothing -> return ""
         Just (t1, t2) -> do
-          t1' <- preTermToStringT defaultExprIndent t1
-          t2' <- preTermToStringT defaultExprIndent t2
+          t1' <- preTermToString defaultExprIndent t1
+          t2' <- preTermToString defaultExprIndent t2
           return $
             "failed matching type\n" ++ t1'
             ++ "\nwith type\n" ++ t2'
@@ -211,8 +211,8 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
         s1 <- punify2 f1 f2
         if length x1 /= length x2
           then do
-            t1' <- lift $ preTermToStringT defaultExprIndent t1
-            t2' <- lift $ preTermToStringT defaultExprIndent t2
+            t1' <- lift $ preTermToString defaultExprIndent t1
+            t2' <- lift $ preTermToString defaultExprIndent t2
             throwError . UnifyAbsurd $
               "unable to unify\n"
               ++ t1' ++ "\nwith\n" ++ t2' ++ "\ndifferent arities"
@@ -224,8 +224,8 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
         s1 <- punify2 f1 f2
         if length x1 /= length x2
           then do
-            t1' <- lift $ preTermToStringT defaultExprIndent t1
-            t2' <- lift $ preTermToStringT defaultExprIndent t2
+            t1' <- lift $ preTermToString defaultExprIndent t1
+            t2' <- lift $ preTermToString defaultExprIndent t2
             throwError . UnifyAbsurd $
                   "unable to unify\n"
                   ++ t1' ++ "\nwith\n" ++ t2'
@@ -471,12 +471,12 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
       r <- lift Env.getRefMap
       let fs = preTermVars r t2
       when (not (IntSet.null (IntSet.filter (>= newPatternIds) fs))) $ do
-        t2' <- lift $ preTermToStringT defaultExprIndent t2
+        t2' <- lift $ preTermToString defaultExprIndent t2
         throwError . UnifyUnable $
            "unable to unify implicit variable "
            ++ quote (varName v1) ++ " with\n" ++ t2'
       when (IntSet.member (varId v1) fs) $ do
-        t2' <- lift $ preTermToStringT defaultExprIndent t2
+        t2' <- lift $ preTermToString defaultExprIndent t2
         throwError . UnifyUnable $
           "unable to unify variable " ++ quote (varName v1)
           ++ " with\n" ++ t2' ++ "\ncyclic equation"
@@ -485,25 +485,25 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
       r <- lift Env.getRefMap
       let fs = preTermVars r t1
       when (not (IntSet.null (IntSet.filter (>= newPatternIds) fs))) $ do
-        t1' <- lift $ preTermToStringT defaultExprIndent t1
+        t1' <- lift $ preTermToString defaultExprIndent t1
         throwError . UnifyUnable $
            "unable to unify implicit variable "
            ++ quote (varName v2) ++ " with\n" ++ t1'
       when (IntSet.member (varId v2) fs) $ do
-        t1' <- lift $ preTermToStringT defaultExprIndent t1
+        t1' <- lift $ preTermToString defaultExprIndent t1
         throwError . UnifyUnable $
           "unable to unify variable " ++ quote (varName v2)
           ++ " with\n" ++ t1' ++ "\ncyclic equation"
       return (IntMap.singleton (varId v2) t1)
     unifyVar (TermVar False v1) t2 = do
       when (isBoundVar (varId v1)) $ do
-        t2' <- lift $ preTermToStringT defaultExprIndent t2
+        t2' <- lift $ preTermToString defaultExprIndent t2
         throwError . UnifyUnable $
           "cannot unify bound variable " ++ quote (varName v1)
           ++ " with\n" ++ t2'
       b <- lift (hasBoundVar t2)
       when b $ do
-        t2' <- lift $ preTermToStringT defaultExprIndent t2
+        t2' <- lift $ preTermToString defaultExprIndent t2
         throwError . UnifyUnable $
             "unable to unify variable "
             ++ quote (varName v1) ++ " with term\n"
@@ -511,20 +511,20 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
       r <- lift Env.getRefMap
       if IntSet.member (varId v1) (preTermVars r t2)
         then do
-          t2' <- lift $ preTermToStringT defaultExprIndent t2
+          t2' <- lift $ preTermToString defaultExprIndent t2
           throwError . UnifyUnable $
                 "unable to unify variable " ++ quote (varName v1)
                 ++ " with\n" ++ t2' ++ "\ncyclic equation"
         else return (IntMap.singleton (varId v1) t2)
     unifyVar t1 (TermVar False v2) = do
       when (isBoundVar (varId v2)) $ do
-        t1' <- lift $ preTermToStringT defaultExprIndent t1
+        t1' <- lift $ preTermToString defaultExprIndent t1
         throwError . UnifyUnable $
           "cannot unify bound variable " ++ quote (varName v2)
           ++ " with\n" ++ t1'
       b <- lift (hasBoundVar t1)
       when b $ do
-        t1' <- lift $ preTermToStringT defaultExprIndent t1
+        t1' <- lift $ preTermToString defaultExprIndent t1
         (throwError . UnifyUnable $
                 "unable to unify variable "
                 ++ quote (varName v2) ++ " with term\n"
@@ -532,7 +532,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
       r <- lift Env.getRefMap
       if IntSet.member (varId v2) (preTermVars r t1)
         then do
-          t1' <- lift $ preTermToStringT defaultExprIndent t1
+          t1' <- lift $ preTermToString defaultExprIndent t1
           throwError . UnifyUnable $
               "unable to unify variable " ++ quote (varName v2)
               ++ " with\n"
@@ -545,8 +545,8 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
     unifyAlphaCheckRigid t1 t2 = do
       if preTermIsRigid t1 && preTermIsRigid t2
         then do
-          t1' <- lift $ preTermToStringT defaultExprIndent t1
-          t2' <- lift $ preTermToStringT defaultExprIndent t2
+          t1' <- lift $ preTermToString defaultExprIndent t1
+          t2' <- lift $ preTermToString defaultExprIndent t2
           throwError . UnifyAbsurd $
               "cannot unify\n" ++ t1' ++ "\nwith\n" ++ t2'
         else unifyAlpha t1 t2
@@ -566,8 +566,8 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
     throwUnableToUnify :: Monad m =>
       PreTerm -> PreTerm -> PatUnifResult m
     throwUnableToUnify t1 t2 = do
-      t1' <- lift $ preTermToStringT defaultExprIndent t1
-      t2' <- lift $ preTermToStringT defaultExprIndent t2
+      t1' <- lift $ preTermToString defaultExprIndent t1
+      t2' <- lift $ preTermToString defaultExprIndent t2
       throwError . UnifyUnable $
         "unable to unify\n" ++ t1' ++ "\nwith\n" ++ t2'
 

@@ -241,7 +241,7 @@ checkMainExists = do
       case preTermNormalize rm (termTy t) of
         TermArrow True [(Nothing, TermUnitTy)] TermUnitTy -> checkBody (termPre t)
         _ -> do
-          ss <- preTermToStringT defaultExprIndent (TermArrow True [(Nothing, TermUnitTy)] TermUnitTy)
+          ss <- preTermToString defaultExprIndent (TermArrow True [(Nothing, TermUnitTy)] TermUnitTy)
           err (Loc.loc 1 1)
             (Fatal $
               "expected type of " ++ quote "main" ++ " to be\n" ++ ss)
@@ -436,7 +436,7 @@ tcDefsToVars subst defs = do
     extractDefVar (Term {termPre = (TermData v)}) = return (RefData v)
     extractDefVar (Term {termPre = (TermCtor v _)}) = return (RefCtor v)
     extractDefVar t = do
-      ss <- preTermToStringT defaultExprIndent (termPre t)
+      ss <- preTermToString defaultExprIndent (termPre t)
       error $ "unexpected def term: " ++ ss
 
 insertUnknownDataDefs :: Monad m =>
@@ -598,7 +598,7 @@ tcDataAndCtors subst isPure d ctors = do
           Env.forceInsertRef (declLoc d) (varName v) isPure (varId v) dt
           return dt
         _ -> do
-          ss <- preTermToStringT 0 (termPre dt)
+          ss <- preTermToString 0 (termPre dt)
           error $ "expected " ++ ss ++ " to be a data type"
     Right (imps, ty) -> do
       let (fcod, hasIo) = preTermFinalCod rm (termPre ty)
@@ -1093,8 +1093,8 @@ showCasesToCaseTree im rm ((_, ps, _) : pss) =
   in intercalate ", " ss ++ "\n" ++ showCasesToCaseTree im rm pss
   where
     varPatToStr ((Nothing, b), p) =
-      prePatternToString False im rm 0 (patternPre p)
-      ++ " : " ++ preTermToString False im rm 0 (patternTy p)
+      prePatternToString 0 (patternPre p)
+      ++ " : " ++ preTermToString 0 (patternTy p)
       ++ " {forced? " ++ show b ++ "}"
     varPatToStr ((Just v, b), p) =
       varName v ++ "." ++ show (varId v) ++ " := " ++ varPatToStr ((Nothing, b), p)
@@ -1344,10 +1344,8 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
                 _ -> error $ "expected ref to be a ctor " ++ show i
       c <- prePatternApplyWithVars cp (termTy x)
       newpids <- Env.getNextVarId
-      --im0 <- Env.getImplicitMap
-      --rm0 <- Env.getRefMap
-      --let !() = trace ("new ctor pattern " ++ prePatternToString im0 rm0 0 (patternPre c)) ()
-      --let !() = trace ("unify pattern type " ++ preTermToString im0 rm0 0 (patternTy c) ++ " with " ++ preTermToString im0 rm0 0 ty) ()
+      --let !() = trace ("new ctor pattern " ++ prePatternToString 0 (patternPre c)) ()
+      --let !() = trace ("unify pattern type " ++ preTermToString 0 (patternTy c) ++ " with " ++ preTermToString 0 ty) ()
       r <- runExceptT (patternUnify2 newpids ty (patternTy c))
       case r of
         Left (UnifyAbsurd _) -> do
@@ -1390,9 +1388,7 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
                       Just n ->
                         let x = prePatternToPreTerm (patternPre c')
                         in IntMap.singleton (varId n) x
-          --im0 <- Env.getImplicitMap
-          --rm0 <- Env.getRefMap
-          --let !() = trace ("unify " ++ preTermToString im0 rm0 0 (patternTy q) ++ " with " ++ preTermToString im0 rm0 0 (patternTy c')) ()
+          --let !() = trace ("unify " ++ preTermToString 0 (patternTy q) ++ " with " ++ preTermToString 0 (patternTy c')) ()
           un <- runExceptT (patternUnify2 newpids (patternTy c') (patternTy q))
           let msu = case un of
                       Left (UnifyAbsurd _) -> Nothing
@@ -1730,9 +1726,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
 
     operandVarNameFromType :: Monad m => PreTerm -> ExprT m VarName
     operandVarNameFromType aty = do
-      --im <- lift Env.getImplicitMap
-      --rm <- lift Env.getRefMap
-      --let !() = trace (preTermToString False im rm 0 aty) ()
+      --let !() = trace (preTermToString 0 aty) ()
       n <- lift (typeOperandName aty)
       case n of
         Nothing -> unableToInferOperand
@@ -1978,7 +1972,7 @@ doTcExpr isTrial subst _ _ (ExprLazyApp e) = do
       rm <- lift Env.getRefMap
       case preTermLazyCod rm (termTy e') of
         Nothing -> do
-          ss <- lift $ preTermToStringT defaultExprIndent (termTy e')
+          ss <- lift $ preTermToString defaultExprIndent (termTy e')
           lift $ err (exprLoc e) (Recoverable $
             "expected expression to have lazy type, "
             ++ "but type is\n" ++ ss)
@@ -2017,7 +2011,7 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
                     TermImplicitApp False r@(TermData v) a -> return (r, v, a)
                     TermImplicitApp False r@(TermCtor v _) a -> return (r, v, a)
                     _ -> do
-                      ss <- lift $ preTermToStringT defaultExprIndent (termPre f')
+                      ss <- lift $ preTermToString defaultExprIndent (termPre f')
                       lift (err (exprLoc f) (
                               Recoverable $
                                 "cannot apply term\n"
@@ -2102,9 +2096,7 @@ doTcExpr _ subst _ ty (ExprSeq (Right (p1, e1)) e2) =
 doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
   expr' <- doTcExprSubst False subst Nothing expr
   newpids <- lift Env.getNextVarId
-  --i00 <- lift Env.getImplicitMap
-  --r00 <- lift Env.getRefMap
-  --let !() = trace ("expr type is: " ++ preTermToString True i00 r00 0 (termTy expr')) ()
+  --let !() = trace ("expr type is: " ++ preTermToString 0 (termTy expr')) ()
   (cases', ty0) <- checkCases newpids (termTy expr') cases ty
   case ty0 of
     Nothing -> lift (err lo (Recoverable "unable to infer type of expression"))
@@ -2249,7 +2241,7 @@ makeTermApp subst flo preTy f0 preArgs = do
   let dc = preTermDomCod r (termTy f')
   case dc of
     Nothing -> do
-      ss <- lift $ preTermToStringT defaultExprIndent (termTy f')
+      ss <- lift $ preTermToString defaultExprIndent (termTy f')
       lift $ err flo
         (Recoverable $
           "expected expression to have function type, "
@@ -2414,9 +2406,9 @@ tcPattern :: Monad m =>
 tcPattern newpids ty p = do
   (su, p')  <- doTcPatternForceLazy False False newpids ty p
   rm <- Env.getRefMap
-  --let !() = trace ("type: " ++ preTermToString im rm 0 (patternTy p')) ()
+  --let !() = trace ("type: " ++ preTermToString 0 (patternTy p')) ()
   when (patternPreCanApply (patternPre p') && isArrowType rm (patternTy p')) $ do
-    pp <- prePatternToStringT defaultExprIndent (patternPre p')
+    pp <- prePatternToString defaultExprIndent (patternPre p')
     (err (patternLoc p) (Fatal $
       "pattern\n" ++ pp ++ "\nis missing argument(s)"))
   return (su, p')
@@ -2434,13 +2426,13 @@ makePatternApp :: Monad m =>
 makePatternApp flo newpids ty (fsu, f') prePargs = do
   r <- Env.getRefMap
   when (not $ patternPreCanApply (patternPre f')) $ do
-    ss <- preTermToStringT defaultExprIndent (patternTy f')
+    ss <- preTermToString defaultExprIndent (patternTy f')
     err flo (Recoverable $
       "unable to match pattern with inferred type\n" ++ ss)
   let dc = preTermDomCod r (patternTy f')
   case dc of
     Nothing -> do
-      ss <- preTermToStringT defaultExprIndent (patternTy f')
+      ss <- preTermToString defaultExprIndent (patternTy f')
       err flo (Recoverable $
         "unable to match pattern with inferred type\n" ++ ss)
     Just (dom0, cod, io) -> do
@@ -2532,7 +2524,7 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
   (r, v, ias) <- case patternPre f' of
                   PatternImplicitApp False r@(PatternCtor v _) a -> return (r, v, a)
                   _ -> do
-                    pp <- prePatternToStringT defaultExprIndent (patternPre f')
+                    pp <- prePatternToString defaultExprIndent (patternPre f')
                     err (patternLoc f) (Fatal $
                           "cannot apply pattern\n"
                           ++ pp ++ "\nto implicit argument(s)")
@@ -2628,7 +2620,7 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
       _ <- ctorFromVarStatus x'
       error "this should be unreachable"
     _ -> do
-      ss <- preTermToStringT defaultExprIndent ty
+      ss <- preTermToString defaultExprIndent ty
       if hasImplicitApp || hasApp
       then err lo (Recoverable $ "expected " ++ quote na0
                                ++ " to be constructor of\n" ++ ss)
@@ -2773,7 +2765,7 @@ verifyIsEmptyType :: Monad m => Loc -> VarId -> PreTerm -> TypeCheckT m ()
 verifyIsEmptyType lo newpids ty = do
   e <- isEmptyType newpids ty
   when (not e) $ do
-    ss <- preTermToStringT defaultExprIndent ty
+    ss <- preTermToString defaultExprIndent ty
     err lo (Recoverable $
               "unable to match empty pattern with inferred type\n" ++ ss)
 

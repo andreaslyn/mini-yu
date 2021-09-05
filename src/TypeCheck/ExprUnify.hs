@@ -48,8 +48,8 @@ tcExprUnify lo t1 t2 = do
       isu <- getExprSubst
       let t1' = substPreTerm isu t1
       let t2' = substPreTerm isu t2
-      s1 <- lift $ preTermToStringT defaultExprIndent t1'
-      s2 <- lift $ preTermToStringT defaultExprIndent t2'
+      s1 <- lift $ preTermToString defaultExprIndent t1'
+      s2 <- lift $ preTermToString defaultExprIndent t2'
       return $
         "expected expression to have type\n"
         ++ s1 ++ "\nbut type is\n" ++ s2
@@ -188,8 +188,8 @@ doExprUnify normalize = \t1 t2 -> do
     eunify2NotVar ar1@(TermArrow io1 d1 c1) ar2@(TermArrow io2 d2 c2) = do
       if io2 && not io1
       then do
-        s1 <- lift $ preTermToStringT defaultExprIndent ar1
-        s2 <- lift $ preTermToStringT defaultExprIndent ar2
+        s1 <- lift $ preTermToString defaultExprIndent ar1
+        s2 <- lift $ preTermToString defaultExprIndent ar2
         throwError $
           "unable to coerce effectful function type\n"
           ++ s2 ++ "\nto regular function type\n" ++ s1
@@ -237,8 +237,8 @@ doExprUnify normalize = \t1 t2 -> do
     eunify2NotVar (TermLazyArrow io1 c1) (TermLazyArrow io2 c2) = do
       if io2 && not io1
       then do
-        s1 <- lift $ preTermToStringT defaultExprIndent (TermLazyArrow io1 c1)
-        s2 <- lift $ preTermToStringT defaultExprIndent (TermLazyArrow io2 c2)
+        s1 <- lift $ preTermToString defaultExprIndent (TermLazyArrow io1 c1)
+        s2 <- lift $ preTermToString defaultExprIndent (TermLazyArrow io2 c2)
         throwError $
             "unable to assign effectful lazy type\n"
             ++ s2 ++ "\nto regular lazy type\n" ++ s1
@@ -250,8 +250,8 @@ doExprUnify normalize = \t1 t2 -> do
         s1 <- eunify2 f1 f2
         if length x1 /= length x2
           then do
-            u1 <- lift $ preTermToStringT defaultExprIndent t1
-            u2 <- lift $ preTermToStringT defaultExprIndent t2
+            u1 <- lift $ preTermToString defaultExprIndent t1
+            u2 <- lift $ preTermToString defaultExprIndent t2
             throwError $
                 "unable to unify\n"
                 ++ u1 ++ "\nwith\n" ++ u2 ++ "\ndifferent arities"
@@ -264,8 +264,8 @@ doExprUnify normalize = \t1 t2 -> do
         s1 <- eunify2 f1 f2
         if length x1 /= length x2
           then do
-            u1 <- lift $ preTermToStringT defaultExprIndent t1
-            u2 <- lift $ preTermToStringT defaultExprIndent t2
+            u1 <- lift $ preTermToString defaultExprIndent t1
+            u2 <- lift $ preTermToString defaultExprIndent t2
             throwError $
               "unable to unify\n"
               ++ u1 ++ "\nwith\n" ++ u2 ++ "\ndifferent implicit arities"
@@ -511,7 +511,7 @@ doExprUnify normalize = \t1 t2 -> do
       -- v1 should not be bound since it is implicit.
       b <- lift (hasBoundVar v1 t2)
       when b $ do
-        s2 <- lift $ preTermToStringT defaultExprIndent t2
+        s2 <- lift $ preTermToString defaultExprIndent t2
         throwError $
           "unable to unify implicit variable "
            ++ quote (varName v1) ++ " with term\n"
@@ -519,7 +519,7 @@ doExprUnify normalize = \t1 t2 -> do
       r <- lift Env.getRefMap
       if IntSet.member (varId v1) (preTermVars r t2)
         then do
-          s2 <- lift $ preTermToStringT defaultExprIndent t2
+          s2 <- lift $ preTermToString defaultExprIndent t2
           throwError $
                 "unable to unify implicit variable "
                 ++ quote (varName v1)
@@ -530,7 +530,7 @@ doExprUnify normalize = \t1 t2 -> do
       -- v2 should not be bound, since it is implicit.
       b <- lift (hasBoundVar v2 t1)
       when b $ do
-        s1 <- lift $ preTermToStringT defaultExprIndent t1
+        s1 <- lift $ preTermToString defaultExprIndent t1
         throwError $
           "unable to unify implicit variable "
            ++ quote (varName v2) ++ " with term\n"
@@ -539,7 +539,7 @@ doExprUnify normalize = \t1 t2 -> do
       r <- lift Env.getRefMap
       if IntSet.member (varId v2) (preTermVars r t1)
         then do
-          s1 <- lift $ preTermToStringT defaultExprIndent t1
+          s1 <- lift $ preTermToString defaultExprIndent t1
           throwError $
             "unable to unify implicit variable "
             ++ quote (varName v2) ++ " with\n"
@@ -557,8 +557,8 @@ doExprUnify normalize = \t1 t2 -> do
     
     throwUnableToUnify :: Monad m => PreTerm -> PreTerm -> ExprUnifResult m
     throwUnableToUnify t1 t2 = do
-      s1 <- lift $ preTermToStringT defaultExprIndent t1
-      s2 <- lift $ preTermToStringT defaultExprIndent t2
+      s1 <- lift $ preTermToString defaultExprIndent t1
+      s2 <- lift $ preTermToString defaultExprIndent t2
       throwError $ "unable to unify\n"
                    ++ s1 ++ "\nwith\n" ++ s2
 

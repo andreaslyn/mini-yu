@@ -15,6 +15,7 @@ module TypeCheck.Env
   , forceInsertGlobal
   , addToGlobals
   , TypeCheck.Env.lookup
+  , getModuleExpandMap
   , tryInsertModuleExpand
   , expandVarName
   , localEnv
@@ -248,6 +249,9 @@ modifyEnv f = modify (\s -> s{env = f (env s)})
 
 putEnv :: Monad m => Env -> EnvT m ()
 putEnv s = modifyEnv (const s)
+
+getModuleExpandMap :: Monad m => EnvT m ModuleExpandMap
+getModuleExpandMap = fmap moduleExpandMap get
 
 tryInsertModuleExpand :: Monad m => VarName -> VarName -> EnvT m Bool
 tryInsertModuleExpand alias mo = do
