@@ -3,8 +3,7 @@ import yu/prelude
 
 
 import N => yu/Nat
-| Nat
-| (...#Nat)
+
 
 val boolToAscii : Bool -> Char
 let true => '1

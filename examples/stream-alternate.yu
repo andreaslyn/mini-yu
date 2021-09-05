@@ -2,10 +2,6 @@ import yu/prelude
 | (...)
 
 import N => yu/Nat
-| (...#Nat.N)
-
-import L => yu/List
-| (...#List.L)
 
 import Stream => yu/Stream
 | Stream

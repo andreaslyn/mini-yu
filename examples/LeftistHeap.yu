@@ -6,8 +6,6 @@ import Ord? => yu/Ordering?
 | (...#Ordering?)
 
 import L => yu/List
-| List
-| (...#List)
 
 import DelayList1 => yu/DelayList1
 | DelayList1

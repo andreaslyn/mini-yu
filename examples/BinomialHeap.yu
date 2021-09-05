@@ -6,8 +6,6 @@ import Ord? => yu/Ordering?
 | (...#Ordering?)
 
 import L => yu/List
-| List
-| (...#List)
 
 
 data BinomialTree : (A : Ty) & Ordering? A -> Ty

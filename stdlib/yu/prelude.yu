@@ -33,6 +33,16 @@ export
 | (@compose#)
 | flip
 
+import yu/Nat
+export
+| Nat
+| (...#Nat)
+
+import yu/List
+export
+| List
+| (...#List)
+
 import yu/Option
 export
 | (...)
@@ -68,6 +78,8 @@ export
 | (...#Char)
 | (...#Option)
 | (...#DProd)
+| (...#Nat)
+| (...#List)
 
 import yu/Str/Format
 export
@@ -79,3 +91,5 @@ export
 | (...#Char)
 | (...#Str)
 | (...#Bool)
+| (...#Nat)
+| (...#List)

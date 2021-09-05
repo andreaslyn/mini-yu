@@ -5,19 +5,15 @@ import yu/parallel
 | parallel'
 
 import L => yu/List
-| List
-| (...#List)
 
 import N => yu/Nat
-| Nat
-| (...#Nat)
+
+import Str => yu/Str
 
 import yu/Lazy
 | Lazy
 | lazy
 | (...#Lazy)
-
-import Str => yu/Str
 
 
 val printResult : Str || {} ->> {}

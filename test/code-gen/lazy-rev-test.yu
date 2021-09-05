@@ -6,8 +6,7 @@ import Stream => yu/Stream
 | (...#Stream)
 
 import N => yu/Nat
-| Nat
-| (...#Nat)
+
 
 val gen-stream : Nat -> [] -> Stream Nat
 let 0.N => 0.N :: nil.Stream

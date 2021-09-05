@@ -2,8 +2,6 @@ import yu/prelude
 | (...)
 
 import L => yu/List
-| List
-| (...#List)
 
 import yu/Ordering?
 | Ordering?

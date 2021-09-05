@@ -11,16 +11,12 @@ import Bin => yu/Bin
 | (...#Bin+)
 
 import N => yu/Nat
-| Nat
-| (...#Nat)
 
 import Ord? => yu/Ordering?
 | Ordering?
 | (...#Ordering?)
 
 import L => yu/List
-| List
-| (...#List)
 
 
 data BinTree : (A : Ty) & Ordering? A -> Ty

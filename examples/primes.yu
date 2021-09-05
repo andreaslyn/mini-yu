@@ -2,12 +2,8 @@ import yu/prelude
 | (...)
 
 import L => yu/List
-| List
-| (...#List)
 
 import N => yu/Nat
-| Nat
-| (...#Nat)
 
 
 val primesLessThan : Nat -> List Nat

@@ -2,11 +2,8 @@ import yu/prelude
 | (...)
 
 import L => yu/List
-| List
-| (...#List)
 
 import N => yu/Nat
-| Nat
 
 
 extern (!#) : Bool ->> Bool

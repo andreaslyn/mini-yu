@@ -15,11 +15,3 @@ export
 | ordering?
 | equivalence?
 \}
-
-import yu/Str/StrStr
-export
-| (...#List)
-
-import yu/print
-export
-| (...#List)

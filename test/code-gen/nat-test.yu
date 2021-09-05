@@ -4,12 +4,9 @@ import yu/prelude
 import S => yu/Str
 
 import N => yu/Nat
-| Nat
-| (...#Nat)
 
 import L => yu/List
-| List
-| (...#List)
+
 
 val plus : Nat & Nat -> Nat
 let m 0.N => m

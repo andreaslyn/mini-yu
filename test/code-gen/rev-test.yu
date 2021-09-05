@@ -2,12 +2,8 @@ import yu/prelude
 | (...)
 
 import N => yu/Nat
-| Nat
-| (...#Nat)
 
 import L => yu/List
-| List
-| (...#List)
 
 
 val gen-list : Nat -> List Nat
