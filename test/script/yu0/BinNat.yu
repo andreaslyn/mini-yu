@@ -4,7 +4,7 @@ import B+ => yu0/BinNat+
 
 import N => yu0/Nat
 | Nat
-| ...#Nat
+| (...#Nat)
 
 data Bin : Ty
 | 0 : Bin

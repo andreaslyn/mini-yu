@@ -1,8 +1,8 @@
 import Bin1 => yu0/Bin1
-| ...
+| (...)
 
 import Prod => yu0/Prod
-| ...
+| (...)
 
 import Empty => yu0/Empty
 

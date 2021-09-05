@@ -1,11 +1,11 @@
 import List => yu0/List
-| ...
+| (...)
 
 import Fun => yu0/Fun
-| ...
+| (...)
 
 import Bool => yu0/Bool
-| ...
+| (...)
 
 import Id => yu0/Id
 | (=#)

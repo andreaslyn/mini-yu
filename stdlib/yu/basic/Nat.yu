@@ -1,9 +1,10 @@
-import "yu/basic/Fun.yu"
+import Fun => yu/basic/Fun
+| const
 
 
 data Nat : Ty
-let 0 : Nat
-let (++_\Nat) : Nat -> Nat
+| 0 : Nat
+| (++#Nat) : Nat -> Nat
 
 
 val 1 : Nat
@@ -37,51 +38,51 @@ val 10 : Nat
 let => ++ 9
 
 
-val _.ind\Nat :
+val (.ind#Nat) :
   (n : Nat) & (P : Nat -> Ty) & ([] -> P 0) & ((x : Nat) & P x -> P (++ x)) -> P n
 let 0 P z _ => z
 let (++ n) P z s => s n (n .ind P z s)
 
-val _.rec\Nat [A : Ty] : Nat & ([] -> A) & (Nat & A -> A) -> A
+val (.rec#Nat) [A : Ty] : Nat & ([] -> A) & (Nat & A -> A) -> A
 let n p0 pi => n .ind (const A) p0 pi
 
 
-val (--_\Nat) : Nat -> Nat
+val (--#Nat) : Nat -> Nat
 let 0 => 0
 let (++ n) => n
 
 
-val _+_\Nat : Nat & Nat -> Nat
+val (+#Nat) : Nat & Nat -> Nat
 let m 0 => m
 let m (++ n) => ++ m + n
 
 
-val _+r_\Nat : Nat & Nat -> Nat
+val (+r#Nat) : Nat & Nat -> Nat
 let m 0 => m
 let m (++ n) => ++ (m +r n)
 
 
-val _+l_\Nat : Nat & Nat -> Nat
+val (+l#Nat) : Nat & Nat -> Nat
 let 0 n => n
 let (++ m) n => ++ (m +l n)
 
 
-val _-_\Nat : Nat & Nat -> Nat
+val (-#Nat) : Nat & Nat -> Nat
 let 0 _ => 0
 let m 0 => m
 let (++ m) (++ n) => m - n
 
 
-val _*_\Nat : Nat & Nat -> Nat
+val (*#Nat) : Nat & Nat -> Nat
 let _ 0 => 0
 let m (++ n) => m * n + m
 
 
-val _*r_\Nat : Nat & Nat -> Nat
+val (*r#Nat) : Nat & Nat -> Nat
 let m 0 => 0
 let m (++ n) => m *r n +r m
 
 
-val _*l_\Nat : Nat & Nat -> Nat
+val (*l#Nat) : Nat & Nat -> Nat
 let 0 n => 0
 let (++ m) n => n +l m *l n

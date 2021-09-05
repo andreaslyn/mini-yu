@@ -1,1 +1,7 @@
-import "yu/Sum/Sum.yu"
+import Sum => yu/Sum/Sum
+export
+| Sum
+| in1
+| in2
+| (||#Ty)
+| (...#Sum)

@@ -120,13 +120,13 @@ parseModuleIntro = do
     importElem :: YuParsec (Loc, String, Bool)
     importElem = do
       _ <- yuKeyTok TokBar
-      (lo, na) <- yuPostfixOpTok <|> parseVarOrOp
+      (lo, na) <- parseVarOrOp
       return (lo, na, False)
 
     exportElem :: YuParsec (Loc, String, Bool)
     exportElem = do
       _ <- yuKeyTok TokBar
-      (lo, na) <- yuPostfixOpTok <|> parseVarOrOp
+      (lo, na) <- parseVarOrOp
       return (lo, na, True)
 
 

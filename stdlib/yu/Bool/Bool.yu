@@ -1,12 +1,19 @@
-import "yu/basic/Bool.yu"
-import "yu/Order/Order.yu"
+import Eq => yu/basic/Equal
+| (=#)
+
+import Bool => yu/basic/Bool
+export
+| (...)
+
+import Ord => yu/Order/Order
+| Order
 
 
-val (?false_\Bool) : Bool -> Ty
+val (?false#Bool) : Bool -> Ty
 let b => b = false
 
 
-val _.cmp\Bool : Bool & Bool -> Order
-let false true => lt.Order
-let true false => gt.Order
-let _ _ => eq.Order
+val (.cmp#Bool) : Bool & Bool -> Order
+let false true => lt.Ord
+let true false => gt.Ord
+let _ _ => eq.Ord

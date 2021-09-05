@@ -2,11 +2,11 @@
 import List => yu0/List
 | List
 | nil
-| ...#List
+| (...#List)
 
 import N => yu0/Nat
 | Nat
-| ...#Nat
+| (...#Nat)
 
 import B => yu0/Bool
 | Bool

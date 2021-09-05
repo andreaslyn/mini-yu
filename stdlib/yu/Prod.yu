@@ -1,1 +1,9 @@
-import "yu/Prod/Prod.yu"
+import DProd => yu/DProd/DProd
+
+import Prod => yu/Prod/Prod
+export
+| ($#)
+| (...#DProd.DProd)
+| pair=
+| (&&#Ty)
+| (<->#Ty)

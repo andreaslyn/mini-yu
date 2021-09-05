@@ -1,1 +1,8 @@
-import "yu/Bool/Bool.yu"
+import Bool => yu/Bool/Bool
+export
+| Bool
+| false
+| true
+| (...#Bool)
+| (...#If.Bool)
+| (...#Then.Bool)

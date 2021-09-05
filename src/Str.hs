@@ -188,8 +188,7 @@ doModuleSplit s0 =
 moduleSplit :: String -> (String, Maybe String)
 moduleSplit ('.' : s) =
   let (x, y) = doModuleSplit s in ('.' : x, y)
-moduleSplit s =
-  doModuleSplit s
+moduleSplit s = doModuleSplit s
 
 operandSplit :: String -> (String, Maybe String)
 operandSplit "" = ("", Nothing)

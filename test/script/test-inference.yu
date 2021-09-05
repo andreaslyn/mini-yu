@@ -11,10 +11,10 @@ import Sigma => yu0/Sigma
 
 import N => yu0/Nat
 | Nat
-| ...#Nat
+| (...#Nat)
 
 import List => yu0/List
-| ...
+| (...)
 
 val id2[A : Ty] : A -> A -> A
 let =>

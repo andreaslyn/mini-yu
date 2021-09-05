@@ -27,7 +27,7 @@ import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import TypeCheck.SubstMap
-import Data.List (find, sortOn, sortBy, isPrefixOf)
+import Data.List (find, sortOn, sortBy, partition, isPrefixOf)
 import Data.Foldable (foldlM, foldrM)
 import System.Directory
   (canonicalizePath, doesFileExist, getPermissions, readable)
@@ -135,9 +135,6 @@ insertUnknownRef subst d = do
   depth <- Env.getDepth
   x <- Env.tryInsert na (StatusUnknownRef subst depth d) (depth == 0)
   verifyMultipleUsesIdent (isJust x) (lo, na)
-  case d of
-    DefData _ _ ctors -> mapM_ (insertUnknownCtor subst (lo, na)) ctors
-    _ -> return ()
 
 insertUnknownVar :: Monad m =>
   SubstMap -> (Loc, VarName) -> VarId -> Maybe Expr -> TypeCheckT m ()
@@ -441,9 +438,38 @@ tcDefsToVars subst defs = do
       ss <- preTermToStringT defaultExprIndent (termPre t)
       error $ "unexpected def term: " ++ ss
 
+insertUnknownDataDefs :: Monad m =>
+  Set VarName -> SubstMap -> [Def] -> TypeCheckT m ()
+insertUnknownDataDefs _ _ [] = return ()
+insertUnknownDataDefs vis subst (d : ds) = do
+  b <- tryInsert `catchError` \ e -> do
+        when (Set.member (defName d) vis) (throwError e)
+        return False
+  if b
+  then insertUnknownDataDefs Set.empty subst ds
+  else insertUnknownDataDefs (Set.insert (defName d) vis) subst (ds ++ [d])
+  where
+    tryInsert :: Monad m => TypeCheckT m Bool
+    tryInsert = do
+      insertUnknownRef subst d
+      return True
+
 tcDefs :: Monad m => SubstMap -> [Def] -> TypeCheckT m [Term]
-tcDefs subst defs =
-  mapM_ (insertUnknownRef subst) defs >> mapM (tcDef subst True) defs
+tcDefs subst defs = do
+  let (dataDefs, otherDefs) = partition isDataDef defs
+  insertUnknownDataDefs Set.empty subst dataDefs
+  mapM_ insertCtors dataDefs
+  mapM_ (insertUnknownRef subst) otherDefs
+  mapM (tcDef subst True) defs
+  where
+    isDataDef :: Def -> Bool
+    isDataDef (DefData _ _ _) = True
+    isDataDef _ = False
+
+    insertCtors :: Monad m => Def -> TypeCheckT m ()
+    insertCtors (DefData _ d cs) =
+      mapM_ (insertUnknownCtor subst (declLoc d, declName d)) cs
+    insertCtors _ = error "expected DefData for inserting ctors"
 
 typeOperandName :: Monad m => PreTerm -> TypeCheckT m (Maybe VarName)
 typeOperandName aty = do
@@ -754,15 +780,35 @@ updateOperandTypeString (nlo, na) (Just ss) = do
   then do
     st <- Env.lookup ss
     case st of
-      Nothing -> err nlo (Fatal $ "cannot find such operand type " ++ quote ss) 
+      Nothing ->
+        err nlo (Fatal $ "cannot find such operand type " ++ quote ss) 
       Just st' -> do
-        vt <- varStatusTerm st'
-        case termPre vt of
-          TermData d -> return (na ++ "#" ++ varName d)
-          _ -> err nlo (Fatal $ "unexpected operand type " ++ quote ss
-                                ++ ", not a data type")
+        case st' of
+          StatusTerm vt ->
+            case termPre vt of
+              TermData d -> return (na ++ "#" ++ varName d)
+              _ -> errorNotData
+          StatusUnknownRef _ _ _ -> addCurrentModule
+          StatusInProgress _ _ -> addCurrentModule
+          StatusUnknownCtor _ _ _ _ -> errorNotData
+          StatusUnknownVar _ _ _ _ _ -> errorNotData
   else
     return (na ++ "#" ++ ss)
+  where
+    errorNotData :: Monad m => TypeCheckT m a
+    errorNotData =
+      err nlo $ Fatal $
+        "unexpected operand type " ++ quote ss ++ ", not a data type"
+
+    addCurrentModule :: Monad m => TypeCheckT m VarName
+    addCurrentModule = do
+      let (s0, s1) = operandSplit ss
+      (_, _, modName) <- ask
+      let s0' = case modName of
+                  "" -> s0
+                  _ -> s0 ++ "." ++ modName
+      let ss' = operandConcatMaybe s0' s1
+      return (na ++ "#" ++ ss')
 
 tcVar :: Monad m => SubstMap -> (Loc, VarName) -> VarId -> Expr -> TypeCheckT m Term
 tcVar subst (lo, na) i e = do
@@ -1689,7 +1735,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
     operandVarNameFromType aty = do
       --im <- lift Env.getImplicitMap
       --rm <- lift Env.getRefMap
-      --let !() = trace (preTermToString im rm 0 aty) ()
+      --let !() = trace (preTermToString False im rm 0 aty) ()
       n <- lift (typeOperandName aty)
       case n of
         Nothing -> unableToInferOperand
@@ -1712,7 +1758,8 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
 
     unableToInferOperand :: Monad m => ExprT m VarName
     unableToInferOperand = do
-      let na0' = na0 ++ "#"
+      na00 <- lift (Env.expandVarName na0)
+      let na0' = na00 ++ "#"
       x <- lift $ Env.lookup na0'
       when (isNothing x)
         (lift $ err lo (Recoverable $

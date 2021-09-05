@@ -1,5 +1,10 @@
-import "yu/basic/Fun.yu"
-import "yu/basic/Equal.yu"
+import Fun => yu/basic/Fun
+| (@compose#)
+| id
+
+import Eq => yu/basic/Equal
+| (=#)
+| refl
 
 
 val idLeftIdentityOp@compose [A : Ty] [B : Ty]

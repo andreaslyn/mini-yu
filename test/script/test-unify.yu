@@ -1,26 +1,26 @@
 import Bin0 => yu0/Bin0
 | Bin0
-| ...#Bin0
+| (...#Bin0)
 
 import Bin1 => yu0/Bin1
 | Bin1
-| ...#Bin1
+| (...#Bin1)
 | bin+
 
 import B1T => yu0/Bin1-theorems
-| ...
+| (...)
 
 import Bool => yu0/Bool
-| ...
+| (...)
 
 import List => yu0/List
-| ...
+| (...)
 
 import Empty => yu0/Empty
-| ...
+| (...)
 
 import Sigma => yu0/Sigma
-| ...
+| (...)
 
 data Reflect : Bool -> Ty
 | reflect : (b : Bool) -> Reflect(b)

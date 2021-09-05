@@ -1,1 +1,3 @@
-import "yu/relation/relation.yu"
+import relation => yu/relation/relation
+export
+| (...#Ty)

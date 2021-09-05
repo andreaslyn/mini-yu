@@ -1,44 +1,49 @@
-import "yu/basic/Empty.yu"
-import "yu/basic/Equal.yu"
-import "yu/Prod/Prod.yu"
-import "yu/Sum/Sum.yu"
+import basic => yu/basic
+| (...)
+
+import Prod => yu/Prod/Prod
+| ($#)
+| (...#Ty)
+
+import Sum => yu/Sum/Sum
+| (...#Ty)
 
 
-val _.IsReflexive\Ty [A : Ty] : (A & A -> Ty) -> Ty
+val (.IsReflexive#Ty) [A : Ty] : (A & A -> Ty) -> Ty
 let R => (x : A) -> R x x
 
 
-val _.IsIrreflexive\Ty [A : Ty] : (A & A -> Ty) -> Ty
+val (.IsIrreflexive#Ty) [A : Ty] : (A & A -> Ty) -> Ty
 let (R) => (x : A) -> ! R x x
 
 
-val _.IsSymmetric\Ty [A : Ty] : (A & A -> Ty) -> Ty
+val (.IsSymmetric#Ty) [A : Ty] : (A & A -> Ty) -> Ty
 let R => (x y : A) & R x y -> R y x
 
 
-val _.IsAsymmetric\Ty [A : Ty] : (A & A -> Ty) -> Ty
+val (.IsAsymmetric#Ty) [A : Ty] : (A & A -> Ty) -> Ty
 let R => (x y : A) & R x y -> ! R y x
 
 
-val _.IsAntisymmetric\Ty [A : Ty] : (A & A -> Ty) -> Ty
+val (.IsAntisymmetric#Ty) [A : Ty] : (A & A -> Ty) -> Ty
 let R => (x y : A) & R x y & R y x -> x = y
 
 
-val _.IsTransitive\Ty [A : Ty] : (A & A -> Ty) -> Ty
+val (.IsTransitive#Ty) [A : Ty] : (A & A -> Ty) -> Ty
 let R => (x y z : A) & R x y & R y z -> R x z
 
 
-val _.IsConnex\Ty [A : Ty] : (A & A -> Ty) -> Ty
+val (.IsConnex#Ty) [A : Ty] : (A & A -> Ty) -> Ty
 let R => (x y : A) -> R x y || R y x
 
 
-val _.IsPreorder\Ty [A : Ty] : (A & A -> Ty) -> Ty
+val (.IsPreorder#Ty) [A : Ty] : (A & A -> Ty) -> Ty
 let R => R .IsReflexive && R .IsTransitive
 
 
-val _.IsEquivalence\Ty [A : Ty] : (A & A -> Ty) -> Ty
+val (.IsEquivalence#Ty) [A : Ty] : (A & A -> Ty) -> Ty
 let R => R .IsSymmetric && R .IsPreorder
 
 
-val _.IsPartialOrder\Ty [A : Ty] : (A & A -> Ty) -> Ty
+val (.IsPartialOrder#Ty) [A : Ty] : (A & A -> Ty) -> Ty
 let R => R .IsAntisymmetric && R .IsPreorder

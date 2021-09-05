@@ -1,18 +1,22 @@
-import "yu/Prod/Prod.yu"
-import "yu/basic/Equal.yu"
+import Prod => yu/Prod/Prod
+| (...)
+
+import Eq => yu/basic/Equal
+| (=#)
+| refl
 
 
-val pairMap.Prod [A B X : Ty] : (X -> A) & (X -> B) -> X -> A && B
+val pairMap [A B X : Ty] : (X -> A) & (X -> B) -> X -> A && B
 let f g => x => f x $ g x
 
 
-val pairMapProperty1.Prod [A B X : Ty]
+val pairMapProperty1 [A B X : Ty]
   : (f : X -> A) & (g : X -> B) -> (x : X) ->
-    pairMap.Prod f g x .1 = f x
+    pairMap f g x .1 = f x
 let _ _ => _ => refl
 
 
-val pairMapProperty2.Prod [A B X : Ty]
+val pairMapProperty2 [A B X : Ty]
   : (f : X -> A) & (g : X -> B) -> (x : X) ->
-    pairMap.Prod f g x .2 = g x
+    pairMap f g x .2 = g x
 let _ _ => _ => refl

@@ -9,9 +9,9 @@ val (!#Ty) : Ty -> Ty
 let A => A -> Empty
 
 
-val _.ind#Empty : (e : Empty) & (P : Empty -> Ty) -> P e
+val (.ind#Empty) : (e : Empty) & (P : Empty -> Ty) -> P e
 let {} _
 
 
-val _.rec#Empty [A : Ty] : Empty -> A
+val (.rec#Empty) [A : Ty] : Empty -> A
 let => _ .ind (const.Fun A)

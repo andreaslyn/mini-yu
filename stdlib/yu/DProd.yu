@@ -1,1 +1,7 @@
-import "yu/DProd/DProd.yu"
+import DProd => yu/DProd/DProd
+export
+| DProd
+| ($#)
+| (&:#Ty)
+| (...#DProd)
+| pair=

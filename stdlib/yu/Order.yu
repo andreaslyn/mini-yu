@@ -1,1 +1,7 @@
-import "yu/Order/Order.yu"
+import Order => yu/Order/Order
+export
+| Order
+| lt
+| eq
+| gt
+| (...#Order)

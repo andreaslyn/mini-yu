@@ -1,13 +1,13 @@
 
 data Sum : Ty & Ty -> Ty
-let in1 [A B : Ty] : A -> A || B
-let in2 [A B : Ty] : B -> A || B
+| in1 [A B : Ty] : A -> A || B
+| in2 [A B : Ty] : B -> A || B
 
 
-val _||_\Ty : Ty & Ty -> Ty
+val (||#Ty) : Ty & Ty -> Ty
 let => Sum
 
 
-val _>>=_\Sum[A B C : Ty] : A || B & (B -> A || C) -> A || C
+val (>>=#Sum) [A B C : Ty] : A || B & (B -> A || C) -> A || C
 let (in1 x) _ => in1 x
 let (in2 y) f => f y

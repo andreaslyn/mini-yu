@@ -1,7 +1,7 @@
 
 import Sigma => yu0/Sigma
 export
-| ...
+| (...)
 
 import Fun => yu0/Fun
 

@@ -1,45 +1,48 @@
-import "yu/basic/Equal.yu"
+import Fun => yu/basic/Fun
+
+import Eq => yu/basic/Equal
+| (=#)
 
 
 data Bool : Ty
-let false : Bool
-let true : Bool
+| false : Bool
+| true : Bool
 
 
-val _.ind\Bool : (b : Bool) & (P : Bool -> Ty) & ([] -> P false) & ([] -> P true) -> P b
+val (.ind#Bool) : (b : Bool) & (P : Bool -> Ty) & ([] -> P false) & ([] -> P true) -> P b
 let false P x _ => x
 let true P _ y => y
 
 
-val _.rec\Bool [A : Ty] : (b : Bool) & ([] -> A) & ([] -> A) -> A
-let b x y => b .ind (const A) x y
+val (.rec#Bool) [A : Ty] : (b : Bool) & ([] -> A) & ([] -> A) -> A
+let b x y => b .ind (const.Fun A) x y
 
 
-val (!_\Bool) : Bool -> Bool
+val (!#Bool) : Bool -> Bool
 let true => false
 let false => true
 
 
-val _||_\Bool : Bool & ([] -> Bool) -> Bool
+val (||#Bool) : Bool & ([] -> Bool) -> Bool
 let true _ => true
 let false b => b
 
 
-val _&&_\Bool : Bool & ([] -> Bool) -> Bool
+val (&&#Bool) : Bool & ([] -> Bool) -> Bool
 let false _ => false
 let true b => b
 
 
-data If.Bool : Ty -> Ty
-let if [A : Ty] : Bool -> If.Bool A
-let _.elif\Then.Bool [A : Ty] : Then.Bool A & ([] -> Bool) -> If.Bool A
+data If : Ty -> Ty
+| if [A : Ty] : Bool -> If A
+| (.elif#Then) [A : Ty] : Then A & ([] -> Bool) -> If A
 
 
-data Then.Bool : Ty -> Ty
-let _.then\If.Bool [A : Ty] : If.Bool A & ([] -> A) -> Then.Bool A
+data Then : Ty -> Ty
+| (.then#If) [A : Ty] : If A & ([] -> A) -> Then A
 
 
-val _.else\Then.Bool [A : Ty] : Then.Bool A & ([] -> A) -> A
+val (.else#Then) [A : Ty] : Then A & ([] -> A) -> A
 let (if true .then f) _ => f
 let (if false .then _) g => g
 let (i .elif b .then f) g =>
@@ -50,5 +53,5 @@ let (i .elif b .then f) g =>
     end
 
 
-val (?_\Bool) : Bool -> Ty
+val (?#Bool) : Bool -> Ty
 let a => a = true

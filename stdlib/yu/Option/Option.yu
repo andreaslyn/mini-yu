@@ -1,29 +1,31 @@
-import "yu/basic/Fun.yu"
-import "yu/Bool/Bool.yu"
+import Fun => yu/basic/Fun
+
+import Bool => yu/Bool/Bool
+| Bool
 
 
 data Option : Ty -> Ty
-let no [A : Ty] : ? A
-let yes [A : Ty] : A -> ? A
+| no [A : Ty] : ? A
+| yes [A : Ty] : A -> ? A
 
 
-val (?_\Ty) : Ty -> Ty
+val (?#Ty) : Ty -> Ty
 let => Option
 
 
-val _.isNo\Option [A : Ty] : ? A -> Bool
-let (no) => true
-let (yes(_)) => false
+val (.isNo#Option) [A : Ty] : ? A -> Bool
+let (no) => true.Bool
+let (yes(_)) => false.Bool
 
 
-val _.isYes\Option [A : Ty] : ? A -> Bool
-let => (!_) @compose _.isNo\Option
+val (.isYes#Option) [A : Ty] : ? A -> Bool
+let => (!.Bool) @compose.Fun (.isNo#Option)
 
 
-val _>>=_\Option [A B : Ty] : ? A & (A -> ? B) -> ? B
+val (>>=#Option) [A B : Ty] : ? A & (A -> ? B) -> ? B
 let no _ => no
 let (yes a) f => f a
 
 
-val _.map\Option [A B : Ty] : ? A & (A -> B) -> ? B
-let x f => x >>= yes @compose f
+val (.map#Option) [A B : Ty] : ? A & (A -> B) -> ? B
+let x f => x >>= yes @compose.Fun f

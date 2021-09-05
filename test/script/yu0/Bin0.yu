@@ -3,10 +3,10 @@ import Bin1 => yu0/Bin1
 | Bin1
 
 import Empty => yu0/Empty
-| ...
+| (...)
 
 import Fun => yu0/Fun
-| ...
+| (...)
 
 
 data Bin0 : Ty

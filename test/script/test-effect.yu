@@ -6,7 +6,7 @@ import S => yu/Str
 
 import print => yu/print/print
 | (.print#Char)
-| ...#Str
+| (...#Str)
 
 val main : {} ->> {}
 let () =>

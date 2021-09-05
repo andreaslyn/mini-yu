@@ -1,37 +1,41 @@
-import "yu/Order.yu"
+import Order => yu/Order/Order
+| (...)
+
+import basic => yu/basic
+| (...)
 
 
-val _.notLtIsEqOrGt\Order : (c : Order) -> ! c .lt? = c .eq? || c .gt?
-let lt.Order => refl
-let eq.Order => refl
-let gt.Order => refl
+val (.notLtIsEqOrGt#Order) : (c : Order) -> ! c .lt? = c .eq? || c .gt?
+let lt => refl
+let eq => refl
+let gt => refl
 
 
-val _.notEqIsLtOrGt\Order : (c : Order) -> ! c .eq? = c .lt? || c .gt?
-let lt.Order => refl
-let eq.Order => refl
-let gt.Order => refl
+val (.notEqIsLtOrGt#Order) : (c : Order) -> ! c .eq? = c .lt? || c .gt?
+let lt => refl
+let eq => refl
+let gt => refl
 
 
-val _.notGtIsLtOrEq\Order : (c : Order) -> ! c .gt? = c .lt? || c .eq?
-let lt.Order => refl
-let eq.Order => refl
-let gt.Order => refl
+val (.notGtIsLtOrEq#Order) : (c : Order) -> ! c .gt? = c .lt? || c .eq?
+let lt => refl
+let eq => refl
+let gt => refl
 
 
-val _.lt?ToOp=\Order : (c : Order) & ? c .lt? -> c = lt.Order
-let lt.Order _ => refl
-let eq.Order {}
-let gt.Order {}
+val (.lt?ToOp=#Order) : (c : Order) & ? c .lt? -> c = lt
+let lt _ => refl
+let eq {}
+let gt {}
 
 
-val _.eq?ToOp=\Order : (c : Order) & ? c .eq? -> c = eq.Order
-let lt.Order {}
-let eq.Order _ => refl
-let gt.Order {}
+val (.eq?ToOp=#Order) : (c : Order) & ? c .eq? -> c = eq
+let lt {}
+let eq _ => refl
+let gt {}
 
 
-val _.gt?ToOp=\Order : (c : Order) & ? c .gt? -> c = gt.Order
-let lt.Order {}
-let eq.Order {}
-let gt.Order _ => refl
+val (.gt?ToOp=#Order) : (c : Order) & ? c .gt? -> c = gt
+let lt {}
+let eq {}
+let gt _ => refl

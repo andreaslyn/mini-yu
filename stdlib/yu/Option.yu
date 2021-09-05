@@ -1,1 +1,7 @@
-import "yu/Option/Option.yu"
+import Option => yu/Option/Option
+export
+| Option
+| no
+| yes
+| (...#Option)
+| (?#Ty)

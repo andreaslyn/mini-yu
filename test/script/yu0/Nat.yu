@@ -11,10 +11,10 @@ import Empty => yu0/Empty
 | not
 
 import Pr => yu0/Prod
-| ...
+| (...)
 
 import B => yu0/Bool
-| ...#Bool
+| (...#Bool)
 | Bool
 
 data Nat : Ty

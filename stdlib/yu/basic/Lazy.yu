@@ -1,8 +1,8 @@
 
 
 data Lazy : Ty -> Ty
-let lazy [A : Ty] : ([] -> A) -> Lazy A
+| lazy [A : Ty] : ([] -> A) -> Lazy A
 
 
-val _.force\Lazy [A : Ty] : Lazy A -> A
+val (.force#Lazy) [A : Ty] : Lazy A -> A
 let (lazy a) => a
