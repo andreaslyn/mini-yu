@@ -54,9 +54,3 @@ export
 | 8
 | 9
 | 10
-
-import yu/basic/Lazy
-export
-| Lazy
-| lazy
-| (...#Lazy)

@@ -1,10 +1,18 @@
-import "yu/prelude.yu"
-import "yu/Ordering?.yu"
+import yu/prelude
+| (...)
+
+import L => yu/List
+| List
+| (...#List)
+
+import yu/Ordering?
+| Ordering?
+| (...#Ordering?)
 
 
-val.. _.quicksort\List[A : Ty] : List A & Ordering? A -> List A
-let nil _ => nil
+val.. (.quicksort#List)[A : Ty] : List A & Ordering? A -> List A
+let nil.L _ => nil.L
 let (x :: xs) cmp =>
   xs .filter (cmp .lt? _ x) .quicksort cmp
-  :+: (x :: nil)
+  :+: (x :: nil.L)
   :+: xs .filter (cmp .ge? _ x) .quicksort cmp

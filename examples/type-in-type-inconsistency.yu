@@ -1,40 +1,41 @@
-#{
-## Short proof of type-in-type inconsistency.
-##
-## This code was originally written by Torsten Altenkirch in Agda,
-## http://www.cs.nott.ac.uk/~psztxa/g53cfr/l20.html/l20.html.
-## I have rewritten the code in Yu syntax.
-#}
+\{
+\\ Short proof of type-in-type inconsistency.
+\\
+\\ This code was originally written by Torsten Altenkirch in Agda,
+\\ http://www.cs.nott.ac.uk/~psztxa/g53cfr/l20.html/l20.html.
+\\ I have rewritten the code in Yu syntax.
+\}
 
-import "yu/prelude.yu"
+import yu/prelude
+| (...)
 
 
 data M : Ty
-let m.M : (I : Ty) & (I -> M) -> M
+| m : (I : Ty) & (I -> M) -> M
 
 
-val 0.M : M
-let => m.M Empty _.rec
+val 0 : M
+let => m Empty (.rec)
 
 
-val 1.M : M
-let => m.M {} (const 0.M)
+val 1 : M
+let => m {} (const 0)
 
 
-val 2.M : M
-let => m.M Bool of b => if b .then 0.M .else 1.M
+val 2 : M
+let => m Bool of b => if b .then 0 .else 1
 
 
-val _<-_\M : M & M -> Ty
-let a (m.M I f) => &: ((i : I) => a = f i)
+val (<-#M) : M & M -> Ty
+let a (m I f) => &: ((i : I) => a = f i)
 
 
-val _<!_\M : M & M -> Ty
+val (<!#M) : M & M -> Ty
 let a b => ! (a <- b)
 
 
 val R : M
-let => m.M (&: of (a : M) => a <! a) _.1
+let => m (&: of (a : M) => a <! a) (.1)
 
 
 val lem-1 [X : M] : X <- R -> X <! X

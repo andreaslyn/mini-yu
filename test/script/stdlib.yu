@@ -54,7 +54,6 @@ import yu/Nat/Nat
 import yu/Nat/theorems
 import yu/undefined/undefined
 import yu/basic/Equal
-import yu/basic/Lazy
 import yu/basic/List
 import yu/basic/Bool
 import yu/basic/Nat
@@ -69,6 +68,7 @@ import yu/Option/Option
 import yu/HVec/HVec
 import yu/relation?
 import yu/undefined
+import yu/Lazy
 import yu/Str/Str
 import yu/Str/StrStr
 import yu/Str/Format

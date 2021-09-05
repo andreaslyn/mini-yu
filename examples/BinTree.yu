@@ -1,31 +1,48 @@
-import "yu/prelude.yu"
-import "yu/Bin.yu"
+import yu/prelude
+| (...)
+
+import Bin+ => yu/Bin+
+| Bin+
+| (...#Bin+)
+
+import Bin => yu/Bin
+| Bin
+| (...#Bin)
+| (...#Bin+)
+
+import N => yu/Nat
+| Nat
+| (...#Nat)
+
+import Ord? => yu/Ordering?
+| Ordering?
+| (...#Ordering?)
+
+import L => yu/List
+| List
+| (...#List)
 
 
 data BinTree : (A : Ty) & Ordering? A -> Ty
-let leaf.BinTree [A : Ty] [od : Ordering? A] : BinTree A od
-let _.node\BinTree [A : Ty] [od : Ordering? A] :
+| leaf [A : Ty] [od : Ordering? A] : BinTree A od
+| (.node#BinTree) [A : Ty] [od : Ordering? A] :
   BinTree A od & A & BinTree A od -> BinTree A od
 
 
-val empty.BinTree [A : Ty] [od : Ordering? A] : BinTree A od
-let => leaf.BinTree
-
-
-val _.member\BinTree [A : Ty] [od : Ordering? A] : BinTree A od & A -> Bool
+val (.member#BinTree) [A : Ty] [od : Ordering? A] : BinTree A od & A -> Bool
 let t0 a => member t0 no
 where
-  ## member t candidate: the invariant is
-  ## if candicate = yes c then e > c, for any member e of t.
+  \\ member t candidate: the invariant is
+  \\ if candicate = yes c then e > c, for any member e of t.
   val member : BinTree A od & ? A -> Bool
-  let leaf.BinTree no => false
-  let leaf.BinTree (yes x) => od .eq? a x
+  let leaf no => false
+  let leaf (yes x) => od .eq? a x
   let (l .node x r) candidate =>
     if (od .lt? a x) .then (member l candidate) .else (member r (yes x))
 end
 
 
-val _.insert\BinTree [A : Ty] [od : Ordering? A] :
+val (.insert#BinTree) [A : Ty] [od : Ordering? A] :
   BinTree A od & A -> BinTree A od
 let t0 a =>
   case insert t0 no
@@ -34,13 +51,13 @@ let t0 a =>
   end
 where
   val newNode : ? BinTree A od
-  let => yes (leaf.BinTree .node a leaf.BinTree)
+  let => yes (leaf .node a leaf)
 
-  ## insert t candidate: the invariant is
-  ## if candicate = yes c then e > c, for any member e of t.
+  \\ insert t candidate: the invariant is
+  \\ if candicate = yes c then e > c, for any member e of t.
   val insert : BinTree A od & ? A -> ? BinTree A od
-  let leaf.BinTree no => newNode
-  let leaf.BinTree (yes x) => if (od .eq? a x) .then no .else newNode
+  let leaf no => newNode
+  let leaf (yes x) => if (od .eq? a x) .then no .else newNode
   let (l .node x r) candidate =>
     if (od .lt? a x)
     .then (insert l candidate >>= of l => yes (l .node x r))
@@ -48,60 +65,60 @@ where
 end
 
 
-val fromList.BinTree [A : Ty] [od : Ordering? A] : List A -> BinTree A od
-let nil => empty.BinTree
-let (x :: xs) => fromList.BinTree xs .insert x
+val fromList [A : Ty] [od : Ordering? A] : List A -> BinTree A od
+let nil.L => leaf
+let (x :: xs) => fromList xs .insert x
 
 
 val test1 :
-  ? fromList.BinTree [od := ordering?.Nat] (0 :: 0 :: 1 :: 2 :: 3 :: nil) .member 1
+  ? fromList [od := ordering?.N] (0.N :: 0.N :: 1.N :: 2.N :: 3.N :: nil.L) .member 1.N
 let => refl
 
 
 val test2 :
-  ? fromList.BinTree [od := ordering?.Nat] (3 :: 5 :: 2 :: 1 :: 0 :: 2 :: nil) .member 1
+  ? fromList [od := ordering?.N] (3.N :: 5.N :: 2.N :: 1.N :: 0.N :: 2.N :: nil.L) .member 1.N
 let => refl
 
 
 val test3 :
-  ? fromList.BinTree [od := ordering?.Nat] (1 :: 1 :: 1 :: nil) .member 1
+  ? fromList [od := ordering?.N] (1.N :: 1.N :: 1.N :: nil.L) .member 1.N
 let => refl
 
 
 val test4 :
-  ? ! fromList.BinTree [od := ordering?.Nat] (2 :: 0 :: 3 :: nil) .member 1
+  ? ! fromList [od := ordering?.N] (2.N :: 0.N :: 3.N :: nil.L) .member 1.N
 let => refl
 
 
-val completeDepth.BinBag [A : Ty] [od : Ordering? A] :
+val completeDepth [A : Ty] [od : Ordering? A] :
   Nat & A -> BinTree A od
 let depth a => complete depth
 where
   val complete : Nat -> BinTree A od
-  let 0 => leaf.BinTree
+  let 0.N => leaf
   let (++ n) => complete n .node a (complete n)
 end
 
 
-val completeSize.Bag [A : Ty] [od : Ordering? A] : Bin & A -> BinTree A od
+val completeSize [A : Ty] [od : Ordering? A] : Bin & A -> BinTree A od
 let size a => create2 size .1
 where
   val.. create2 : Bin -> BinTree A od && BinTree A od
-  let 0.Bin => leaf.BinTree $ leaf.BinTree .node a leaf.BinTree
+  let 0.Bin => leaf $ leaf .node a leaf
   let (1.Bin+ .inBin) =>
-    n := leaf.BinTree .node a leaf.BinTree;
-    n $ n .node a leaf.BinTree
-  let (n) => ## n >= 2
-    q $ r := n .divmod2;  ## n = 2q + r and q >= 1
+    n := leaf .node a leaf;
+    n $ n .node a leaf
+  let (n) => \\ n >= 2.N
+    q $ r := n .divmod2;  \\ n = 2q + r and q >= 1.N
     if r
     .then (
-      t1 $ t2 := create2 q;    ## size t1 = q and size t2 = q + 1
-      ## a tree of size n = 2q + 1 and a tree of size n + 1 = 2q + 2:
+      t1 $ t2 := create2 q;    \\ size t1 = q and size t2 = q + 1.N
+      \\ a tree of size n = 2q + 1.N and a tree of size n + 1.N = 2q + 2:
       t1 .node a t1 $ t2 .node a t1
     )
     .else (
-      t0 $ t1 := create2 (-- q); ## size t0 = q and size t1 = q
-      ## a tree of size n = 2q and a tree of size n + 1 = 2q + 1:
+      t0 $ t1 := create2 (-- q); \\ size t0 = q and size t1 = q
+      \\ a tree of size n = 2q and a tree of size n + 1.N = 2q + 1:
       t1 .node a t0 $ t1 .node a t1
     )
 end

@@ -1,4 +1,4 @@
-import Lazy => yu/basic/Lazy
+import Lazy => yu/Lazy
 | Lazy
 | lazy
 

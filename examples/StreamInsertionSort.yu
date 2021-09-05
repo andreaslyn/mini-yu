@@ -1,8 +1,18 @@
-import "yu/Stream.yu"
-import "yu/Ordering?.yu"
+import yu/prelude
+| (...)
+
+import Stream => yu/Stream
+| Stream
+| (...#Stream)
+
+import Ord? => yu/Ordering?
+| Ordering?
+| (...#Ordering?)
+
+import N => yu/Nat
 
 
-val _.insertionSort\Stream[A : Ty] : Stream A & Ordering? A -> Stream A
+val (.insertionSort#Stream) [A : Ty] : Stream A & Ordering? A -> Stream A
 let xs od => xs .fold nil.Stream insert
 where
   val insert : A & Stream A -> Stream A
@@ -13,7 +23,7 @@ end
 
 
 val test : of
-  a := 3 :: 2 :: 5 :: 3 :: 1 :: nil.Stream;
-  b := 1 :: 2 :: 3 :: 3 :: 5 :: nil.Stream;
-  a .insertionSort ordering?.Nat = b
+  a := 3.N :: 2.N :: 5.N :: 3.N :: 1.N :: nil.Stream;
+  b := 1.N :: 2.N :: 3.N :: 3.N :: 5.N :: nil.Stream;
+  a .insertionSort ordering?.N = b
 let => refl

@@ -12,7 +12,7 @@ import N => yu/Nat
 | Nat
 | (...#Nat)
 
-import yu/basic/Lazy
+import yu/Lazy
 | Lazy
 | lazy
 | (...#Lazy)

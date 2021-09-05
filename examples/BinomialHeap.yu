@@ -1,77 +1,86 @@
-import "yu/prelude.yu"
+import yu/prelude
+| (...)
+
+import Ord? => yu/Ordering?
+| Ordering?
+| (...#Ordering?)
+
+import L => yu/List
+| List
+| (...#List)
 
 
 data BinomialTree : (A : Ty) & Ordering? A -> Ty
-let node.BinomialTree [A : Ty] [od : Ordering? A] :
+| node [A : Ty] [od : Ordering? A] :
   A & List (BinomialTree A od) -> BinomialTree A od
 
 
-val _.root\BinomialTree [A : Ty] [od : Ordering? A] :
+val (.root#BinomialTree) [A : Ty] [od : Ordering? A] :
   BinomialTree A od -> A
-let (node.BinomialTree x _) => x
+let (node x _) => x
 
 
-val _.link\BinomialTree [A : Ty] [od : Ordering? A] :
+val (.link#BinomialTree) [A : Ty] [od : Ordering? A] :
   BinomialTree A od & BinomialTree A od -> BinomialTree A od
-let (node.BinomialTree x1 c1) (node.BinomialTree x2 c2) =>
+let (node x1 c1) (node x2 c2) =>
   if (od .le? x1 x2)
-  .then (node.BinomialTree x1 (node.BinomialTree x2 c2 :: c1))
-  .else (node.BinomialTree x2 (node.BinomialTree x1 c1 :: c2))
+  .then (node x1 (node x2 c2 :: c1))
+  .else (node x2 (node x1 c1 :: c2))
 
 
 data BinomialHeap : (A : Ty) & Ordering? A -> Ty
-let mk.BinomialHeap [A : Ty] [od : Ordering? A] :
+| mk [A : Ty] [od : Ordering? A] :
   List (BinomialTree A od) -> BinomialHeap A od
 
 
-val _<rank_\BinomialTree [A : Ty] [od : Ordering? A] :
+val (<rank#BinomialTree) [A : Ty] [od : Ordering? A] :
   BinomialTree A od & BinomialTree A od -> Bool
-let (node.BinomialTree _ nil) _ => false
-let _ (node.BinomialTree _ nil) => true
-let (node.BinomialTree _ (t1 :: _)) (node.BinomialTree _ (t2 :: _)) =>
+let (node _ nil.L) _ => false
+let _ (node _ nil.L) => true
+let (node _ (t1 :: _)) (node _ (t2 :: _)) =>
   t1 <rank t2
 
 
-val _.insert\BinomialTree [A : Ty] [od : Ordering? A] :
+val (.insert#BinomialTree) [A : Ty] [od : Ordering? A] :
   BinomialTree A od & List (BinomialTree A od) -> List (BinomialTree A od)
-let t nil => t :: nil
+let t nil.L => t :: nil.L
 let t1 (t2 :: ts) =>
   if (t1 <rank t2)
   .then (t1 :: t2 :: ts)
   .else (t1 .link t2 .insert ts)
 
 
-val _.insert\BinomialHeap [A : Ty] [od : Ordering? A] :
+val (.insert#BinomialHeap) [A : Ty] [od : Ordering? A] :
   BinomialHeap A od & A -> BinomialHeap A od
-let (mk.BinomialHeap ts) x =>
-  mk.BinomialHeap (node.BinomialTree x nil .insert ts)
+let (mk ts) x =>
+  mk (node x nil.L .insert ts)
 
 
-val merge.BinomialTree [A : Ty] [od : Ordering? A] :
+val merge [A : Ty] [od : Ordering? A] :
   List (BinomialTree A od) & List (BinomialTree A od) ->
   List (BinomialTree A od)
-let ts1 nil => ts1
-let nil ts2 => ts2
+let ts1 nil.L => ts1
+let nil.L ts2 => ts2
 let (t1 :: ts1) (t2 :: ts2) =>
-  if (t1 <rank t2) .then (t1 :: merge.BinomialTree ts1 (t2 :: ts2))
-  .elif (t2 <rank t1) .then (t2 :: merge.BinomialTree (t1 :: ts1) ts2)
-  .else (t1 .link t2 .insert (merge.BinomialTree ts1 ts2))
+  if (t1 <rank t2) .then (t1 :: merge ts1 (t2 :: ts2))
+  .elif (t2 <rank t1) .then (t2 :: merge (t1 :: ts1) ts2)
+  .else (t1 .link t2 .insert (merge ts1 ts2))
 
 
-val _.merge\BinomialHeap [A : Ty] [od : Ordering? A] :
+val (.merge#BinomialHeap) [A : Ty] [od : Ordering? A] :
   BinomialHeap A od & BinomialHeap A od -> BinomialHeap A od
-let (mk.BinomialHeap ts1) (mk.BinomialHeap ts2) =>
-  mk.BinomialHeap (merge.BinomialTree ts1 ts2)
+let (mk ts1) (mk ts2) =>
+  mk (merge ts1 ts2)
 
 
-val deleteMin.BinomialTree [A : Ty] [od : Ordering? A] :
+val deleteMin [A : Ty] [od : Ordering? A] :
   (ts : List of BinomialTree A od) ->
-  (ts = nil [A := BinomialTree A od]) ||
+  (ts = nil.L [A := BinomialTree A od]) ||
   BinomialTree A od && List (BinomialTree A od)
-let nil => in1(refl)
+let nil.L => in1(refl)
 let (t1 :: ts1) =>
-  case deleteMin.BinomialTree ts1
-  | in1 refl => in2 (t1 $ nil)
+  case deleteMin ts1
+  | in1 refl => in2 (t1 $ nil.L)
   | in2 (t2 $ ts2) =>
     if (od .le? (t1 .root) (t2 .root))
     .then (in2 (t1 $ ts1))
@@ -79,11 +88,11 @@ let (t1 :: ts1) =>
   end
 
 
-val _.deleteMin\BinomialHeap [A : Ty] [od : Ordering? A] :
+val (.deleteMin#BinomialHeap) [A : Ty] [od : Ordering? A] :
   BinomialHeap A od -> BinomialHeap A od
-let (mk.BinomialHeap ts) =>
-  case deleteMin.BinomialTree ts
-  | in1 refl => mk.BinomialHeap nil
-  | in2 (node.BinomialTree _ ts1 $ ts2) => 
-    mk.BinomialHeap (merge.BinomialTree (ts1 .rev) ts2)
+let (mk ts) =>
+  case deleteMin ts
+  | in1 refl => mk nil.L
+  | in2 (node _ ts1 $ ts2) => 
+    mk (merge (ts1 .rev) ts2)
   end

@@ -1,5 +1,15 @@
-import "yu/prelude.yu"
-import "yu/Stream.yu"
+import yu/prelude
+| (...)
+
+import N => yu/Nat
+| (...#Nat.N)
+
+import L => yu/List
+| (...#List.L)
+
+import Stream => yu/Stream
+| Stream
+| (...#Stream)
 
 
 val alternate [A : Ty] : A & A -> Stream A
@@ -15,4 +25,4 @@ end
 
 val main : {} ->> {}
 let () =>
-  alternate 0 1 .takeList! 10 .str _.str ", " .println
+  alternate 0.N 1.N .takeList! 10.N .str (.str) ", " .println
