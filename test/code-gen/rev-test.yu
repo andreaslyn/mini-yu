@@ -1,50 +1,59 @@
-import "yu/prelude/prelude.yu"
+import yu/prelude
+| (...)
+
+import N => yu/Nat
+| Nat
+| (...#Nat)
+
+import L => yu/List
+| List
+| (...#List)
 
 
 val gen-list : Nat -> List Nat
-let 0 => 0 :: nil
+let 0.N => 0.N :: nil.L
 let (++ n) => ++ n :: gen-list n
 
 val 100 : Nat
-let => 10 * 10
+let => 10.N * 10.N
 
 val 1000 : Nat
-let => 100 * 10
+let => 100 * 10.N
 
 val 10000 : Nat
-let => 1000 * 10
+let => 1000 * 10.N
 
 val 100000 : Nat
-let => 10000 * 10
+let => 10000 * 10.N
 
 val 1000000 : Nat
-let => 100000 * 10
+let => 100000 * 10.N
 
 val 10000000 : Nat
-let => 1000000 * 10
+let => 1000000 * 10.N
 
 val listFirstAndLast : List Nat -> Nat && Nat
-let nil => 0 $ 0
-let (x :: nil) => x $ x
+let nil.L => 0.N $ 0.N
+let (x :: nil.L) => x $ x
 let (x :: xs) => x $ listlast xs
 where
   val listlast : List Nat -> Nat
-  let nil => 0
-  let (x :: nil) => x
+  let nil.L => 0.N
+  let (x :: nil.L) => x
   let (_ :: xs) => listlast xs
 end
 
 val reverse [A : Ty] : List A -> List A
-let xs => xs .accum nil of a x => x :: a
+let xs => xs .accum nil.L of a x => x :: a
 
 val reverse' [A : Ty] : List A -> List A
-let => aux0 nil
+let => aux0 nil.L
 where
   val aux0 : List A -> List A -> List A
   let a => aux a _
 
   val aux : List A & List A -> List A
-  let a nil => a
+  let a nil.L => a
   let a (x :: xs) => aux (x :: a) xs
 end
 
@@ -52,14 +61,14 @@ val main : {} ->> {}
 let () =>
   xs := gen-list 10000000;
   case listFirstAndLast(reverse'(reverse'(xs)))
-  | 0 $ 0 => "0" .println
-  | _ $ 0 => "1" .println
-  | 0 $ _ => "2" .println
+  | 0.N $ 0.N => "0.N" .println
+  | _ $ 0.N => "1" .println
+  | 0.N $ _ => "2" .println
   | _ $ _ => "3" .println
   end;
   case listFirstAndLast(reverse(reverse(xs)))
-  | 0 $ 0 => "0" .println
-  | _ $ 0 => "1" .println
-  | 0 $ _ => "2" .println
+  | 0.N $ 0.N => "0.N" .println
+  | _ $ 0.N => "1" .println
+  | 0.N $ _ => "2" .println
   | _ $ _ => "3" .println
   end

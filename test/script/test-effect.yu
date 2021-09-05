@@ -1,4 +1,4 @@
-import base => yu/base
+import yu/prelude
 | (...)
 
 val main : {} ->> {}

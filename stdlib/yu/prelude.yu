@@ -60,9 +60,6 @@ export
 import yu/Str/Str
 export
 | Str
-| mk
-| nil
-| one
 | (...#Str)
 
 import yu/Str/StrStr

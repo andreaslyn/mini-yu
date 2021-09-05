@@ -1,8 +1,9 @@
-import "yu/prelude/prelude.yu"
+import yu/prelude
+| (...)
 
 data LNat : Ty
-let zero : LNat
-let succ : ([] -> LNat) -> LNat
+| zero : LNat
+| succ : ([] -> LNat) -> LNat
 
 val L1 : LNat
 let => succ zero

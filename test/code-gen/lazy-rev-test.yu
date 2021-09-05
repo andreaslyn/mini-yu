@@ -1,29 +1,38 @@
-import "yu/prelude/prelude.yu"
+import yu/prelude
+| (...)
+
+import Stream => yu/Stream
+| Stream
+| (...#Stream)
+
+import N => yu/Nat
+| Nat
+| (...#Nat)
 
 val gen-stream : Nat -> [] -> Stream Nat
-let 0 => 0 :: nil.Stream
+let 0.N => 0.N :: nil.Stream
 let (++ n) => ++ n :: gen-stream n
 
 val 100 : Nat
-let => 10 * 10
+let => 10.N * 10.N
 
 val 1000 : Nat
-let => 100 * 10
+let => 100 * 10.N
 
 val 10000 : Nat
-let => 1000 * 10
+let => 1000 * 10.N
 
 val 100000 : Nat
-let => 10000 * 10
+let => 10000 * 10.N
 
 val 1000000 : Nat
-let => 100000 * 10
+let => 100000 * 10.N
 
 val 3000000 : Nat
-let => 1000000 * 3
+let => 1000000 * 3.N
 
 val streamFirstAndLast' : Stream Nat -> Nat && Nat
-let nil.Stream => 0 $ 0
+let nil.Stream => 0.N $ 0.N
 let (x :: xs) =>
   case xs []
   | nil.Stream => x $ x
@@ -31,7 +40,7 @@ let (x :: xs) =>
   end
 where
   val streamLast : Stream Nat -> Nat
-  let nil.Stream => 0
+  let nil.Stream => 0.N
   let (x :: xs) =>
     case xs []
     | nil.Stream => x
@@ -60,14 +69,14 @@ val main : {} ->> {}
 let () =>
   xs := gen-stream 1000000;
   case streamFirstAndLast (sreverse' (sreverse' xs))
-  | 0 $ 0 => "0" .println
-  | _ $ 0 => "1" .println
-  | 0 $ _ => "2" .println
+  | 0.N $ 0.N => "0" .println
+  | _ $ 0.N => "1" .println
+  | 0.N $ _ => "2" .println
   | _ $ _ => "3" .println
   end;
   case streamFirstAndLast (sreverse (sreverse xs))
-  | 0 $ 0 => "0" .println
-  | _ $ 0 => "1" .println
-  | 0 $ _ => "2" .println
+  | 0.N $ 0.N => "0" .println
+  | _ $ 0.N => "1" .println
+  | 0.N $ _ => "2" .println
   | _ $ _ => "3" .println
   end

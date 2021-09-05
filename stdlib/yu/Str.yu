@@ -37,7 +37,9 @@ import yu/Str/Format
 export
 | (...#Str)
 
+\{
 import yu/Str/theorems
 export
 | ordering?
 | equivalence?
+\}

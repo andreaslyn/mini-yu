@@ -9,10 +9,12 @@ export
 | here
 | (...#.Has#List)
 
+\{
 import yu/List/theorems
 export
 | ordering?
 | equivalence?
+\}
 
 import yu/Str/StrStr
 export

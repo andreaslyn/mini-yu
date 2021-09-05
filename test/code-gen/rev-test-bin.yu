@@ -1,42 +1,51 @@
-import "yu/prelude/prelude.yu"
-import "yu/Bin/Bin.yu"
+import yu/prelude
+| (...)
+
+import L => yu/List
+| List
+| (...#List)
+
+import Bin => yu/Bin
+| Bin
+| (...#Bin)
+
 
 val gen-list : Bin -> List Bin
-let b => b .rec (0.Bin :: nil) of b x => ++ b :: x
+let b => b .rec (0.Bin :: nil.L) of b x => ++ b :: x
 
-val 100.Bin : Bin
+val 100 : Bin
 let => 10.Bin * 10.Bin
 
-val 1000.Bin : Bin
-let => 100.Bin * 10.Bin
+val 1000 : Bin
+let => 100 * 10.Bin
 
-val 10000.Bin : Bin
-let => 1000.Bin * 10.Bin
+val 10000 : Bin
+let => 1000 * 10.Bin
 
-val 100000.Bin : Bin
-let => 10000.Bin * 10.Bin
+val 100000 : Bin
+let => 10000 * 10.Bin
 
-val 1000000.Bin : Bin
-let => 100000.Bin * 10.Bin
+val 1000000 : Bin
+let => 100000 * 10.Bin
 
 val rev [A : Ty] : List A -> List A
-let xs => xs .accum nil of a x => x :: a
+let xs => xs .accum nil.L of a x => x :: a
 
 val rev' [A : Ty] : List A -> List A
-let => aux0 nil
+let => aux0 nil.L
 where
   val aux0 : List A -> List A -> List A
   let a => xs => aux a xs
 
   val aux : List A & List A -> List A
-  let a nil => a
+  let a nil.L => a
   let a (x :: xs) => aux (x :: a) xs
 end
 
 val main : {} ->> {}
 let () =>
-  xs := gen-list 1000000.Bin;
+  xs := gen-list 1000000;
   case rev' (rev' xs)
-  | nil => "0" .println
+  | nil.L => "0" .println
   | _ => "1" .println
   end

@@ -117,7 +117,7 @@ static struct yur_PThread *mk_yur_pthread(yur_Ref *f)
 }
 
 // (A : Ty) & (f : {} ->> A) -> Lazy (Str || A)
-yur_Ref *yu_parallel_si_doparallel(yur_Ref *f, yur_Ref *A) {
+yur_Ref *yu_parallelAxiom_si_doyu_slparallel_slparallel(yur_Ref *f, yur_Ref *A) {
   yur_unref(A);
   struct yur_PThread *x = mk_yur_pthread(f);
   yur_inc((yur_Ref *) x);
@@ -130,6 +130,6 @@ yur_Ref *yu_parallel_si_doparallel(yur_Ref *f, yur_Ref *A) {
   return mk_lazy_success(x);
 }
 
-yur_Ref *yu_parallel_doparallel(yur_Ref *f, yur_Ref *A) {
-  return yu_parallel_si_doparallel(f, A);
+yur_Ref *yu_parallelAxiom_doyu_slparallel_slparallel(yur_Ref *f, yur_Ref *A) {
+  return yu_parallelAxiom_si_doyu_slparallel_slparallel(f, A);
 }

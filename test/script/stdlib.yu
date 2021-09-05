@@ -1,77 +1,77 @@
-import Ordering?/Bool => yu/Ordering?/Bool
-import Ordering?/Ordering? => yu/Ordering?/Ordering?
-import Ordering?/theorems => yu/Ordering?/theorems
-import Vec => yu/Vec
-import Order/Order => yu/Order/Order
-import Order/theorems => yu/Order/theorems
-import Bin/Bin => yu/Bin/Bin
-import RBTree => yu/RBTree
-import DelayList1/DelayList1 => yu/DelayList1/DelayList1
-import Order => yu/Order
-import Bin+/Bin+ => yu/Bin+/Bin+
-import Sum => yu/Sum
-import List => yu/List
-import algebra => yu/algebra
-import Bool => yu/Bool
-import Vec/Vec => yu/Vec/Vec
-import Stream => yu/Stream
-import Nat => yu/Nat
-import base => yu/base
-import parallel => yu/parallel
-import HVec => yu/HVec
-import print/print => yu/print/print
-import print/printf => yu/print/printf
-import List/Monoid => yu/List/Monoid
-import List/List => yu/List/List
-import List/sort => yu/List/sort
-import List/theorems => yu/List/theorems
-import Char => yu/Char
-import Str => yu/Str
-import Equivalence?/Equivalence? => yu/Equivalence?/Equivalence?
-import Prod/Prod => yu/Prod/Prod
-import Prod/theorems => yu/Prod/theorems
-import relation => yu/relation
-import relation/relation => yu/relation/relation
-import Char/Char => yu/Char/Char
-import Char/Type => yu/Char/Type
-import relation?/relation? => yu/relation?/relation?
-import RBTree/RBTree => yu/RBTree/RBTree
-import RBTree/theorems => yu/RBTree/theorems
-import DelayList1 => yu/DelayList1
-import Ordering? => yu/Ordering?
-import basic => yu/basic
-import Sum/Sum => yu/Sum/Sum
-import Option => yu/Option
-import DProd => yu/DProd
-import Bin => yu/Bin
-import print => yu/print
-import algebra/Monoid => yu/algebra/Monoid
-import algebra/operations => yu/algebra/operations
-import DProd/DProd => yu/DProd/DProd
-import Prod => yu/Prod
-import Nat/Monoid => yu/Nat/Monoid
-import Nat/Nat => yu/Nat/Nat
-import Nat/theorems => yu/Nat/theorems
-import undefined/undefined => yu/undefined/undefined
-import basic/Equal => yu/basic/Equal
-import basic/Lazy => yu/basic/Lazy
-import basic/List => yu/basic/List
-import basic/Bool => yu/basic/Bool
-import basic/Nat => yu/basic/Nat
-import basic/Empty => yu/basic/Empty
-import basic/Fun => yu/basic/Fun
-import basic/theorems => yu/basic/theorems
-import Equivalence? => yu/Equivalence?
-import Bool/Bool => yu/Bool/Bool
-import Bool/theorems => yu/Bool/theorems
-import Bin+ => yu/Bin+
-import Option/Option => yu/Option/Option
-import HVec/HVec => yu/HVec/HVec
-import relation? => yu/relation?
-import undefined => yu/undefined
-import Str/Str => yu/Str/Str
-import Str/StrStr => yu/Str/StrStr
-import Str/Format => yu/Str/Format
-import Str/theorems => yu/Str/theorems
-import Stream/Stream => yu/Stream/Stream
-import parallel/parallel => yu/parallel/parallel
+import yu/Ordering?/Bool
+import yu/Ordering?/Ordering?
+import yu/Ordering?/theorems
+import yu/Vec
+import yu/Order/Order
+import yu/Order/theorems
+import yu/Bin/Bin
+import yu/RBTree
+import yu/DelayList1/DelayList1
+import yu/Order
+import yu/Bin+/Bin+
+import yu/Sum
+import yu/List
+import yu/algebra
+import yu/Bool
+import yu/Vec/Vec
+import yu/Stream
+import yu/Nat
+import yu/prelude
+import yu/parallel
+import yu/HVec
+import yu/print/print
+import yu/print/printf
+import yu/List/Monoid
+import yu/List/List
+import yu/List/sort
+import yu/List/theorems
+import yu/Char
+import yu/Str
+import yu/Equivalence?/Equivalence?
+import yu/Prod/Prod
+import yu/Prod/theorems
+import yu/relation
+import yu/relation/relation
+import yu/Char/Char
+import yu/Char/Type
+import yu/relation?/relation?
+import yu/RBTree/RBTree
+import yu/RBTree/theorems
+import yu/DelayList1
+import yu/Ordering?
+import yu/basic
+import yu/Sum/Sum
+import yu/Option
+import yu/DProd
+import yu/Bin
+import yu/print
+import yu/algebra/Monoid
+import yu/algebra/operations
+import yu/DProd/DProd
+import yu/Prod
+import yu/Nat/Monoid
+import yu/Nat/Nat
+import yu/Nat/theorems
+import yu/undefined/undefined
+import yu/basic/Equal
+import yu/basic/Lazy
+import yu/basic/List
+import yu/basic/Bool
+import yu/basic/Nat
+import yu/basic/Empty
+import yu/basic/Fun
+import yu/basic/theorems
+import yu/Equivalence?
+import yu/Bool/Bool
+import yu/Bool/theorems
+import yu/Bin+
+import yu/Option/Option
+import yu/HVec/HVec
+import yu/relation?
+import yu/undefined
+import yu/Str/Str
+import yu/Str/StrStr
+import yu/Str/Format
+import yu/Str/theorems
+import yu/Stream/Stream
+import yu/parallel/parallel

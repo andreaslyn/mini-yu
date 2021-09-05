@@ -6,7 +6,7 @@ dir=`dirname "$0"`
 
 compile() {
   echo 'yuc -co' $@
-  "$dir"/../../yuc -co $@
+  "$dir"/../../yuc $@ -co
 }
 
 compile_ghc() {

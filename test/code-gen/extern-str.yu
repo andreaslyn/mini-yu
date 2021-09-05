@@ -1,4 +1,5 @@
-import "yu/print/print.yu"
+import yu/prelude
+| (...)
 
 extern char-id : Char -> Char
 

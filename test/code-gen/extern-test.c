@@ -1,7 +1,7 @@
 #include "yu.h"
 #include <stdio.h>
 
-yur_Ref *yu__pr_ex(yur_Ref *b) {
+yur_Ref *yu__ex(yur_Ref *b) {
   yur_Ref *ret;
   printf("hello extern world\n");
   if (yur_ALOAD(b->tag) == 0)

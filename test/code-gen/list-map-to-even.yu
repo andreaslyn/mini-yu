@@ -1,29 +1,38 @@
-import "yu/prelude/prelude.yu"
+import yu/prelude
+| (...)
+
+import N => yu/Nat
+| Nat
+| (...#Nat)
+
+import L => yu/List
+| List
+| (...#List)
 
 
 val 100 : Nat
-let => 10 * 10
+let => 10.N * 10.N
 
 val 1000 : Nat
-let => 100 * 10
+let => 100 * 10.N
 
 val 30'000 : Nat
-let => 100 * 100 * 3
+let => 100 * 100 * 3.N
 
 val make-list : Nat -> List Nat
-let n => aux n nil
+let n => aux n nil.L
 where
   val aux : Nat & List Nat -> List Nat
-  let 0 ns => 0 :: ns
+  let 0.N ns => 0.N :: ns
   let (++ n) ns => aux n (++ n :: ns)
 end
 
 val evens : List Nat -> List Bool
-let ns => ns .map _.isEven
+let ns => ns .map (.isEven)
 
 val count-evens : List Bool -> Nat
 let ns =>
-  ns .fold 0 of b x =>
+  ns .fold 0.N of b x =>
     case b
     | true => ++ x
     | false => x

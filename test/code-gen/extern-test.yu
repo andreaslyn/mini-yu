@@ -1,7 +1,15 @@
-import "yu/prelude/prelude.yu"
+import yu/prelude
+| (...)
+
+import L => yu/List
+| List
+| (...#List)
+
+import N => yu/Nat
+| Nat
 
 
-extern (!_\) : Bool ->> Bool
+extern (!#) : Bool ->> Bool
 
 
 extern len : (A : Ty) & List A -> Nat
@@ -9,11 +17,11 @@ extern len : (A : Ty) & List A -> Nat
 
 val main : {} ->> {}
 let () =>
-  case (!_\) true
+  case !# true
   | false => '1 .println
   | true => '0 .println
   end;
-  case len Nat (0 :: 0 :: 0 :: nil)
-  | 0 => "0\n" .print
+  case len Nat (0.N :: 0.N :: 0.N :: nil.L)
+  | 0.N => "0\n" .print
   | _ => "1\n" .print
   end

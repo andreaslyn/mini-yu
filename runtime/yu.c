@@ -185,13 +185,13 @@ int main() {
 
 //////////////////// Basic extern implementations ////////////////////
 
-yur_Ref *yu_undefined_doundefined(yur_Ref *x) {
+yur_Ref *yu_undefinedAxiom_doyu_slundefined_slundefined(yur_Ref *x) {
   yur_unref(x);
   yur_panic("undefined");
 }
 
 
-yur_Ref *yu_funext_doEqual(yur_Ref *B, yur_Ref *A,
+yur_Ref *yu_funextAxiom_doyu_sl_basic_slEqual(yur_Ref *B, yur_Ref *A,
     yur_Ref *r, yur_Ref *g, yur_Ref *f) {
   yur_unref(B);
   yur_unref(A);

@@ -1208,12 +1208,12 @@ yur_Ref *yur_cstr_to_yustr(const char *s) {
 }
 
 
-yur_Ref *yu__po_doprint_baChar(yur_Ref *x) {
+yur_Ref *yu__doprint_doyu_slprint_slprint_nuChar_doyu_slChar_slType(yur_Ref *x) {
   putchar(yur_yuchar_to_cchar(x));
   return &yur_unit;
 }
 
-yur_Ref *yu__po_docmp_baChar(yur_Ref *c, yur_Ref *b) {
+yur_Ref *yu__docmp_doyu_slChar_slChar_nuChar_doyu_slChar_slType(yur_Ref *c, yur_Ref *b) {
   size_t t;
   if (b->tag < c->tag) {
     t = 0;
@@ -1227,7 +1227,7 @@ yur_Ref *yu__po_docmp_baChar(yur_Ref *c, yur_Ref *b) {
   return yur_build(0, t);
 }
 
-yur_Ref *yu_cmpIsTransitive_qu_doChar(yur_Ref *r2, yur_Ref *r1,
+yur_Ref *yu_cmpIsTransitive_doyu_slChar_slChar(yur_Ref *r2, yur_Ref *r1,
     yur_Ref *z, yur_Ref *y, yur_Ref *x) {
   yur_unref(x);
   yur_unref(y);
@@ -1252,8 +1252,8 @@ static yur_Ref *is_lt(yur_Ref *x) {
   return r;
 }
 
-yur_Ref *yu_cmpIsCompatible_doChar(yur_Ref *c, yur_Ref *b) {
+yur_Ref *yu_cmpIsCompatible_doyu_slChar_slChar(yur_Ref *c, yur_Ref *b) {
   yur_Ref *e = yur_build(1, 0);
-  e->fields[0] = is_lt(yu__po_docmp_baChar(b, c));
+  e->fields[0] = is_lt(yu__docmp_doyu_slChar_slChar_nuChar_doyu_slChar_slType(b, c));
   return e;
 }
