@@ -1,4 +1,12 @@
-import "yu/print/print.yu"
+import C => yu/Char
+| Char
+
+import S => yu/Str
+| Str
+
+import print => yu/print/print
+| _.print\Char
+| ...\Str
 
 val main : {} ->> {}
 let () =>

@@ -1,8 +1,7 @@
 
-module N := /yu0/Nat
-import
+import N => yu0/Nat
+| ...\Nat
 | Nat
-| \Nat
 
 data List : Ty -> Ty
 | nil [A : Ty] : List A

@@ -1,8 +1,14 @@
 
-import "/yu0/very-weak-funext.yu"
+import Fun => yu0/Fun
+| id
+
+import Id => yu0/Id
+| _=_\
+
+import vwf => yu0/very-weak-funext
 
 data Category : Ty
-let category :
+| category :
   (Obj : Ty) &
   (Hom : Obj & Obj -> Ty) &
   (id-hom : (A : Obj) -> Hom A A) &
@@ -46,6 +52,6 @@ let =>
     (A B => A -> B)
     (A => id)
     (A B C f g => fcom f g)
-    (A B f => veryWeakFunext (fcom id f) f refl)
-    (A B f => refl)
-    (A B C D h g f => refl)
+    (A B f => veryWeakFunext.vwf (fcom id f) f 1.Id)
+    (A B f => 1.Id)
+    (A B C D h g f => 1.Id)

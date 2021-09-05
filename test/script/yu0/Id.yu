@@ -1,28 +1,28 @@
 
-module O := /yu0/Empty
+import Emp => yu0/Empty
 
 data _=_\ [A : Ty] [B : Ty] : A & B -> Ty
-| refl [A : Ty] [a : A] : a = a
+| 1 [A : Ty] [a : A] : a = a
 
 val sym [A : Ty] [B : Ty] [a : A] [b : B] : a = b -> b = a
-let refl => refl
+let 1 => 1
 
 val trans [a : A] [b : B] [c : C] [A : Ty] [B : Ty] [C : Ty]
   : a = b & b = c -> a = c
-let refl refl => refl
+let 1 1 => 1
 
 val ap= [A : Ty] [B : A -> Ty] [a1 : A] [a2 : A]
   : _=_ [A := A] [B := A] a1 a2 & (f : (a : A) -> B a) ->
   _=_ [A := B(a1)] [B := B(a2)] (f a1) (f a2)
-let refl _ => refl
+let 1 _ => 1
 
 val rew[A : Ty] [a1 : A] [a2 : A]
   : a1 = a2 & (P : A -> Ty) & P a2 -> P a1
-let refl _ x => x
+let 1 _ x => x
 
 val resp [A : Ty] [a1 : A] [a2 : A]
   : a1 = a2 & (P : A -> Ty) & P a1 -> P a2
-let refl _ x => x
+let 1 _ x => x
 
 val _<>_\ [A : Ty] [B : Ty] : A & B -> Ty
-let a b => not.O (a = b)
+let a b => not.Emp (a = b)

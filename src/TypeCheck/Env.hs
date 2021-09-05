@@ -271,9 +271,7 @@ expandVarName vn = do
     Nothing -> return v1
     Just v2 -> do
       v2' <- expandModuleName v2
-      if v2' == ""
-      then return v1
-      else return (v1 ++ "." ++ v2')
+      return (v1 ++ "." ++ v2')
 
 doLookup :: GlobalMap -> VarName -> Env -> Maybe VarStatus
 doLookup g v (Env _ m Nothing) =

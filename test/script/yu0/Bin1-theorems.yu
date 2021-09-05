@@ -1,15 +1,23 @@
-import "/yu0/Bin1.yu"
-import "/yu0/Prod.yu"
+import Bin1 => yu0/Bin1
+| ...
+
+import Prod => yu0/Prod
+| ...
+
+import Empty => yu0/Empty
+
+import Id => yu0/Id
+| _=_\
 
 
-val not-reflexive-op<.Bin1 [a : Bin1] : not (a < a)
-let (step<.Bin1 h) => not-reflexive-op<.Bin1 h
+val not-reflexive-op< [a : Bin1] : not.Empty (a < a)
+let (step<.Bin1 h) => not-reflexive-op< h
 
 
 val inj-bin+[a : Bits] [b : Bits] : bin+ a = bin+ b -> a = b
-let refl => refl
+let 1.Id => 1.Id
 
 
-val.. step-op++op<.Bin1 [b : Bin1]
+val.. step-op++op< [b : Bin1]
   : (a : Bin1) & ++ a < b -> a < -- b
-let a h => step-op++op<.Bin1 a h
+let a h => step-op++op< a h

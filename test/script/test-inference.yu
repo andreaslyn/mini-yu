@@ -1,4 +1,20 @@
-import "/yu0/List.yu"
+import Fun => yu0/Fun
+| id
+| _@_\
+
+import Id => yu0/Id
+| _=_\
+
+import Sigma => yu0/Sigma
+| (&:_\Ty)
+| _$_\
+
+import N => yu0/Nat
+| Nat
+| ...\Nat
+
+import List => yu0/List
+| ...
 
 val id2[A : Ty] : A -> A -> A
 let =>
@@ -26,21 +42,21 @@ let (xs) =>
   r
 
 val test1 : Nat -> &: id[A := Ty]
-let (n) => IsArg n n $ isArg n n refl
+let (n) => IsArg n n $ isArg n n 1.Id
 
 data IsArg : Nat & Nat -> Ty
-let isArg : (m : Nat) & (n : Nat) & n = m -> IsArg m n
+| isArg : (m : Nat) & (n : Nat) & n = m -> IsArg m n
 
 val.. list-len [A : Ty] : List(A) -> Nat
 let =>
   tl := ((f : List(A) -> Nat) (xs : List(A)) =>
     case xs
-    | nil => 0
+    | nil => 0.N
     | _ :: xs => f(xs)
     end);
   aux := ((xs : List(A)) =>
     case xs
-    | nil => 0
+    | nil => 0.N
     | _::_ x xs => tl ((++_) @ list-len) (_::_ x xs)
     end);
   aux

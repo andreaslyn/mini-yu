@@ -16,7 +16,7 @@ import qualified System.Exit as Exit
 import qualified Ir.CodeGen as Cg
 import System.Command (command_)
 import System.IO (hPutStrLn, stderr)
-import System.FilePath (takeDirectory)
+import System.FilePath (takeDirectory, takeFileName)
 import Str (stdRuntimePath)
 import System.Environment (getExecutablePath)
 import qualified Data.Map as Map
@@ -106,8 +106,9 @@ getMainPath opts = do
 packagePaths :: ProgramOptions -> IO PackageMap
 packagePaths opts = do
   let yuPath = projectRootPath opts ++ "/stdlib/yu"
-  mainPath <- getMainPath opts
-  return (Map.fromList [("yu", yuPath), ("", mainPath)])
+  aps <- mapM makeAbsolute (optionPackages opts)
+  let ps = map (\ p -> (takeFileName p, p)) aps
+  return (Map.fromList (("yu", yuPath) : ps))
 
 run :: ProgramOptions -> IO ()
 run opts = do
@@ -122,7 +123,8 @@ run opts = do
     Right (vs, dm, im, rm) -> runIr opts vs dm im rm
 
 data ProgramOptions = ProgramOptions
-  { optionCompile :: Bool
+  { optionPackages :: [String]
+  , optionCompile :: Bool
   , optionAssembly :: Bool
   , optionOptimize :: Bool
   , optionPrintHighLevelIR :: Bool
@@ -143,9 +145,12 @@ verifyProgramOptions opts
   | True = return ()
 
 makeProgramOptions ::
-  Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool ->
-  FilePath -> [FilePath] -> ProgramOptions
+  FilePath -> [FilePath] -> [String] -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool ->
+  ProgramOptions
 makeProgramOptions
+  argFileName
+  argGccOptions
+  optPackages
   optCompile
   optAssembly
   optOptimize
@@ -153,10 +158,9 @@ makeProgramOptions
   optPrintBaseIR
   optPrintRefCountIR
   optVerboseErrors
-  argFileName
-  argGccOptions
   = ProgramOptions
-    { optionCompile = optCompile
+    { optionPackages = optPackages
+    , optionCompile = optCompile
     , optionAssembly = optAssembly
     , optionOptimize = optOptimize
     , optionPrintHighLevelIR = optPrintHighLevelIR
@@ -170,7 +174,13 @@ makeProgramOptions
 
 cmdParser :: Ar.ParserSpec ProgramOptions
 cmdParser = makeProgramOptions
-  `Ar.parsedBy` ArPa.FlagParam ArPa.Short "compile" id
+  `Ar.parsedBy` reqPos "file"
+    `Ar.Descr` "the mini-yu source code file"
+  `Ar.andBy` posArgs "gcc files" [] (\xs x -> xs ++ [x])
+    `Ar.Descr` "additional files passed to gcc"
+  `Ar.andBy` Ar.optFlagArgs [] "package" [] (\ ps p -> p : ps)
+    `Ar.Descr` "paths to include packages"
+  `Ar.andBy` ArPa.FlagParam ArPa.Short "compile" id
     `Ar.Descr` "compile the source code"
   `Ar.andBy` ArPa.FlagParam ArPa.Short "assembly" id
     `Ar.Descr` "output compiler generated assembly"
@@ -184,10 +194,6 @@ cmdParser = makeProgramOptions
     `Ar.Descr` "print reference counted intermediate representation"
   `Ar.andBy` ArPa.FlagParam ArPa.Long "verbose" id
     `Ar.Descr` "print error message verbosely"
-  `Ar.andBy` reqPos "file"
-    `Ar.Descr` "the mini-yu source code file"
-  `Ar.andBy` posArgs "gcc files" [] (\xs x -> xs ++ [x])
-    `Ar.Descr` "additional files passed to gcc"
 
 cmdInterface :: IO (Ar.CmdLnInterface ProgramOptions)
 cmdInterface = mkApp cmdParser

@@ -1,4 +1,5 @@
-import "yu/Str/Str.yu"
+import Str => yu/Str/Str
+| Str
 
 
 val hello : Str

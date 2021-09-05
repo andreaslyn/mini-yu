@@ -1,9 +1,10 @@
 
-import "/yu0/Id.yu"
+import Id => yu0/Id
+| _=_\
 
 data Bool : Ty
-let true : Bool
-let false : Bool
+| true : Bool
+| false : Bool
 
 val (!_\Bool) : Bool -> Bool
 let true => false
@@ -17,10 +18,10 @@ val _&&_\Bool : Bool & ([] -> Bool) -> Bool
 let false _ => false
 let true b => b
 
-data IfThen.Bool : Ty -> Ty
-let _?then_\Bool [A : Ty] : Bool & ([] -> A) -> IfThen.Bool A
+data IfThen : Ty -> Ty
+| _?then_\Bool [A : Ty] : Bool & ([] -> A) -> IfThen A
 
-val _?else_\IfThen.Bool [A : Ty] : IfThen.Bool A & ([] -> A) -> A
+val _?else_\IfThen [A : Ty] : IfThen A & ([] -> A) -> A
 let (true ?then f) _ => f
 let (false ?then _) g => g
 
@@ -33,21 +34,21 @@ val True : Bool -> Ty
 let a => a = true
 
 val Id-b->Id : (a : Bool) & (b : Bool) -> True (a =b b) -> a = b
-let true true => _ => refl
-let false false => _ => refl
+let true true => _ => 1.Id
+let false false => _ => 1.Id
 let true false => c => case c | {} end
 let false true => c => case c | {} end
 
 val id->==b : (a : Bool) & (b : Bool) -> a = b -> True (a =b b)
-let true b => e => case e | refl => refl end
-let false b => e => resp e (x => True(false =b x)) refl
+let true b => e => case e | 1.Id => 1.Id end
+let false b => e => resp.Id e (x => True(false =b x)) 1.Id
 
 val involutionBnot : (b : Bool) -> ! ! b = b
-let true => refl
-let false => refl
+let true => 1.Id
+let false => 1.Id
 
 val commutativeBor : (a : Bool) & (b : Bool) -> a || b = b || a
-let true true => refl
-let true false => refl
-let false true => refl
-let false false => refl
+let true true => 1.Id
+let true false => 1.Id
+let false true => 1.Id
+let false false => 1.Id

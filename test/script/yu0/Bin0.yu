@@ -1,96 +1,104 @@
-import "/yu0/Bin1.yu"
-import "/yu0/Empty.yu"
+
+import Bin1 => yu0/Bin1
+| Bin1
+| ...\Bin1
+
+import Empty => yu0/Empty
+| ...
+
+import Fun => yu0/Fun
+| ...
 
 
 data Bin0 : Ty
-let 0.Bin0 : Bin0
-let pos.Bin0 : Bin1 -> Bin0
+| 0 : Bin0
+| pos : Bin1 -> Bin0
 
 
-val 1.Bin0 : Bin0
-let => pos.Bin0(1.Bin1)
+val 1 : Bin0
+let => pos(1.Bin1)
 
 
-val 2.Bin0 : Bin0
-let => pos.Bin0(2.Bin1)
+val 2 : Bin0
+let => pos(2.Bin1)
 
 
-val 3.Bin0 : Bin0
-let => pos.Bin0(3.Bin1)
+val 3 : Bin0
+let => pos(3.Bin1)
 
 
-val 4.Bin0 : Bin0
-let => pos.Bin0(4.Bin1)
+val 4 : Bin0
+let => pos(4.Bin1)
 
 
-val 5.Bin0 : Bin0
-let => pos.Bin0(5.Bin1)
+val 5 : Bin0
+let => pos(5.Bin1)
 
 
-val 6.Bin0 : Bin0
-let => pos.Bin0(6.Bin1)
+val 6 : Bin0
+let => pos(6.Bin1)
 
 
-val 7.Bin0 : Bin0
-let => pos.Bin0(7.Bin1)
+val 7 : Bin0
+let => pos(7.Bin1)
 
 
-val 8.Bin0 : Bin0
-let => pos.Bin0(8.Bin1)
+val 8 : Bin0
+let => pos(8.Bin1)
 
 
-val 9.Bin0 : Bin0
-let => pos.Bin0(9.Bin1)
+val 9 : Bin0
+let => pos(9.Bin1)
 
 
-val 10.Bin0 : Bin0
-let => pos.Bin0(10.Bin1)
+val 10 : Bin0
+let => pos(10.Bin1)
 
 
 val (+++_\Bin0) : Bin0 -> Bin1
-let (0.Bin0) => 1.Bin1
-let (pos.Bin0(b)) => ++ b
+let (0) => 1.Bin1
+let (pos(b)) => ++ b
 
 
 val (++_\Bin0) : Bin0 -> Bin0
-let (b) => pos.Bin0(+++ b)
+let (b) => pos(+++ b)
 
 
 val (---_\Bin1) : Bin1 -> Bin0
-let (bin+(nil)) => 0.Bin0
-let (bin+(bs)) => pos.Bin0(-- bin+(bs))
+let (bin+.Bin1(nil.yu0/List)) => 0
+let (bin+.Bin1(bs)) => pos(-- bin+.Bin1(bs))
 
 
 val (--_\Bin0) : Bin0 -> Bin0
-let (0.Bin0) => 0.Bin0
-let (pos.Bin0(bs)) => --- bs
+let (0) => 0
+let (pos(bs)) => --- bs
 
 
 val _+_\Bin0 : Bin0 & Bin0 -> Bin0
-let b1 0.Bin0 => b1
-let 0.Bin0 b2 => b2
-let (pos.Bin0 b1) (pos.Bin0 b2) => pos.Bin0 (b1 + b2)
+let b1 0 => b1
+let 0 b2 => b2
+let (pos b1) (pos b2) => pos (b1 + b2)
 
 
 val _*_\Bin0 : Bin0 & Bin0 -> Bin0
-let b1 0.Bin0 => 0.Bin0
-let 0.Bin0 b2 => 0.Bin0
-let (pos.Bin0 b1) (pos.Bin0 b2) => pos.Bin0 (b1 * b2)
+let b1 0 => 0
+let 0 b2 => 0
+let (pos b1) (pos b2) => pos (b1 * b2)
 
 
-val ind.Bin0
-  : (b : Bin0) & (P : Bin0 -> Ty) & P(0.Bin0) &
+val ind
+  : (b : Bin0) & (P : Bin0 -> Ty) & P(0) &
       ((x : Bin0) & P x -> P (++ x)) -> P b
-let 0.Bin0 P a0 ai => a0
-let (pos.Bin0 b) P a0 ai =>
-  ind.Bin1 b (P @ pos.Bin0) (ai 0.Bin0 a0) of x a => ai (pos.Bin0 x) a
+let 0 P a0 ai => a0
+let (pos b) P a0 ai =>
+  ind.Bin1 b (P @ pos) (ai 0 a0) of x a => ai (pos x) a
 
 
-val rec.Bin0 [A : Ty] : (b : Bin0) & A & (Bin0 & A -> A) -> A
-let n a0 ai => ind.Bin0 n (const A) a0 ai
+val rec [A : Ty] : (b : Bin0) & A & (Bin0 & A -> A) -> A
+let n a0 ai => ind n (const A) a0 ai
 
 
 val _<_\Bin0 : Bin0 & Bin0 -> Ty
-let _ 0.Bin0 => Empty
-let 0.Bin0 (pos.Bin0 _) => {}
-let (pos.Bin0 a) (pos.Bin0 b) => a < b
+let _ 0 => Empty
+let 0 (pos _) => {}
+let (pos a) (pos b) => a < b

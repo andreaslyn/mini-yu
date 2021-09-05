@@ -1,11 +1,15 @@
 
-import "/yu0/Fun.yu"
-import "/yu0/Id.yu"
+import Fun => yu0/Fun
+| _@_\
+
+import Id => yu0/Id
+| _=_\
+| 1
 
 data Wrap[A : Ty] : A -> Ty
-let wrap[A : Ty] : (a : A) -> Wrap(a)
+| wrap[A : Ty] : (a : A) -> Wrap(a)
 
 val veryWeakFunext [A : Ty] [B : A -> Ty]
   : (f : (a : A) -> B(a)) & (g : (a : A) -> B(a)) &
-      (((a : A) -> Wrap(f a)) = ((a' : A) -> Wrap((g @ id) a'))) -> f = g
-let f g refl => refl
+      (((a : A) -> Wrap(f a)) = ((a' : A) -> Wrap((g @ id.Fun) a'))) -> f = g
+let f g 1 => 1

@@ -1,36 +1,46 @@
 
-import "/yu0/List.yu"
-import "/yu0/Char.yu"
-import "/yu0/Nat.yu"
+import List => yu0/List
+| List
+| ...\List
+
+import Char => yu0/Char
+| Char
+
+import N => yu0/Nat
+| Nat
+| ...\Nat
+
+import B => yu0/Bool
+| Bool
 
 val Str : Ty
 let => List(Char)
 
 val strToUpper : Str -> Str
-let (s) => map s toUpperCase
+let (s) => map.List s toUpperCase.Char
 
 val strToLower : Str -> Str
-let (s) => map s toLowerCase
+let (s) => map.List s toLowerCase.Char
 
-val.. toStr.Nat : Nat -> Str
-let (0) => '0 :: nil
-let (++ 0) => '1 :: nil
-let (++ ++ 0) => '2 :: nil
-let (++ ++ ++ 0) => '3 :: nil
-let (++ ++ ++ ++ 0) => '4 :: nil
-let (++ ++ ++ ++ ++ 0) => '5 :: nil
-let (++ ++ ++ ++ ++ ++ 0) => '6 :: nil
-let (++ ++ ++ ++ ++ ++ ++ 0) => '7 :: nil
-let (++ ++ ++ ++ ++ ++ ++ ++ 0) => '8 :: nil
-let (++ ++ ++ ++ ++ ++ ++ ++ ++ 0) => '9 :: nil
+val.. natToStr : Nat -> Str
+let (0.N) => '0.Char :: nil.List
+let (++ 0.N) => '1.Char :: nil.List
+let (++ ++ 0.N) => '2.Char :: nil.List
+let (++ ++ ++ 0.N) => '3.Char :: nil.List
+let (++ ++ ++ ++ 0.N) => '4.Char :: nil.List
+let (++ ++ ++ ++ ++ 0.N) => '5.Char :: nil.List
+let (++ ++ ++ ++ ++ ++ 0.N) => '6.Char :: nil.List
+let (++ ++ ++ ++ ++ ++ ++ 0.N) => '7.Char :: nil.List
+let (++ ++ ++ ++ ++ ++ ++ ++ 0.N) => '8.Char :: nil.List
+let (++ ++ ++ ++ ++ ++ ++ ++ ++ 0.N) => '9.Char :: nil.List
 let (n) =>
-  x := n / 10;
-  y := mod n 10;
-  toStr.Nat x :+: toStr.Nat y
+  x := n / 10.N;
+  y := mod.N n 10.N;
+  natToStr x :+: natToStr y
 
-val toStr.List[A : Ty] : List(A) & (A -> Str) -> Str
-let xs f => fold (map xs f) nil _:+:_
+val listToStr[A : Ty] : List(A) & (A -> Str) -> Str
+let xs f => fold.List (map.List xs f) nil.List _:+:_
 
-val toStr.Bool : Bool -> Str
-let true => 't :: 'r :: 'u :: 'e :: nil
-let false => 'f :: 'a :: 'l :: 's :: 'e :: nil
+val boolToStr : Bool -> Str
+let true.B => 't.Char :: 'r.Char :: 'u.Char :: 'e.Char :: nil.List
+let false.B => 'f.Char :: 'a.Char :: 'l.Char :: 's.Char :: 'e.Char :: nil.List

@@ -27,6 +27,7 @@ module Str
   , isLeftAssocInfixOp
   , stripOperatorStr
   , varNameModuleSplit
+  , moduleSplit
   , operandDelim
   , operandSplit
   , operandConcat
@@ -72,6 +73,7 @@ isKeyword s
 isStrictKeyword :: String -> Bool
 isStrictKeyword s
   | s == "import" = True
+  | s == "export" = True
   | s == "extern" = True
   | s == "where" = True
   | s == "end" = True
@@ -182,6 +184,23 @@ varNameModuleSplit ('_' : '.' : vn) =
   let (v1, v2) = doVarNameModuleSplit vn
   in ("_." ++ v1, v2)
 varNameModuleSplit vn = doVarNameModuleSplit vn
+
+doModuleSplit :: String -> (String, Maybe String)
+doModuleSplit s0 =
+  let (s, t0) = operandSplit s0
+      t = case t0 of
+            Nothing -> ""
+            Just t' -> '\\' : t'
+      (x, y) = span (/='.') s
+  in case y of
+      "" -> (x ++ t, Nothing)
+      _ : y' -> (x ++ t, Just y')
+
+moduleSplit :: String -> (String, Maybe String)
+moduleSplit ('_' : '.' : s) =
+  let (x, y) = doModuleSplit s in ("_." ++ x, y)
+moduleSplit s =
+  doModuleSplit s
 
 operandSplit :: String -> (String, Maybe String)
 operandSplit "" = ("", Nothing)

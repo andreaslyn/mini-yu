@@ -13,7 +13,7 @@ mini_yu="../../yuc"
 
 run_test() {
   echo "TEST $1"
-  "$mini_yu" "$1" $args
+  "$mini_yu" "$1" -p "$dir/yu0" $args
 }
 
 for t in $tests; do

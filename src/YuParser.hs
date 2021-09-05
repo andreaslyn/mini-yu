@@ -41,21 +41,6 @@ yuVarTok = do
                 TokVar s -> Just (tokLoc t, s)
                 _ -> Nothing
 
-yuAnyOpTok :: YuParsec (Loc, String)
-yuAnyOpTok = do
-  f <- tokToPos
-  token (\x -> show (tokType x)) f getVar
-  where
-    getVar t =
-      case tokType t of
-        TokOp6 s -> Just (tokLoc t, '_' : s ++ "_")
-        TokOp5 s -> Just (tokLoc t, '_' : s ++ "_")
-        TokOp4 s -> Just (tokLoc t, '_' : s ++ "_")
-        TokOp3 s -> Just (tokLoc t, '_' : s ++ "_")
-        TokOp2 s -> Just (tokLoc t, '_' : s ++ "_")
-        TokOp1 s -> Just (tokLoc t, '_' : s ++ "_")
-        _ -> Nothing
-
 yuOpTok :: Int -> YuParsec (Loc, String)
 yuOpTok idx = do
   f <- tokToPos
@@ -142,28 +127,27 @@ parseProgram = do
 
 parseModuleIntro :: YuParsec ModuleIntro
 parseModuleIntro = do
-  _ <- yuKeyTok TokModule
+  _ <- yuKeyTok TokImport
   m <- yuVarTok
-  _ <- yuKeyTok TokColonEq
-  path <- yuVarTok <|> yuAnyOpTok
-  imex <- many importExportList
-  return (m, path, concat imex)
+  _ <- yuKeyTok TokEqGreater
+  path <- yuVarTok
+  im <- many importElem
+  ex0 <- optionMaybe (yuKeyTok TokExport >> many1 exportElem)
+  let ex = case ex0 of
+            Nothing -> []
+            Just es -> es
+  return (m, path, im ++ ex)
   where
-    importExportList :: YuParsec [(Loc, String, Bool)]
-    importExportList =
-      (yuKeyTok TokImport >> many1 importElem)
-      <|> (yuKeyTok TokExport >> many1 exportElem)
-
     importElem :: YuParsec (Loc, String, Bool)
     importElem = do
       _ <- yuKeyTok TokBar
-      (lo, na) <- parseVarOrPrefix
+      (lo, na) <- yuPostfixVarTok <|> parseVarOrPrefix
       return (lo, na, False)
 
     exportElem :: YuParsec (Loc, String, Bool)
     exportElem = do
       _ <- yuKeyTok TokBar
-      (lo, na) <- parseVarOrPrefix
+      (lo, na) <- yuPostfixVarTok <|> parseVarOrPrefix
       return (lo, na, True)
 
 

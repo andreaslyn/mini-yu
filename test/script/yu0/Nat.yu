@@ -1,12 +1,25 @@
 
-import "/yu0/Id.yu"
-import "/yu0/Fun.yu"
-import "/yu0/Prod.yu"
-import "/yu0/Bool.yu"
+import Id => yu0/Id
+| _=_\
+| _<>_\
+| ap=
+| trans
+| resp
+| sym
+
+import Empty => yu0/Empty
+| not
+
+import Pr => yu0/Prod
+| ...
+
+import B => yu0/Bool
+| ...\Bool
+| Bool
 
 data Nat : Ty
-let 0 : Nat
-let (++_\Nat) : Nat -> Nat
+| 0 : Nat
+| (++_\Nat) : Nat -> Nat
 
 val 1 : Nat
 let => ++ 0
@@ -51,7 +64,7 @@ val succ-<>-0 : (n : Nat) -> ++ n <> 0
 let n => p => case p | {} end
 
 val plus0 : (n : Nat) -> n = 0 + n
-let 0 => refl
+let 0 => 1.Id
 let (++ n) => ap= (plus0 n) (++_)
 
 val plus-comm : (m : Nat) & (n : Nat) -> m + n = n + m
@@ -60,13 +73,13 @@ let m (++ n) =>
   trans (ap= (plus-comm m n) (++_)) (plus-+ n m)
 
 val plus-+ : (m : Nat) & (n : Nat) -> ++ (m + n) = ++ m + n
-let m 0 => refl
+let m 0 => 1.Id
 let m (++ n) => ap= (plus-+ m n) (++_)
 
 val plus-assoc
   : (k : Nat) & (m : Nat) & (n : Nat) ->
     k + m + n = k + (m + n)
-let k m 0 => refl
+let k m 0 => 1.Id
 let k m (++ n) => ap= (plus-assoc k m n) (++_)
 
 val _*_\Nat : Nat & Nat -> Nat
@@ -74,11 +87,11 @@ let m 0 => 0
 let m (++ n) => m + m * n
 
 val mul0 : (n : Nat) -> 0 = 0 * n
-let (0) => refl
+let (0) => 1.Id
 let (++ n) => trans (mul0 n) (plus0 (0 * n))
 
 val mul1 : (n : Nat) -> n = 1 * n
-let (0) => refl
+let (0) => 1.Id
 let (++ n) =>
   trans (ap= (mul1 n) (++_)) (plus-comm (1 * n) 1)
 
@@ -87,8 +100,8 @@ val plus-plus-swap-12
     k + (m + n) = m + (k + n)
 let k m n =>
   resp (plus-assoc k m n) (x => x = r) of
-  rew (plus-comm k m) (x => x + n = r) of
-  rew (plus-assoc m k n) (x => x = r) refl
+  rew.Id (plus-comm k m) (x => x + n = r) of
+  rew.Id (plus-assoc m k n) (x => x = r) 1.Id
 where
   val r : Nat
   let => m + (k + n)
@@ -116,33 +129,33 @@ where
   let => ap= x (m + _)
 
   val mul-plus : (m : Nat) & (n : Nat) -> n + m * n = ++ m * n
-  let m 0 => refl
+  let m 0 => 1.Id
   let m (++ n) => trans help0 help1
   where
     val help0 : ++ n + (m + m * n) = ++ (m + m * n + n)
     let =>
-      rew
+      rew.Id
         (plus-comm (m + m * n) n)
         (x => ++ n + (m + m * n) = ++ x)
         (sym (plus-+ n (m + m * n)))
 
     val help1 : ++ (m + m * n + n) = ++ m + ++ m * n
     let =>
-      rew
+      rew.Id
         (plus-comm (m + m * n) n)
         (x => ++ x = ++ m + ++ m * n)
         help2
 
     val help2 : ++ (n + (m + m * n)) = ++ m + ++ m * n
     let =>
-      rew
+      rew.Id
         (plus-plus-swap-12 n m (m * n))
         (x => ++ x = ++ m + ++ m * n)
         help3
 
     val help3 : ++ (m + (n + m * n)) = ++ m + ++ m * n
     let =>
-      rew
+      rew.Id
         (mul-plus m n)
         (x => ++ (m + x) = ++ m + ++ m * n)
         help4
@@ -159,15 +172,15 @@ let (++ m) n q (++ u) => divmod m n q u
 
 val _/_\Nat : Nat & Nat -> Nat
 let _ 0 => 0
-let m (++ n) => pr1 (divmod m n 0 n)
+let m (++ n) => pr1.Pr (divmod m n 0 n)
 
 val mod : Nat & Nat -> Nat
 let _ 0 => 0
-let m (++ n) => n - pr2 (divmod m n 0 n)
+let m (++ n) => n - pr2.Pr (divmod m n 0 n)
 
 val _.even\Nat : Nat -> Bool
-let 0 => true
-let (++ 0) => false
+let 0 => true.B
+let (++ 0) => false.B
 let (++ ++ n) => n .even
 
 
@@ -179,21 +192,21 @@ val _.odd\Nat : Nat -> Bool
 let => (!_) @' _.even\Nat
 
 val _<=n_\Nat : Nat & Nat -> Bool
-let 0 _ => true
-let (++ _) 0 => false
+let 0 _ => true.B
+let (++ _) 0 => false.B
 let (++ m) (++ n) => m <=n n
 
 val _>=n_\Nat : Nat & Nat -> Bool
 let m n => n <=n m
 
 val _=n_\Nat : Nat & Nat -> Bool
-let 0 0 => true
+let 0 0 => true.B
 let (++ m) (++ n) => m =n n
-let _ _ => false
+let _ _ => false.B
 
 data _<_\Nat : Nat & Nat -> Ty
-let 0<++ : (n : Nat) -> 0 < ++ n
-let rec< : (m : Nat) & (n : Nat) -> m < n -> ++ m < ++ n
+| 0<++ : (n : Nat) -> 0 < ++ n
+| rec< : (m : Nat) & (n : Nat) -> m < n -> ++ m < ++ n
 
 val _>_\Nat : Nat & Nat -> Ty
 let m n => n < m
@@ -202,5 +215,5 @@ val IsPrime : Nat -> Ty
 let n => (n > 1) && not (&: primeProperty)
 where
   val primeProperty : Nat && Nat -> Ty
-  let (x $ y) => not (x = 1) && not (y = 1) && (x * y = n)
+  let (x $ y) => (x <> 1) && (y <> 1) && (x * y = n)
 end

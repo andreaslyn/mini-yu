@@ -1,5 +1,26 @@
-import "/yu0/Bin0.yu"
-import "/yu0/Bin1-theorems.yu"
+import Bin0 => yu0/Bin0
+| Bin0
+| ...\Bin0
+
+import Bin1 => yu0/Bin1
+| Bin1
+| ...\Bin1
+| bin+
+
+import B1T => yu0/Bin1-theorems
+| ...
+
+import Bool => yu0/Bool
+| ...
+
+import List => yu0/List
+| ...
+
+import Empty => yu0/Empty
+| ...
+
+import Sigma => yu0/Sigma
+| ...
 
 data Reflect : Bool -> Ty
 | reflect : (b : Bool) -> Reflect(b)
@@ -41,47 +62,46 @@ data Is-::[A : Ty] : List A -> Ty
 val head[A : Ty] : (as : List(A)) & Is-:: as -> A
 let (x :: _) (is-:: _ _) => x
 
-## TODO TODO TODO ???
-
 val test0 : (b : Bool) & Empty -> Bool
 let true {}
 let false {}
 
-val compute-++-<.Bin0'a
-  : (a : Bin0, ++ a < b, b : Bin0) -> a < -- b
-let (_, (), 0.Bin0)
-let (0.Bin0, len<.Bin1, pos.Bin0(bin+(_))) => ()
-let (pos.Bin0(_), (), pos.Bin0(bin+(nil)))
-let (pos.Bin0(a), h, pos.Bin0(bin+(b :: bs))) =>
-  step-op++op<.Bin1(a, h)
+val compute-++-<a
+  : (a : Bin0) & (++ a < b) & (b : Bin0) -> a < -- b
+let _ {} 0.Bin0
+let 0.Bin0 len<.Bin1 (pos.Bin0(bin+(_))) => ()
+let (pos.Bin0(_)) {} (pos.Bin0(bin+(nil)))
+let (pos.Bin0(a)) h (pos.Bin0(bin+(b :: bs))) =>
+  step-op++op< a h
 
-val compute-++-<.Bin0'b
-  : (a : Bin0, ++ a < b, b : Bin0) -> a < -- b
-let (_, (), 0.Bin0)
-let (0.Bin0, len<.Bin1, pos.Bin0(bin+(_ :: _))) => ()
-let (pos.Bin0(_), (), pos.Bin0(bin+(nil)))
-let (0.Bin0, (), pos.Bin0(bin+(nil)))
-let (pos.Bin0(a), h, pos.Bin0(bin+(b :: bs))) =>
-  step-op++op<.Bin1(a, h)
+val compute-++-<b
+  : (a : Bin0) & (++ a < b) & (b : Bin0) -> a < -- b
+let _ {} 0.Bin0
+let 0.Bin0 len<.Bin1 (pos.Bin0(bin+(_ :: _))) => ()
+let (pos.Bin0(_)) {} (pos.Bin0(bin+(nil)))
+let 0.Bin0 {} (pos.Bin0(bin+(nil)))
+let (pos.Bin0(a)) h (pos.Bin0(bin+(b :: bs))) =>
+  step-op++op< a h
 
-val compute-++-<.Bin0''
-  : (++ zzz < b, zzz : Bin0, b : Bin0) -> zzz < -- b
-let ((), y, 0.Bin0)
-let (len<.Bin1, 0.Bin0, pos.Bin0(bin+(_))) => ()
-let ((), y, pos.Bin0(bin+(nil)))
-let (h, pos.Bin0(a), pos.Bin0(bin+(b :: bs))) =>
-  step-op++op<.Bin1(a, h)
+val compute-++-<c
+  : (++ zzz < b) & (zzz : Bin0) & (b : Bin0) -> zzz < -- b
+let {} y 0.Bin0
+let len<.Bin1 0.Bin0 (pos.Bin0(bin+(_))) => ()
+let {} y (pos.Bin0(bin+(nil)))
+let h (pos.Bin0(a)) (pos.Bin0(bin+(b :: bs))) =>
+  step-op++op< a h
 
-val compute-++-<.Bin0'''
-  : (++ zzz < b, zzz : Bin0, b : Bin0) -> zzz < -- b
-let ((), _, 0.Bin0)
-let (len<.Bin1, 0.Bin0, pos.Bin0(bin+(_ :: _))) => ()
-let ((), _, pos.Bin0(bin+(nil)))
-let (h, pos.Bin0(a), pos.Bin0(bin+(b :: bs))) =>
-  step-op++op<.Bin1(a, h)
+val compute-++-<
+  : (++ zzz < b) & (zzz : Bin0) & (b : Bin0) -> zzz < -- b
+let {} _ 0.Bin0
+let len<.Bin1 0.Bin0 (pos.Bin0(bin+(_ :: _))) => ()
+let {} _ (pos.Bin0(bin+(nil)))
+let h (pos.Bin0(a)) (pos.Bin0(bin+(b :: bs))) =>
+  step-op++op< a h
 
-data Is-Nonempty.List[A : Ty] : List(A) -> Ty
-let mk-Is-Nonempty.List[A : Ty, x : A, xs : List(A)] : Is-Nonempty.List(x :: xs)
+data Is-Nonempty [A : Ty] : List(A) -> Ty
+| mk-Is-Nonempty [A : Ty] [x : A] [xs : List(A)] :
+  Is-Nonempty(x :: xs)
 
-val absurd-sum-case[A : Ty] : & Is-Nonempty.List[A := A] -> {}
-let ((a :: as) $ mk-Is-Nonempty.List) => ()
+val absurd-sum-case [A : Ty] : &: Is-Nonempty[A := A] -> {}
+let ((a :: as) $ mk-Is-Nonempty) => ()
