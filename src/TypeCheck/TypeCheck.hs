@@ -461,7 +461,7 @@ tcDefs subst defs = do
   insertUnknownDataDefs Set.empty subst dataDefs
   mapM_ insertCtors dataDefs
   mapM_ (insertUnknownRef subst) otherDefs
-  mapM (tcDef subst True) defs
+  mapM (tcDef subst True) (sortBy valIsLT defs)
   where
     isDataDef :: Def -> Bool
     isDataDef (DefData _ _ _) = True
@@ -471,6 +471,12 @@ tcDefs subst defs = do
     insertCtors (DefData _ d cs) =
       mapM_ (insertUnknownCtor subst (declLoc d, declName d)) cs
     insertCtors _ = error "expected DefData for inserting ctors"
+
+    valIsLT :: Def -> Def -> Ordering
+    valIsLT (DefVal _ _ _) (DefVal _ _ _) = EQ
+    valIsLT (DefVal _ _ _) _ = LT
+    valIsLT _ (DefVal _ _ _) = GT
+    valIsLT _ _ = EQ
 
 typeOperandName :: Monad m => PreTerm -> TypeCheckT m (Maybe VarName)
 typeOperandName aty = do
@@ -611,13 +617,14 @@ tcDataAndCtors subst isPure d ctors = do
                       fullCname <- fullRefName (declLoc x) (declName x)
                       return $ mkVar j fullCname) ctors
       let r = mkTerm (TermData v) (termPre ty) False
-      Env.forceInsertDataCtor (varId v) cis
+      Env.forceInsertDataCtor i cis
       let (stna0, stopt) = operandSplit (declName d)
       stna <- updateOperandTypeString (declLoc d, stna0) stopt
       updateToStatusTerm stna r
       Env.forceInsertImplicit i imps
       Env.forceInsertRef (declLoc d) fullDname isPure i r
       mapM_ (tcDataDefCtor subst v) (zip cis ctors)
+      Env.removeUnfinishedData i
       return r
   where
     addVarNotIn :: Monad m => Set VarName -> Decl -> [Var] -> TypeCheckT m [Var]
@@ -675,17 +682,6 @@ verifyNoIoEscapeFromType :: Monad m => Loc -> VarName -> Term -> TypeCheckT m ()
 verifyNoIoEscapeFromType lo na t =
   when (termIo t) (err lo (Fatal $ "effect is escaping from type of " ++ quote na))
 
-verifyNoUnfinishedRefs :: Monad m => Loc -> VarName -> PreTerm -> TypeCheckT m ()
-verifyNoUnfinishedRefs lo na t = do
-  rm <- Env.getRefMap
-  rs <- filterM (fmap not . Env.isExtern) (IntSet.toList (preTermRefs rm t))
-  mapM_ (verifyRefIsKnown rm) rs
-  where
-    verifyRefIsKnown :: Monad m => RefMap -> VarId -> TypeCheckT m ()
-    verifyRefIsKnown rm i =
-      when (not (IntMap.member i rm))
-        (err lo (Fatal $ "constructor " ++ quote na ++ " has cyclic type"))
-
 tcDecl :: Monad m =>
   SubstMap -> Bool -> Decl -> TypeCheckT m (Either Term (Implicits, Term))
 tcDecl subst isCtor (Decl (lo, na) impls ty) =
@@ -706,7 +702,6 @@ doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
       impls' <- mapM checkImplicit impls
       ty' <- evalTcExpr subst TermTy ty
       verifyNoIoEscapeFromType lo prena ty'
-      verifyNoUnfinishedRefs lo prena (termPre ty')
       verifyOperandArgument na (termPre ty')
       return (Right (impls', ty'))
     Just t' ->
@@ -2660,6 +2655,7 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
       rm <- Env.getRefMap
       case preTermCodRootType rm ty of
         Just (TermData d, _) -> do
+          tcUnfinishedData (varId d)
           c <- Env.forceLookupDataCtor (varId d)
           return (Just c)
         _ -> return Nothing
