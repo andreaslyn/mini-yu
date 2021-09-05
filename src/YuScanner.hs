@@ -13,7 +13,7 @@ where
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
-import Data.Char (isPrint, isAlphaNum)
+import Data.Char (isPrint)
 import Scanner (Scanner, scanOnly, anyChar8, lookAheadChar8)
 import Control.Monad
 import Loc
@@ -238,10 +238,10 @@ makeWordTok s lo
   | head s == '.' = return (tok (TokPostfixOp s) lo)
   | otherwise =
       case s of
-        '_' : c : _ -> do
-          when (isAlphaNum c)
-            (failHere $ "invalid identifier " ++ quote s)
-          return (tok (TokVar s) lo)
+        '_' : _ : _ -> do
+          flip failLoc lo $
+            "identifiers containing " ++ quote "_"
+            ++ " are reserved for internal use"
         _ ->
           return (tok (TokVar s) lo)
 

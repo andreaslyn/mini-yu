@@ -1,9 +1,9 @@
 
 import Fun => yu0/Fun
-| _@#
+| (@#)
 
 import Id => yu0/Id
-| _=#
+| (=#)
 | 1
 
 data Wrap[A : Ty] : A -> Ty

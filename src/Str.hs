@@ -14,18 +14,16 @@ module Str
   , isGeneralWordChar
   , isOperatorChar
   , isOperator
-  , isInfixOp
-  , isInfixOp1
-  , isInfixOp2
-  , isInfixOp3
-  , isInfixOp4
-  , isInfixOp5
-  , isInfixOp6
+  , isFixOp
+  , isFixOp1
+  , isFixOp2
+  , isFixOp3
+  , isFixOp4
+  , isFixOp5
+  , isFixOp6
   , isPostfixOp
-  , isPrefixOp
-  , isRightAssocInfixOp
-  , isLeftAssocInfixOp
-  , stripOperatorStr
+  , isRightAssocFixOp
+  , isLeftAssocFixOp
   , varNameModuleSplit
   , moduleSplit
   , operandDelim
@@ -42,9 +40,6 @@ module Str
   , unitName
   , underscoreName
   , implementationPrefix
-  , infixOperatorPrefix
-  , prefixOperatorPrefix
-  , postfixOperatorPrefix
   , trivialCtorPrefix
   , papClosurePrefix
   , stringToYuChars
@@ -53,7 +48,6 @@ where
 
 import Loc
 import Data.Char (ord, isAlphaNum)
-import Control.Exception (assert)
 
 quote :: String -> String
 quote s = "‘" ++ s ++ "’"
@@ -120,57 +114,52 @@ isOp5Char c = elem c "=:?!"
 isOp6Char :: Char -> Bool
 isOp6Char c = elem c "<>~"
 
-isInfixOp :: String -> Bool
-isInfixOp "_" = False
-isInfixOp ('_' : c : _) = isOperatorChar c
-isInfixOp _ = False
+isFixOp :: String -> Bool
+isFixOp (c : _) = isOperatorChar c
+isFixOp _ = False
 
-isRightAssocInfixOp :: String -> Bool
-isRightAssocInfixOp s = isInfixOp5 s || isInfixOp3 s || isInfixOp1 s
+isRightAssocFixOp :: String -> Bool
+isRightAssocFixOp s = isFixOp5 s || isFixOp3 s || isFixOp1 s
 
-isLeftAssocInfixOp :: String -> Bool
-isLeftAssocInfixOp s = isInfixOp2 s || isInfixOp4 s || isInfixOp6 s
+isLeftAssocFixOp :: String -> Bool
+isLeftAssocFixOp s = isFixOp2 s || isFixOp4 s || isFixOp6 s
 
-isInfixOp6 :: String -> Bool
-isInfixOp6 s
-  | isInfixOp s = assert (length s > 1) (isOp6Char (head (drop 1 s)))
+isFixOp6 :: String -> Bool
+isFixOp6 s
+  | isFixOp s = isOp6Char (head s)
   | True = False
 
-isInfixOp5 :: String -> Bool
-isInfixOp5 s
-  | isInfixOp s = assert (length s > 1) (isOp5Char (head (drop 1 s)))
+isFixOp5 :: String -> Bool
+isFixOp5 s
+  | isFixOp s = isOp5Char (head s)
   | True = False
 
-isInfixOp4 :: String -> Bool
-isInfixOp4 s
-  | isInfixOp s = assert (length s > 1) (isOp4Char (head (drop 1 s)))
+isFixOp4 :: String -> Bool
+isFixOp4 s
+  | isFixOp s = isOp4Char (head s)
   | True = False
 
-isInfixOp3 :: String -> Bool
-isInfixOp3 s
-  | isInfixOp s = assert (length s > 1) (isOp3Char (head (drop 1 s)))
+isFixOp3 :: String -> Bool
+isFixOp3 s
+  | isFixOp s = isOp3Char (head s)
   | True = False
 
-isInfixOp2 :: String -> Bool
-isInfixOp2 s
-  | isInfixOp s = assert (length s > 1) (isOp2Char (head (drop 1 s)))
+isFixOp2 :: String -> Bool
+isFixOp2 s
+  | isFixOp s = isOp2Char (head s)
   | True = False
 
-isInfixOp1 :: String -> Bool
-isInfixOp1 s
-  | isInfixOp s = assert (length s > 1) (isOp1Char (head (drop 1 s)))
+isFixOp1 :: String -> Bool
+isFixOp1 s
+  | isFixOp s = isOp1Char (head s)
   | True = False
 
 isPostfixOp :: String -> Bool
-isPostfixOp "_" = False
-isPostfixOp ('_' : '.' : _) = True
+isPostfixOp ('.' : _) = True
 isPostfixOp _ = False
 
-isPrefixOp :: String -> Bool
-isPrefixOp s = isOperatorChar (head s)
-
 isOperator :: String -> Bool
-isOperator na = isPostfixOp na || isInfixOp na || isPrefixOp na
+isOperator na = isPostfixOp na || isFixOp na
 
 doVarNameModuleSplit :: String -> (String, Maybe String)
 doVarNameModuleSplit vn =
@@ -180,9 +169,9 @@ doVarNameModuleSplit vn =
       "" -> (v1, Nothing)
 
 varNameModuleSplit :: String -> (String, Maybe String)
-varNameModuleSplit ('_' : '.' : vn) =
+varNameModuleSplit ('.' : vn) =
   let (v1, v2) = doVarNameModuleSplit vn
-  in ("_." ++ v1, v2)
+  in ('.' : v1, v2)
 varNameModuleSplit vn = doVarNameModuleSplit vn
 
 doModuleSplit :: String -> (String, Maybe String)
@@ -197,8 +186,8 @@ doModuleSplit s0 =
       _ : y' -> (x ++ t, Just y')
 
 moduleSplit :: String -> (String, Maybe String)
-moduleSplit ('_' : '.' : s) =
-  let (x, y) = doModuleSplit s in ("_." ++ x, y)
+moduleSplit ('.' : s) =
+  let (x, y) = doModuleSplit s in ('.' : x, y)
 moduleSplit s =
   doModuleSplit s
 
@@ -213,9 +202,6 @@ operandConcatMaybe s1 (Just s2) = operandConcat s1 s2
 
 operandConcat :: String -> String -> String
 operandConcat s1 s2 = s1 ++ '#' : s2
-
-stripOperatorStr :: String -> String
-stripOperatorStr = filter (\x -> x /= '_')
 
 errorMsg :: FilePath -> Loc -> String -> String
 errorMsg p lo s = p ++ ":" ++ show lo ++ ": error: " ++ s
@@ -286,15 +272,6 @@ trivialCtorPrefix = "_ct"
 
 papClosurePrefix :: String
 papClosurePrefix = "_pa"
-
-infixOperatorPrefix :: String
-infixOperatorPrefix = "_in"
-
-prefixOperatorPrefix :: String
-prefixOperatorPrefix = "_pr"
-
-postfixOperatorPrefix :: String
-postfixOperatorPrefix = "_po"
 
 stringToYuChars :: String -> [String]
 stringToYuChars "" = []

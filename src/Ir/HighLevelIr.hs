@@ -155,22 +155,12 @@ highLevelIr = runStM
 convertName :: String -> String
 convertName n =
   let (n0, n1) = Str.operandSplit n
-      n0' = if Str.isInfixOp n0
-            then Str.infixOperatorPrefix ++ Str.stripOperatorStr n0
-            else
-             if Str.isPrefixOp n0
-             then Str.prefixOperatorPrefix ++ Str.stripOperatorStr n0
-             else
-              if Str.isPostfixOp n0
-              then Str.postfixOperatorPrefix ++ Str.stripOperatorStr n0
-              else n0
-  in
-    case n1 of
-      Nothing -> n0'
+  in case n1 of
+      Nothing -> n0
       Just n1' ->
         if null n1'
-        then n0'
-        else n0' ++ Str.operandDelim ++ convertName n1'
+        then n0
+        else n0 ++ Str.operandDelim ++ convertName n1'
 
 getNextConst :: Bool -> String -> StM Const
 getNextConst convert n = do

@@ -1,7 +1,7 @@
 
 import Id => yu0/Id
-| _=#
-| _<>#
+| (=#)
+| (<>#)
 | ap=
 | trans
 | resp
@@ -51,11 +51,11 @@ let => ++ 8
 val 10 : Nat
 let => ++ 9
 
-val _+#Nat : Nat & Nat -> Nat
+val (+#Nat) : Nat & Nat -> Nat
 let m 0 => m
 let m (++ n) => ++ (m + n)
 
-val _-#Nat : Nat & Nat -> Nat
+val (-#Nat) : Nat & Nat -> Nat
 let 0 _ => 0
 let m 0 => m
 let (++ m) (++ n) => m - n
@@ -82,7 +82,7 @@ val plus-assoc
 let k m 0 => 1.Id
 let k m (++ n) => ap= (plus-assoc k m n) (++)
 
-val _*#Nat : Nat & Nat -> Nat
+val (*#Nat) : Nat & Nat -> Nat
 let m 0 => 0
 let m (++ n) => m + m * n
 
@@ -170,7 +170,7 @@ let 0 _ q u => q $ u
 let (++ m) n q 0 => divmod m n (++ q) n
 let (++ m) n q (++ u) => divmod m n q u
 
-val _/#Nat : Nat & Nat -> Nat
+val (/#Nat) : Nat & Nat -> Nat
 let _ 0 => 0
 let m (++ n) => pr1.Pr (divmod m n 0 n)
 
@@ -178,37 +178,37 @@ val mod : Nat & Nat -> Nat
 let _ 0 => 0
 let m (++ n) => n - pr2.Pr (divmod m n 0 n)
 
-val _.even#Nat : Nat -> Bool
+val (.even#Nat) : Nat -> Bool
 let 0 => true.B
 let (++ 0) => false.B
 let (++ ++ n) => n .even
 
 
-val _@'#[A : Ty] [B : Ty] [C : Ty]
+val (@'#) [A : Ty] [B : Ty] [C : Ty]
   : (g : B -> C) & (f : A -> B) -> A -> C
 let g f => a => g (f a)
 
-val _.odd#Nat : Nat -> Bool
-let => (!) @' _.even#Nat
+val (.odd#Nat) : Nat -> Bool
+let => (!) @' (.even#Nat)
 
-val _<=n#Nat : Nat & Nat -> Bool
+val (<=n#Nat) : Nat & Nat -> Bool
 let 0 _ => true.B
 let (++ _) 0 => false.B
 let (++ m) (++ n) => m <=n n
 
-val _>=n#Nat : Nat & Nat -> Bool
+val (>=n#Nat) : Nat & Nat -> Bool
 let m n => n <=n m
 
-val _=n#Nat : Nat & Nat -> Bool
+val (=n#Nat) : Nat & Nat -> Bool
 let 0 0 => true.B
 let (++ m) (++ n) => m =n n
 let _ _ => false.B
 
-data _<#Nat : Nat & Nat -> Ty
+data (<#Nat) : Nat & Nat -> Ty
 | 0<++ : (n : Nat) -> 0 < ++ n
 | rec< : (m : Nat) & (n : Nat) -> m < n -> ++ m < ++ n
 
-val _>#Nat : Nat & Nat -> Ty
+val (>#Nat) : Nat & Nat -> Ty
 let m n => n < m
 
 val IsPrime : Nat -> Ty

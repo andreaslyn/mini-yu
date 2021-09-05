@@ -1,13 +1,13 @@
 import Fun => yu0/Fun
 | id
-| _@#
+| (@#)
 
 import Id => yu0/Id
-| _=#
+| (=#)
 
 import Sigma => yu0/Sigma
 | (&:#Ty)
-| _$#
+| ($#)
 
 import N => yu0/Nat
 | Nat
@@ -25,8 +25,8 @@ val evens : List(Nat) -> List(Nat)
 let (xs) =>
   fold xs nil of n m =>
     case m
-    | nil => _::.yu0/List n nil
-    | _ => _::.List#List.List n m
+    | nil => (::.yu0/List) n nil
+    | _ => (::.List#List.List) n m
     end
 
 val fold' [A : Ty] [B : Ty] : (A & B -> B) & List(A) & B -> B
@@ -36,8 +36,8 @@ val evens' : List(Nat) -> List(Nat)
 let (xs) =>
   r := fold'(n m =>
     case m
-    | nil => _:: n nil
-    | _ => _:: n m
+    | nil => (::) n nil
+    | _ => (::) n m
     end) xs nil;
   r
 
@@ -57,6 +57,6 @@ let =>
   aux := ((xs : List(A)) =>
     case xs
     | nil => 0.N
-    | _:: x xs => tl ((++) @ list-len) (_:: x xs)
+    | (::) x xs => tl ((++) @ list-len) ((::) x xs)
     end);
   aux

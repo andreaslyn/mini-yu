@@ -1,7 +1,7 @@
 
 import Emp => yu0/Empty
 
-data _=# [A : Ty] [B : Ty] : A & B -> Ty
+data (=#) [A : Ty] [B : Ty] : A & B -> Ty
 | 1 [A : Ty] [a : A] : a = a
 
 val sym [A : Ty] [B : Ty] [a : A] [b : B] : a = b -> b = a
@@ -12,8 +12,8 @@ val trans [a : A] [b : B] [c : C] [A : Ty] [B : Ty] [C : Ty]
 let 1 1 => 1
 
 val ap= [A : Ty] [B : A -> Ty] [a1 : A] [a2 : A]
-  : _= [A := A] [B := A] a1 a2 & (f : (a : A) -> B a) ->
-  _= [A := B(a1)] [B := B(a2)] (f a1) (f a2)
+  : (=) [A := A] [B := A] a1 a2 & (f : (a : A) -> B a) ->
+  (=) [A := B(a1)] [B := B(a2)] (f a1) (f a2)
 let 1 _ => 1
 
 val rew[A : Ty] [a1 : A] [a2 : A]
@@ -24,5 +24,5 @@ val resp [A : Ty] [a1 : A] [a2 : A]
   : a1 = a2 & (P : A -> Ty) & P a1 -> P a2
 let 1 _ x => x
 
-val _<># [A : Ty] [B : Ty] : A & B -> Ty
+val (<>#) [A : Ty] [B : Ty] : A & B -> Ty
 let a b => not.Emp (a = b)

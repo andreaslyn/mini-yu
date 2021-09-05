@@ -5,7 +5,7 @@ import S => yu/Str
 | Str
 
 import print => yu/print/print
-| _.print#Char
+| (.print#Char)
 | ...#Str
 
 val main : {} ->> {}

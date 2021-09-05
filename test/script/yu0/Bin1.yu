@@ -8,7 +8,7 @@ import Bool => yu0/Bool
 | ...
 
 import Id => yu0/Id
-| _=#
+| (=#)
 
 
 val Bits : Ty
@@ -63,7 +63,7 @@ val 10 : Bin1
 let => bin+(false :: true :: false :: nil)
 
 
-val _+#Bin1 : Bin1 & Bin1 -> Bin1
+val (+#Bin1) : Bin1 & Bin1 -> Bin1
 let => x y => bin+(bits(x) +aux bits(y))
 
 
@@ -77,7 +77,7 @@ let (false :: bs) => true :: bs
 let (true :: bs) => false :: ++aux bs
 
 
-val _+aux#List : Bits & Bits -> Bits
+val (+aux#List) : Bits & Bits -> Bits
 let nil bs2 => ++aux bs2
 let bs1 nil => ++aux bs1
 let (false :: bs1) (b2 :: bs2) => b2 :: bs1 +aux bs2
@@ -85,11 +85,11 @@ let (true :: bs1) (false :: bs2) => true :: bs1 +aux bs2
 let (true :: bs1) (true :: bs2) => false :: ++aux (bs1 +aux bs2)
 
 
-val _*#Bin1 : Bin1 & Bin1 -> Bin1
+val (*#Bin1) : Bin1 & Bin1 -> Bin1
 let => x y => bin+(bits(x) *aux bits(y))
 
 
-val _*aux#List : Bits & Bits -> Bits
+val (*aux#List) : Bits & Bits -> Bits
 let bs1 nil => bs1
 let bs1 (false :: bs2) => (false :: bs1) *aux bs2
 let bs1 (true :: bs2) => bs1 +aux ((false :: bs1) *aux bs2)
@@ -154,7 +154,7 @@ val rec[A : Ty] : (b : Bin1) & A & (Bin1 & A -> A) -> A
 let b a0 ai => ind b (const A) a0 ai
 
 
-data _<#Bin1 : Bin1 & Bin1 -> Ty
+data (<#Bin1) : Bin1 & Bin1 -> Ty
 | len< [a : Bool] [as : Bits] : 1 < bin+ (a :: as)
 | false< [as : Bits] : bin+ (false :: as) < bin+ (true :: as)
 | step< [a : Bool] [as : Bits] [b : Bool] [bs : Bits]

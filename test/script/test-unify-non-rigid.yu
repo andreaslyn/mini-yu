@@ -1,5 +1,5 @@
 
-val _:!#Ty : A & (A : Ty) -> A
+val (:!#Ty) : A & (A : Ty) -> A
 let a A => a
 
 
@@ -8,7 +8,7 @@ data Nat : Ty
 | (++#Nat) : Nat -> Nat
 
 
-val _+#Nat : Nat & Nat -> Nat
+val (+#Nat) : Nat & Nat -> Nat
 let m 0 => m
 let m (++ n) => ++ m + n
 
@@ -26,8 +26,8 @@ val use-test[n : Nat] : Const-Unit (n + 0) -> Const-Unit (n + 0)
 let x => test-id(x)
 
 
-data _&&#Ty : Ty & Ty -> Ty
-| _$#[A : Ty] [B : Ty] : A & B -> A && B
+data (&&#Ty) : Ty & Ty -> Ty
+| ($#) [A : Ty] [B : Ty] : A & B -> A && B
 
 
 val use-test-pair : Const-Unit (0 + ++ 0) && Const-Unit (++ 0 + ++ 0) -> Const-Unit 0

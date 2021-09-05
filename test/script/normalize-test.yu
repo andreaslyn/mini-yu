@@ -6,7 +6,7 @@ data Nat : Ty
 | 0 : Nat
 | (++#Nat) : Nat -> Nat
 
-val _+# : Nat & Nat -> Nat
+val (+#) : Nat & Nat -> Nat
 let m 0 => m
 let m (++ n) => ++ (m + n)
 
@@ -30,44 +30,44 @@ val Id-ap :
   Id B (f a1) (f a2)
 let A B f a _ (refl _ _) => refl B (f a)
 
-val 0+simpl : (n : Nat) -> Id Nat (_+ 0 n) n
+val 0+simpl : (n : Nat) -> Id Nat ((+) 0 n) n
 let (0) => refl Nat 0
-let (++(n)) => Id-ap Nat Nat (++) (_+ 0 n) n (0+simpl n)
+let (++(n)) => Id-ap Nat Nat (++) ((+) 0 n) n (0+simpl n)
 
 
 val Id-sym : (A : Ty) & (a1 : A) & (a2 : A) & Id A a1 a2 -> Id A a2 a1
 let A a _ (refl _ _) => refl A a
 
 val pp-p-simpl :
-  (m : Nat) & (n : Nat) -> Id Nat (_+ (++ m) n) (++ _+ m n)
+  (m : Nat) & (n : Nat) -> Id Nat ((+) (++ m) n) (++ (+) m n)
 let m 0 => refl Nat (++ m)
 let m (++ n) =>
-  Id-ap Nat Nat (++) (_+ (++ m) n) (++ _+ m n) (pp-p-simpl m n)
+  Id-ap Nat Nat (++) ((+) (++ m) n) (++ (+) m n) (pp-p-simpl m n)
 
 val Id-trans :
   (A : Ty) & (a1 : A) & (a2 : A) & (a3 : A) & Id A a1 a2 & Id A a2 a3 ->
   Id A a1 a3
 let A a _ _ (refl _ _) (refl _ _) => refl A a
 
-val comm-+ : (m : Nat) & (n : Nat) -> Id Nat (m + n) (_+ n m)
-let m 0 => Id-sym Nat (_+ 0 m) m (0+simpl m)
+val comm-+ : (m : Nat) & (n : Nat) -> Id Nat (m + n) ((+) n m)
+let m 0 => Id-sym Nat ((+) 0 m) m (0+simpl m)
 let m (++ n) =>
-  Id-trans Nat (++(_+ m n)) (++(n + m)) (++ n + m)
-    (Id-ap Nat Nat (++) (_+ m n) (_+ n m) (comm-+ m n))
-    (Id-sym Nat (_+ (++ n) m) (++ _+ n m) (pp-p-simpl n m))
+  Id-trans Nat (++((+) m n)) (++(n + m)) (++ n + m)
+    (Id-ap Nat Nat (++) ((+) m n) ((+) n m) (comm-+ m n))
+    (Id-sym Nat ((+) (++ n) m) (++ (+) n m) (pp-p-simpl n m))
 
-val _+'#Nat : Nat & Nat -> Nat
+val (+'#Nat) : Nat & Nat -> Nat
 let 0 n => n
 let (++ m) n => ++ (m +' n)
 
-val ppId : (m : Nat) & (n : Nat) -> Id Nat (_+' m n) (_+ m n)
-let 0 n => Id-sym Nat (_+ 0 n) n (0+simpl n)
+val ppId : (m : Nat) & (n : Nat) -> Id Nat ((+') m n) ((+) m n)
+let 0 n => Id-sym Nat ((+) 0 n) n (0+simpl n)
 let (++ m) n =>
-  Id-trans Nat (++(_+' m n)) (++(_+ m n)) (_+ (++(m)) n)
-    (Id-ap Nat Nat (++) (_+' m n) (_+ m n) (ppId m n))
-    (Id-sym Nat (_+ (++ m) n) (++ _+ m n) (pp-p-simpl m n))
+  Id-trans Nat (++((+') m n)) (++((+) m n)) ((+) (++(m)) n)
+    (Id-ap Nat Nat (++) ((+') m n) ((+) m n) (ppId m n))
+    (Id-sym Nat ((+) (++ m) n) (++ (+) m n) (pp-p-simpl m n))
 
-val _*#Nat : Nat & Nat -> Nat
+val (*#Nat) : Nat & Nat -> Nat
 let m n =>
   r := case n
     | 0 => 0
@@ -75,7 +75,7 @@ let m n =>
     end;
   r
 
-val 2*2=4 : Id Nat (++ ++ ++ ++ 0) (_* (++ ++ 0) (++ ++ 0))
+val 2*2=4 : Id Nat (++ ++ ++ ++ 0) ((*) (++ ++ 0) (++ ++ 0))
 let => refl Nat (++ ++ 0 * ++ ++ 0)
 
 val test-id-trans-case :

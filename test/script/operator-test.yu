@@ -17,20 +17,24 @@ let => ++ 0'
 
 data (::#Ty) : Ty -> Ty
 | nil[A : Ty] : :: A
-| _::#::#Ty[A : Ty] : A & :: A -> :: A
+| (::#::#Ty) [A : Ty] : A & :: A -> :: A
 
 
-val _+#::#Ty[A : Ty] : :: A & :: A -> :: A
+val (+#::#Ty) [A : Ty] : :: A & :: A -> :: A
 let nil ys => ys
 let (x :: xs) ys => x :: xs + ys
 
+val (+'#::#Ty) [A : Ty] : :: A & :: A -> :: A
+let nil ys => ys
+let ((::) [A := X] x xs) ys => (::) [A := X] x (xs + ys)
 
-val _+#Nat : Nat & Nat -> Nat
+
+val (+#Nat) : Nat & Nat -> Nat
 let m 0 => m
 let m (++ n) => ++ m + n
 
 
-val _+#Nat' : Nat' & Nat' -> Nat'
+val (+#Nat') : Nat' & Nat' -> Nat'
 let 0' n => n
 let (++ m) n => m + ++ m
 
@@ -39,7 +43,7 @@ val 2 : Nat
 let => 1 + 1
 
 val 3 : Nat
-let => _+#Nat 2 1
+let => (+#Nat) 2 1
 
 val 4 : Nat
 let => (++#Nat)(3)
@@ -49,7 +53,7 @@ val 2' : Nat'
 let => 1' + 1'
 
 val 3' : Nat'
-let => _+#Nat' 2' 1'
+let => (+#Nat') 2' 1'
 
 val 4' : Nat'
 let => ++#Nat' 3'
@@ -63,15 +67,15 @@ val inc' : Nat' -> Nat'
 let => _ + 1'
 
 
-val _.plus#Nat : Nat & Nat -> Nat
-let => _+
+val (.plus#Nat) : Nat & Nat -> Nat
+let => (+)
 
 
 val add : Nat & Nat -> Nat
 let => _ + _
 
 
-val _@#[A : Ty] [B : Ty] [C : Ty] : (B -> C) & (A -> B) -> A -> C
+val (@#) [A : Ty] [B : Ty] [C : Ty] : (B -> C) & (A -> B) -> A -> C
 let g f => x => g(f(x))
 
 
@@ -79,10 +83,10 @@ val inc2 : Nat -> Nat
 let => inc @ inc
 
 val inc3 : Nat -> Nat
-let => _@# inc inc2
+let => (@#) inc inc2
 
 
-val _+'#Nat : ([] -> Nat) & Nat -> Nat
+val (+'#Nat) : ([] -> Nat) & Nat -> Nat
 let n 0 => n
 let n (++ m) => ++ (n +' m)
 

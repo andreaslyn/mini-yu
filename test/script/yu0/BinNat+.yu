@@ -14,10 +14,10 @@ import B => yu0/Bool
 | false
 
 import Fun => yu0/Fun
-| _@#
+| (@#)
 
 import Id => yu0/Id
-| _=#
+| (=#)
 | rew
 | trans
 

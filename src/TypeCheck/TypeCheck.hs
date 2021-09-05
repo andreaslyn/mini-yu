@@ -5,7 +5,6 @@ where
 
 import Str
 import Loc (Loc)
-import Data.Char (isAlphaNum)
 import PackageMap (PackageMap, takePackage)
 import qualified Loc
 import qualified TypeCheck.Env as Env
@@ -201,18 +200,11 @@ checkVarNameValid (lo, na) = do
   when invalidName (err lo (Fatal $ "invalid variable name " ++ quote na))
   where
     invalidName :: Bool
-    invalidName =
-      let i = '.' `elem` na || '#' `elem` na || '_' `elem` na
-      in case na of
-          '_' : c : _ ->
-            if isAlphaNum c
-            then False
-            else i
-          _ -> i
+    invalidName = '.' `elem` na || '#' `elem` na
 
 checkRefNameValid :: Monad m => Bool -> (Loc, VarName) -> TypeCheckT m ()
 checkRefNameValid allowDot (lo, na0) = do
-  when (isStrictKeyword (stripOperatorStr (head nas)))
+  when (isStrictKeyword (head nas))
           (err lo (Fatal $
                     "invalid identifier " ++ quote na0
                     ++ ", it is a strict keyword"))
@@ -235,31 +227,11 @@ checkRefNameValid allowDot (lo, na0) = do
           else (x : head s) : tail s
 
     invalidName :: VarName -> Bool
-    invalidName n = null n || hasInvalidDot || invalidNameSplit n
+    invalidName n = null n || hasInvalidDot || n == "_"
 
     hasInvalidDot :: Bool
     hasInvalidDot =
-      not allowDot && elem '.' (drop 2 (takeWhile (/= '#') na0))
-
-    invalidNameSplit :: VarName -> Bool
-    invalidNameSplit n =
-      let (h, n') = nameSplit n
-      in h == '.' ||
-          if h == '_'
-          then
-            null n'
-            || elem '_' n'
-            || not (isOperatorChar (head n')
-                    || isAlphaNum (head n')
-                    || head n' == '.')
-          else
-            elem '_' n'
-
-    nameSplit :: VarName -> (Char, VarName)
-    nameSplit n =
-      case n of
-        "" -> error "empty identifier"
-        h : n' -> (h, n')
+      not allowDot && elem '.' (drop 1 (takeWhile (/= '#') na0))
 
 checkMainExists :: Monad m => TypeCheckT m ()
 checkMainExists = do
@@ -714,47 +686,25 @@ doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
       return (Left t')
   where
     verifyOperandArgument :: Monad m => VarName -> PreTerm -> TypeCheckT m ()
-    verifyOperandArgument na dty
-      | isRightAssocInfixOp na = do
-          rm <- Env.getRefMap
+    verifyOperandArgument na dty =
+      if not (isOperator na)
+      then return ()
+      else do
+        rm <- Env.getRefMap
+        if isFixOp na
+        then
           case preTermDomCod rm dty of
-            Nothing -> errorInfixArgs
-            Just ([_, (_, a)], _, _) -> verifyOperandType a
-            Just _ -> errorInfixArgs
-      | isLeftAssocInfixOp na = do
-          rm <- Env.getRefMap
+            Just ([(_, _)], _, _) -> return ()
+            Just ([(_, _), (_, _)], _, _) -> return ()
+            _ ->
+              err lo $ Fatal $
+                "expected exactly one/two arguments for prefix/infix operator"
+        else -- postfix operator
           case preTermDomCod rm dty of
-            Nothing -> errorInfixArgs
-            Just ([(_, a), _], _, _) -> verifyOperandType a
-            Just _ -> errorInfixArgs
-      | isPrefixOp na = do
-          rm <- Env.getRefMap
-          case preTermDomCod rm dty of
-            Nothing -> errorPrefixArgs
-            Just ([(_, a)], _, _) -> verifyOperandType a
-            Just _ -> errorPrefixArgs
-      | isPostfixOp na = do
-          rm <- Env.getRefMap
-          case preTermDomCod rm dty of
-            Nothing -> errorPostfixArgs
-            Just ([], _, _) -> errorPostfixArgs
-            Just ((_, a) : _, _, _) -> verifyOperandType a
-      | True = return ()
-
-    errorInfixArgs :: Monad m => TypeCheckT m ()
-    errorInfixArgs =
-      err lo (Fatal $ "expected infix operator to have exactly two arguments")
-
-    errorPrefixArgs :: Monad m => TypeCheckT m ()
-    errorPrefixArgs =
-      err lo (Fatal $ "expected prefix operator to have exactly one argument")
-
-    errorPostfixArgs :: Monad m => TypeCheckT m ()
-    errorPostfixArgs =
-      err lo (Fatal $ "expected postfix operator to have at least one argument")
-
-    verifyOperandType :: Monad m => PreTerm -> TypeCheckT m ()
-    verifyOperandType _ = return () -- Operand type is not being checked.
+            Just ((_, _) : _, _, _) -> return ()
+            _ ->
+              err lo $ Fatal $
+                "expected at least one argument for postix operator"
 
     insertUnknownImplicit :: Monad m => VarListElem -> TypeCheckT m ()
     insertUnknownImplicit (_, Nothing) =
@@ -1667,6 +1617,28 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
           let ety = substPreTerm subst (substPreTerm isu (termTy vt))
           return (mkTerm e ety False)
   where
+    getOperatorContext :: Monad m =>
+      TypeCheckT m
+        (Maybe
+          (Either
+            (Either Expr PreTerm)
+            (Either (Expr, Expr) (PreTerm, PreTerm))))
+    getOperatorContext =
+      case ty of
+        Just ty' -> do
+          rm <- Env.getRefMap
+          case preTermDomCod rm ty' of
+            Nothing -> return Nothing
+            Just ([], _, _) -> return Nothing
+            Just ([(_, t)], _, _) -> return (Just (Left (Right t)))
+            Just ((_, t1) : (_, t2) : _, _, _) ->
+              return (Just (Right (Right (t1, t2))))
+        Nothing ->
+          case operandArg of
+            Nothing -> return Nothing
+            Just (Left e) -> return (Just (Left (Left e)))
+            Just (Right e) -> return (Just (Right (Left e)))
+
     operandVarName :: Monad m => ExprT m VarName
     operandVarName =
       if not (isOperator na0)
@@ -1677,27 +1649,30 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
           let (na1, opty) = operandSplit na0
           na1' <- lift (Env.expandVarName na1)
           lift (updateOperandTypeString (lo, na1') opty)
-        else
-          if isRightAssocInfixOp na0
-          then do
-            rm <- lift Env.getRefMap
-            case ty of
-              Just ty' ->
-                case preTermDomCod rm ty' of
-                  Nothing -> unableToInferOperand
-                  Just ([], _, _) -> unableToInferOperand
-                  Just ([_], _, _) -> unableToInferOperand
-                  Just (_ : (_, t) : _, _, _) -> operandVarNameFromType t
-              Nothing -> operandVarNameFromArg
-          else do
-            rm <- lift Env.getRefMap
-            case ty of
-              Just ty' ->
-                case preTermDomCod rm ty' of
-                  Nothing -> unableToInferOperand
-                  Just ([], _, _) -> unableToInferOperand
-                  Just ((_, t) : _, _, _) -> operandVarNameFromType t
-              Nothing -> operandVarNameFromArg
+        else do
+          ctx <- lift getOperatorContext
+          case ctx of
+            Nothing -> unableToInferOperand
+            Just (Left u) -> unaryContext u
+            Just (Right b) -> binaryContext b
+
+    binaryContext :: Monad m =>
+      Either (Expr, Expr) (PreTerm, PreTerm) -> ExprT m VarName
+    binaryContext (Left (e1, e2)) =
+        if isRightAssocFixOp na0
+        then operandVarNameFromArg e2
+        else -- postfix or left assoc:
+          operandVarNameFromArg e1
+    binaryContext (Right (t1, t2)) =
+        if isRightAssocFixOp na0
+        then operandVarNameFromType t2
+        else -- postfix or left assoc:
+          operandVarNameFromType t1
+
+    unaryContext :: Monad m =>
+      Either Expr PreTerm -> ExprT m VarName
+    unaryContext (Left e1) = operandVarNameFromArg e1
+    unaryContext (Right t1) = operandVarNameFromType t1
 
     checkOperand :: Monad m => Expr -> ExprT m Term
     checkOperand a = do
@@ -1705,25 +1680,10 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
       r <- lift $ evalStateT (doTcExprSubst True subst Nothing a) s
       return r
 
-    operandVarNameFromArg :: Monad m => ExprT m VarName
-    operandVarNameFromArg = do
-      if isRightAssocInfixOp na0
-      then
-        case operandArg of
-          Nothing -> unableToInferOperand
-          Just (Left _) -> unableToInferOperand
-          Just (Right (_, a)) -> do
-            a' <- checkOperand a
-            operandVarNameFromType (termTy a')
-      else
-        case operandArg of
-          Nothing -> unableToInferOperand
-          Just (Left a) -> do
-            a' <- checkOperand a
-            operandVarNameFromType (termTy a')
-          Just (Right (a, _)) -> do
-            a' <- checkOperand a
-            operandVarNameFromType (termTy a')
+    operandVarNameFromArg :: Monad m => Expr -> ExprT m VarName
+    operandVarNameFromArg a = do
+      a' <- checkOperand a
+      operandVarNameFromType (termTy a')
 
     operandVarNameFromType :: Monad m => PreTerm -> ExprT m VarName
     operandVarNameFromType aty = do
@@ -2373,14 +2333,14 @@ getAppOrderingWeight rm iv ty e =
                 ) IntSet.empty d
     funImplicits (TermArrow _ d _)
         (ExprApp (ExprVar (_, n)) (ExprVar (_, "_") : _))
-      | (isPrefixOp n || isPostfixOp n || isLeftAssocInfixOp n)
+      | (isPostfixOp n || isLeftAssocFixOp n)
             && not ('#' `elem` n) =
           foldl (\s (_, x) ->
                   IntSet.union s (allImplicits x)
                 ) IntSet.empty d
     funImplicits (TermArrow _ d _)
         (ExprApp (ExprVar (_, n)) (_ : ExprVar (_, "_") : _))
-      | isRightAssocInfixOp n && not ('#' `elem` n) =
+      | isRightAssocFixOp n && not ('#' `elem` n) =
           foldl (\s (_, x) ->
                   IntSet.union s (allImplicits x)
                 ) IntSet.empty d

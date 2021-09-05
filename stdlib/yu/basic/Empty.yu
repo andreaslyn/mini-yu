@@ -1,17 +1,17 @@
-import "yu/basic/Fun.yu"
+import Fun => yu/basic/Fun
 
 
 data Empty : Ty
-let {}
+| {}
 
 
-val (!_\Ty) : Ty -> Ty
+val (!#Ty) : Ty -> Ty
 let A => A -> Empty
 
 
-val _.ind\Empty : (e : Empty) & (P : Empty -> Ty) -> P e
+val _.ind#Empty : (e : Empty) & (P : Empty -> Ty) -> P e
 let {} _
 
 
-val _.rec\Empty [A : Ty] : Empty -> A
-let => _ .ind (const A)
+val _.rec#Empty [A : Ty] : Empty -> A
+let => _ .ind (const.Fun A)

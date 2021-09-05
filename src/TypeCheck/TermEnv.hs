@@ -969,81 +969,81 @@ writePreTerm im rm (TermLazyArrow io t) = do
     else writeStr "[] -> "
   writePreTerm im rm t
 writePreTerm im rm (TermApp _ f@(TermVar _ v) [x])
-  | Str.isPrefixOp (varName v) =
+  | Str.isFixOp (varName v) =
       writeUnaryApp im rm (varName v) f x
 writePreTerm im rm
     (TermApp a (TermImplicitApp False f@(TermVar _ v) b) [x])
-  | Str.isPrefixOp (varName v) = do
+  | Str.isFixOp (varName v) = do
       vb <- isVerbose
       if vb
       then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x])
       else writeUnaryApp im rm (varName v) f x
 writePreTerm im rm (TermApp _ f@(TermCtor v _) [x])
-  | Str.isPrefixOp (varName v) =
+  | Str.isFixOp (varName v) =
       writeUnaryApp im rm (varName v) f x
 writePreTerm im rm
     (TermApp a (TermImplicitApp False f@(TermCtor v _) b) [x])
-  | Str.isPrefixOp (varName v) = do
+  | Str.isFixOp (varName v) = do
       vb <- isVerbose
       if vb
       then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x])
       else writeUnaryApp im rm (varName v) f x
 writePreTerm im rm (TermApp _ f@(TermData v) [x])
-  | Str.isPrefixOp (varName v) =
+  | Str.isFixOp (varName v) =
       writeUnaryApp im rm (varName v) f x
 writePreTerm im rm
     (TermApp a (TermImplicitApp False f@(TermData v) b) [x])
-  | Str.isPrefixOp (varName v) = do
+  | Str.isFixOp (varName v) = do
       vb <- isVerbose
       if vb
       then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x])
       else writeUnaryApp im rm (varName v) f x
 writePreTerm im rm (TermApp _ f@(TermRef v _) [x])
-  | Str.isPrefixOp (varName v) =
+  | Str.isFixOp (varName v) =
       writeUnaryApp im rm (varName v) f x
 writePreTerm im rm
     (TermApp a (TermImplicitApp False f@(TermRef v _) b) [x])
-  | Str.isPrefixOp (varName v) = do
+  | Str.isFixOp (varName v) = do
       vb <- isVerbose
       if vb
       then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x])
       else writeUnaryApp im rm (varName v) f x
 writePreTerm im rm (TermApp _ f@(TermVar _ v) [x1, x2])
-  | Str.isInfixOp (varName v) =
+  | Str.isFixOp (varName v) =
       writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm
     (TermApp a (TermImplicitApp False f@(TermVar _ v) b) [x1, x2])
-  | Str.isInfixOp (varName v) = do
+  | Str.isFixOp (varName v) = do
       vb <- isVerbose
       if vb
       then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x1, x2])
       else writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm (TermApp _ f@(TermCtor v _) [x1, x2])
-  | Str.isInfixOp (varName v) =
+  | Str.isFixOp (varName v) =
       writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm
     (TermApp a (TermImplicitApp False f@(TermCtor v _) b) [x1, x2])
-  | Str.isInfixOp (varName v) = do
+  | Str.isFixOp (varName v) = do
       vb <- isVerbose
       if vb
       then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x1, x2])
       else writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm (TermApp _ f@(TermData v) [x1, x2])
-  | Str.isInfixOp (varName v) =
+  | Str.isFixOp (varName v) =
       writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm
     (TermApp a (TermImplicitApp False f@(TermData v) b) [x1, x2])
-  | Str.isInfixOp (varName v) = do
+  | Str.isFixOp (varName v) = do
       vb <- isVerbose
       if vb
       then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x1, x2])
       else writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm (TermApp _ f@(TermRef v _) [x1, x2])
-  | Str.isInfixOp (varName v) =
+  | Str.isFixOp (varName v) =
       writeBinaryApp im rm (varName v) f x1 x2
 writePreTerm im rm
     (TermApp a (TermImplicitApp False f@(TermRef v _) b) [x1, x2])
-  | Str.isInfixOp (varName v) = do
+  | Str.isFixOp (varName v) = do
       vb <- isVerbose
       if vb
       then writePreTerm im rm (TermApp a (TermImplicitApp True f b) [x1, x2])
@@ -1107,17 +1107,19 @@ writePreTerm im rm (TermLazyApp _ f) = do
   writePreTerm im rm f
   when b (writeStr ")")
   writeStr " []"
-writePreTerm _ _ (TermRef v _) = do
-  writeStr (varName v)
-  when (Str.isInfixOp (varName v)) (writeStr "_")
-writePreTerm _ _ (TermData v) = do
-  writeStr (varName v)
-  when (Str.isInfixOp (varName v)) (writeStr "_")
-writePreTerm _ _ (TermCtor v _) = do
-  writeStr (varName v)
-  when (Str.isInfixOp (varName v)) (writeStr "_")
-writePreTerm _ _ (TermVar _ v) = do
-  let pre = Str.isPrefixOp (varName v)
+writePreTerm _ _ (TermRef v _) = writeVarTerm v
+writePreTerm _ _ (TermData v) = writeVarTerm v
+writePreTerm _ _ (TermCtor v _) = writeVarTerm v
+writePreTerm _ _ (TermVar _ v) = writeVarTerm v
+writePreTerm _ _ TermUnitElem = writeStr "()"
+writePreTerm _ _ TermUnitTy = writeStr "{}"
+writePreTerm _ _ TermTy = writeStr "Ty"
+writePreTerm _ _ TermEmpty = writeStr "{}"
+writePreTerm im rm (TermCase e ct) = writeCaseTree im rm [Right e] ct
+
+writeVarTerm :: Var -> ToString ()
+writeVarTerm v = do
+  let pre = Str.isFixOp (varName v)
   when pre (writeStr "(")
   writeStr (varName v)
   vb <- isVerbose
@@ -1125,15 +1127,9 @@ writePreTerm _ _ (TermVar _ v) = do
     writeStr "_"
     writeStr (show (varId v))
   when pre (writeStr ")")
-  when (Str.isInfixOp (varName v)) (writeStr "_")
-writePreTerm _ _ TermUnitElem = writeStr "()"
-writePreTerm _ _ TermUnitTy = writeStr "{}"
-writePreTerm _ _ TermTy = writeStr "Ty"
-writePreTerm _ _ TermEmpty = writeStr "{}"
-writePreTerm im rm (TermCase e ct) = writeCaseTree im rm [Right e] ct
 
 takeOperatorStr :: String -> String
-takeOperatorStr = Str.stripOperatorStr . fst . Str.operandSplit
+takeOperatorStr = fst . Str.operandSplit
 
 writePostfixApp ::
   ImplicitMap -> RefMap -> String ->
@@ -1161,37 +1157,37 @@ writeBinaryApp ::
   ImplicitMap -> RefMap -> String ->
   PreTerm -> PreTerm -> PreTerm -> ToString ()
 writeBinaryApp im rm na _f x1 x2
-  | Str.isInfixOp6 na = do
+  | Str.isFixOp6 na = do
     let b1 = hasLowerPrecThanInfixOp6 x1
     when b1 (writeStr "(") >> writePreTerm im rm x1 >> when b1 (writeStr ")")
     writeStr " " >> writeStr (takeOperatorStr na) >> writeStr " "
     let b2 = hasLowerPrecThanInfixOp5 x2
     when b2 (writeStr "(") >> writePreTerm im rm x2 >> when b2 (writeStr ")")
-  | Str.isInfixOp5 na = do
+  | Str.isFixOp5 na = do
     let b1 = hasLowerPrecThanInfixOp4 x1
     when b1 (writeStr "(") >> writePreTerm im rm x1 >> when b1 (writeStr ")")
     writeStr " " >> writeStr (takeOperatorStr na) >> writeStr " "
     let b2 = hasLowerPrecThanInfixOp5 x2
     when b2 (writeStr "(") >> writePreTerm im rm x2 >> when b2 (writeStr ")")
-  | Str.isInfixOp4 na = do
+  | Str.isFixOp4 na = do
     let b1 = hasLowerPrecThanInfixOp4 x1
     when b1 (writeStr "(") >> writePreTerm im rm x1 >> when b1 (writeStr ")")
     writeStr " " >> writeStr (takeOperatorStr na) >> writeStr " "
     let b2 = hasLowerPrecThanInfixOp3 x2
     when b2 (writeStr "(") >> writePreTerm im rm x2 >> when b2 (writeStr ")")
-  | Str.isInfixOp3 na = do
+  | Str.isFixOp3 na = do
     let b1 = hasLowerPrecThanInfixOp2 x1
     when b1 (writeStr "(") >> writePreTerm im rm x1 >> when b1 (writeStr ")")
     writeStr " " >> writeStr (takeOperatorStr na) >> writeStr " "
     let b2 = hasLowerPrecThanInfixOp3 x2
     when b2 (writeStr "(") >> writePreTerm im rm x2 >> when b2 (writeStr ")")
-  | Str.isInfixOp2 na = do
+  | Str.isFixOp2 na = do
     let b1 = hasLowerPrecThanInfixOp2 x1
     when b1 (writeStr "(") >> writePreTerm im rm x1 >> when b1 (writeStr ")")
     writeStr " " >> writeStr (takeOperatorStr na) >> writeStr " "
     let b2 = hasLowerPrecThanInfixOp1 x2
     when b2 (writeStr "(") >> writePreTerm im rm x2 >> when b2 (writeStr ")")
-  | Str.isInfixOp1 na = do
+  | Str.isFixOp1 na = do
     let b1 = hasLowerPrecThanPrefixOp x1
     when b1 (writeStr "(") >> writePreTerm im rm x1 >> when b1 (writeStr ")")
     writeStr " " >> writeStr (takeOperatorStr na) >> writeStr " "
@@ -1450,16 +1446,16 @@ writeOptNamedPreTerm im rm (Just v, t) = do
 
 hasLowerPrecThanApp :: PreTerm -> Bool
 hasLowerPrecThanApp (TermApp _ (TermVar _ v) [_])
-  | Str.isPrefixOp (varName v) = True
+  | Str.isFixOp (varName v) = True
   | True = False
 hasLowerPrecThanApp (TermApp _ (TermCtor v _) [_])
-  | Str.isPrefixOp (varName v) = True
+  | Str.isFixOp (varName v) = True
   | True = False
 hasLowerPrecThanApp (TermApp _ (TermData v) [_])
-  | Str.isPrefixOp (varName v) = True
+  | Str.isFixOp (varName v) = True
   | True = False
 hasLowerPrecThanApp (TermApp _ (TermRef v _) [_])
-  | Str.isPrefixOp (varName v) = True
+  | Str.isFixOp (varName v) = True
   | True = False
 hasLowerPrecThanApp (TermApp io (TermImplicitApp False t _) xs) =
   hasLowerPrecThanApp (TermApp io t xs)
@@ -1468,16 +1464,16 @@ hasLowerPrecThanApp t = hasLowerPrecThanPrefixOp t
 hasLowerPrecThanPrefixOp :: PreTerm -> Bool
 hasLowerPrecThanPrefixOp (TermApp _ (TermVar _ _) [_]) = False
 hasLowerPrecThanPrefixOp t@(TermApp _ (TermVar _ v) [_, _])
-  | Str.isInfixOp1 (varName v) = True
+  | Str.isFixOp1 (varName v) = True
   | True = hasLowerPrecThanInfixOp1 t
 hasLowerPrecThanPrefixOp t@(TermApp _ (TermCtor v _) [_, _])
-  | Str.isInfixOp1 (varName v) = True
+  | Str.isFixOp1 (varName v) = True
   | True = hasLowerPrecThanInfixOp1 t
 hasLowerPrecThanPrefixOp t@(TermApp _ (TermData v) [_, _])
-  | Str.isInfixOp1 (varName v) = True
+  | Str.isFixOp1 (varName v) = True
   | True = hasLowerPrecThanInfixOp1 t
 hasLowerPrecThanPrefixOp t@(TermApp _ (TermRef v _) [_, _])
-  | Str.isInfixOp1 (varName v) = True
+  | Str.isFixOp1 (varName v) = True
   | True = hasLowerPrecThanInfixOp1 t
 hasLowerPrecThanPrefixOp (TermApp io (TermImplicitApp False t _) xs) =
   hasLowerPrecThanPrefixOp (TermApp io t xs)
@@ -1485,16 +1481,16 @@ hasLowerPrecThanPrefixOp t = hasLowerPrecThanInfixOp1 t
 
 hasLowerPrecThanInfixOp1 :: PreTerm -> Bool
 hasLowerPrecThanInfixOp1 t@(TermApp _ (TermVar _ v) [_, _])
-  | Str.isInfixOp2 (varName v) = True
+  | Str.isFixOp2 (varName v) = True
   | True = hasLowerPrecThanInfixOp2 t
 hasLowerPrecThanInfixOp1 t@(TermApp _ (TermCtor v _) [_, _])
-  | Str.isInfixOp2 (varName v) = True
+  | Str.isFixOp2 (varName v) = True
   | True = hasLowerPrecThanInfixOp2 t
 hasLowerPrecThanInfixOp1 t@(TermApp _ (TermData v) [_, _])
-  | Str.isInfixOp2 (varName v) = True
+  | Str.isFixOp2 (varName v) = True
   | True = hasLowerPrecThanInfixOp2 t
 hasLowerPrecThanInfixOp1 t@(TermApp _ (TermRef v _) [_, _])
-  | Str.isInfixOp2 (varName v) = True
+  | Str.isFixOp2 (varName v) = True
   | True = hasLowerPrecThanInfixOp2 t
 hasLowerPrecThanInfixOp1 (TermApp io (TermImplicitApp False t _) xs) =
   hasLowerPrecThanInfixOp1 (TermApp io t xs)
@@ -1502,16 +1498,16 @@ hasLowerPrecThanInfixOp1 t = hasLowerPrecThanInfixOp2 t
 
 hasLowerPrecThanInfixOp2 :: PreTerm -> Bool
 hasLowerPrecThanInfixOp2 t@(TermApp _ (TermVar _ v) [_, _])
-  | Str.isInfixOp3 (varName v) = True
+  | Str.isFixOp3 (varName v) = True
   | True = hasLowerPrecThanInfixOp3 t
 hasLowerPrecThanInfixOp2 t@(TermApp _ (TermCtor v _) [_, _])
-  | Str.isInfixOp3 (varName v) = True
+  | Str.isFixOp3 (varName v) = True
   | True = hasLowerPrecThanInfixOp3 t
 hasLowerPrecThanInfixOp2 t@(TermApp _ (TermRef v _) [_, _])
-  | Str.isInfixOp3 (varName v) = True
+  | Str.isFixOp3 (varName v) = True
   | True = hasLowerPrecThanInfixOp3 t
 hasLowerPrecThanInfixOp2 t@(TermApp _ (TermData v) [_, _])
-  | Str.isInfixOp3 (varName v) = True
+  | Str.isFixOp3 (varName v) = True
   | True = hasLowerPrecThanInfixOp3 t
 hasLowerPrecThanInfixOp2 (TermApp io (TermImplicitApp False t _) xs) =
   hasLowerPrecThanInfixOp2 (TermApp io t xs)
@@ -1519,16 +1515,16 @@ hasLowerPrecThanInfixOp2 t = hasLowerPrecThanInfixOp3 t
 
 hasLowerPrecThanInfixOp3 :: PreTerm -> Bool
 hasLowerPrecThanInfixOp3 t@(TermApp _ (TermVar _ v) [_, _])
-  | Str.isInfixOp4 (varName v) = True
+  | Str.isFixOp4 (varName v) = True
   | True = hasLowerPrecThanInfixOp4 t
 hasLowerPrecThanInfixOp3 t@(TermApp _ (TermCtor v _) [_, _])
-  | Str.isInfixOp4 (varName v) = True
+  | Str.isFixOp4 (varName v) = True
   | True = hasLowerPrecThanInfixOp4 t
 hasLowerPrecThanInfixOp3 t@(TermApp _ (TermData v) [_, _])
-  | Str.isInfixOp4 (varName v) = True
+  | Str.isFixOp4 (varName v) = True
   | True = hasLowerPrecThanInfixOp4 t
 hasLowerPrecThanInfixOp3 t@(TermApp _ (TermRef v _) [_, _])
-  | Str.isInfixOp4 (varName v) = True
+  | Str.isFixOp4 (varName v) = True
   | True = hasLowerPrecThanInfixOp4 t
 hasLowerPrecThanInfixOp3 (TermApp io (TermImplicitApp False t _) xs) =
   hasLowerPrecThanInfixOp3 (TermApp io t xs)
@@ -1536,16 +1532,16 @@ hasLowerPrecThanInfixOp3 t = hasLowerPrecThanInfixOp4 t
 
 hasLowerPrecThanInfixOp4 :: PreTerm -> Bool
 hasLowerPrecThanInfixOp4 t@(TermApp _ (TermVar _ v) [_, _])
-  | Str.isInfixOp5 (varName v) = True
+  | Str.isFixOp5 (varName v) = True
   | True = hasLowerPrecThanInfixOp5 t
 hasLowerPrecThanInfixOp4 t@(TermApp _ (TermCtor v _) [_, _])
-  | Str.isInfixOp5 (varName v) = True
+  | Str.isFixOp5 (varName v) = True
   | True = hasLowerPrecThanInfixOp5 t
 hasLowerPrecThanInfixOp4 t@(TermApp _ (TermData v) [_, _])
-  | Str.isInfixOp5 (varName v) = True
+  | Str.isFixOp5 (varName v) = True
   | True = hasLowerPrecThanInfixOp5 t
 hasLowerPrecThanInfixOp4 t@(TermApp _ (TermRef v _) [_, _])
-  | Str.isInfixOp5 (varName v) = True
+  | Str.isFixOp5 (varName v) = True
   | True = hasLowerPrecThanInfixOp5 t
 hasLowerPrecThanInfixOp4 (TermApp io (TermImplicitApp False t _) xs) =
   hasLowerPrecThanInfixOp4 (TermApp io t xs)
@@ -1553,16 +1549,16 @@ hasLowerPrecThanInfixOp4 t = hasLowerPrecThanInfixOp5 t
 
 hasLowerPrecThanInfixOp5 :: PreTerm -> Bool
 hasLowerPrecThanInfixOp5 t@(TermApp _ (TermVar _ v) [_, _])
-  | Str.isInfixOp6 (varName v) = True
+  | Str.isFixOp6 (varName v) = True
   | True = hasLowerPrecThanInfixOp6 t
 hasLowerPrecThanInfixOp5 t@(TermApp _ (TermCtor v _) [_, _])
-  | Str.isInfixOp6 (varName v) = True
+  | Str.isFixOp6 (varName v) = True
   | True = hasLowerPrecThanInfixOp6 t
 hasLowerPrecThanInfixOp5 t@(TermApp _ (TermData v) [_, _])
-  | Str.isInfixOp6 (varName v) = True
+  | Str.isFixOp6 (varName v) = True
   | True = hasLowerPrecThanInfixOp6 t
 hasLowerPrecThanInfixOp5 t@(TermApp _ (TermRef v _) [_, _])
-  | Str.isInfixOp6 (varName v) = True
+  | Str.isFixOp6 (varName v) = True
   | True = hasLowerPrecThanInfixOp6 t
 hasLowerPrecThanInfixOp5 (TermApp io (TermImplicitApp False t _) xs) =
   hasLowerPrecThanInfixOp5 (TermApp io t xs)
