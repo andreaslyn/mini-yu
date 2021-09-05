@@ -32,7 +32,7 @@ import Data.Foldable (foldlM, foldrM)
 import System.Directory
   (canonicalizePath, doesFileExist, getPermissions, readable)
 import Control.Exception (assert)
-import TypeCheck.TypeCheckT
+import TypeCheck.TypeCheckIO
 import TypeCheck.PatternUnify
 import TypeCheck.ExprUnify
 import TypeCheck.TerminationCheck
@@ -47,9 +47,8 @@ _useIntercalate :: [a] -> [[a]] -> [a]
 _useIntercalate = intercalate
 
 runTypeCheckT ::
-  MonadIO m =>
   Bool -> Bool -> PackageMap -> FilePath -> String -> Program ->
-  m (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
+  IO (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
 runTypeCheckT verbose compiling packagePaths file moduleName prog = do
   r <- runExceptT
         (runReaderT
@@ -60,8 +59,8 @@ runTypeCheckT verbose compiling packagePaths file moduleName prog = do
     Left e -> return (Left (typeCheckErrMsg e))
     Right x -> return (Right x)
 
-importFilePath :: MonadIO m =>
-  PackageMap -> FilePath -> m (Either String FilePath)
+importFilePath ::
+  PackageMap -> FilePath -> TypeCheckIO (Either String FilePath)
 importFilePath packagePaths p =
   case takePackage p of
     Nothing ->
@@ -78,9 +77,8 @@ importFilePath packagePaths p =
           fmap Right (liftIO $ canonicalizePath (prefix ++ postfix ++ ".yu"))
 
 runTT ::
-  MonadIO m =>
   Bool -> Bool -> PackageMap -> FilePath ->
-  m (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
+  IO (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
 runTT verbose compiling packagePaths file = do
   isf <- liftIO (doesFileExist file)
   if not isf
@@ -97,7 +95,7 @@ runTT verbose compiling packagePaths file = do
           file' <- liftIO (canonicalizePath file)
           runTypeCheckT verbose compiling packagePaths file' "" prog'
 
-varStatusTerm :: Monad m => VarStatus -> TypeCheckT m Term
+varStatusTerm :: VarStatus -> TypeCheckIO Term
 varStatusTerm (StatusTerm te) = return te
 varStatusTerm (StatusUnknownCtor subst depth n d) =
   Env.withDepth depth (tcDataDefCtorLookup subst n d)
@@ -110,13 +108,13 @@ varStatusTerm (StatusUnknownVar subst depth (lo, na) i e) =
 varStatusTerm (StatusInProgress _ (lo, na)) =
   err lo $ Fatal (quote na ++ " has cyclic type")
 
-verifyMultipleUsesIdent :: Monad m => Bool -> (Loc, VarName) -> TypeCheckT m ()
+verifyMultipleUsesIdent :: Bool -> (Loc, VarName) -> TypeCheckIO ()
 verifyMultipleUsesIdent True (lo, na) = 
   err lo (Fatal $ "multiple instances of identifier " ++ quote na ++ " in scope")
 verifyMultipleUsesIdent False _ = return ()
 
-insertUnknownCtor :: Monad m =>
-  SubstMap -> (Loc, VarName) -> Decl -> TypeCheckT m ()
+insertUnknownCtor ::
+  SubstMap -> (Loc, VarName) -> Decl -> TypeCheckIO ()
 insertUnknownCtor subst da d = do
   let (dna, dop) = operandSplit (declName d)
   na <- updateOperandTypeString (declLoc d, dna) dop
@@ -126,7 +124,7 @@ insertUnknownCtor subst da d = do
   x <- Env.tryInsert na (StatusUnknownCtor subst depth da d) (depth == 0)
   verifyMultipleUsesIdent (isJust x) (lo, na)
 
-insertUnknownRef :: Monad m => SubstMap -> Def -> TypeCheckT m ()
+insertUnknownRef :: SubstMap -> Def -> TypeCheckIO ()
 insertUnknownRef subst d = do
   let (dna, dop) = operandSplit (defName d)
   na <- updateOperandTypeString (defLoc d, dna) dop
@@ -136,8 +134,8 @@ insertUnknownRef subst d = do
   x <- Env.tryInsert na (StatusUnknownRef subst depth d) (depth == 0)
   verifyMultipleUsesIdent (isJust x) (lo, na)
 
-insertUnknownVar :: Monad m =>
-  SubstMap -> (Loc, VarName) -> VarId -> Maybe Expr -> TypeCheckT m ()
+insertUnknownVar ::
+  SubstMap -> (Loc, VarName) -> VarId -> Maybe Expr -> TypeCheckIO ()
 insertUnknownVar subst (lo, na) i e = do
   depth <- Env.getDepth
   let s = StatusUnknownVar subst depth (lo, na) i e
@@ -149,7 +147,7 @@ insertUnknownVar subst (lo, na) i e = do
       x <- Env.tryInsert na s False
       verifyMultipleUsesIdent (isJust x) (lo, na)
 
-markInProgress :: Monad m => Bool -> (Loc, VarName) -> TypeCheckT m (Maybe Term)
+markInProgress :: Bool -> (Loc, VarName) -> TypeCheckIO (Maybe Term)
 markInProgress isCtor (lo, na) = do
   x <- lookupEnv na
   case x of
@@ -163,18 +161,18 @@ markInProgress isCtor (lo, na) = do
             (error $ "expected unknown env status of " ++ quote na)
       return Nothing
 
-updateToStatusTerm :: Monad m => VarName -> Term -> TypeCheckT m ()
+updateToStatusTerm :: VarName -> Term -> TypeCheckIO ()
 updateToStatusTerm na te = do
   x <- Env.tryUpdateIf
         (\c -> isStatusInProgress c || isStatusTerm c) na (StatusTerm te)
   when (isNothing x) (error $ "expected in-progress or term env status of " ++ quote na)
 
-insertNonblankFreshVariable :: Monad m => (Loc, VarName) -> PreTerm -> TypeCheckT m Var
+insertNonblankFreshVariable :: (Loc, VarName) -> PreTerm -> TypeCheckIO Var
 insertNonblankFreshVariable na te = do
   i <- Env.freshVarId
   insertNonblankVariable na i te
 
-insertNonblankVariable :: Monad m => (Loc, VarName) -> VarId -> PreTerm -> TypeCheckT m Var
+insertNonblankVariable :: (Loc, VarName) -> VarId -> PreTerm -> TypeCheckIO Var
 insertNonblankVariable (lo, na) i te = do
   let v = mkVar i na
   let v' = TermVar False v
@@ -188,7 +186,7 @@ insertNonblankVariable (lo, na) i te = do
       verifyMultipleUsesIdent (isJust x) (lo, na)
       return v
 
-checkVarNameValid :: Monad m => (Loc, VarName) -> TypeCheckT m ()
+checkVarNameValid :: (Loc, VarName) -> TypeCheckIO ()
 checkVarNameValid (lo, na) = do
   when (isKeyword na)
           (err lo (Fatal $
@@ -199,7 +197,7 @@ checkVarNameValid (lo, na) = do
     invalidName :: Bool
     invalidName = '.' `elem` na || '#' `elem` na
 
-checkRefNameValid :: Monad m => Bool -> (Loc, VarName) -> TypeCheckT m ()
+checkRefNameValid :: Bool -> (Loc, VarName) -> TypeCheckIO ()
 checkRefNameValid allowDot (lo, na0) = do
   when (isStrictKeyword (head nas))
           (err lo (Fatal $
@@ -230,7 +228,7 @@ checkRefNameValid allowDot (lo, na0) = do
     hasInvalidDot =
       not allowDot && elem '.' (drop 1 (takeWhile (/= '#') na0))
 
-checkMainExists :: Monad m => TypeCheckT m ()
+checkMainExists :: TypeCheckIO ()
 checkMainExists = do
   ma <- lookupEnv "main"
   case ma of
@@ -247,7 +245,7 @@ checkMainExists = do
               "expected type of " ++ quote "main" ++ " to be\n" ++ ss)
     Just _ -> error "unexpected status of main function"
   where
-    checkBody :: Monad m => PreTerm -> TypeCheckT m ()
+    checkBody :: PreTerm -> TypeCheckIO ()
     checkBody (TermRef v _) = do
       r <- Env.forceLookupRef (varId v)
       case termPre r of
@@ -255,18 +253,18 @@ checkMainExists = do
         _ -> invalidMainBody
     checkBody _ = invalidMainBody
 
-    invalidMainBody :: Monad m => TypeCheckT m ()
+    invalidMainBody :: TypeCheckIO ()
     invalidMainBody =
       err (Loc.loc 1 1)
         (Fatal $
           "it is required that " ++ quote "main"
           ++ " is defined by let () => ...")
 
-tcInitProgram :: MonadIO m =>
-  Bool -> PackageMap -> Program -> TypeCheckT m [RefVar]
+tcInitProgram ::
+  Bool -> PackageMap -> Program -> TypeCheckIO [RefVar]
 tcInitProgram compiling packagePaths prog = doTcInitProgram
   where
-    doTcInitProgram :: MonadIO m => TypeCheckT m [RefVar]
+    doTcInitProgram :: TypeCheckIO [RefVar]
     doTcInitProgram = do
       rs <- tcProgram packagePaths prog
       mapM_ checkPositivity rs
@@ -278,12 +276,12 @@ tcInitProgram compiling packagePaths prog = doTcInitProgram
       when compiling checkMainExists
       return rs
 
-    checkPositivity :: Monad m => RefVar -> TypeCheckT m ()
+    checkPositivity :: RefVar -> TypeCheckIO ()
     checkPositivity (RefData dv) = do
       ctors <- Env.forceLookupDataCtor (varId dv)
       mapM_ doCheck ctors
       where
-        doCheck :: Monad m => Var -> TypeCheckT m ()
+        doCheck :: Var -> TypeCheckIO ()
         doCheck cv = do
           meta <- Env.forceLookupRefMeta (varId cv)
           imps <- Env.forceLookupImplicit (varId cv)
@@ -291,14 +289,14 @@ tcInitProgram compiling packagePaths prog = doTcInitProgram
           strictPositivityCheck (refMetaLoc meta) dv imps (termTy c)
     checkPositivity _ = return ()
 
-insertAllImportExport :: Monad m =>
-  Loc -> Bool -> [(VarName, (VarStatus, Bool))] -> TypeCheckT m ()
+insertAllImportExport ::
+  Loc -> Bool -> [(VarName, (VarStatus, Bool))] -> TypeCheckIO ()
 insertAllImportExport lo _ [] =
   err lo (Fatal $ "unable to find anything to import here")
 insertAllImportExport lo b imex = doInsertAllImportExport lo b imex
 
-doInsertAllImportExport :: Monad m =>
-  Loc -> Bool -> [(VarName, (VarStatus, Bool))] -> TypeCheckT m ()
+doInsertAllImportExport ::
+  Loc -> Bool -> [(VarName, (VarStatus, Bool))] -> TypeCheckIO ()
 doInsertAllImportExport _ _ [] = return ()
 doInsertAllImportExport lo b ((_, (_, False)) : imex) =
   doInsertAllImportExport lo b imex
@@ -316,9 +314,9 @@ doInsertAllImportExport lo b ((na, (t, True)) : imex) = do
   verifyMultipleUsesIdent multi (lo, na)
   doInsertAllImportExport lo b imex
 
-insertImportExport :: Monad m =>
+insertImportExport ::
   Set VarName -> VarName -> Env.ScopeMap -> [(Loc, VarName, Bool)] ->
-  TypeCheckT m ()
+  TypeCheckIO ()
 insertImportExport _ _ _ [] = return ()
 insertImportExport vis ina em (ii@(lo, dna@('.' : '.' : '.' : '#' : na0), b) : imex) = do
   when (null na0) (err lo $ Fatal $ "operand type cannot be empty here")
@@ -346,8 +344,8 @@ insertImportExport vis ina em (ii@(lo, dna@('.' : '.' : '.' : '#' : na0), b) : i
                                    ++ quote na0 ++ ", not a data type")
           _ -> error "expected status term for import/export"
   where
-    isOperatorOf :: Monad m =>
-      VarName -> (VarName, (VarStatus, Bool)) -> TypeCheckT m Bool
+    isOperatorOf ::
+      VarName -> (VarName, (VarStatus, Bool)) -> TypeCheckIO Bool
     isOperatorOf v (vn, _) =
       let (_, vtn) = operandSplit vn
       in return (Just v == vtn)
@@ -373,7 +371,7 @@ insertImportExport vis ina em (ii@(lo, na0, b) : imex) = do
       err lo (Fatal $ "name " ++ quote na
                       ++ " is not exported by module " ++ quote ina)
 
-tcProgram :: MonadIO m => PackageMap -> Program -> TypeCheckT m [RefVar]
+tcProgram :: PackageMap -> Program -> TypeCheckIO [RefVar]
 tcProgram _ ([], defs) = do
   rs <- tcDefsToVars IntMap.empty defs
   Env.clearImplicitVarMap
@@ -419,12 +417,12 @@ tcProgram packagePaths ((malias, (lo, ina), imex) : imps, defs) = do
               insertImportExport Set.empty ina em imex
               fmap (++vs) (tcProgram packagePaths (imps, defs))
 
-tcDefsToVars :: Monad m => SubstMap -> [Def] -> TypeCheckT m [RefVar]
+tcDefsToVars :: SubstMap -> [Def] -> TypeCheckIO [RefVar]
 tcDefsToVars subst defs = do
   ts <- tcDefs subst defs
   mapM extractDefVar ts
   where
-    extractDefVar :: Monad m => Term -> TypeCheckT m RefVar
+    extractDefVar :: Term -> TypeCheckIO RefVar
     extractDefVar t@(Term {termPre = (TermRef v _)}) = do
       rm <- Env.getRefMap
       if IntMap.member (varId v) rm
@@ -439,8 +437,8 @@ tcDefsToVars subst defs = do
       ss <- preTermToString defaultExprIndent (termPre t)
       error $ "unexpected def term: " ++ ss
 
-insertUnknownDataDefs :: Monad m =>
-  Set VarName -> SubstMap -> [Def] -> TypeCheckT m ()
+insertUnknownDataDefs ::
+  Set VarName -> SubstMap -> [Def] -> TypeCheckIO ()
 insertUnknownDataDefs _ _ [] = return ()
 insertUnknownDataDefs vis subst (d : ds) = do
   b <- tryInsert `catchError` \ e -> do
@@ -450,12 +448,12 @@ insertUnknownDataDefs vis subst (d : ds) = do
   then insertUnknownDataDefs Set.empty subst ds
   else insertUnknownDataDefs (Set.insert (defName d) vis) subst (ds ++ [d])
   where
-    tryInsert :: Monad m => TypeCheckT m Bool
+    tryInsert :: TypeCheckIO Bool
     tryInsert = do
       insertUnknownRef subst d
       return True
 
-tcDefs :: Monad m => SubstMap -> [Def] -> TypeCheckT m [Term]
+tcDefs :: SubstMap -> [Def] -> TypeCheckIO [Term]
 tcDefs subst defs = do
   let (dataDefs, otherDefs) = partition isDataDef defs
   insertUnknownDataDefs Set.empty subst dataDefs
@@ -467,7 +465,7 @@ tcDefs subst defs = do
     isDataDef (DefData _ _ _) = True
     isDataDef _ = False
 
-    insertCtors :: Monad m => Def -> TypeCheckT m ()
+    insertCtors :: Def -> TypeCheckIO ()
     insertCtors (DefData _ d cs) =
       mapM_ (insertUnknownCtor subst (declLoc d, declName d)) cs
     insertCtors _ = error "expected DefData for inserting ctors"
@@ -478,7 +476,7 @@ tcDefs subst defs = do
     valIsLT _ (DefVal _ _ _) = GT
     valIsLT _ _ = EQ
 
-typeOperandName :: Monad m => PreTerm -> TypeCheckT m (Maybe VarName)
+typeOperandName :: PreTerm -> TypeCheckIO (Maybe VarName)
 typeOperandName aty = do
   rm <- Env.getRefMap
   let aty' = preTermNormalize rm aty
@@ -487,7 +485,7 @@ typeOperandName aty = do
     Just (TermTy, _) -> return (Just "Ty")
     _ -> return Nothing
 
-tcDef :: Monad m => SubstMap -> Bool -> Def -> TypeCheckT m Term
+tcDef :: SubstMap -> Bool -> Def -> TypeCheckIO Term
 tcDef subst _ (DefExtern d) = do
   depth <- Env.getDepth
   when (depth > 0)
@@ -567,7 +565,7 @@ tcDef subst False def@(DefData isPure d _) = do
       Env.forceInsertUnfinishedData i depth subst def
       return r
 
-fullRefName :: Monad m => Loc -> VarName -> TypeCheckT m VarName
+fullRefName :: Loc -> VarName -> TypeCheckIO VarName
 fullRefName lo na = do
   let (na0, opty) = operandSplit na
   (_, _, modName) <- ask
@@ -575,8 +573,8 @@ fullRefName lo na = do
   then updateOperandTypeString (lo, na0 ++ "." ++ modName) opty
   else updateOperandTypeString (lo, na0) opty
 
-tcDataAndCtors :: Monad m =>
-  SubstMap -> Bool -> Decl -> [Decl] -> TypeCheckT m Term
+tcDataAndCtors ::
+  SubstMap -> Bool -> Decl -> [Decl] -> TypeCheckIO Term
 tcDataAndCtors subst isPure d ctors = do
   ty1 <- Env.scope (tcDecl subst False d)
   rm <- Env.getRefMap
@@ -627,7 +625,7 @@ tcDataAndCtors subst isPure d ctors = do
       Env.removeUnfinishedData i
       return r
   where
-    addVarNotIn :: Monad m => Set VarName -> Decl -> [Var] -> TypeCheckT m [Var]
+    addVarNotIn :: Set VarName -> Decl -> [Var] -> TypeCheckIO [Var]
     addVarNotIn s x vs = do
       fullCname <- fullRefName (declLoc x) (declName x)
       if Set.member fullCname s
@@ -636,7 +634,7 @@ tcDataAndCtors subst isPure d ctors = do
         j <- Env.freshRefId
         return (mkVar j fullCname : vs)
 
-    takeCtorFormVarList :: Monad m => [Var] -> Decl -> TypeCheckT m Var
+    takeCtorFormVarList :: [Var] -> Decl -> TypeCheckIO Var
     takeCtorFormVarList [] c = do
       fullCname <- fullRefName (declLoc c) (declName c)
       error ("unable to find ctor " ++ fullCname ++ " in var list")
@@ -646,8 +644,8 @@ tcDataAndCtors subst isPure d ctors = do
       then return v
       else takeCtorFormVarList vs c
 
-tcDataDefCtor :: Monad m =>
-  SubstMap -> Var -> (Var, Decl) -> TypeCheckT m Term
+tcDataDefCtor ::
+  SubstMap -> Var -> (Var, Decl) -> TypeCheckIO Term
 tcDataDefCtor subst v (cva, ctor) = do
   ty1 <- Env.scope (tcDecl subst True ctor)
   case ty1 of
@@ -678,20 +676,20 @@ tcDataDefCtor subst v (cva, ctor) = do
       err (declLoc ctor)
         (Fatal "constructor cannot have effectful function/lazy type")
 
-verifyNoIoEscapeFromType :: Monad m => Loc -> VarName -> Term -> TypeCheckT m ()
+verifyNoIoEscapeFromType :: Loc -> VarName -> Term -> TypeCheckIO ()
 verifyNoIoEscapeFromType lo na t =
   when (termIo t) (err lo (Fatal $ "effect is escaping from type of " ++ quote na))
 
-tcDecl :: Monad m =>
-  SubstMap -> Bool -> Decl -> TypeCheckT m (Either Term (Implicits, Term))
+tcDecl ::
+  SubstMap -> Bool -> Decl -> TypeCheckIO (Either Term (Implicits, Term))
 tcDecl subst isCtor (Decl (lo, na) impls ty) =
   doTcDecl subst isCtor (Decl (lo, na) impls ty) `catchError`
     (\e -> case e of
             Recoverable m -> throwError (Fatal m)
             Fatal m -> throwError (Fatal m))
 
-doTcDecl :: Monad m =>
-  SubstMap -> Bool -> Decl -> TypeCheckT m (Either Term (Implicits, Term))
+doTcDecl ::
+  SubstMap -> Bool -> Decl -> TypeCheckIO (Either Term (Implicits, Term))
 doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
   let (na0, opty) = operandSplit prena
   na <- updateOperandTypeString (lo, na0) opty
@@ -707,7 +705,7 @@ doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
     Just t' ->
       return (Left t')
   where
-    verifyOperandArgument :: Monad m => VarName -> PreTerm -> TypeCheckT m ()
+    verifyOperandArgument :: VarName -> PreTerm -> TypeCheckIO ()
     verifyOperandArgument na dty =
       if not (isOperator na)
       then return ()
@@ -728,7 +726,7 @@ doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
               err lo $ Fatal $
                 "expected at least one argument for postix operator"
 
-    insertUnknownImplicit :: Monad m => VarListElem -> TypeCheckT m ()
+    insertUnknownImplicit :: VarListElem -> TypeCheckIO ()
     insertUnknownImplicit (_, Nothing) =
       error "expected implicit argument to have a type spec (@1)"
     insertUnknownImplicit ((vlo, vna), Just e) = do
@@ -736,8 +734,8 @@ doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
       i <- Env.freshVarId
       insertUnknownVar subst (vlo, vna) i (Just e)
 
-    checkImplicit :: Monad m =>
-      VarListElem -> TypeCheckT m (Var, PreTerm)
+    checkImplicit ::
+      VarListElem -> TypeCheckIO (Var, PreTerm)
     checkImplicit (_, Nothing) =
       error "expected implicit argument to have a type spec (@2)"
     checkImplicit ((vlo, vna), Just e)
@@ -762,7 +760,7 @@ isKeyOperandType :: String -> Bool
 isKeyOperandType "Ty" = True
 isKeyOperandType _ = False
 
-updateOperandTypeString :: Monad m => (Loc, VarName) -> Maybe VarName -> TypeCheckT m VarName
+updateOperandTypeString :: (Loc, VarName) -> Maybe VarName -> TypeCheckIO VarName
 updateOperandTypeString (nlo, na) Nothing = do
   when (isOperator na)
     (err nlo (Fatal $ "missing operand type argument "
@@ -792,12 +790,12 @@ updateOperandTypeString (nlo, na) (Just ss0) = do
   else
     return (na ++ "#" ++ ss0)
   where
-    errorNotData :: Monad m => TypeCheckT m a
+    errorNotData :: TypeCheckIO a
     errorNotData =
       err nlo $ Fatal $
         "unexpected operand type " ++ quote ss0 ++ ", not a data type"
 
-    addCurrentModule :: Monad m => VarName -> TypeCheckT m VarName
+    addCurrentModule :: VarName -> TypeCheckIO VarName
     addCurrentModule ss = do
       let (s0, s1) = operandSplit ss
       (_, _, modName) <- ask
@@ -807,7 +805,7 @@ updateOperandTypeString (nlo, na) (Just ss0) = do
       let ss' = operandConcatMaybe s0' s1
       return (na ++ "#" ++ ss')
 
-tcVar :: Monad m => SubstMap -> (Loc, VarName) -> VarId -> Expr -> TypeCheckT m Term
+tcVar :: SubstMap -> (Loc, VarName) -> VarId -> Expr -> TypeCheckIO Term
 tcVar subst (lo, na) i e = do
   t <- markInProgress False (lo, na)
   case t of
@@ -819,8 +817,8 @@ tcVar subst (lo, na) i e = do
       return v
     Just t' -> return t'
 
-tcDataDefCtorLookup :: Monad m =>
-  SubstMap -> (Loc, VarName) -> Decl -> TypeCheckT m Term
+tcDataDefCtorLookup ::
+  SubstMap -> (Loc, VarName) -> Decl -> TypeCheckIO Term
 tcDataDefCtorLookup subst (dlo, dna) d = do
   x <- lookupEnv dna
   dt <- case x of
@@ -874,8 +872,8 @@ tcDataDefCtorLookup subst (dlo, dna) d = do
     _ ->
       error $ "expected " ++ dna ++ " to be data type"
 
-tcValCases :: Monad m =>
-  SubstMap -> VarName -> Implicits -> PreTerm -> [ValCase] -> TypeCheckT m Term
+tcValCases ::
+  SubstMap -> VarName -> Implicits -> PreTerm -> [ValCase] -> TypeCheckIO Term
 tcValCases subst na [] ty [ValCase lo' [] Nothing (Just (e, w))] = do
   case w of
     Nothing -> do
@@ -919,9 +917,9 @@ tcValCases _ na _ _ [] = error ("missing let case for " ++ quote na)
 type CasePatternTriple =
   ((Maybe Var, Bool), Pattern) -- Bool = True if forced.
 
-buildValCaseTree :: Monad m =>
+buildValCaseTree ::
   VarName -> SubstMap -> Implicits -> Maybe [(Maybe Var, PreTerm)] -> PreTerm ->
-  [ValCase] -> TypeCheckT m (CaseTree, Bool)
+  [ValCase] -> TypeCheckIO (CaseTree, Bool)
 buildValCaseTree valName subst impParams domain codomain valCases = do
   iCaseData <- extractImplicitCaseData valCases
   r0 <- Env.getRefMap
@@ -940,15 +938,15 @@ buildValCaseTree valName subst impParams domain codomain valCases = do
   cs <- mapM checkCase caseData'
   casesToCaseTree cs
   where
-    verifyNoExplicitArgs :: Monad m => [ValCase] -> TypeCheckT m ()
+    verifyNoExplicitArgs :: [ValCase] -> TypeCheckIO ()
     verifyNoExplicitArgs [] = return ()
     verifyNoExplicitArgs (ValCase lo _ (Just _) _ : _) =
       err lo (Recoverable $ "unexpected function application of " ++ quote valName)
     verifyNoExplicitArgs (ValCase _ _ Nothing _ : ls) =
       verifyNoExplicitArgs ls
 
-    extractImplicitCaseData :: Monad m => [ValCase] ->
-      TypeCheckT m [([ParsePattern], Loc, Maybe (Expr, OptWhereClause))]
+    extractImplicitCaseData :: [ValCase] ->
+      TypeCheckIO [([ParsePattern], Loc, Maybe (Expr, OptWhereClause))]
     extractImplicitCaseData [] = return []
     extractImplicitCaseData (ValCase lo ias _ e : ls) = do
       let (p, remain) = getImplicitPatterns lo impParams ias
@@ -997,8 +995,8 @@ buildValCaseTree valName subst impParams domain codomain valCases = do
                   Nothing -> Nothing
                   Just (p', ps') -> Just (p', q : ps')
 
-    extractExplicitCaseData :: Monad m => Int -> [ValCase] ->
-      TypeCheckT m [([ParsePattern], Loc, Maybe (Expr, OptWhereClause))]
+    extractExplicitCaseData :: Int -> [ValCase] ->
+      TypeCheckIO [([ParsePattern], Loc, Maybe (Expr, OptWhereClause))]
     extractExplicitCaseData _ [] = return []
     extractExplicitCaseData n (ValCase lo _ (Just ps) e : ls) = do
       when (length ps /= n)
@@ -1041,15 +1039,15 @@ buildValCaseTree valName subst impParams domain codomain valCases = do
     dependencyOrder r ((ps, lo, e) : xs) d =
       (dependencyOrderArgs (preTermVars r) d ps, lo, e) : dependencyOrder r xs d
 
-    checkCase :: Monad m =>
+    checkCase ::
       ([(Int, (Maybe Var, PreTerm), ParsePattern)], Loc, Maybe (Expr, OptWhereClause)) ->
-      TypeCheckT m (Loc, [CasePatternTriple], Maybe Term)
+      TypeCheckIO (Loc, [CasePatternTriple], Maybe Term)
     checkCase (args, lo, e) = doCheckCase args lo e
 
-    doCheckCase :: Monad m =>
+    doCheckCase ::
       [(Int, (Maybe Var, PreTerm), ParsePattern)] -> Loc ->
       Maybe (Expr, OptWhereClause) ->
-      TypeCheckT m (Loc, [CasePatternTriple], Maybe Term)
+      TypeCheckIO (Loc, [CasePatternTriple], Maybe Term)
     doCheckCase args lo (Just (e, w)) =
       Env.scope $ do
         (tsu, bsu, ps) <- checkArgs args
@@ -1068,15 +1066,15 @@ buildValCaseTree valName subst impParams domain codomain valCases = do
     patternsToTriple ((v, p) : ps) =
       ((v, False), p) : patternsToTriple ps
 
-    checkArgs :: Monad m =>
+    checkArgs ::
       [(Int, (Maybe Var, PreTerm), ParsePattern)] ->
-      TypeCheckT m (SubstMap, SubstMap, [(Maybe Var, Pattern)])
+      TypeCheckIO (SubstMap, SubstMap, [(Maybe Var, Pattern)])
     checkArgs as = do
       newpids <- Env.getNextVarId
       (m1, m2, ps) <- tcPatternArgs newpids IntMap.empty subst as
       return (m1, m2, map snd (sortOn fst ps))
 
-tcUnfinishedData :: Monad m => VarId -> TypeCheckT m ()
+tcUnfinishedData :: VarId -> TypeCheckIO ()
 tcUnfinishedData dty = do
   dty' <- Env.lookupUnfinishedData dty
   case dty' of
@@ -1101,8 +1099,8 @@ showCasesToCaseTree im rm ((_, ps, _) : pss) =
 -}
 
 -- Bool = True if there is a leaf which is effectful.
-casesToCaseTree :: Monad m =>
-  [(Loc, [CasePatternTriple], Maybe Term)] -> TypeCheckT m (CaseTree, Bool)
+casesToCaseTree ::
+  [(Loc, [CasePatternTriple], Maybe Term)] -> TypeCheckIO (CaseTree, Bool)
 casesToCaseTree pss = do
   x <- runExceptT (doCasesToCaseTree 0 pss)
   case x of
@@ -1119,9 +1117,9 @@ casesToCaseTree pss = do
     projectLocs ((lo, _, _) : los) =
       Set.insert lo (projectLocs los)
 
-doCasesToCaseTree :: Monad m =>
+doCasesToCaseTree ::
   Int -> [(Loc, [CasePatternTriple], Maybe Term)] ->
-  ExceptT Loc (TypeCheckT m) (CaseTree, Set Loc)
+  ExceptT Loc TypeCheckIO (CaseTree, Set Loc)
 doCasesToCaseTree _ [] = error "no cases to build case tree"
 doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
   --rr <- lift Env.getRefMap
@@ -1189,29 +1187,29 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
       (IntMap ([Var], CaseTree), Set Loc)
     mergeLocs (m, s) i (b, t) = (IntMap.insert i b m, Set.union s t)
 
-    makeSubCase :: Monad m =>
+    makeSubCase ::
       ([(Loc, [CasePatternTriple], Maybe Term)], [Var]) ->
-      ExceptT Loc (TypeCheckT m) (([Var], CaseTree), Set Loc)
+      ExceptT Loc TypeCheckIO (([Var], CaseTree), Set Loc)
     makeSubCase (rss, ids) = do
       (tr, lo) <- doCasesToCaseTree 0 rss
       return ((ids, tr), lo)
 
-    makeCaseNode :: Monad m =>
+    makeCaseNode ::
       Int -> IntMap ([Var], CaseTree) ->
         (Maybe ([(Loc, [CasePatternTriple], Maybe Term)], [Var]),
          Maybe ([Var], CaseTree)) ->
-      TypeCheckT m CaseTree
+      TypeCheckIO CaseTree
     makeCaseNode idx subc (_, subd) =
       case IntMap.lookup (-1) subc of
         Nothing -> return (CaseNode idx subc subd)
         Just subc' -> return (CaseUnit idx subc')
 
-    findCaseIndex :: Monad m =>
-      [CasePatternTriple] -> TypeCheckT m (Either Bool (Int, VarId))
+    findCaseIndex ::
+      [CasePatternTriple] -> TypeCheckIO (Either Bool (Int, VarId))
     findCaseIndex patterns = doFindCaseIndex startIdx (drop startIdx patterns)
       where
-        doFindCaseIndex :: Monad m =>
-          Int -> [CasePatternTriple] -> TypeCheckT m (Either Bool (Int, VarId))
+        doFindCaseIndex ::
+          Int -> [CasePatternTriple] -> TypeCheckIO (Either Bool (Int, VarId))
         doFindCaseIndex _ [] =
           if startIdx == 0 then return (Left True) else return (Left False)
         doFindCaseIndex idx ((_, q) : qs) =
@@ -1224,8 +1222,8 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
               else doFindCaseIndex (idx + 1) qs
             _ -> doFindCaseIndex (idx + 1) qs
 
-        hasLateDependency :: Monad m =>
-          Pattern -> [CasePatternTriple] -> TypeCheckT m Bool
+        hasLateDependency ::
+          Pattern -> [CasePatternTriple] -> TypeCheckIO Bool
         hasLateDependency q qs = do
           rm <- Env.getRefMap
           let fs = preTermVars rm (patternTy q)
@@ -1245,14 +1243,14 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
 
     -- Returns map VarId -> PreTerm, where VarId is ctor id,
     -- PreTerm is the ctor's type, and VarId = -1 means unit.
-    dataSplit :: Monad m =>
-      VarId -> TypeCheckT m (IntMap PreTerm)
+    dataSplit ::
+      VarId -> TypeCheckIO (IntMap PreTerm)
     dataSplit (-1) = return (IntMap.singleton (-1) TermUnitTy)
     dataSplit dv = do
       is <- Env.forceLookupDataCtor dv
       foldlM insm IntMap.empty is
       where
-        insm :: Monad m => IntMap PreTerm -> Var -> TypeCheckT m (IntMap PreTerm)
+        insm :: IntMap PreTerm -> Var -> TypeCheckIO (IntMap PreTerm)
         insm m i = do
           r <- Env.forceLookupRef (varId i)
           return (IntMap.insert (varId i) (termTy r) m)
@@ -1271,9 +1269,9 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
           Just i' -> IntSet.insert i' (getCtorVarIds idx qss)
           Nothing -> getCtorVarIds idx qss
 
-    duplicateCatchAll :: Monad m =>
+    duplicateCatchAll ::
       Int -> [VarId] -> [(Loc, [CasePatternTriple], Maybe Term)] ->
-      TypeCheckT m [(Loc, [CasePatternTriple], Maybe Term, [Var])]
+      TypeCheckIO [(Loc, [CasePatternTriple], Maybe Term, [Var])]
     duplicateCatchAll _ _ [] = return []
     duplicateCatchAll idx cids ((lo, qs, t) : rss) = do
       let (qh, qt1) = splitAt idx qs
@@ -1292,8 +1290,8 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
           return ((lo, qs, t, []) : d' ++ e)
         _ -> fmap ((lo, qs, t, []):) (duplicateCatchAll idx cids rss)
 
-    testAllCtorsCovered :: Monad m =>
-      Int -> CasePatternTriple -> IntSet -> TypeCheckT m Bool
+    testAllCtorsCovered ::
+      Int -> CasePatternTriple -> IntSet -> TypeCheckIO Bool
     testAllCtorsCovered _ ((_, True), _) _ = return True
     testAllCtorsCovered idx ((_, False), p) s = do
       xs <- makeCtorPatterns (Nothing, False) (IntSet.toList s) (patternTy p)
@@ -1324,8 +1322,8 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
           PatternEmpty -> dropDefaultAndEmptyCases idx qss
           _ -> c : dropDefaultAndEmptyCases idx qss
 
-    makeCtorPatterns :: Monad m =>
-      (Maybe Var, Bool) -> [VarId] -> PreTerm -> TypeCheckT m [CasePatternTriple]
+    makeCtorPatterns ::
+      (Maybe Var, Bool) -> [VarId] -> PreTerm -> TypeCheckIO [CasePatternTriple]
     makeCtorPatterns _ [] _ = return []
     makeCtorPatterns b (-1 : is) ty = do
       newpids <- Env.getNextVarId
@@ -1354,9 +1352,9 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
           ps' <- makeCtorPatterns b is ty
           return ((b, c {patternTy = ty}) : ps')
 
-    splitCtorCases :: Monad m =>
+    splitCtorCases ::
       Int -> [(Loc, [CasePatternTriple], Maybe Term, [Var])] ->
-      TypeCheckT m (IntMap ([(Loc, [CasePatternTriple], Maybe Term)], [Var]))
+      TypeCheckIO (IntMap ([(Loc, [CasePatternTriple], Maybe Term)], [Var]))
     splitCtorCases _ [] = return IntMap.empty
     splitCtorCases idx ((lo, qs, t, ids) : rss) = do
       m <- splitCtorCases idx rss
@@ -1410,16 +1408,16 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
                   --let !() = trace ("add to cases yields:\n" ++ showCasesToCaseTree im0 rm0 (rs : xs)) ()
                   return $ IntMap.insert i' ((rs : xs), ids ++ ids') m
 
-    reorderForceSubst :: Monad m =>
-      VarId -> SubstMap -> [CasePatternTriple] -> TypeCheckT m SubstMap
+    reorderForceSubst ::
+      VarId -> SubstMap -> [CasePatternTriple] -> TypeCheckIO SubstMap
     reorderForceSubst newpids su qs = do
       su' <- reorderForceSubstStep newpids su qs
       if IntMap.keys su /= IntMap.keys su'
       then reorderForceSubst newpids su' qs
       else return su'
 
-    reorderForceSubstStep :: Monad m =>
-      VarId -> SubstMap -> [CasePatternTriple] -> TypeCheckT m SubstMap
+    reorderForceSubstStep ::
+      VarId -> SubstMap -> [CasePatternTriple] -> TypeCheckIO SubstMap
     reorderForceSubstStep newpids su qs =
       let (n1, n2) = IntMap.foldrWithKey (\i b (m1, m2) ->
                       case b of
@@ -1489,12 +1487,12 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
       ++ makeNewVars vss qss rss
     makeNewVars _ _ _ = error "unexpected arguments"
 
-    pvarsImplicits :: Monad m =>
-      [(VarName, Pattern)] -> TypeCheckT m [(VarName, Var)]
+    pvarsImplicits ::
+      [(VarName, Pattern)] -> TypeCheckIO [(VarName, Var)]
     pvarsImplicits qs =
       mapM (\(n, _) -> fmap (\i -> (n, mkVar i "_")) Env.freshVarId) qs
 
-    pvarsArgs :: Monad m => [Maybe [Pattern]] -> TypeCheckT m [Maybe [Var]]
+    pvarsArgs :: [Maybe [Pattern]] -> TypeCheckIO [Maybe [Var]]
     pvarsArgs [] = return []
     pvarsArgs (Nothing : qss) =
       fmap (Nothing:) (pvarsArgs qss)
@@ -1516,9 +1514,9 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
           let b' = b || IntMap.member (varId v') bsu
           in ((Just v', b'), q') : qs'
 
-    makeCatchAllCases :: Monad m =>
+    makeCatchAllCases ::
       Int -> [(Loc, [CasePatternTriple], Maybe Term, [Var])] ->
-      TypeCheckT m (Maybe ([(Loc, [CasePatternTriple], Maybe Term)], [Var]))
+      TypeCheckIO (Maybe ([(Loc, [CasePatternTriple], Maybe Term)], [Var]))
     makeCatchAllCases _ [] = return Nothing
     makeCatchAllCases idx ((lo, qs, t, _) : rss) = do
       ca <- makeCatchAllCases idx rss
@@ -1536,15 +1534,15 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
       let (x', xs') = removeIdx (i-1) xs in (x', x : xs')
     removeIdx _ _ = error "unexpected input removeIdx"
 
-verifyExprNoImplicits :: Monad m =>
-  SubstMap -> IntMap (Loc, String) -> TypeCheckT m ()
+verifyExprNoImplicits ::
+  SubstMap -> IntMap (Loc, String) -> TypeCheckIO ()
 verifyExprNoImplicits isu imps = do
   let imps' = IntMap.difference imps $ IntMap.restrictKeys imps (IntMap.keysSet isu)
   when (not (null imps')) $
     let imps'' = sortOn fst (map snd (IntMap.toList imps'))
     in mapM_ (\(lo, msg) -> err lo (Recoverable msg)) imps''
 
-evalTcExpr :: Monad m => SubstMap -> PreTerm -> Expr -> TypeCheckT m Term
+evalTcExpr :: SubstMap -> PreTerm -> Expr -> TypeCheckIO Term
 evalTcExpr su ty e = do
   (e', (s1, imps)) <- runStateT (tcExpr su ty e)
                         (IntMap.empty, ImpMap IntMap.empty Nothing)
@@ -1553,17 +1551,17 @@ evalTcExpr su ty e = do
     ImpMap imps' Nothing ->
       verifyExprNoImplicits s1 imps' >> return e'
 
-scope :: Monad m => ExprT m Term -> ExprT m Term
+scope :: ExprIO Term -> ExprIO Term
 scope e = fmap fst (dataScope (fmap (\e' -> (e', ())) e))
 
-dataScope :: Monad m => ExprT m (Term, a) -> ExprT m (Term, a)
+dataScope :: ExprIO (Term, a) -> ExprIO (Term, a)
 dataScope e = do
   st <- get
   (x, st') <- lift (Env.scope (runStateT e st))
   put st'
   return x
 
-forceIfLazyPreTerm :: Monad m => PreTerm -> ExprT m PreTerm
+forceIfLazyPreTerm :: PreTerm -> ExprIO PreTerm
 forceIfLazyPreTerm t = do
   rm <- lift Env.getRefMap
   let n = preTermNormalize rm t
@@ -1575,7 +1573,7 @@ doForceIfLazyPreTerm :: PreTerm -> PreTerm
 doForceIfLazyPreTerm (TermLazyArrow _ t) = doForceIfLazyPreTerm t
 doForceIfLazyPreTerm t = t
 
-forceIfLazyTerm :: Monad m => Term -> ExprT m Term
+forceIfLazyTerm :: Term -> ExprIO Term
 forceIfLazyTerm t = do
   rm <- lift Env.getRefMap
   let n = preTermNormalize rm (termTy t)
@@ -1584,8 +1582,8 @@ forceIfLazyTerm t = do
       doForceIfLazyTerm (termPre t) n (termIo t) (termNestedDefs t)
     _ -> return t
 
-doForceIfLazyTerm :: Monad m =>
-  PreTerm -> PreTerm -> Bool -> [RefVar] -> ExprT m Term
+doForceIfLazyTerm ::
+  PreTerm -> PreTerm -> Bool -> [RefVar] -> ExprIO Term
 doForceIfLazyTerm te (TermLazyArrow io1 cod) io2 defs =
   doForceIfLazyTerm (TermLazyApp io1 te) cod (io1 || io2) defs
 doForceIfLazyTerm te ty io defs =
@@ -1594,14 +1592,14 @@ doForceIfLazyTerm te ty io defs =
                 , termNestedDefs = defs
                 , termIo = io }
 
-tcExpr :: Monad m => SubstMap -> PreTerm -> Expr -> ExprT m Term
+tcExpr :: SubstMap -> PreTerm -> Expr -> ExprIO Term
 tcExpr subst ty e = do
   rm <- lift Env.getRefMap
   case preTermLazyCod rm ty of
     Nothing -> exprCheck ty
     Just (cod, io) -> exprCheckLazy io cod
   where
-    exprCheck :: Monad m => PreTerm -> ExprT m Term
+    exprCheck :: PreTerm -> ExprIO Term
     exprCheck expectedTy = do
       e0 <- doTcExpr False subst Nothing (Just expectedTy) e
       e' <- forceIfLazyTerm e0
@@ -1611,7 +1609,7 @@ tcExpr subst ty e = do
       let st = substPreTerm su expectedTy
       return (mkTerm se st (termIo e'))
 
-    exprCheckLazy :: Monad m => Bool -> PreTerm -> ExprT m Term
+    exprCheckLazy :: Bool -> PreTerm -> ExprIO Term
     exprCheckLazy io expectedTy = do
       e' <- tcExpr subst expectedTy e
       tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
@@ -1620,8 +1618,8 @@ tcExpr subst ty e = do
       let st = TermLazyArrow io (substPreTerm su expectedTy)
       return (mkTerm se st False)
 
-doTcExprSubst :: Monad m =>
-  Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) -> Expr -> ExprT m Term
+doTcExprSubst ::
+  Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) -> Expr -> ExprIO Term
 doTcExprSubst isTrial subst operandArg e = do
   e' <- doTcExpr isTrial subst operandArg Nothing e
   isu <- getExprSubst
@@ -1632,9 +1630,9 @@ doTcExprSubst isTrial subst operandArg e = do
 -- The first Bool is a simple heuristic. It is indicating whether
 -- only the root type of the expression is needed. It is certainly
 -- possible to do better, fx by adding this to tcExpr as well.
-doTcExpr :: Monad m =>
+doTcExpr ::
   Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) ->
-  Maybe PreTerm -> Expr -> ExprT m Term
+  Maybe PreTerm -> Expr -> ExprIO Term
 doTcExpr _ _ _ _ (ExprUnitElem _) = return mkTermUnitElem
 doTcExpr _ _ _ _ (ExprUnitTy _) = return mkTermUnitTy
 doTcExpr _ _ _ _ (ExprTy _) = return mkTermTy
@@ -1656,8 +1654,8 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
           let ety = substPreTerm subst (substPreTerm isu (termTy vt))
           return (mkTerm e ety False)
   where
-    getOperatorContext :: Monad m =>
-      TypeCheckT m
+    getOperatorContext ::
+      TypeCheckIO
         (Maybe
           (Either
             (Either Expr PreTerm)
@@ -1678,7 +1676,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
             Just (Left e) -> return (Just (Left (Left e)))
             Just (Right e) -> return (Just (Right (Left e)))
 
-    operandVarName :: Monad m => ExprT m VarName
+    operandVarName :: ExprIO VarName
     operandVarName =
       if not (isOperator na0)
       then return na0
@@ -1695,8 +1693,8 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
             Just (Left u) -> unaryContext u
             Just (Right b) -> binaryContext b
 
-    binaryContext :: Monad m =>
-      Either (Expr, Expr) (PreTerm, PreTerm) -> ExprT m VarName
+    binaryContext ::
+      Either (Expr, Expr) (PreTerm, PreTerm) -> ExprIO VarName
     binaryContext (Left (e1, e2)) =
         if isRightAssocFixOp na0
         then operandVarNameFromArg e2
@@ -1708,23 +1706,23 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
         else -- postfix or left assoc:
           operandVarNameFromType t1
 
-    unaryContext :: Monad m =>
-      Either Expr PreTerm -> ExprT m VarName
+    unaryContext ::
+      Either Expr PreTerm -> ExprIO VarName
     unaryContext (Left e1) = operandVarNameFromArg e1
     unaryContext (Right t1) = operandVarNameFromType t1
 
-    checkOperand :: Monad m => Expr -> ExprT m Term
+    checkOperand :: Expr -> ExprIO Term
     checkOperand a = do
       s <- get
       r <- lift $ evalStateT (doTcExprSubst True subst Nothing a) s
       return r
 
-    operandVarNameFromArg :: Monad m => Expr -> ExprT m VarName
+    operandVarNameFromArg :: Expr -> ExprIO VarName
     operandVarNameFromArg a = do
       a' <- checkOperand a
       operandVarNameFromType (termTy a')
 
-    operandVarNameFromType :: Monad m => PreTerm -> ExprT m VarName
+    operandVarNameFromType :: PreTerm -> ExprIO VarName
     operandVarNameFromType aty = do
       --let !() = trace (preTermToString 0 aty) ()
       n <- lift (typeOperandName aty)
@@ -1747,7 +1745,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
           then return na0'
           else return na'
 
-    unableToInferOperand :: Monad m => ExprT m VarName
+    unableToInferOperand :: ExprIO VarName
     unableToInferOperand = do
       na00 <- lift (expandVarNameEnv na0)
       let na0' = na00 ++ "#"
@@ -1757,7 +1755,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
                   "unable to infer operand type of " ++ quote na0))
       return na0'
 
-    makeImplicitApp :: Monad m => Var -> Term -> ExprT m Term
+    makeImplicitApp :: Var -> Term -> ExprIO Term
     makeImplicitApp v t = do
       imps0 <- lift (Env.forceLookupImplicit (varId v))
       if null imps0
@@ -1770,7 +1768,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
           let aty = substPreTerm su (termTy t)
           return (mkTerm a aty False)
 
-    getImplicit :: Monad m => (Var, PreTerm) -> ExprT m (Var, PreTerm)
+    getImplicit :: (Var, PreTerm) -> ExprIO (Var, PreTerm)
     getImplicit (v, vt) = do
       i <- lift Env.freshVarId
       l <- lift Env.getNextLocalVarName
@@ -1834,8 +1832,8 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             tcExprUnify lo ty' (substPreTerm isu fty)
             return (mkTerm fte fty False)
   where
-    insertImplicit :: Monad m =>
-      VarListElem -> ExprT m (Maybe PreTerm)
+    insertImplicit ::
+      VarListElem -> ExprIO (Maybe PreTerm)
     insertImplicit ((vlo, vna), Nothing) = do
       i <- lift Env.freshVarId
       let e = TermVar True (mkVar i ("TypeOf_" ++ vna))
@@ -1843,8 +1841,8 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
       return (Just e)
     insertImplicit (_, Just _) = return Nothing
 
-    insertUnknownUntypedParam :: Monad m =>
-      ((VarListElem, VarId), Maybe PreTerm) -> ExprT m (Maybe (Var, PreTerm))
+    insertUnknownUntypedParam ::
+      ((VarListElem, VarId), Maybe PreTerm) -> ExprIO (Maybe (Var, PreTerm))
     insertUnknownUntypedParam ((((vlo, vna), Nothing), i), Just e) = do
       v <- lift (insertNonblankVariable (vlo, vna) i e)
       return (Just (v, e))
@@ -1853,8 +1851,8 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
       return Nothing
     insertUnknownUntypedParam _ = error "unexpected case"
 
-    checkParam :: Monad m =>
-      ((VarListElem, VarId), Maybe (Var, PreTerm)) -> ExprT m (Var, PreTerm)
+    checkParam ::
+      ((VarListElem, VarId), Maybe (Var, PreTerm)) -> ExprIO (Var, PreTerm)
     checkParam (((_, Nothing), _), Nothing) =
       error "expected function explicit type or implicit type"
     checkParam (((_, Nothing), _), Just x) = return x
@@ -1879,15 +1877,15 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             _ ->
               error $ "not a variable term " ++ quote vna
 
-    insertUnknownTypedParam :: Monad m => (VarListElem, VarId) -> ExprT m ()
+    insertUnknownTypedParam :: (VarListElem, VarId) -> ExprIO ()
     insertUnknownTypedParam (((vlo, vna), Nothing), i) =
       lift (insertUnknownVar subst (vlo, vna) i Nothing)
     insertUnknownTypedParam (((vlo, vna), Just e), i) =
       lift (insertUnknownVar subst (vlo, vna) i (Just e))
 
-    insertTypedParams :: Monad m =>
+    insertTypedParams ::
       SubstMap -> [(Int, (Maybe Var, PreTerm), (VarListElem, VarId))] ->
-      ExprT m (SubstMap, [(Int, (Var, PreTerm))])
+      ExprIO (SubstMap, [(Int, (Var, PreTerm))])
     insertTypedParams su [] = return (su, [])
     insertTypedParams su ((idx, (v, t), (((vlo, vna), e), i)) : xs) = do
       pa <- if vna == "_"
@@ -1926,14 +1924,14 @@ doTcExpr _ subst _ _ (ExprArrow _ io dom cod) = do
     let ar = TermArrow io dom' (termPre cod')
     return (mkTerm ar TermTy (iod || termIo cod'))
   where
-    insertUnknownParam :: Monad m => ExprListTypedElem -> ExprT m ()
+    insertUnknownParam :: ExprListTypedElem -> ExprIO ()
     insertUnknownParam (Left _) = return ()
     insertUnknownParam (Right ((vlo, vna), e)) = do
       i <- lift Env.freshVarId
       lift (insertUnknownVar subst (vlo, vna) i (Just e))
 
-    checkParam :: Monad m =>
-      ExprListTypedElem -> ExprT m (Maybe Var, PreTerm, Bool)
+    checkParam ::
+      ExprListTypedElem -> ExprIO (Maybe Var, PreTerm, Bool)
     checkParam (Left e) = do
       e' <- tcExpr subst TermTy e
       return (Nothing, termPre e', termIo e')
@@ -1967,7 +1965,7 @@ doTcExpr isTrial subst _ _ (ExprLazyApp e) = do
         then doMakeLazyApp e'
         else return (mkTerm TermEmpty cod False)
   where
-    doMakeLazyApp :: Monad m => Term -> ExprT m Term
+    doMakeLazyApp :: Term -> ExprIO Term
     doMakeLazyApp e' = do
       rm <- lift Env.getRefMap
       case preTermLazyCod rm (termTy e') of
@@ -2057,10 +2055,10 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
           (a, as0) <- getRemoveImplicit n as
           Just (a, ((lo, m), e) : as0)
 
-    unifyImplicits :: Monad m =>
+    unifyImplicits ::
       Set VarName -> Map VarName (PreTerm, PreTerm) ->
       [((Loc, String), Expr)] -> [(VarName, PreTerm)] -> PreTerm ->
-      ExprT m (Bool, [(VarName, PreTerm)], PreTerm)
+      ExprIO (Bool, [(VarName, PreTerm)], PreTerm)
     unifyImplicits _ _ [] imap fty = return (False, imap, fty)
     unifyImplicits remain ias (((lo, na), e) : es) imap fty = do
       case Map.lookup na ias of
@@ -2081,11 +2079,11 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
               lift (err lo (Fatal $ "implicit argument " ++ quote na
                                     ++ " is given multiple times"))
       where
-        msgPrefix :: Monad m => ExprT m String
+        msgPrefix :: ExprIO String
         msgPrefix =
           return $
             "failed unifying values for implicit argument " ++ quote na
-        runUnify :: Monad m => PreTerm -> Term -> ExprT m Term
+        runUnify :: PreTerm -> Term -> ExprIO Term
         runUnify a e0 =
           runExprUnifResult lo False msgPrefix a (termPre e0) >> return e0
 doTcExpr _ subst _ ty (ExprSeq (Left e1) e2) =
@@ -2107,9 +2105,9 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
       let c = TermCase (termPre expr') ct
       return (mkTerm c ty' (termIo expr' || io))
   where
-    checkCases :: Monad m =>
+    checkCases ::
       VarId -> PreTerm -> [CaseCase] -> Maybe PreTerm ->
-      ExprT m ([(Loc, [CasePatternTriple], Maybe Term)], Maybe PreTerm)
+      ExprIO ([(Loc, [CasePatternTriple], Maybe Term)], Maybe PreTerm)
     checkCases _ _ [] expectedTy = return ([], expectedTy)
     checkCases newpids t ((Left p) : ps) expectedTy = do
       c <- doCheckCase newpids t p Nothing expectedTy
@@ -2128,9 +2126,9 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
       (cs, ty') <- checkCases newpids t ps expectedTy
       return (c : cs, ty')
 
-    doCheckCase :: Monad m =>
+    doCheckCase ::
       VarId -> PreTerm -> ParsePattern -> Maybe Expr -> Maybe PreTerm ->
-      ExprT m (Loc, [CasePatternTriple], Maybe Term)
+      ExprIO (Loc, [CasePatternTriple], Maybe Term)
     doCheckCase newpids t p (Just e) expectedTy = do
       (e', tr) <- dataScope $ do
         (su, p') <- lift (tcPattern newpids t p)
@@ -2159,7 +2157,7 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
       in [((Nothing, False), p')]
 
     checkNoVariableEscape ::
-      Monad m => Loc -> Pattern -> PreTerm -> ExprT m ()
+      Loc -> Pattern -> PreTerm -> ExprIO ()
     checkNoVariableEscape plo p t = do
       rm <- lift Env.getRefMap
       let vp = IntSet.difference
@@ -2170,9 +2168,9 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
       when (not (IntSet.null s))
         (lift $ err plo (Fatal "pattern variable(s) are escaping scope"))
 
-doTcExprApp :: Monad m =>
+doTcExprApp ::
   Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) ->
-  Maybe PreTerm -> Expr -> [Expr] -> ExprT m Term
+  Maybe PreTerm -> Expr -> [Expr] -> ExprIO Term
 doTcExprApp isTrial subst operandArg ty f args = do
   f' <- doTcExprSubst False subst operandArg f
   if not isTrial
@@ -2194,14 +2192,14 @@ doTcExprApp isTrial subst operandArg ty f args = do
               Nothing -> doMakeTermApp f'
               Just (_, cod', _) -> makeTrivialApp f' cod'
   where
-    makeTrivialApp :: Monad m => Term -> PreTerm -> ExprT m Term
+    makeTrivialApp :: Term -> PreTerm -> ExprIO Term
     makeTrivialApp f' cod = do
       opn <- lift (typeOperandName cod)
       if isNothing opn
       then doMakeTermApp f'
       else return (mkTerm TermEmpty cod False)
 
-    getArgSplit :: Monad m => Term -> ExprT m (Maybe (Expr, [Expr]))
+    getArgSplit :: Term -> ExprIO (Maybe (Expr, [Expr]))
     getArgSplit f' =
       case args of
         a1 : a2 : args' ->
@@ -2215,7 +2213,7 @@ doTcExprApp isTrial subst operandArg ty f args = do
           else return Nothing
         _ -> return Nothing
 
-    doMakeTermApp :: Monad m => Term -> ExprT m Term
+    doMakeTermApp :: Term -> ExprIO Term
     doMakeTermApp f' = do
       asp <- getArgSplit f'
       case asp of
@@ -2232,9 +2230,9 @@ doTcExprApp isTrial subst operandArg ty f args = do
     isPostfixExpr (ExprImplicitApp v@(ExprVar _) _) = isPostfixExpr v
     isPostfixExpr _ = False
 
-makeTermApp :: Monad m =>
+makeTermApp ::
   SubstMap -> Loc ->
-  Maybe PreTerm -> Term -> [Expr] -> ExprT m Term
+  Maybe PreTerm -> Term -> [Expr] -> ExprIO Term
 makeTermApp subst flo preTy f0 preArgs = do
   f' <- forceIfLazyTerm f0
   r <- lift Env.getRefMap
@@ -2273,9 +2271,9 @@ makeTermApp subst flo preTy f0 preArgs = do
       then return fap
       else makeTermApp subst flo preTy fap postArgs
   where
-    unifyType :: Monad m =>
+    unifyType ::
       Maybe PreTerm -> IntSet -> (Int, Int, Int, Int) ->
-      PreTerm -> SubstMap -> ExprT m Bool
+      PreTerm -> SubstMap -> ExprIO Bool
     unifyType ty domVars w cod su = do
       case ty of
         Just ty' -> do
@@ -2291,7 +2289,7 @@ makeTermApp subst flo preTy f0 preArgs = do
             else return False
         Nothing -> return True
       where
-        uniWeight :: Monad m => PreTerm -> ExprT m (Int, Int, Int, Int)
+        uniWeight :: PreTerm -> ExprIO (Int, Int, Int, Int)
         uniWeight t = do
           rm <- lift Env.getRefMap
           iv <- lift Env.getImplicitVarMap
@@ -2303,10 +2301,10 @@ makeTermApp subst flo preTy f0 preArgs = do
     getDomVars ((Nothing, _) : vs) = getDomVars vs
     getDomVars ((Just v, _) : vs) = IntSet.insert (varId v) (getDomVars vs)
 
-    applyArgs :: Monad m =>
+    applyArgs ::
       Maybe PreTerm -> IntSet -> Bool -> PreTerm -> SubstMap ->
       [(Int, Maybe Var, PreTerm, (Int, Int, Int, Int), Expr)] ->
-      ExprT m (SubstMap, [(Int, PreTerm)], Bool)
+      ExprIO (SubstMap, [(Int, PreTerm)], Bool)
     applyArgs _ _ _ _ su [] = return (su, [], False)
     applyArgs ty domVars unified cod su ((idx, Nothing, p, w, e) : xs) = do
       unified' <- unifyCod ty domVars unified w cod su
@@ -2322,9 +2320,9 @@ makeTermApp subst flo preTy f0 preArgs = do
       (su'', es', io) <- applyArgs ty domVars unified' cod su' xs'
       return (su'', (idx, e') : es', io || eio)
 
-    unifyCod :: Monad m =>
+    unifyCod ::
       Maybe PreTerm -> IntSet -> Bool -> (Int, Int, Int, Int) ->
-      PreTerm -> SubstMap -> ExprT m Bool
+      PreTerm -> SubstMap -> ExprIO Bool
     unifyCod ty domVars unified weight cod su = do
       if unified
       then return True
@@ -2401,8 +2399,8 @@ appOrdering ::
   (PreTerm, (Int, Int, Int, Int)) -> (PreTerm, (Int, Int, Int, Int)) -> Ordering
 appOrdering (_, n1) (_, n2) = compare n1 n2
 
-tcPattern :: Monad m =>
-  VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
+tcPattern ::
+  VarId -> PreTerm -> ParsePattern -> TypeCheckIO (SubstMap, Pattern)
 tcPattern newpids ty p = do
   (su, p')  <- doTcPatternForceLazy False False newpids ty p
   rm <- Env.getRefMap
@@ -2420,9 +2418,9 @@ tcPattern newpids ty p = do
     isArrowType' (TermLazyArrow _ _) = True
     isArrowType' _ = False
 
-makePatternApp :: Monad m =>
+makePatternApp ::
   Loc -> VarId -> PreTerm -> (SubstMap, Pattern) -> [ParsePattern] ->
-  TypeCheckT m (SubstMap, Pattern)
+  TypeCheckIO (SubstMap, Pattern)
 makePatternApp flo newpids ty (fsu, f') prePargs = do
   r <- Env.getRefMap
   when (not $ patternPreCanApply (patternPre f')) $ do
@@ -2466,7 +2464,7 @@ makePatternApp flo newpids ty (fsu, f') prePargs = do
       else makePatternApp flo newpids ty (psu, p) postPargs
 
 
-forceIfLazyPattern :: Monad m => Pattern -> TypeCheckT m Pattern
+forceIfLazyPattern :: Pattern -> TypeCheckIO Pattern
 forceIfLazyPattern p = do
   rm <- Env.getRefMap
   let n = preTermNormalize rm (patternTy p)
@@ -2474,16 +2472,16 @@ forceIfLazyPattern p = do
     TermLazyArrow _ _ -> doForceIfLazyPattern (patternPre p) n
     _ -> return p
 
-doForceIfLazyPattern :: Monad m =>
-  PrePattern -> PreTerm -> TypeCheckT m Pattern
+doForceIfLazyPattern ::
+  PrePattern -> PreTerm -> TypeCheckIO Pattern
 doForceIfLazyPattern p (TermLazyArrow io cod) =
   assert (not io) $ doForceIfLazyPattern (PatternLazyApp p) cod
 doForceIfLazyPattern p ty =
   return $ Pattern {patternPre = p, patternTy = ty}
 
 
-doTcPatternForceLazy :: Monad m =>
-  Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
+doTcPatternForceLazy ::
+  Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckIO (SubstMap, Pattern)
 doTcPatternForceLazy hasImplicitApp hasApp newpids ty p = do
   (su, p0) <- doTcPattern hasImplicitApp hasApp newpids ty p
   if patternPreCanApply (patternPre p0)
@@ -2494,8 +2492,8 @@ doTcPatternForceLazy hasImplicitApp hasApp newpids ty p = do
     return (su, p0)
 
 
-doTcPattern :: Monad m =>
-  Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckT m (SubstMap, Pattern)
+doTcPattern ::
+  Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckIO (SubstMap, Pattern)
 doTcPattern _ _ newpids ty (ParsePatternApp f pargs) = do
   f' <- doTcPatternForceLazy False True newpids ty f
   case pargs of
@@ -2572,9 +2570,9 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
   let p = Pattern {patternPre = a, patternTy = c}
   return (psu, p)
   where
-    getImplicitNames :: Monad m =>
+    getImplicitNames ::
       Set VarName -> Set VarName ->
-      [((Loc, String), ParsePattern)] -> TypeCheckT m (Set VarName)
+      [((Loc, String), ParsePattern)] -> TypeCheckIO (Set VarName)
     getImplicitNames _ acc [] = return acc
     getImplicitNames allnames acc (((lo, na), _) : ps) = do
       when (Set.member na acc)
@@ -2629,7 +2627,7 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
         return (IntMap.empty, Pattern {patternPre = PatternVar v,
                                        patternTy = ty})
   where
-    getDataCtorMatching :: Monad m => TypeCheckT m VarName
+    getDataCtorMatching :: TypeCheckIO VarName
     getDataCtorMatching = do
       cs <- getDataCtors
       na0' <- expandVarNameEnv na0
@@ -2642,7 +2640,7 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
               return (na0' ++ m1)
             _ -> return na0'
 
-    getDataCtors :: Monad m => TypeCheckT m (Maybe [Var])
+    getDataCtors :: TypeCheckIO (Maybe [Var])
     getDataCtors = do
       rm <- Env.getRefMap
       case preTermCodRootType rm ty of
@@ -2652,7 +2650,7 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
           return (Just c)
         _ -> return Nothing
 
-    ctorFromVarStatus :: Monad m => VarStatus -> TypeCheckT m (Var, VarId, PreTerm)
+    ctorFromVarStatus :: VarStatus -> TypeCheckIO (Var, VarId, PreTerm)
     ctorFromVarStatus x = do
       x' <- varStatusTerm x
       case x' of
@@ -2660,8 +2658,8 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
           return (v, did, ty')
         _ -> error $ "expected var status to return ctor " ++ show x
 
-    checkCtorType :: Monad m =>
-      Var -> VarId -> PreTerm -> TypeCheckT m (SubstMap, Pattern)
+    checkCtorType ::
+      Var -> VarId -> PreTerm -> TypeCheckIO (SubstMap, Pattern)
     checkCtorType cv did cty = do
       r <- Env.getRefMap
       p <- makeImplicitApp cv did cty
@@ -2673,8 +2671,8 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
           return (su, p)
         else return (IntMap.empty, p)
 
-    makeImplicitApp :: Monad m =>
-      Var -> VarId -> PreTerm -> TypeCheckT m Pattern
+    makeImplicitApp ::
+      Var -> VarId -> PreTerm -> TypeCheckIO Pattern
     makeImplicitApp cv did cty = do
       imps0 <- Env.forceLookupImplicit (varId cv)
       let ctor = PatternCtor cv did
@@ -2690,7 +2688,7 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
           let aty = substPreTerm su cty
           return (Pattern {patternPre = a, patternTy = aty})
 
-    getImplicit :: Monad m => (Var, PreTerm) -> TypeCheckT m (Var, PrePattern)
+    getImplicit :: (Var, PreTerm) -> TypeCheckIO (Var, PrePattern)
     getImplicit (v, _) = do
       i <- Env.freshVarId
       l <- Env.getNextLocalVarName
@@ -2704,9 +2702,9 @@ doTcPattern _ _ newpids ty (ParsePatternUnit lo) = do
   su <- tcPatternUnify newpids lo ty TermUnitTy
   return (su, Pattern {patternPre = PatternUnit, patternTy = TermUnitTy})
 
-tcPatternArgs :: Monad m =>
+tcPatternArgs ::
   VarId -> SubstMap -> SubstMap -> [(Int, (Maybe Var, PreTerm), ParsePattern)] ->
-  TypeCheckT m (SubstMap, SubstMap, [(Int, (Maybe Var, Pattern))])
+  TypeCheckIO (SubstMap, SubstMap, [(Int, (Maybe Var, Pattern))])
 tcPatternArgs _ su asu [] = return (su, asu, [])
 tcPatternArgs newpids su asu ((idx, (Nothing, p), e) : xs) = do
   (psu, e') <- tcPattern newpids (substPreTerm asu (substPreTerm su p)) e
@@ -2732,7 +2730,7 @@ patternPreCanApply (PatternVar _) = False
 patternPreCanApply PatternUnit = False
 patternPreCanApply PatternEmpty = False
 
-isEmptyType :: Monad m => VarId -> PreTerm -> TypeCheckT m Bool
+isEmptyType :: VarId -> PreTerm -> TypeCheckIO Bool
 isEmptyType newpids ty = do
   r <- Env.getRefMap
   let ty' = preTermNormalize r ty
@@ -2741,7 +2739,7 @@ isEmptyType newpids ty = do
     Just is -> foldlM (meetCtorId ty') True is
     Nothing -> return False
   where
-    getTypeCtors :: Monad m => PreTerm -> TypeCheckT m (Maybe [Var])
+    getTypeCtors :: PreTerm -> TypeCheckIO (Maybe [Var])
     getTypeCtors (TermApp _ f _) = getTypeCtors f
     getTypeCtors (TermLazyApp _ f) = getTypeCtors f
     getTypeCtors (TermImplicitApp _ f _) = getTypeCtors f
@@ -2749,7 +2747,7 @@ isEmptyType newpids ty = do
       fmap Just (Env.forceLookupDataCtor (varId v))
     getTypeCtors _ = return Nothing
 
-    meetCtorId :: Monad m => PreTerm -> Bool -> Var -> TypeCheckT m Bool
+    meetCtorId :: PreTerm -> Bool -> Var -> TypeCheckIO Bool
     meetCtorId _ False _ = return False
     meetCtorId ty' True i = do
       ctor <- Env.forceLookupRef (varId i)
@@ -2761,7 +2759,7 @@ isEmptyType newpids ty = do
         Left (UnifyAbsurd _) -> return True
         _ -> return False
 
-verifyIsEmptyType :: Monad m => Loc -> VarId -> PreTerm -> TypeCheckT m ()
+verifyIsEmptyType :: Loc -> VarId -> PreTerm -> TypeCheckIO ()
 verifyIsEmptyType lo newpids ty = do
   e <- isEmptyType newpids ty
   when (not e) $ do

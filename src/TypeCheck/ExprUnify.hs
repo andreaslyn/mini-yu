@@ -12,7 +12,7 @@ where
 import Str (quote)
 import Loc
 import TypeCheck.Env as Env
-import TypeCheck.TypeCheckT
+import TypeCheck.TypeCheckIO
 import TypeCheck.Term
 import TypeCheck.TermEnv
 import TypeCheck.SubstMap
@@ -30,20 +30,20 @@ import Debug.Trace (trace)
 _useTrace :: String -> a -> a
 _useTrace = trace
 
-type ExprUnifResult m = ExceptT String (TypeCheckT m) SubstMap
+type ExprUnifResult = ExceptT String TypeCheckIO SubstMap
 
-tcExprSubstUnify :: Monad m => Loc -> PreTerm -> PreTerm -> ExprT m ()
+tcExprSubstUnify :: Loc -> PreTerm -> PreTerm -> ExprIO ()
 tcExprSubstUnify lo expectedTy actualTy = do
   su0 <- getExprSubst
   tcExprUnify lo (substPreTerm su0 expectedTy) (substPreTerm su0 actualTy)
   return ()
 
-tcExprUnify :: Monad m =>
-  Loc -> PreTerm -> PreTerm -> ExprT m ()
+tcExprUnify ::
+  Loc -> PreTerm -> PreTerm -> ExprIO ()
 tcExprUnify lo t1 t2 = do
   runExprUnifResult lo True msgPrefix t1 t2
   where
-    msgPrefix :: Monad m => ExprT m String
+    msgPrefix :: ExprIO String
     msgPrefix = do
       isu <- getExprSubst
       let t1' = substPreTerm isu t1
@@ -54,8 +54,8 @@ tcExprUnify lo t1 t2 = do
         "expected expression to have type\n"
         ++ s1 ++ "\nbut type is\n" ++ s2
 
-runExprUnifResult :: Monad m =>
-  Loc -> Bool -> ExprT m String -> PreTerm -> PreTerm -> ExprT m ()
+runExprUnifResult ::
+  Loc -> Bool -> ExprIO String -> PreTerm -> PreTerm -> ExprIO ()
 runExprUnifResult lo normalize msgPrefix t1 t2 = do
   r <- lift (runExceptT (exprUnifyUnnormalizedFirst normalize t1 t2))
   case r of
@@ -98,8 +98,8 @@ canAppUnify rm t1 t2 =
   (canAppUnifyBase t1 && canAppUnifyBase t2)
   || preTermsAlphaEqual rm t1 t2
 
-exprUnifyUnnormalizedFirst :: Monad m =>
-  Bool -> PreTerm -> PreTerm -> ExprUnifResult m
+exprUnifyUnnormalizedFirst ::
+  Bool -> PreTerm -> PreTerm -> ExprUnifResult
 exprUnifyUnnormalizedFirst False t1 t2 =
   doExprUnify False t1 t2
 exprUnifyUnnormalizedFirst True t1 t2 =
@@ -107,8 +107,8 @@ exprUnifyUnnormalizedFirst True t1 t2 =
     (doExprUnify False t1 t2)
     (\_ -> doExprUnify True t1 t2)
 
-doExprUnify :: Monad m =>
-  Bool -> PreTerm -> PreTerm -> ExprUnifResult m
+doExprUnify ::
+  Bool -> PreTerm -> PreTerm -> ExprUnifResult
 doExprUnify normalize = \t1 t2 -> do
   r <- lift Env.getRefMap
   --i0 <- lift Env.getImplicitMap
@@ -117,7 +117,7 @@ doExprUnify normalize = \t1 t2 -> do
   then eunify2 (preTermNormalize r t1) (preTermNormalize r t2)
   else eunify2 t1 t2
   where
-    eunify :: Monad m => [(PreTerm, PreTerm)] -> SubstMap -> ExprUnifResult m
+    eunify :: [(PreTerm, PreTerm)] -> SubstMap -> ExprUnifResult
     eunify = \ps su -> do
       rm <- lift Env.getRefMap
       iv <- lift Env.getImplicitVarMap
@@ -132,8 +132,8 @@ doExprUnify normalize = \t1 t2 -> do
               w2 = getAppAlphaArgumentWeight rm iv y
           in ((x, y), min w1 w2)
 
-        startEunify :: Monad m =>
-          [(PreTerm, PreTerm)] -> SubstMap -> ExprUnifResult m
+        startEunify ::
+          [(PreTerm, PreTerm)] -> SubstMap -> ExprUnifResult
         startEunify termPairs = \su0 -> do
           (msg, rest, subst) <- doEunify termPairs su0
           if null rest
@@ -147,9 +147,9 @@ doExprUnify normalize = \t1 t2 -> do
               eunify rest' subst
           -}
 
-        doEunify :: Monad m =>
+        doEunify ::
           [(PreTerm, PreTerm)] -> SubstMap ->
-          ExceptT String (TypeCheckT m) (String, [(PreTerm, PreTerm)], SubstMap)
+          ExceptT String TypeCheckIO (String, [(PreTerm, PreTerm)], SubstMap)
         doEunify [] su0 = return ("", [], su0)
         doEunify ((t1, t2) : ts) su0 =
           catchError
@@ -164,8 +164,8 @@ doExprUnify normalize = \t1 t2 -> do
               (_, rs, su) <- doEunify ts su0
               return (msg, (t1, t2) : rs, su))
 
-    substPairs :: Monad m =>
-      [(PreTerm, PreTerm)] -> SubstMap -> TypeCheckT m [(PreTerm, PreTerm)]
+    substPairs ::
+      [(PreTerm, PreTerm)] -> SubstMap -> TypeCheckIO [(PreTerm, PreTerm)]
     substPairs ps m = do
       r <- Env.getRefMap
       if normalize
@@ -177,14 +177,14 @@ doExprUnify normalize = \t1 t2 -> do
         return $
           map (\(x,y) -> (substPreTerm m x, substPreTerm m y)) ps
 
-    eunify2 :: Monad m => PreTerm -> PreTerm -> ExprUnifResult m
+    eunify2 :: PreTerm -> PreTerm -> ExprUnifResult
     eunify2 t1 t2 =
       case (varBaseTerm t1, varBaseTerm t2) of
         (Just _, _) -> unifyVarApp t1 t2
         (_, Just _) -> unifyVarApp t1 t2
         _ -> eunify2NotVar t1 t2
 
-    eunify2NotVar :: Monad m => PreTerm -> PreTerm -> ExprUnifResult m
+    eunify2NotVar :: PreTerm -> PreTerm -> ExprUnifResult
     eunify2NotVar ar1@(TermArrow io1 d1 c1) ar2@(TermArrow io2 d2 c2) = do
       if io2 && not io1
       then do
@@ -219,9 +219,9 @@ doExprUnify normalize = \t1 t2 -> do
               mergeExprUnifMaps m u)
             (\_ -> unifyAlpha ar1 ar2)
       where
-        updateArrowMap :: Monad m =>
+        updateArrowMap ::
           SubstMap -> ((Maybe Var, PreTerm), (Maybe Var, PreTerm)) ->
-          ExprUnifResult m
+          ExprUnifResult
         updateArrowMap m ((Nothing, _), (Nothing, _)) = return m
         updateArrowMap m ((Just n, _), (Nothing, _)) = do
           i <- lift Env.freshVarId
@@ -351,7 +351,7 @@ doExprUnify normalize = \t1 t2 -> do
         (\_ -> unifyAlpha t1 f2)
     eunify2NotVar t1 t2 = unifyAlpha t1 t2
 
-    makeNewVarIds :: Monad m => [Var] -> TypeCheckT m ([PreTerm], SubstMap)
+    makeNewVarIds :: [Var] -> TypeCheckIO ([PreTerm], SubstMap)
     makeNewVarIds [] = return ([], IntMap.empty)
     makeNewVarIds (i:is) = do
       (vs, su) <- makeNewVarIds is
@@ -371,7 +371,7 @@ doExprUnify normalize = \t1 t2 -> do
             Nothing -> error ("expected " ++ varName v ++ " to be implicit var")
             Just (_, dv) -> not (head di `elem` dv)
 
-    hasBoundVar :: Monad m => Var -> PreTerm -> TypeCheckT m Bool
+    hasBoundVar :: Var -> PreTerm -> TypeCheckIO Bool
     hasBoundVar v t = do
       iv <- Env.getImplicitVarMap
       r <- Env.getRefMap
@@ -395,14 +395,14 @@ doExprUnify normalize = \t1 t2 -> do
       vs <- allVars ts
       Just (v, vs)
 
-    unifyVarApp :: Monad m => PreTerm -> PreTerm -> ExprUnifResult m
+    unifyVarApp :: PreTerm -> PreTerm -> ExprUnifResult
     unifyVarApp t1 t2 =
       catchError (doUnifyVarApp t1 t2)
         (\_ ->
           catchError (unifyVar t1 t2)
             (\msg -> if msg == "" then unifyAlpha t1 t2 else throwError msg))
 
-    doUnifyVarApp :: Monad m => PreTerm -> PreTerm -> ExprUnifResult m
+    doUnifyVarApp :: PreTerm -> PreTerm -> ExprUnifResult
     doUnifyVarApp t1@(TermVar True _) t2 = unifyVar t1 t2
     doUnifyVarApp t1 t2@(TermVar True _) = unifyVar t1 t2
     doUnifyVarApp (TermApp _ f1 []) (TermApp _ f2 []) =
@@ -436,7 +436,7 @@ doExprUnify normalize = \t1 t2 -> do
                 doUnifyVarApp f1' f2
               Nothing -> throwError ""
       where
-        tryUnifyAll :: Monad m => ExprUnifResult m 
+        tryUnifyAll :: ExprUnifResult
         tryUnifyAll
           | length as1 == length as2 = do
               im <- lift Env.getImplicitMap
@@ -484,7 +484,7 @@ doExprUnify normalize = \t1 t2 -> do
           doUnifyVarApp (TermLazyFun io t1) f2
     doUnifyVarApp t1 t2 = unifyVar t1 t2
 
-    unifyVar :: Monad m => PreTerm -> PreTerm -> ExprUnifResult m
+    unifyVar :: PreTerm -> PreTerm -> ExprUnifResult
     unifyVar (TermVar b1 v1) (TermVar b2 v2)
       | varId v1 == varId v2 = return IntMap.empty
       | b1 && b2 && varId v1 < varId v2 = do
@@ -548,34 +548,34 @@ doExprUnify normalize = \t1 t2 -> do
           return (IntMap.singleton (varId v2) t1)
     unifyVar _ _ = throwError ""
 
-    unifyAlpha :: Monad m => PreTerm -> PreTerm -> ExprUnifResult m
+    unifyAlpha :: PreTerm -> PreTerm -> ExprUnifResult
     unifyAlpha t1 t2 = do
       r <- lift Env.getRefMap
       if preTermsAlphaEqual r t1 t2
         then return IntMap.empty
         else throwUnableToUnify t1 t2
     
-    throwUnableToUnify :: Monad m => PreTerm -> PreTerm -> ExprUnifResult m
+    throwUnableToUnify :: PreTerm -> PreTerm -> ExprUnifResult
     throwUnableToUnify t1 t2 = do
       s1 <- lift $ preTermToString defaultExprIndent t1
       s2 <- lift $ preTermToString defaultExprIndent t2
       throwError $ "unable to unify\n"
                    ++ s1 ++ "\nwith\n" ++ s2
 
-makeFunWithVarSubst :: Monad m => Bool -> [Var] -> PreTerm -> TypeCheckT m PreTerm
+makeFunWithVarSubst :: Bool -> [Var] -> PreTerm -> TypeCheckIO PreTerm
 makeFunWithVarSubst isIo vs t = do
   vs' <- mapM (\v -> fmap (flip mkVar (varName v)) Env.freshVarId) vs
   let su = IntMap.fromList (zip (map varId vs) (map (TermVar False) vs'))
   let ct = CaseLeaf vs' isIo (substPreTerm su t) []
   return (TermFun [] isIo (Just (length vs)) ct)
 
-mergeExprUnifMaps :: Monad m =>
-  SubstMap -> SubstMap -> ExprUnifResult m
+mergeExprUnifMaps ::
+  SubstMap -> SubstMap -> ExprUnifResult
 mergeExprUnifMaps m1 m2 =
   foldlM insertSubstMap m2 (IntMap.toList m1)
   where
-    insertSubstMap :: Monad m =>
-      SubstMap -> (VarId, PreTerm) -> ExprUnifResult m
+    insertSubstMap ::
+      SubstMap -> (VarId, PreTerm) -> ExprUnifResult
     insertSubstMap m (i, t1) = do
       case IntMap.lookup i m of
         Nothing -> return (IntMap.insert i t1 m)

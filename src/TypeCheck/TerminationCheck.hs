@@ -17,7 +17,7 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.Set as Set
 import Data.Set (Set)
-import TypeCheck.TypeCheckT
+import TypeCheck.TypeCheckIO
 import TypeCheck.Term
 import TypeCheck.TermEnv
 import Data.Foldable (foldlM, foldrM)
@@ -88,7 +88,7 @@ instance Ord CallMatrix where
 type CallMap = IntMap (Set (VarId, CallMatrix))
         -- Caller -> Set (Callee, CallMatrix)
 
-type CallMapT m = StateT ([Var], CallMap) (TypeCheckT m)
+type CallMapIO = StateT ([Var], CallMap) TypeCheckIO
 
 completeCallMap :: CallMap -> CallMap
 completeCallMap cm =
@@ -131,7 +131,7 @@ checkPermutations n pss =
         let ps' = map (take i) ps
         in and (map multLessThanEq ps') || checkPermutation (i + 1) ps
 
-terminationCheck :: Monad m => Loc -> Var -> TypeCheckT m ()
+terminationCheck :: Loc -> Var -> TypeCheckIO ()
 terminationCheck lo v = do
   rm <- Env.getRefMap
   let t = Env.forceLookupRefMap (varId v) rm
@@ -150,18 +150,18 @@ terminationCheck lo v = do
   else
     doTerminationCheck lo v
   where
-    allTypeChecked :: Monad m => [VarId] -> TypeCheckT m Bool
+    allTypeChecked :: [VarId] -> TypeCheckIO Bool
     allTypeChecked rs =
       foldrM (\r a -> fmap (a &&) (isTypeChecked r)) True rs
 
-    isTypeChecked :: Monad m => VarId -> TypeCheckT m Bool
+    isTypeChecked :: VarId -> TypeCheckIO Bool
     isTypeChecked i = do
       x <- Env.lookupRef i
       case x of
         Nothing -> Env.isExtern i
         Just _ -> return True
 
-    errWhenNotPure :: Monad m => RefMeta -> TypeCheckT m ()
+    errWhenNotPure :: RefMeta -> TypeCheckIO ()
     errWhenNotPure meta =
       when (not (refMetaIsDeclaredPure meta)) $
         err lo
@@ -172,7 +172,7 @@ terminationCheck lo v = do
              ++ quote ("val " ++ refMetaName meta)
              ++ ", since it passed termination check!")
 
-doTerminationCheck :: Monad m => Loc -> Var -> TypeCheckT m ()
+doTerminationCheck :: Loc -> Var -> TypeCheckIO ()
 doTerminationCheck lo v = do
   cm <- fmap completeCallMap (makeCallMap v)
   let s0 = Set.toList (fromJust (IntMap.lookup (varId v) cm))
@@ -195,7 +195,7 @@ doTerminationCheck lo v = do
   let meta' = meta {refMetaIsTerminationChecked = tt}
   Env.forceInsertRefMeta (varId v) meta'
   where
-    errWhenPure :: Monad m => RefMeta -> TypeCheckT m ()
+    errWhenPure :: RefMeta -> TypeCheckIO ()
     errWhenPure meta =
       when (refMetaIsDeclaredPure meta)
         (err lo (Fatal $
@@ -204,35 +204,35 @@ doTerminationCheck lo v = do
             ++ quote ("val.. " ++ varName v)
             ++ " to disable this check"))
 
-makeCallMap :: Monad m => Var -> TypeCheckT m CallMap
+makeCallMap :: Var -> TypeCheckIO CallMap
 makeCallMap v =
   fmap snd (execStateT makeCallMapLoop ([v], IntMap.empty))
 
-getCallMap :: Monad m => CallMapT m CallMap
+getCallMap :: CallMapIO CallMap
 getCallMap = fmap snd get
 
-putCallMap :: Monad m => CallMap -> CallMapT m ()
+putCallMap :: CallMap -> CallMapIO ()
 putCallMap m = modify (\(x, _) -> (x, m))
 
-getCallStack :: Monad m => CallMapT m [Var]
+getCallStack :: CallMapIO [Var]
 getCallStack = fmap fst get
 
-pushCallStack :: Monad m => Var -> CallMapT m ()
+pushCallStack :: Var -> CallMapIO ()
 pushCallStack v = do
   vs <- getCallStack
   putCallStack (v : vs)
 
-putCallStack :: Monad m => [Var] -> CallMapT m ()
+putCallStack :: [Var] -> CallMapIO ()
 putCallStack vs = modify (\(_, x) -> (vs, x))
 
-makeCallMapLoop :: Monad m => CallMapT m ()
+makeCallMapLoop :: CallMapIO ()
 makeCallMapLoop = do
   s <- getCallStack
   case s of
     [] -> return ()
     v : vs -> putCallStack vs >> makeCallMapRef v >> makeCallMapLoop
 
-makeCallMapRef :: Monad m => Var -> CallMapT m ()
+makeCallMapRef :: Var -> CallMapIO ()
 makeCallMapRef v = do
   cm <- getCallMap
   if IntMap.member (varId v) cm
@@ -259,7 +259,7 @@ makeCallMapRef v = do
             s <- runPreTermCallSet r' fs
             putCallMap (IntMap.insert (varId v) s cm)
 
-makeArgVars :: Monad m => [a] -> TypeCheckT m [PreTerm]
+makeArgVars :: [a] -> TypeCheckIO [PreTerm]
 makeArgVars [] = return []
 makeArgVars (_ : vs) = do
   i <- Env.freshVarId
@@ -269,10 +269,10 @@ makeArgVars (_ : vs) = do
 
 ----------------------------------------------------------------------
 
-type CallSetT m = ReaderT [PreTerm] (CallMapT m)
+type CallSetIO = ReaderT [PreTerm] CallMapIO
 
-runPreTermCallSet :: Monad m =>
-  PreTerm -> [PreTerm] -> CallMapT m (Set (VarId, CallMatrix))
+runPreTermCallSet ::
+  PreTerm -> [PreTerm] -> CallMapIO (Set (VarId, CallMatrix))
 runPreTermCallSet r vars =
   runReaderT (preTermCallSet r) vars
 
@@ -280,11 +280,11 @@ makeMatrixPair ::
   [PreTerm] -> [PreTerm] -> (Int, Int) -> (PreTerm, PreTerm)
 makeMatrixPair params args (i, j) = (params !! (j-1), args !! (i-1))
 
-makeCallMatrix :: Monad m =>
-  Matrix (PreTerm, PreTerm) -> CallSetT m CallMatrix
+makeCallMatrix ::
+  Matrix (PreTerm, PreTerm) -> CallSetIO CallMatrix
 makeCallMatrix = mapM (\(p, a) -> callRel p a)
 
-callRel :: Monad m => PreTerm -> PreTerm -> CallSetT m CallRel
+callRel :: PreTerm -> PreTerm -> CallSetIO CallRel
 callRel p a = do
   b <- testEqual a
   --im0 <- lift (lift Env.getImplicitMap)
@@ -295,7 +295,7 @@ callRel p a = do
   then return CallEqual
   else callRelNotEq p a
   where
-    testEqual :: Monad m => PreTerm -> CallSetT m Bool
+    testEqual :: PreTerm -> CallSetIO Bool
     testEqual b@(TermImplicitApp _ c _) = do
       (p', b') <- unifyTypes b
       rm <- lift (lift Env.getRefMap)
@@ -317,7 +317,7 @@ callRel p a = do
       rm <- lift (lift Env.getRefMap)
       return (preTermsAlphaEqual rm p' b')
 
-    unifyTypes :: Monad m => PreTerm -> CallSetT m (PreTerm, PreTerm)
+    unifyTypes :: PreTerm -> CallSetIO (PreTerm, PreTerm)
     unifyTypes b = do
       im <- lift (lift Env.getImplicitMap)
       rm <- lift (lift Env.getRefMap)
@@ -330,13 +330,13 @@ callRel p a = do
             Right s -> return (substPreTerm s p, substPreTerm s b)
         _ -> return (p, b)
 
-callRelNotEq :: Monad m => PreTerm -> PreTerm -> CallSetT m CallRel
+callRelNotEq :: PreTerm -> PreTerm -> CallSetIO CallRel
 callRelNotEq p a =
   case preTermProjArgs p of
     Nothing -> return CallUnknown
     Just (_, ps) -> callRelApp ps a
 
-callRelApp :: Monad m => [PreTerm] -> PreTerm -> CallSetT m CallRel
+callRelApp :: [PreTerm] -> PreTerm -> CallSetIO CallRel
 callRelApp [] _ = return CallUnknown
 callRelApp (p : ps) a = do
   r <- callRel p a
@@ -345,8 +345,8 @@ callRelApp (p : ps) a = do
     CallSmaller -> return CallSmaller
     CallUnknown -> callRelApp ps a
 
-preTermAppCallSet :: Monad m =>
-  Var -> SubstMap -> [PreTerm] -> CallSetT m (Set (VarId, CallMatrix))
+preTermAppCallSet ::
+  Var -> SubstMap -> [PreTerm] -> CallSetIO (Set (VarId, CallMatrix))
 preTermAppCallSet v rsu args = do
   rm <- lift (lift Env.getRefMap)
   --im <- lift (lift Env.getImplicitMap)
@@ -370,8 +370,8 @@ preTermAppCallSet v rsu args = do
                      ) Set.empty args'
         return (Set.insert (varId v, ma) s0)
 
-preTermCallSet :: Monad m =>
-  PreTerm -> CallSetT m (Set (VarId, CallMatrix))
+preTermCallSet ::
+  PreTerm -> CallSetIO (Set (VarId, CallMatrix))
 preTermCallSet (TermRef v rsu) = do
   _ias <- lift (lift (Env.forceLookupImplicit (varId v)))
   let !() = assert (null _ias) ()
@@ -459,8 +459,8 @@ preTermCallSet TermUnitTy = return Set.empty
 preTermCallSet TermTy = return Set.empty
 preTermCallSet TermEmpty = return Set.empty
 
-caseTreeLeafsCallSet :: Monad m =>
-  CaseTree -> CallSetT m (Set (VarId, CallMatrix))
+caseTreeLeafsCallSet ::
+  CaseTree -> CallSetIO (Set (VarId, CallMatrix))
 caseTreeLeafsCallSet (CaseEmpty _) = return Set.empty
 caseTreeLeafsCallSet (CaseUnit _ (_, ct)) = caseTreeLeafsCallSet ct
 caseTreeLeafsCallSet (CaseLeaf _ _ x _) = preTermCallSet x
@@ -473,14 +473,14 @@ caseTreeLeafsCallSet (CaseNode _ m d) = do
           Just (_, d') -> caseTreeLeafsCallSet d'
   return (Set.union s0 s1)
 
-runCaseTreeCallSet :: Monad m =>
+runCaseTreeCallSet ::
   CaseTree -> [PreTerm] -> [PreTerm] ->
-  CallMapT m (Set (VarId, CallMatrix))
+  CallMapIO (Set (VarId, CallMatrix))
 runCaseTreeCallSet ct vars as =
   runReaderT (caseTreeCallSet ct as) (vars ++ as)
 
-caseTreeCallSet :: Monad m =>
-  CaseTree -> [PreTerm] -> CallSetT m (Set (VarId, CallMatrix))
+caseTreeCallSet ::
+  CaseTree -> [PreTerm] -> CallSetIO (Set (VarId, CallMatrix))
 caseTreeCallSet (CaseEmpty _) _ = return Set.empty
 caseTreeCallSet (CaseUnit idx a) xs = do
   let (x, xs') = listRemoveIdx idx xs
@@ -493,8 +493,8 @@ caseTreeCallSet (CaseLeaf is _ te _) xs = do
   let te' = substPreTerm s te
   local (newEnvCallSet s) (preTermCallSet te')
   where
-    tryAddSubst :: Monad m =>
-      VarId -> VarId -> PreTerm -> SubstMap -> TypeCheckT m SubstMap
+    tryAddSubst ::
+      VarId -> VarId -> PreTerm -> SubstMap -> TypeCheckIO SubstMap
     tryAddSubst newids i t a = do
       tcMergePatUnifMaps newids (loc 0 0) a (IntMap.singleton i t)
         `catchError` (\_ -> return a)
@@ -508,9 +508,9 @@ removeLazyApps :: PreTerm -> PreTerm
 removeLazyApps (TermLazyApp _ t) = removeLazyApps t
 removeLazyApps t = t
 
-caseTreeAddCase :: Monad m =>
+caseTreeAddCase ::
   PreTerm -> [PreTerm] -> (VarId, ([Var], CaseTree)) ->
-  Set (VarId, CallMatrix) -> CallSetT m (Set (VarId, CallMatrix))
+  Set (VarId, CallMatrix) -> CallSetIO (Set (VarId, CallMatrix))
 caseTreeAddCase x0 xs (cid, (is, ct)) acc = do
   cr <- lift (lift (Env.forceLookupRef cid))
   case termPre cr of
@@ -536,9 +536,9 @@ caseTreeAddCase x0 xs (cid, (is, ct)) acc = do
           fmap (Set.union acc) (caseTreeCatchAllCallSet x xs' (Just (is, ct)))
     _ -> error ("expected var id " ++ show cid ++ " to be a ctor")
 
-caseTreeCatchAllCallSet :: Monad m =>
+caseTreeCatchAllCallSet ::
   PreTerm -> [PreTerm] -> Maybe ([Var], CaseTree) ->
-  CallSetT m (Set (VarId, CallMatrix))
+  CallSetIO (Set (VarId, CallMatrix))
 caseTreeCatchAllCallSet _ _ Nothing = return Set.empty
 caseTreeCatchAllCallSet x xs' (Just (is, ct)) = do
   let s0 = zip (map varId is) (repeat x)
@@ -557,17 +557,17 @@ listRemoveIdx _ _ = error "incompatible listRemoveIdx index with list"
 
 ----------------------------------------------------------------------
 
-verifyRecursiveImpureChains :: Monad m => VarId -> TypeCheckT m ()
+verifyRecursiveImpureChains :: VarId -> TypeCheckIO ()
 verifyRecursiveImpureChains i = do
   meta <- Env.forceLookupRefMeta i
   when (not (refMetaIsDeclaredPure meta)
           && not (refMetaIsTerminationChecked meta))
     (preTermOfRef >>= verifyRecursiveRefsAreImpure i)
   where
-    preTermOfRef :: Monad m => TypeCheckT m PreTerm
+    preTermOfRef :: TypeCheckIO PreTerm
     preTermOfRef = fmap termPre (Env.forceLookupRef i)
 
-verifyImpureIsNotTerminationChecked :: Monad m => VarId -> TypeCheckT m ()
+verifyImpureIsNotTerminationChecked :: VarId -> TypeCheckIO ()
 verifyImpureIsNotTerminationChecked i = do
   meta <- Env.forceLookupRefMeta i
   isData <- Env.isDataType i
@@ -641,7 +641,7 @@ caseTreeDirectlyAccessibleRefs = caseRefs
     addCaseTree :: VarIdSet -> ([Var], CaseTree) -> VarIdSet
     addCaseTree s (_, t) = IntSet.union (caseRefs t) s
 
-verifyRecursiveRefsAreImpure :: Monad m => VarId -> PreTerm -> TypeCheckT m ()
+verifyRecursiveRefsAreImpure :: VarId -> PreTerm -> TypeCheckIO ()
 verifyRecursiveRefsAreImpure v t = do
   rm <- Env.getRefMap
   let rs = IntSet.delete v (directlyAccessibleRefs t)
@@ -653,7 +653,7 @@ verifyRecursiveRefsAreImpure v t = do
   meta <- Env.forceLookupRefMeta v
   mapM_ (verifyImpure (refMetaName meta) . fst) ds'
   where
-    verifyImpure :: Monad m => VarName -> VarId -> TypeCheckT m ()
+    verifyImpure :: VarName -> VarId -> TypeCheckIO ()
     verifyImpure na d = do
       meta <- Env.forceLookupRefMeta d
       when (refMetaIsDeclaredPure meta)
@@ -667,14 +667,14 @@ verifyRecursiveRefsAreImpure v t = do
 
 ----------------------------------------------------------------------
 
-verifyDataImpureChains :: Monad m => RefVar -> TypeCheckT m ()
+verifyDataImpureChains :: RefVar -> TypeCheckIO ()
 verifyDataImpureChains (RefData v) = do
   meta <- Env.forceLookupRefMeta (varId v)
   when (not (refMetaIsDeclaredPure meta)
           && not (refMetaIsTerminationChecked meta))
     (ctorsTy >>= mapM_ (verifyRecursiveDataAreImpure (varId v)))
   where
-    ctorsTy :: Monad m => TypeCheckT m [PreTerm]
+    ctorsTy :: TypeCheckIO [PreTerm]
     ctorsTy = do
       cs <- Env.forceLookupDataCtor (varId v)
       mapM (fmap termTy . Env.forceLookupRef . varId) cs
@@ -736,7 +736,7 @@ caseTreeDirectlyAccessibleData rm vis = castData
     addCaseTree :: VarIdSet -> ([Var], CaseTree) -> VarIdSet
     addCaseTree s (_, t) = IntSet.union (castData t) s
 
-verifyRecursiveDataAreImpure :: Monad m => VarId -> PreTerm -> TypeCheckT m ()
+verifyRecursiveDataAreImpure :: VarId -> PreTerm -> TypeCheckIO ()
 verifyRecursiveDataAreImpure dv ct = do
   meta <- Env.forceLookupRefMeta dv
   if refMetaIsDeclaredPure meta
@@ -751,10 +751,10 @@ verifyRecursiveDataAreImpure dv ct = do
             ) (IntSet.elems rs)
     mapM_ (doVerify (refMetaName meta)) cs
   where
-    doVerify :: Monad m => VarName -> (VarId, [PreTerm]) -> TypeCheckT m ()
+    doVerify :: VarName -> (VarId, [PreTerm]) -> TypeCheckIO ()
     doVerify dna (cv, ts) = mapM_ (doVerify' dna cv) ts
 
-    doVerify' :: Monad m => VarName -> VarId -> PreTerm -> TypeCheckT m ()
+    doVerify' :: VarName -> VarId -> PreTerm -> TypeCheckIO ()
     doVerify' dna cv t = do
       meta <- Env.forceLookupRefMeta cv
       b <- positivityCheckContainsData IntSet.empty (mkVar dv dna) t
@@ -770,8 +770,8 @@ verifyRecursiveDataAreImpure dv ct = do
 
 ----------------------------------------------------------------------
 
-strictPositivityCheck :: Monad m =>
-  Loc -> Var -> Implicits -> PreTerm -> TypeCheckT m ()
+strictPositivityCheck ::
+  Loc -> Var -> Implicits -> PreTerm -> TypeCheckIO ()
 strictPositivityCheck lo dv imps ty = do
   let ty' = TermArrow False (map (\(v, t) -> (Just v, t)) imps) ty
   meta <- Env.forceLookupRefMeta (varId dv)
@@ -780,8 +780,8 @@ strictPositivityCheck lo dv imps ty = do
   rm <- Env.getRefMap
   positivityCheckCod lo dv (preTermNormalize rm ty')
 
-positivityFail :: Monad m =>
-  Loc -> Var -> Maybe String -> TypeCheckT m ()
+positivityFail ::
+  Loc -> Var -> Maybe String -> TypeCheckIO ()
 positivityFail lo dv msg = do
   let na = varName dv
   meta <- Env.forceLookupRefMeta (varId dv)
@@ -797,8 +797,8 @@ positivityFail lo dv msg = do
         ++ ", declare with " ++ quote ("data.. " ++ na)
         ++ " to disable this check")
 
-positivityCheckCod :: Monad m =>
-  Loc -> Var -> PreTerm -> TypeCheckT m ()
+positivityCheckCod ::
+  Loc -> Var -> PreTerm -> TypeCheckIO ()
 positivityCheckCod lo dv (TermFun _ _ _ ct) =
   positivityCheckDomCaseTree lo IntSet.empty dv ct
 positivityCheckCod lo dv (TermLazyFun _ t) =
@@ -807,7 +807,7 @@ positivityCheckCod lo dv (TermArrow _ d c) = do
   mapM_ checkDom d
   positivityCheckCod lo dv c
   where
-    checkDom :: Monad m => (Maybe Var, PreTerm) -> TypeCheckT m ()
+    checkDom :: (Maybe Var, PreTerm) -> TypeCheckIO ()
     checkDom (Nothing, t) = positivityCheckDom lo IntSet.empty dv t
     checkDom (Just v, t) = do
       b <- positivityCheckContainsData IntSet.empty dv t
@@ -844,8 +844,8 @@ positivityCheckCod _ _ TermUnitTy = return ()
 positivityCheckCod _ _ TermTy = return ()
 positivityCheckCod _ _ TermEmpty = return ()
 
-positivityCheckVerifySimple :: Monad m =>
-  Loc -> Var -> PreTerm -> TypeCheckT m ()
+positivityCheckVerifySimple ::
+  Loc -> Var -> PreTerm -> TypeCheckIO ()
 positivityCheckVerifySimple lo dv (TermFun _ _ _ _) = positivityFail lo dv Nothing
 positivityCheckVerifySimple lo dv (TermRef _ _) = positivityFail lo dv Nothing
 positivityCheckVerifySimple lo dv (TermArrow _ _ _) = positivityFail lo dv Nothing
@@ -867,8 +867,8 @@ positivityCheckVerifySimple _ _ TermUnitTy = return ()
 positivityCheckVerifySimple _ _ TermTy = return ()
 positivityCheckVerifySimple _ _ TermEmpty = return ()
 
-positivityCheckContainsData :: Monad m =>
-  IntSet -> Var -> PreTerm -> TypeCheckT m Bool
+positivityCheckContainsData ::
+  IntSet -> Var -> PreTerm -> TypeCheckIO Bool
 positivityCheckContainsData vi dv (TermFun _ _ _ ct) =
   positivityCheckContainsDataCaseTree vi dv ct
 positivityCheckContainsData vi dv (TermLazyFun _ t) =
@@ -878,7 +878,7 @@ positivityCheckContainsData vi dv (TermArrow _ d c) = do
   b2 <- positivityCheckContainsData vi dv c
   return (b1 || b2)
   where
-    addArg :: Monad m => Bool -> (a, PreTerm) -> TypeCheckT m Bool
+    addArg :: Bool -> (a, PreTerm) -> TypeCheckIO Bool
     addArg True _ = return True
     addArg False (_, t) = positivityCheckContainsData vi dv t
 positivityCheckContainsData vi dv (TermLazyArrow _ t) =
@@ -888,7 +888,7 @@ positivityCheckContainsData vi dv (TermApp _ f xs) = do
   b2 <- positivityCheckContainsData vi dv f
   return (b1 || b2)
   where
-    addArg :: Monad m => Bool -> PreTerm -> TypeCheckT m Bool
+    addArg :: Bool -> PreTerm -> TypeCheckIO Bool
     addArg True _ = return True
     addArg False t = positivityCheckContainsData vi dv t
 positivityCheckContainsData vi dv (TermImplicitApp _ f xs) = do
@@ -896,7 +896,7 @@ positivityCheckContainsData vi dv (TermImplicitApp _ f xs) = do
   b2 <- positivityCheckContainsData vi dv f
   return (b1 || b2)
   where
-    addArg :: Monad m => Bool -> (a, PreTerm) -> TypeCheckT m Bool
+    addArg :: Bool -> (a, PreTerm) -> TypeCheckIO Bool
     addArg True _ = return True
     addArg False (_, t) = positivityCheckContainsData vi dv t
 positivityCheckContainsData vi dv (TermLazyApp _ t) =
@@ -922,7 +922,7 @@ positivityCheckContainsData vi dv (TermData v)
       b2 <- foldlM (addDataCtor vi') False cs
       return (b1 || b2)
       where
-        addDataCtor :: Monad m => IntSet -> Bool -> Var -> TypeCheckT m Bool
+        addDataCtor :: IntSet -> Bool -> Var -> TypeCheckIO Bool
         addDataCtor vi' a c = do
           r <- Env.forceLookupRef (varId c)
           b <- positivityCheckContainsData vi' dv (termTy r)
@@ -937,8 +937,8 @@ positivityCheckContainsData _ _ TermUnitTy = return False
 positivityCheckContainsData _ _ TermTy = return False
 positivityCheckContainsData _ _ TermEmpty = return False
 
-positivityCheckContainsDataCaseTree :: Monad m =>
-  IntSet -> Var -> CaseTree -> TypeCheckT m Bool
+positivityCheckContainsDataCaseTree ::
+  IntSet -> Var -> CaseTree -> TypeCheckIO Bool
 positivityCheckContainsDataCaseTree _ _ (CaseEmpty _) = return False
 positivityCheckContainsDataCaseTree vi dv (CaseUnit _ (_, ct)) =
   positivityCheckContainsDataCaseTree vi dv ct
@@ -953,8 +953,8 @@ positivityCheckContainsDataCaseTree vi dv (CaseNode _ m d) = do
     Just (_, d') ->
       fmap (b ||) (positivityCheckContainsDataCaseTree vi dv d')
 
-positivityCheckDom :: Monad m =>
-  Loc -> IntSet -> Var -> PreTerm -> TypeCheckT m ()
+positivityCheckDom ::
+  Loc -> IntSet -> Var -> PreTerm -> TypeCheckIO ()
 positivityCheckDom lo vi dv (TermFun _ _ _ ct) =
   positivityCheckDomCaseTree lo vi dv ct
 positivityCheckDom lo vi dv (TermLazyFun _ t) = positivityCheckDom lo vi dv t
@@ -962,7 +962,7 @@ positivityCheckDom lo vi dv (TermArrow _ d c) = do
   mapM_ checkDom d
   positivityCheckDom lo vi dv c
   where
-    checkDom :: Monad m => (Maybe Var, PreTerm) -> TypeCheckT m ()
+    checkDom :: (Maybe Var, PreTerm) -> TypeCheckIO ()
     checkDom (_, t) = do
       b <- positivityCheckContainsData IntSet.empty dv t
       when b (positivityFail lo dv Nothing)
@@ -1000,8 +1000,8 @@ positivityCheckDom _ _ _ TermUnitTy = return ()
 positivityCheckDom _ _ _ TermTy = return ()
 positivityCheckDom _ _ _ TermEmpty = return ()
 
-positivityCheckDomCaseTree :: Monad m =>
-  Loc -> IntSet -> Var -> CaseTree -> TypeCheckT m ()
+positivityCheckDomCaseTree ::
+  Loc -> IntSet -> Var -> CaseTree -> TypeCheckIO ()
 positivityCheckDomCaseTree _ _ _ (CaseEmpty _) = return ()
 positivityCheckDomCaseTree lo vi dv (CaseUnit _ (_, ct)) =
   positivityCheckDomCaseTree lo vi dv ct

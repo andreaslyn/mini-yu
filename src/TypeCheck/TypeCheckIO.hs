@@ -1,5 +1,5 @@
-module TypeCheck.TypeCheckT
-  ( TypeCheckT
+module TypeCheck.TypeCheckIO
+  ( TypeCheckIO
   , TypeCheckErr (..)
   , typeCheckErrMsg
   , err
@@ -8,7 +8,7 @@ module TypeCheck.TypeCheckT
   , catchRecoverable
   , ImpMap (..)
   , impMapTopSet
-  , ExprT
+  , ExprIO
   , getExprSubst
   , modifyExprSubst
   , putExprSubst
@@ -34,10 +34,10 @@ typeCheckErrMsg :: TypeCheckErr -> String
 typeCheckErrMsg (Fatal s) = s
 typeCheckErrMsg (Recoverable s) = s
 
-type TypeCheckT m =
-  Env.EnvT (StateT (Map FilePath Env.ScopeMap) (ReaderT (Bool, FilePath, String) (ExceptT TypeCheckErr m)))
+type TypeCheckIO =
+  Env.EnvT (StateT (Map FilePath Env.ScopeMap) (ReaderT (Bool, FilePath, String) (ExceptT TypeCheckErr IO)))
 
-err :: Monad m => Loc -> TypeCheckErr -> TypeCheckT m a
+err :: Loc -> TypeCheckErr -> TypeCheckIO a
 err lo msg = do
   (_, f, _) <- ask
   case msg of
@@ -46,12 +46,12 @@ err lo msg = do
     Recoverable msg' ->
       throwError (Recoverable (f ++ ":" ++ show lo ++ ": " ++ msg'))
 
-expandVarNameEnv :: Monad m => VarName -> TypeCheckT m VarName
+expandVarNameEnv :: VarName -> TypeCheckIO VarName
 expandVarNameEnv n = do
   (_, _, modName) <- ask
   Env.expandVarName modName n
 
-lookupEnv :: Monad m => VarName -> TypeCheckT m (Maybe Env.VarStatus)
+lookupEnv :: VarName -> TypeCheckIO (Maybe Env.VarStatus)
 lookupEnv n = do
   (_, _, modName) <- ask
   Env.lookup modName n
@@ -61,24 +61,24 @@ data ImpMap = ImpMap (IntMap (Loc, String)) (Maybe ImpMap)
 impMapTopSet :: ImpMap -> IntSet
 impMapTopSet (ImpMap m _) = IntMap.keysSet m
 
-type ExprT m = StateT (SubstMap, ImpMap) (TypeCheckT m)
+type ExprIO = StateT (SubstMap, ImpMap) TypeCheckIO
 
-catchRecoverable :: Monad m => ExprT m a -> (String -> ExprT m a) -> ExprT m a
+catchRecoverable :: ExprIO a -> (String -> ExprIO a) -> ExprIO a
 catchRecoverable t f = catchError t continueWithRecoverable
   where
     continueWithRecoverable (Recoverable m) = f m
     continueWithRecoverable e@(Fatal _) = throwError e
 
-getExprSubst :: Monad m => ExprT m SubstMap
+getExprSubst :: ExprIO SubstMap
 getExprSubst = fmap fst get
 
-modifyExprSubst :: Monad m => (SubstMap -> SubstMap) -> ExprT m ()
+modifyExprSubst :: (SubstMap -> SubstMap) -> ExprIO ()
 modifyExprSubst f = modify (\(s, x) -> (f s, x))
 
-putExprSubst :: Monad m => SubstMap -> ExprT m ()
+putExprSubst :: SubstMap -> ExprIO ()
 putExprSubst s = modifyExprSubst (const s)
 
-impMapInsert :: Monad m => VarId -> PreTerm -> Loc -> String -> ExprT m ()
+impMapInsert :: VarId -> PreTerm -> Loc -> String -> ExprIO ()
 impMapInsert i t lo msg = do
   lift (Env.insertImplicitVarCurrentScope i t)
   modify (\(s, ImpMap m p) ->

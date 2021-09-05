@@ -25,7 +25,7 @@ module TypeCheck.TermEnv
   )
 where
 
-import TypeCheck.TypeCheckT
+import TypeCheck.TypeCheckIO
 import TypeCheck.SubstMap
 import TypeCheck.Term
 import Data.IntSet (IntSet)
@@ -532,8 +532,8 @@ preTermCodRootType rm pt =
     doGetRootType TermEmpty = Nothing
     doGetRootType TermTy = Just TermTy
 
-prePatternApplyWithVars :: Monad m =>
-  PrePattern -> PreTerm -> TypeCheckT m Pattern
+prePatternApplyWithVars ::
+  PrePattern -> PreTerm -> TypeCheckIO Pattern
 prePatternApplyWithVars ctor = \ty -> do
   ias <- case ctor of
           PatternCtor v _ -> do
@@ -546,21 +546,21 @@ prePatternApplyWithVars ctor = \ty -> do
   let p = Pattern {patternPre = ctor, patternTy = ty}
   return (patternApply im rm p ias as)
   where
-    addArg :: Monad m => (Var, PreTerm) -> TypeCheckT m (VarName, PrePattern)
+    addArg :: (Var, PreTerm) -> TypeCheckIO (VarName, PrePattern)
     addArg (n, _) = do
       i <- Env.freshVarId
       let v = mkVar i "_"
       let a = PatternVar v
       return (varName n, a)
 
-    addArg1 :: Monad m => (Maybe Var, PreTerm) -> TypeCheckT m PrePattern
+    addArg1 :: (Maybe Var, PreTerm) -> TypeCheckIO PrePattern
     addArg1 _ = do
       i <- Env.freshVarId
       let v = mkVar i "_"
       let a = PatternVar v
       return a
 
-    getVars :: Monad m => PreTerm -> TypeCheckT m [Maybe [PrePattern]]
+    getVars :: PreTerm -> TypeCheckIO [Maybe [PrePattern]]
     getVars ty = do
       rm <- Env.getRefMap
       case preTermDomCod rm ty of
@@ -866,54 +866,54 @@ getAppliedImplicitsCaseTree _ _ (CaseEmpty _) = IntSet.empty
 
 ----------------- Pretty printing -------------------------------
 
-preTermToString :: Monad m => Int -> PreTerm -> TypeCheckT m String
+preTermToString :: Int -> PreTerm -> TypeCheckIO String
 preTermToString indent t =
   execWriterT (runStateT (writeIndent >> writePreTerm t) (1, indent))
 
-prePatternToString :: Monad m => Int -> PrePattern -> TypeCheckT m String
+prePatternToString :: Int -> PrePattern -> TypeCheckIO String
 prePatternToString indent t =
   preTermToString indent (prePatternToPreTerm t)
 
-caseTreeToString :: Monad m => Int -> CaseTree -> [PreTerm] -> TypeCheckT m String
+caseTreeToString :: Int -> CaseTree -> [PreTerm] -> TypeCheckIO String
 caseTreeToString indent t as =
   execWriterT (runStateT (writeIndent >> writeCaseTree (map Right as) t) (1, indent))
 
-type ToString m a = StateT (Int, Int) (WriterT String (TypeCheckT m)) a
+type ToString a = StateT (Int, Int) (WriterT String TypeCheckIO) a
 
-liftTT :: Monad m => TypeCheckT m a -> ToString m a
+liftTT :: TypeCheckIO a -> ToString a
 liftTT = lift . lift
 
-incIndent :: Monad m => ToString m ()
+incIndent :: ToString ()
 incIndent = modify (\(x, n) -> (x, n+2))
 
-decIndent :: Monad m => ToString m ()
+decIndent :: ToString ()
 decIndent = modify (\(x, n) -> (x, n-2))
 
-nextVarName :: Monad m => ToString m String
+nextVarName :: ToString String
 nextVarName = do
   (x, n) <- get
   put (x+1, n)
   return ('_' : show x)
 
-writeIndent :: Monad m => ToString m ()
+writeIndent :: ToString ()
 writeIndent = get >>= \(_, n) -> doWrite n
   where
-    doWrite :: Monad m => Int -> ToString m ()
+    doWrite :: Int -> ToString ()
     doWrite 0 = return ()
     doWrite i = tell " " >> doWrite (i - 1)
 
-isVerbose :: Monad m => ToString m Bool
+isVerbose :: ToString Bool
 isVerbose = do
   (v, _, _) <- liftTT ask
   return v
 
-writeStr :: Monad m => String -> ToString m ()
+writeStr :: String -> ToString ()
 writeStr s = tell s
 
-newLine :: Monad m => ToString m ()
+newLine :: ToString ()
 newLine = tell "\n" >> writeIndent
 
-writeFunImplicitNames :: Monad m => [VarName] -> ToString m ()
+writeFunImplicitNames :: [VarName] -> ToString ()
 writeFunImplicitNames [] = return ()
 writeFunImplicitNames [i] = do
   writeStr "["
@@ -925,7 +925,7 @@ writeFunImplicitNames (i : is) = do
   writeStr "] "
   writeFunImplicitNames is
 
-writePreTerm :: Monad m => PreTerm -> ToString m ()
+writePreTerm :: PreTerm -> ToString ()
 writePreTerm (TermFun imps _ (Just _) (CaseLeaf vs _ t _)) = do
   writeFunImplicitNames imps
   when (not (null imps)) (writeStr " ")
@@ -1108,7 +1108,7 @@ writePreTerm (TermCase e ct) = writeCaseTree [Right e] ct
 takeOperatorStr :: String -> String
 takeOperatorStr = fst . Str.operandSplit
 
-writeVarTerm :: Monad m => Var -> ToString m ()
+writeVarTerm :: Var -> ToString ()
 writeVarTerm v = do
   let pre = Str.isFixOp (varName v)
   when pre (writeStr "(")
@@ -1122,7 +1122,7 @@ writeVarTerm v = do
     writeStr (show (varId v))
   when pre (writeStr ")")
 
-simplifyModule :: Monad m => Var -> ToString m VarName
+simplifyModule :: Var -> ToString VarName
 simplifyModule v = do
   let na = varName v
   let (na0, mo0) = Str.moduleSplit na
@@ -1136,8 +1136,8 @@ simplifyModule v = do
         exm <- liftTT Env.getModuleExpandMap
         findFromAlias na0 mo1 (sortBy shortLen (Map.keys exm))
   where
-    findFromAlias :: Monad m =>
-      VarName -> VarName -> [VarName] -> ToString m VarName
+    findFromAlias ::
+      VarName -> VarName -> [VarName] -> ToString VarName
     findFromAlias _ _ [] = return (takeOperatorStr (varName v))
     findFromAlias na mo (a : as) = do
       let (na0, op) = Str.operandSplit na
@@ -1147,7 +1147,7 @@ simplifyModule v = do
       then return (na0 ++ "." ++ a)
       else findFromAlias na mo as
 
-    canLookup :: Monad m => VarName -> ToString m Bool
+    canLookup :: VarName -> ToString Bool
     canLookup na = do
       (_, _, modName) <- ask
       st <-liftTT (Env.lookup modName na)
@@ -1164,8 +1164,8 @@ simplifyModule v = do
     shortLen :: VarName -> VarName -> Ordering
     shortLen n1 n2 = compare (length n1) (length n2)
 
-writePostfixApp :: Monad m =>
-  Var -> PreTerm -> PreTerm -> [PreTerm] -> ToString m ()
+writePostfixApp ::
+  Var -> PreTerm -> PreTerm -> [PreTerm] -> ToString ()
 writePostfixApp v _f x xs = do
   let b = hasLowerPrecThanApp x
   when b (writeStr "(")
@@ -1178,8 +1178,8 @@ writePostfixApp v _f x xs = do
     writeStr " "
     writePreTermList xs
 
-writeUnaryApp :: Monad m =>
-  Var -> PreTerm -> PreTerm -> ToString m ()
+writeUnaryApp ::
+  Var -> PreTerm -> PreTerm -> ToString ()
 writeUnaryApp v _f x = do
   na <- simplifyModule v
   writeStr na >> writeStr " "
@@ -1188,8 +1188,8 @@ writeUnaryApp v _f x = do
   writePreTerm x
   when b (writeStr ")")
 
-writeBinaryApp :: Monad m =>
-  Var -> PreTerm -> PreTerm -> PreTerm -> ToString m ()
+writeBinaryApp ::
+  Var -> PreTerm -> PreTerm -> PreTerm -> ToString ()
 writeBinaryApp v _f x1 x2
   | Str.isFixOp6 (varName v) = do
     let b1 = hasLowerPrecThanInfixOp6 x1
@@ -1247,8 +1247,8 @@ writeBinaryApp v _f x1 x2
     when b2 (writeStr "(") >> writePreTerm x2 >> when b2 (writeStr ")")
   | True = error $ "expected infix operator to print, got " ++ varName v
 
-writeNormalApp :: Monad m =>
-  PreTerm -> [PreTerm] -> ToString m ()
+writeNormalApp ::
+  PreTerm -> [PreTerm] -> ToString ()
 writeNormalApp f xs = do
   let b = hasLowerPrecThanApp f
   when b (writeStr "(")
@@ -1258,8 +1258,8 @@ writeNormalApp f xs = do
     writeStr " "
     writePreTermList xs
 
-writeCaseTree :: Monad m =>
-  [Either VarName PreTerm] -> CaseTree -> ToString m ()
+writeCaseTree ::
+  [Either VarName PreTerm] -> CaseTree -> ToString ()
 writeCaseTree [] (CaseLeaf [] _ t _) = writePreTerm t
 writeCaseTree (x : xs) (CaseLeaf (i : is) _ t _) = do
   when (varName i /= "_") $ do
@@ -1312,9 +1312,9 @@ writeCaseTree ps (CaseNode idx m d) = do
   writeStr "end"
   decIndent
   where
-    writeCase :: Monad m =>
+    writeCase ::
       [Either VarName PreTerm] ->
-      (VarId, ([Var], CaseTree)) -> ToString m ()
+      (VarId, ([Var], CaseTree)) -> ToString ()
     writeCase ps' (i, (_, ct)) = do
       newLine
       writeStr "| "
@@ -1341,8 +1341,8 @@ writeCaseTree ps (CaseNode idx m d) = do
         writeStr " => "
         writeCaseTree (names ++ ps') ct
 
-    writeImplicits :: Monad m =>
-      Implicits -> ToString m [Either VarName PreTerm]
+    writeImplicits ::
+      Implicits -> ToString [Either VarName PreTerm]
     writeImplicits [] = return []
     writeImplicits ((v, _) : vs) = do
       n <- nextVarName
@@ -1359,8 +1359,8 @@ writeCaseTree ps (CaseNode idx m d) = do
       ns <- writeImplicits vs
       return (Left n : ns)
 
-    writeArgs :: Monad m =>
-      PreTerm -> ToString m [Either VarName PreTerm]
+    writeArgs ::
+      PreTerm -> ToString [Either VarName PreTerm]
     writeArgs ty = do
       rm <- liftTT Env.getRefMap
       case preTermDomCod rm ty of
@@ -1377,8 +1377,8 @@ writeCaseTree ps (CaseNode idx m d) = do
           nss <- writeArgs c'
           return (map Left ns ++ nss)
 
-    getArgs :: Monad m =>
-      PreTerm -> ToString m ([Either VarName PreTerm], Maybe [Maybe [PreTerm]])
+    getArgs ::
+      PreTerm -> ToString ([Either VarName PreTerm], Maybe [Maybe [PreTerm]])
     getArgs ty = do
       rm <- liftTT Env.getRefMap
       case preTermDomCod rm ty of
@@ -1426,8 +1426,8 @@ removeIdx 0 (x:xs) = (x, xs)
 removeIdx i (x:xs) = let (x', xs') = removeIdx (i-1) xs in (x', x : xs')
 removeIdx _ [] = error "invalid index to remove"
 
-writePreTermList :: Monad m =>
-  [PreTerm] -> ToString m ()
+writePreTermList ::
+  [PreTerm] -> ToString ()
 writePreTermList [] = return ()
 writePreTermList [p] = do
   when (needsAppParens p) (writeStr "(")
@@ -1440,8 +1440,8 @@ writePreTermList (p:ps) = do
   writeStr " "
   writePreTermList ps
 
-writeNamedPreTermArgs :: Monad m =>
-  [(VarName, PreTerm)] -> ToString m ()
+writeNamedPreTermArgs ::
+  [(VarName, PreTerm)] -> ToString ()
 writeNamedPreTermArgs [] = error "empty implicit application"
 writeNamedPreTermArgs [(n, p)] = do
   writeStr "["
@@ -1454,7 +1454,7 @@ writeNamedPreTermArgs (p:ps) = do
   writeStr " "
   writeNamedPreTermArgs ps
 
-writeVarList :: Monad m => [Var] -> ToString m ()
+writeVarList :: [Var] -> ToString ()
 writeVarList [] = return ()
 writeVarList [v] = do
   writeStr (varName v)
@@ -1471,14 +1471,14 @@ writeVarList (v:vs) = do
   writeStr " "
   writeVarList vs
 
-writeNameList :: Monad m => [VarName] -> ToString m ()
+writeNameList :: [VarName] -> ToString ()
 writeNameList [] = return ()
 writeNameList [v] = writeStr v
 writeNameList (v:vs) =
   writeStr v >> writeStr " " >> writeNameList vs
 
-writeDomainList :: Monad m =>
-  [(Maybe Var, PreTerm)] -> ToString m ()
+writeDomainList ::
+  [(Maybe Var, PreTerm)] -> ToString ()
 writeDomainList [] = return ()
 writeDomainList [v] = writeOptNamedPreTerm v
 writeDomainList (v:vs) = do
@@ -1486,8 +1486,8 @@ writeDomainList (v:vs) = do
   writeStr " & "
   writeDomainList vs
 
-writeOptNamedPreTerm :: Monad m =>
-  (Maybe Var, PreTerm) -> ToString m ()
+writeOptNamedPreTerm ::
+  (Maybe Var, PreTerm) -> ToString ()
 writeOptNamedPreTerm (Nothing, t) = do
   when (needsAppParens t) (writeStr "(")
   writePreTerm t

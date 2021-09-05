@@ -15,7 +15,7 @@ where
 import Str (quote)
 import Loc
 import TypeCheck.Env as Env
-import TypeCheck.TypeCheckT
+import TypeCheck.TypeCheckIO
 import TypeCheck.Term
 import TypeCheck.TermEnv
 import TypeCheck.SubstMap
@@ -34,10 +34,10 @@ _useTrace = trace
 
 data PatUnifError = UnifyUnable String | UnifyAbsurd String
 
-type PatUnifResult m = ExceptT PatUnifError (TypeCheckT m) SubstMap
+type PatUnifResult = ExceptT PatUnifError TypeCheckIO SubstMap
 
-runPatUnifResult :: Monad m =>
-  Loc -> Maybe (PreTerm, PreTerm) -> PatUnifResult m -> TypeCheckT m SubstMap
+runPatUnifResult ::
+  Loc -> Maybe (PreTerm, PreTerm) -> PatUnifResult -> TypeCheckIO SubstMap
 runPatUnifResult lo ts x = do
   r <- runExceptT x
   case r of
@@ -49,7 +49,7 @@ runPatUnifResult lo ts x = do
       pfx <- msgPrefix
       err lo (Recoverable $ pfx ++ "\n" ++ msg ++ "\ncase is absurd")
   where
-    msgPrefix :: Monad m => TypeCheckT m String
+    msgPrefix :: TypeCheckIO String
     msgPrefix = do
       case ts of
         Nothing -> return ""
@@ -60,18 +60,18 @@ runPatUnifResult lo ts x = do
             "failed matching type\n" ++ t1'
             ++ "\nwith type\n" ++ t2'
 
-tcPatternUnify :: Monad m =>
-  VarId -> Loc -> PreTerm -> PreTerm -> TypeCheckT m SubstMap
+tcPatternUnify ::
+  VarId -> Loc -> PreTerm -> PreTerm -> TypeCheckIO SubstMap
 tcPatternUnify newpids lo t1 t2 =
   runPatUnifResult lo (Just (t1, t2)) (patternUnify2 newpids t1 t2)
 
-patternUnify2 :: Monad m => VarId -> PreTerm -> PreTerm -> PatUnifResult m
+patternUnify2 :: VarId -> PreTerm -> PreTerm -> PatUnifResult
 patternUnify2 newPatternIds t1 t2 = do
   boundIds <- lift Env.getNextVarId
   patUnifWithBoundIds True newPatternIds boundIds t1 t2
 
-patternUnify2NoNormalize :: Monad m =>
-  VarId -> PreTerm -> PreTerm -> PatUnifResult m
+patternUnify2NoNormalize ::
+  VarId -> PreTerm -> PreTerm -> PatUnifResult
 patternUnify2NoNormalize newPatternIds t1 t2 = do
   boundIds <- lift Env.getNextVarId
   patUnifWithBoundIds False newPatternIds boundIds t1 t2
@@ -84,8 +84,8 @@ canAppUnify (TermData _) = True
 canAppUnify (TermCtor _ _) = True
 canAppUnify _ = False
 
-patUnifWithBoundIds :: Monad m =>
-  Bool -> VarId -> VarId -> PreTerm -> PreTerm -> PatUnifResult m
+patUnifWithBoundIds ::
+  Bool -> VarId -> VarId -> PreTerm -> PreTerm -> PatUnifResult
 patUnifWithBoundIds False newPatternIds boundIds t1 t2 =
   doPatUnifWithBoundIds False newPatternIds boundIds t1 t2
 patUnifWithBoundIds True newPatternIds boundIds t1 t2 =
@@ -93,8 +93,8 @@ patUnifWithBoundIds True newPatternIds boundIds t1 t2 =
     (doPatUnifWithBoundIds False newPatternIds boundIds t1 t2)
     (\_ -> doPatUnifWithBoundIds True newPatternIds boundIds t1 t2)
 
-doPatUnifWithBoundIds :: Monad m =>
-  Bool -> VarId -> VarId -> PreTerm -> PreTerm -> PatUnifResult m
+doPatUnifWithBoundIds ::
+  Bool -> VarId -> VarId -> PreTerm -> PreTerm -> PatUnifResult
 doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
   r <- lift Env.getRefMap
   --im0 <- lift Env.getImplicitMap
@@ -103,7 +103,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
   then punify2 (preTermNormalize r t1) (preTermNormalize r t2)
   else punify2 t1 t2
   where
-    punify :: Monad m => [(PreTerm, PreTerm)] -> SubstMap -> PatUnifResult m
+    punify :: [(PreTerm, PreTerm)] -> SubstMap -> PatUnifResult
     punify termPairs = \su0 -> do
       (msg, rest, subst) <- doPunify termPairs su0
       if null rest
@@ -115,9 +115,9 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
           rest' <- lift (substPairs rest subst)
           punify rest' subst
       where
-        doPunify :: Monad m =>
+        doPunify ::
           [(PreTerm, PreTerm)] -> SubstMap ->
-          ExceptT PatUnifError (TypeCheckT m)
+          ExceptT PatUnifError TypeCheckIO
             (String, [(PreTerm, PreTerm)], SubstMap)
         doPunify [] su0 = return ("", [], su0)
         doPunify ((t1, t2) : ts) su0 =
@@ -137,8 +137,8 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
                 UnifyAbsurd msg ->
                   throwError (UnifyAbsurd msg))
 
-    substPairs :: Monad m =>
-      [(PreTerm, PreTerm)] -> SubstMap -> TypeCheckT m [(PreTerm, PreTerm)]
+    substPairs ::
+      [(PreTerm, PreTerm)] -> SubstMap -> TypeCheckIO [(PreTerm, PreTerm)]
     substPairs ps m = do
       r <- Env.getRefMap
       if withNormalize
@@ -150,14 +150,14 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
         return $
           map (\(x,y) -> (substPreTerm m x, substPreTerm m y)) ps
 
-    punify2 :: Monad m => PreTerm -> PreTerm -> PatUnifResult m
+    punify2 :: PreTerm -> PreTerm -> PatUnifResult
     punify2 t1 t2 =
       case (varBaseTerm' t1, varBaseTerm' t2) of
         (Just (_, _), _) -> unifyVarApp t1 t2
         (_, Just (_, _)) -> unifyVarApp t1 t2
         _ -> punify2NotVar t1 t2
 
-    punify2NotVar :: Monad m => PreTerm -> PreTerm -> PatUnifResult m
+    punify2NotVar :: PreTerm -> PreTerm -> PatUnifResult
     punify2NotVar ar1@(TermArrow io1 d1 c1) ar2@(TermArrow io2 d2 c2) = do
       if io1 /= io2
       then throwError . UnifyAbsurd $
@@ -184,9 +184,9 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
               mergePatUnifMaps newPatternIds boundIds m u)
             (unifyAlphaIfUnable ar1 ar2)
       where
-        updateArrowMap :: Monad m =>
+        updateArrowMap ::
           SubstMap -> ((Maybe Var, PreTerm), (Maybe Var, PreTerm)) ->
-          PatUnifResult m
+          PatUnifResult
         updateArrowMap m ((Nothing, _), (Nothing, _)) = return m
         updateArrowMap m ((Just n, _), (Nothing, _)) = do
           i <- lift Env.freshVarId
@@ -313,7 +313,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
         (unifyAlphaIfUnable t1 f2)
     punify2NotVar t1 t2 = unifyAlphaCheckRigid t1 t2
 
-    makeNewVarIds :: Monad m => [Var] -> TypeCheckT m ([PreTerm], SubstMap)
+    makeNewVarIds :: [Var] -> TypeCheckIO ([PreTerm], SubstMap)
     makeNewVarIds [] = return ([], IntMap.empty)
     makeNewVarIds (i:is) = do
       (vs, su) <- makeNewVarIds is
@@ -326,7 +326,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
     isBoundVar :: VarId -> Bool
     isBoundVar i = i >= boundIds
 
-    hasBoundVar :: Monad m => PreTerm -> TypeCheckT m Bool
+    hasBoundVar :: PreTerm -> TypeCheckIO Bool
     hasBoundVar t = do
       r <- Env.getRefMap
       return (preTermExistsVar r isBoundVar t)
@@ -357,7 +357,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
       vs <- allBoundVars ts
       Just (v, vs)
 
-    unifyVarApp :: Monad m => PreTerm -> PreTerm -> PatUnifResult m
+    unifyVarApp :: PreTerm -> PreTerm -> PatUnifResult
     unifyVarApp t1 t2 =
       catchError (doUnifyVarApp t1 t2)
         (\_ ->
@@ -367,14 +367,14 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
                 UnifyUnable "" -> unifyAlpha t1 t2
                 _ -> throwError msg))
 
-    doUnifyVarApp :: Monad m => PreTerm -> PreTerm -> PatUnifResult m
+    doUnifyVarApp :: PreTerm -> PreTerm -> PatUnifResult
     doUnifyVarApp t1@(TermVar _ _) t2 =
       unifyVar t1 t2 `catchError` (\_ -> doUnifyVarApp' t1 t2)
     doUnifyVarApp t1 t2@(TermVar _ _) =
       unifyVar t1 t2 `catchError` (\_ -> doUnifyVarApp' t1 t2)
     doUnifyVarApp t1 t2 = doUnifyVarApp' t1 t2
 
-    doUnifyVarApp' :: Monad m => PreTerm -> PreTerm -> PatUnifResult m
+    doUnifyVarApp' :: PreTerm -> PreTerm -> PatUnifResult
     doUnifyVarApp' t1@(TermVar False _) t2 = unifyVar t1 t2
     doUnifyVarApp' t1 t2@(TermVar False _) = unifyVar t1 t2
     doUnifyVarApp' (TermApp _ f1 []) (TermApp _ f2 []) =
@@ -432,7 +432,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
           doUnifyVarApp (TermLazyFun io t1) f2
     doUnifyVarApp' t1 t2 = unifyVar t1 t2
 
-    unifyVar :: Monad m => PreTerm -> PreTerm -> PatUnifResult m
+    unifyVar :: PreTerm -> PreTerm -> PatUnifResult
     unifyVar (TermVar b1 v1) (TermVar b2 v2)
       | varId v1 == varId v2 = return IntMap.empty
       | isBoundVar (varId v1) && isBoundVar (varId v2) =
@@ -540,8 +540,8 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
         else return (IntMap.singleton (varId v2) t1)
     unifyVar _ _ = throwError (UnifyUnable "")
 
-    unifyAlphaCheckRigid :: Monad m =>
-      PreTerm -> PreTerm -> PatUnifResult m
+    unifyAlphaCheckRigid ::
+      PreTerm -> PreTerm -> PatUnifResult
     unifyAlphaCheckRigid t1 t2 = do
       if preTermIsRigid t1 && preTermIsRigid t2
         then do
@@ -551,40 +551,40 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
               "cannot unify\n" ++ t1' ++ "\nwith\n" ++ t2'
         else unifyAlpha t1 t2
 
-    unifyAlpha :: Monad m => PreTerm -> PreTerm -> PatUnifResult m
+    unifyAlpha :: PreTerm -> PreTerm -> PatUnifResult
     unifyAlpha t1 t2 = do
       r <- lift Env.getRefMap
       if preTermsAlphaEqual r t1 t2
         then return IntMap.empty
         else throwUnableToUnify t1 t2
 
-    unifyAlphaIfUnable :: Monad m =>
-      PreTerm -> PreTerm -> PatUnifError -> PatUnifResult m
+    unifyAlphaIfUnable ::
+      PreTerm -> PreTerm -> PatUnifError -> PatUnifResult
     unifyAlphaIfUnable _ _ e@(UnifyAbsurd _) = throwError e
     unifyAlphaIfUnable t1 t2 (UnifyUnable _) = unifyAlpha t1 t2
 
-    throwUnableToUnify :: Monad m =>
-      PreTerm -> PreTerm -> PatUnifResult m
+    throwUnableToUnify ::
+      PreTerm -> PreTerm -> PatUnifResult
     throwUnableToUnify t1 t2 = do
       t1' <- lift $ preTermToString defaultExprIndent t1
       t2' <- lift $ preTermToString defaultExprIndent t2
       throwError . UnifyUnable $
         "unable to unify\n" ++ t1' ++ "\nwith\n" ++ t2'
 
-makeFunWithVarSubst :: Monad m => Bool -> [Var] -> PreTerm -> TypeCheckT m PreTerm
+makeFunWithVarSubst :: Bool -> [Var] -> PreTerm -> TypeCheckIO PreTerm
 makeFunWithVarSubst isIo vs t = do
   vs' <- mapM (\v -> fmap (flip mkVar (varName v)) Env.freshVarId) vs
   let su = IntMap.fromList (zip (map varId vs) (map (TermVar False) vs'))
   let ct = CaseLeaf vs' isIo (substPreTerm su t) []
   return (TermFun [] isIo (Just (length vs)) ct)
 
-mergePatUnifMaps :: Monad m =>
-  VarId -> VarId -> SubstMap -> SubstMap -> PatUnifResult m
+mergePatUnifMaps ::
+  VarId -> VarId -> SubstMap -> SubstMap -> PatUnifResult
 mergePatUnifMaps newpids boundids m1 m2 =
   foldlM insertSubstMap m2 (IntMap.toList m1)
   where
-    insertSubstMap :: Monad m =>
-      SubstMap -> (VarId, PreTerm) -> PatUnifResult m
+    insertSubstMap ::
+      SubstMap -> (VarId, PreTerm) -> PatUnifResult
     insertSubstMap m (i, t1) = do
       case IntMap.lookup i m of
         Nothing -> return (IntMap.insert i t1 m)
@@ -592,8 +592,8 @@ mergePatUnifMaps newpids boundids m1 m2 =
           m' <- patUnifWithBoundIds True newpids boundids t1 t2
           mergePatUnifMaps newpids boundids m' m
 
-tcMergePatUnifMaps :: Monad m =>
-  VarId -> Loc -> SubstMap -> SubstMap -> TypeCheckT m SubstMap
+tcMergePatUnifMaps ::
+  VarId -> Loc -> SubstMap -> SubstMap -> TypeCheckIO SubstMap
 tcMergePatUnifMaps newpids lo m1 m2 = do
   boundids <- Env.getNextVarId
   runPatUnifResult lo Nothing (mergePatUnifMaps newpids boundids m1 m2)
