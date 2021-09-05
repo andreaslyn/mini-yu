@@ -1,0 +1,26 @@
+import yu/DProd
+| (...)
+
+import B => yu/Bool
+| (...#Bool.B)
+
+import Ord? => yu/Ordering?
+| Ordering?
+| (...#Ordering?)
+
+import yu/List
+| List
+| (...#List)
+
+
+data.. SList : (A : Ty) & Ordering? A -> Ty
+| snil [A : Ty] [od : Ordering? A] : SList A od
+| cons-slist [A : Ty] [od : Ordering? A] :
+  (a : A) & (l : SList A od) & SOrd A od a l -> SList A od
+
+
+data.. SOrd : (A : Ty) & (od : Ordering? A) & A & SList A od -> Ty
+| sord-nil [A : Ty] [od : Ordering? A] [a : A] : SOrd A od a snil
+| sord-cons [A : Ty] [od : Ordering? A] [a b : A] [l : SList A od] :
+  (so : SOrd A od a l) & (sb : SOrd A od b l) & ? (od .gt? a b) ->
+  SOrd A od a (cons-slist b l sb)

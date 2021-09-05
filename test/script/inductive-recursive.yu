@@ -1,0 +1,12 @@
+
+data Nat : Ty
+| 0 : Nat
+| (++#Nat) : Nat -> Nat
+
+data.. U : Ty
+| nat : U
+| (:->#U) : (A : U) & (El A -> U) -> U
+
+val El : U -> Ty
+let nat => Nat
+let (A :-> B) => (a : El A) -> El (B a)
