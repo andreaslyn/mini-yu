@@ -1,7 +1,7 @@
 
 data Nat : Ty
 | 0 : Nat
-| (+1\) : Nat -> Nat
+| (+1#) : Nat -> Nat
 
 val nat-id : Nat -> Nat
 let => n => n
@@ -11,7 +11,7 @@ let => (n : Nat) => n
 
 data Fin : Nat -> Ty
 | 0f : (n : Nat) -> Fin(+1(n))
-| (+1f\)[n : Nat] : Fin(n) -> Fin(+1 n)
+| (+1f#)[n : Nat] : Fin(n) -> Fin(+1 n)
 
 val fin-id1 : (n : Nat) & Fin n -> Fin n
 let => _ f => f

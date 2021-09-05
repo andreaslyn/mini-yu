@@ -3,7 +3,7 @@ import Fun => yu0/Fun
 | id
 
 import Id => yu0/Id
-| _=\
+| _=#
 
 import vwf => yu0/very-weak-funext
 

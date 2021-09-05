@@ -5,8 +5,8 @@ export
 
 import Fun => yu0/Fun
 
-val _&&\Ty : Ty & Ty -> Ty
+val _&&#Ty : Ty & Ty -> Ty
 let A B => &: const.Fun [B := A] B
 
-val _<->\Ty : Ty & Ty -> Ty
+val _<->#Ty : Ty & Ty -> Ty
 let A B => (A -> B) && (B -> A)

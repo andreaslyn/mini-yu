@@ -259,7 +259,7 @@ skipRestOfBlockComment = skipNest 1
     skipNest 0 = return ()
     skipNest i = do
       c <- consumeChar
-      if c /= '#'
+      if c /= '\\'
         then skipNest i
         else consumeChar >>= skipNestHashtag i
 
@@ -277,7 +277,7 @@ tryNewTok c lo
       t <- makeWordTok (c:w) lo
       return (Just t)
   | c == '"' = liftM Just readStringLit
-  | c == '#' = readComment >> return Nothing
+  | c == '\\' = readComment >> return Nothing
   | c == '(' = return $ Just (tok TokParenL lo)
   | c == ')' = return $ Just (tok TokParenR lo)
   | c == '[' = return $ Just (tok TokSquareL lo)
@@ -344,12 +344,12 @@ tryNewTok c lo
     readComment :: SScanner ()
     readComment = do
       c' <- consumeChar
-      if c' == '#'
+      if c' == '\\'
         then skipRestOfLine
         else if c' == '{'
           then skipRestOfBlockComment
           else failHere ("unexpected character " ++ quote [c'] ++
-                ", expected " ++ quote "#" ++ " or " ++ quote "{")
+                ", expected " ++ quote "\\" ++ " or " ++ quote "{")
 
 tryConsumeNextTok :: SScanner Tok
 tryConsumeNextTok = do

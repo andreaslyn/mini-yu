@@ -1,7 +1,7 @@
 
 data Nat : Ty
 | 0 : Nat
-| (+1\Nat) : Nat -> Nat
+| (+1#Nat) : Nat -> Nat
 
 data Unit' : Ty
 | unit' : Unit'
@@ -154,7 +154,7 @@ data id-fun-type : Ty -> Ty
 val id-fun-test : (A : Ty) & (id-fun-type (A -> Nat)) -> Id Ty A Nat
 let _ (fun-ctor1 _) => refl Ty Nat
 
-data (?\Ty) : Ty -> Ty
+data (?#Ty) : Ty -> Ty
 | none : (A : Ty) -> ?(A)
 | some : (A : Ty) & A -> ?(A)
 

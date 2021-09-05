@@ -2,11 +2,11 @@
 import List => yu0/List
 | List
 | nil
-| ...\List
+| ...#List
 
 import N => yu0/Nat
 | Nat
-| ...\Nat
+| ...#Nat
 
 import B => yu0/Bool
 | Bool
@@ -14,10 +14,10 @@ import B => yu0/Bool
 | false
 
 import Fun => yu0/Fun
-| _@\
+| _@#
 
 import Id => yu0/Id
-| _=\
+| _=#
 | rew
 | trans
 

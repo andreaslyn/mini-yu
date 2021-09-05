@@ -1,14 +1,14 @@
 
 import List => yu0/List
 | List
-| ...\List
+| ...#List
 
 import Char => yu0/Char
 | Char
 
 import N => yu0/Nat
 | Nat
-| ...\Nat
+| ...#Nat
 
 import B => yu0/Bool
 | Bool

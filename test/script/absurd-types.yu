@@ -13,4 +13,4 @@ data Id : (A : Ty) & A & A -> Ty
 
 val id-list-vec : (A : Ty) & Id Ty (List (List A)) (List (Vec A n)) & (n : Nat) -> Nat
 let A {} n
-##let (A, refl(_, _), n) => 0
+\\let A (refl _ _) n => 0

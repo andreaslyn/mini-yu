@@ -1,7 +1,7 @@
 
 data Nat : Ty
 | 0 : Nat
-| (+\Nat) : Nat -> Nat
+| (+#Nat) : Nat -> Nat
 
 val 1 : Nat
 let => +(0)

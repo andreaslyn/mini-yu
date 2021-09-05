@@ -4,9 +4,9 @@ data Id : (A : Ty) & A & A -> Ty
 
 data Nat : Ty
 | 0 : Nat
-| (++\Nat) : Nat -> Nat
+| (++#Nat) : Nat -> Nat
 
-val _+\ : Nat & Nat -> Nat
+val _+# : Nat & Nat -> Nat
 let m 0 => m
 let m (++ n) => ++ (m + n)
 
@@ -56,7 +56,7 @@ let m (++ n) =>
     (Id-ap Nat Nat (++) (_+ m n) (_+ n m) (comm-+ m n))
     (Id-sym Nat (_+ (++ n) m) (++ _+ n m) (pp-p-simpl n m))
 
-val _+'\Nat : Nat & Nat -> Nat
+val _+'#Nat : Nat & Nat -> Nat
 let 0 n => n
 let (++ m) n => ++ (m +' n)
 
@@ -67,7 +67,7 @@ let (++ m) n =>
     (Id-ap Nat Nat (++) (_+' m n) (_+ m n) (ppId m n))
     (Id-sym Nat (_+ (++ m) n) (++ _+ m n) (pp-p-simpl m n))
 
-val _*\Nat : Nat & Nat -> Nat
+val _*#Nat : Nat & Nat -> Nat
 let m n =>
   r := case n
     | 0 => 0

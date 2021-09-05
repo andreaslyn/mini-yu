@@ -341,7 +341,7 @@ addToGlobals moduleName = do
 
     insertModuleName :: VarName -> VarName
     insertModuleName na =
-      let (start, end) = span (/= '\\') na
+      let (start, end) = span (/= '#') na
       in start ++ "." ++ moduleName ++ end
 
 isInThisScope :: Monad m => VarName -> EnvT m Bool

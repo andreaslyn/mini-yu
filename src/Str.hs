@@ -97,7 +97,7 @@ isPunctuation :: String -> Bool
 isPunctuation s = s == "(" || s == ")" || s == "," || s == ";"
 
 isGeneralWordChar :: Char -> Bool
-isGeneralWordChar c = isAlphaNum c || elem c "'_.@!%^&*-=+~<>/?:|\\$"
+isGeneralWordChar c = isAlphaNum c || elem c "'_.@!%^&*-=+~<>/?:|#$"
 
 isOperatorChar :: Char -> Bool
 isOperatorChar c = elem c "@!%^&*-=+~<>/?:|$"
@@ -190,7 +190,7 @@ doModuleSplit s0 =
   let (s, t0) = operandSplit s0
       t = case t0 of
             Nothing -> ""
-            Just t' -> '\\' : t'
+            Just t' -> '#' : t'
       (x, y) = span (/='.') s
   in case y of
       "" -> (x ++ t, Nothing)
@@ -204,7 +204,7 @@ moduleSplit s =
 
 operandSplit :: String -> (String, Maybe String)
 operandSplit "" = ("", Nothing)
-operandSplit ('\\' : ys) = ("", Just ys)
+operandSplit ('#' : ys) = ("", Just ys)
 operandSplit (x : xs) = let (xs', ys) = operandSplit xs in (x : xs', ys)
 
 operandConcatMaybe :: String -> Maybe String -> String
@@ -212,10 +212,10 @@ operandConcatMaybe s1 Nothing = s1
 operandConcatMaybe s1 (Just s2) = operandConcat s1 s2
 
 operandConcat :: String -> String -> String
-operandConcat s1 s2 = s1 ++ '\\' : s2
+operandConcat s1 s2 = s1 ++ '#' : s2
 
 stripOperatorStr :: String -> String
-stripOperatorStr = filter (\x -> x /= "_")
+stripOperatorStr = filter (\x -> x /= '_')
 
 errorMsg :: FilePath -> Loc -> String -> String
 errorMsg p lo s = p ++ ":" ++ show lo ++ ": error: " ++ s
@@ -246,15 +246,15 @@ doGenMachineName (c : s) = genChar ++ doGenMachineName s
         '<' -> "_le"
         '>' -> "_gr"
         '/' -> "_sl"
-        '\\' -> operandDelim
+        '\\' -> error "unexpected backslash in identifier" -- "_ba"
         '?' -> "_qu"
         ':' -> "_co"
         '|' -> "_ve"
-        '#' -> "_nu" -- This should become the new operandDelim
+        '#' -> operandDelim
         _ -> c : ""
 
 operandDelim :: String
-operandDelim = "_ba"
+operandDelim = "_nu"
 
 funcNameSep :: String
 funcNameSep = "__"

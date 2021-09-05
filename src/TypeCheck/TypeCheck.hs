@@ -202,7 +202,7 @@ checkVarNameValid (lo, na) = do
   where
     invalidName :: Bool
     invalidName =
-      let i = '.' `elem` na || '\\' `elem` na || '_' `elem` na
+      let i = '.' `elem` na || '#' `elem` na || '_' `elem` na
       in case na of
           '_' : c : _ ->
             if isAlphaNum c
@@ -224,7 +224,7 @@ checkRefNameValid allowDot (lo, na0) = do
   when b (err lo (Fatal $ "invalid name " ++ quote na0))
   where
     nas :: [VarName]
-    nas = splitOn '\\' na0
+    nas = splitOn '#' na0
 
     splitOn :: Char -> VarName -> [VarName]
     splitOn _ "" = [""]
@@ -239,7 +239,7 @@ checkRefNameValid allowDot (lo, na0) = do
 
     hasInvalidDot :: Bool
     hasInvalidDot =
-      not allowDot && elem '.' (drop 2 (takeWhile (/= '\\') na0))
+      not allowDot && elem '.' (drop 2 (takeWhile (/= '#') na0))
 
     invalidNameSplit :: VarName -> Bool
     invalidNameSplit n =
@@ -351,7 +351,7 @@ insertImportExport :: Monad m =>
   Set VarName -> VarName -> Env.ScopeMap -> [(Loc, VarName, Bool)] ->
   TypeCheckT m ()
 insertImportExport _ _ _ [] = return ()
-insertImportExport vis ina em (ii@(lo, dna@('.' : '.' : '.' : '\\' : na0), b) : imex) = do
+insertImportExport vis ina em (ii@(lo, dna@('.' : '.' : '.' : '#' : na0), b) : imex) = do
   when (null na0) (err lo $ Fatal $ "operand type cannot be empty here")
   if isKeyOperandType na0
   then do
@@ -794,11 +794,11 @@ updateOperandTypeString :: Monad m => (Loc, VarName) -> Maybe VarName -> TypeChe
 updateOperandTypeString (nlo, na) Nothing = do
   when (isOperator na)
     (err nlo (Fatal $ "missing operand type argument "
-                      ++ quote "\\..."))
+                      ++ quote "#..."))
   return na
 updateOperandTypeString (nlo, na) (Just ss) = do
   when (not (isOperator na))
-    (err nlo (Fatal $ "operand type argument " ++ quote "\\..."
+    (err nlo (Fatal $ "operand type argument " ++ quote "#..."
                       ++ " is valid only for operators"))
   if (not (null ss) && not (isKeyOperandType ss))
   then do
@@ -808,11 +808,11 @@ updateOperandTypeString (nlo, na) (Just ss) = do
       Just st' -> do
         vt <- varStatusTerm st'
         case termPre vt of
-          TermData d -> return (na ++ "\\" ++ varName d)
+          TermData d -> return (na ++ "#" ++ varName d)
           _ -> err nlo (Fatal $ "unexpected operand type " ++ quote ss
                                 ++ ", not a data type")
   else
-    return (na ++ "\\" ++ ss)
+    return (na ++ "#" ++ ss)
 
 tcVar :: Monad m => SubstMap -> (Loc, VarName) -> VarId -> Expr -> TypeCheckT m Term
 tcVar subst (lo, na) i e = do
@@ -1672,7 +1672,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
       if not (isOperator na0)
       then return na0
       else
-        if '\\' `elem` na0
+        if '#' `elem` na0
         then do
           let (na1, opty) = operandSplit na0
           na1' <- lift (Env.expandVarName na1)
@@ -1735,7 +1735,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
         Nothing -> unableToInferOperand
         Just n' -> do
           na00 <- lift (Env.expandVarName na0)
-          let na0' = na00 ++ "\\"
+          let na0' = na00 ++ "#"
           let na' = operandConcat na00 n'
           x1 <- lift $ Env.lookup na0'
           x2 <- lift $ Env.lookup na'
@@ -1744,7 +1744,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
                              "multiple candidates for operator "
                              ++ quote na0
                              ++ ", use operand type argument "
-                             ++ quote "\\..."
+                             ++ quote "#..."
                              ++ " to disambiguate"))
           if isJust x1
           then return na0'
@@ -1752,7 +1752,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
 
     unableToInferOperand :: Monad m => ExprT m VarName
     unableToInferOperand = do
-      let na0' = na0 ++ "\\"
+      let na0' = na0 ++ "#"
       x <- lift $ Env.lookup na0'
       when (isNothing x)
         (lift $ err lo (Recoverable $
@@ -1840,8 +1840,7 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
       VarListElem -> ExprT m (Maybe PreTerm)
     insertImplicit ((vlo, vna), Nothing) = do
       i <- lift Env.freshVarId
-      l <- lift Env.getNextLocalVarName
-      let e = TermVar True (mkVar i ("Ty_" ++ vna ++ "_" ++ l))
+      let e = TermVar True (mkVar i ("TypeOf_" ++ vna))
       impMapInsert i TermTy vlo $ "unable to infer type of " ++ quote vna
       return (Just e)
     insertImplicit (_, Just _) = return Nothing
@@ -2233,7 +2232,7 @@ doTcExprApp isTrial subst operandArg ty f args = do
           makeTermApp subst (exprLoc f) ty e1' args'
 
     isPostfixExpr :: Expr -> Bool
-    isPostfixExpr (ExprVar (_, vna)) = isPostfixOp vna && not ('\\' `elem` vna)
+    isPostfixExpr (ExprVar (_, vna)) = isPostfixOp vna && not ('#' `elem` vna)
     isPostfixExpr (ExprImplicitApp v@(ExprVar _) _) = isPostfixExpr v
     isPostfixExpr _ = False
 
@@ -2368,20 +2367,20 @@ getAppOrderingWeight rm iv ty e =
 
     funImplicits :: PreTerm -> Expr -> IntSet
     funImplicits (TermArrow _ d _) (ExprVar (_, n))
-      | isOperator n && not ('\\' `elem` n) =
+      | isOperator n && not ('#' `elem` n) =
           foldl (\s (_, x) ->
                   IntSet.union s (allImplicits x)
                 ) IntSet.empty d
     funImplicits (TermArrow _ d _)
         (ExprApp (ExprVar (_, n)) (ExprVar (_, "_") : _))
       | (isPrefixOp n || isPostfixOp n || isLeftAssocInfixOp n)
-            && not ('\\' `elem` n) =
+            && not ('#' `elem` n) =
           foldl (\s (_, x) ->
                   IntSet.union s (allImplicits x)
                 ) IntSet.empty d
     funImplicits (TermArrow _ d _)
         (ExprApp (ExprVar (_, n)) (_ : ExprVar (_, "_") : _))
-      | isRightAssocInfixOp n && not ('\\' `elem` n) =
+      | isRightAssocInfixOp n && not ('#' `elem` n) =
           foldl (\s (_, x) ->
                   IntSet.union s (allImplicits x)
                 ) IntSet.empty d
@@ -2518,7 +2517,7 @@ doTcPattern _ _ newpids ty (ParsePatternApp f pargs) = do
   where
     isPostfixPattern :: ParsePattern -> Bool
     isPostfixPattern (ParsePatternVar (_, vna)) =
-      isPostfixOp vna && not ('\\' `elem` vna)
+      isPostfixOp vna && not ('#' `elem` vna)
     isPostfixPattern (ParsePatternImplicitApp v@(ParsePatternVar _) _) =
       isPostfixPattern v
     isPostfixPattern _ = False
@@ -2603,7 +2602,7 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
         else v : remakeArgs (p:ps) vs
     remakeArgs _ _ = error "unexpected arguments to remakeArgs"
 doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
-  (x, na) <- if not (isOperator na0) || '\\' `elem` na0
+  (x, na) <- if not (isOperator na0) || '#' `elem` na0
              then do
               let (na1, opty) = operandSplit na0
               na1' <- Env.expandVarName na1
@@ -2627,7 +2626,7 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
     _ -> do
       ss <- preTermToStringT defaultExprIndent ty
       if hasImplicitApp || hasApp
-      then err lo (Recoverable $ "expected " ++ quote na
+      then err lo (Recoverable $ "expected " ++ quote na0
                                ++ " to be constructor of\n" ++ ss)
       else do
         v <- insertNonblankFreshVariable (lo, na) ty
@@ -2643,11 +2642,8 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
         Just cs' -> do
           case filter (isPrefixOf na0') (map varName cs') of
             [m] -> do
-              let (m0, m1) = span (/='\\') m
-              let m0' = if isJust (snd (moduleSplit na0))
-                        then m0
-                        else fst (moduleSplit m0)
-              return (m0' ++ m1)
+              let (_, m1) = span (/='#') m
+              return (na0' ++ m1)
             _ -> return na0'
 
     getDataCtors :: Monad m => TypeCheckT m (Maybe [Var])

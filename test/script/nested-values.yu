@@ -1,7 +1,7 @@
 
 data Nat : Ty
 | 0 : Nat
-| (++\) : Nat -> Nat
+| (++#) : Nat -> Nat
 
 val test1 : (m : Nat) & (n : Nat) -> Nat
 let m n => const first (plusn m)

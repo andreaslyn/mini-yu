@@ -2,8 +2,8 @@
 data Id : Ty & Ty -> Ty
 | refl : (A : Ty) -> Id A A
 
-##val error-bound : (X : Ty, Id((A : Ty) -> A, Ty -> X)) -> {}
-##let (X, refl(_)) => []
+\\val error-bound : (X : Ty, Id((A : Ty) -> A, Ty -> X)) -> {}
+\\let (X, refl(_)) => []
 
 val easy-ok : (X : Ty) & (Y : Ty) & Id ((A : Ty) -> X -> A) ((B : Ty) -> Y -> B) -> Id X Y
 let X Y (refl(_)) => refl(X)

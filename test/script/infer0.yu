@@ -17,7 +17,7 @@ data Id [A : Ty] : A & A -> Ty
 
 data Nat : Ty
 | 0 : Nat
-| (++\) : Nat -> Nat
+| (++#) : Nat -> Nat
 
 data ReflectNat : Nat -> Ty
 | reflectNat : (n : Nat) -> ReflectNat n

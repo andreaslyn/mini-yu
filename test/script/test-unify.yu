@@ -1,10 +1,10 @@
 import Bin0 => yu0/Bin0
 | Bin0
-| ...\Bin0
+| ...#Bin0
 
 import Bin1 => yu0/Bin1
 | Bin1
-| ...\Bin1
+| ...#Bin1
 | bin+
 
 import B1T => yu0/Bin1-theorems

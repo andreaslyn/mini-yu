@@ -8,8 +8,5 @@ data Vec : {} -> {} -> Nat & Ty -> Ty
 data Id : (A : Ty) & A & A -> Ty
 | refl : (A : Ty) & (x : A) -> Id A x x
 
-##val id-list-vec : (A : Ty, Id(Ty, Vec()()(n, Ty), Vec()()(n, Vec()()(n, A))), n : Nat) -> Nat
-##let (A, refl(_, _), n) => 0
-
 val id-list-vec : (A : Ty) & Id Ty (Vec () () n Ty) (Vec () () n (Vec () () n A)) & (n : Nat) -> Nat
 let A {} n

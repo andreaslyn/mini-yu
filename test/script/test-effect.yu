@@ -5,8 +5,8 @@ import S => yu/Str
 | Str
 
 import print => yu/print/print
-| _.print\Char
-| ...\Str
+| _.print#Char
+| ...#Str
 
 val main : {} ->> {}
 let () =>

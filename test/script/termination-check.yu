@@ -1,10 +1,10 @@
 data Nat : Ty
 | 0 : Nat
-| (++\) : Nat -> Nat
+| (++#) : Nat -> Nat
 
-data _.List\Ty : Ty -> Ty
+data _.List#Ty : Ty -> Ty
 | nil[A : Ty] : A .List
-| _::\_.List\Ty[A : Ty] : A & A .List -> A .List
+| _::#_.List#Ty[A : Ty] : A & A .List -> A .List
 
 val last-nat : Nat .List -> Nat
 let nil => 0
@@ -22,9 +22,9 @@ let (x :: xs) =>
   | y :: ys => last-nat' (y :: ys)
   end
 
-data _.Stream\Ty : Ty -> Ty
+data _.Stream#Ty : Ty -> Ty
 | nils[A : Ty] : [] -> A .Stream
-| _::\_.Stream\Ty[A : Ty] : ([] -> A) & ([] -> A .Stream) -> [] -> A .Stream
+| _::#_.Stream#Ty[A : Ty] : ([] -> A) & ([] -> A .Stream) -> [] -> A .Stream
 
 val last-nat-Stream : Nat .Stream -> Nat
 let nils => 0

@@ -1,17 +1,17 @@
 import Fun => yu0/Fun
 | id
-| _@\
+| _@#
 
 import Id => yu0/Id
-| _=\
+| _=#
 
 import Sigma => yu0/Sigma
-| (&:\Ty)
-| _$\
+| (&:#Ty)
+| _$#
 
 import N => yu0/Nat
 | Nat
-| ...\Nat
+| ...#Nat
 
 import List => yu0/List
 | ...
@@ -26,7 +26,7 @@ let (xs) =>
   fold xs nil of n m =>
     case m
     | nil => _::.yu0/List n nil
-    | _ => _::.List\List.List n m
+    | _ => _::.List#List.List n m
     end
 
 val fold' [A : Ty] [B : Ty] : (A & B -> B) & List(A) & B -> B

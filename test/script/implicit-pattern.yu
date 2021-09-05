@@ -1,7 +1,7 @@
 
 data Nat : Ty
 | 0 : Nat
-| (++\Nat) : Nat -> Nat
+| (++#Nat) : Nat -> Nat
 
 val eid : (A : Ty) & A -> A
 let A a => a

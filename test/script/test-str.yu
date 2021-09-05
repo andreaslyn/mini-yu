@@ -1,6 +1,9 @@
 import Str => yu/Str/Str
 | Str
 
+val hi-to-hello : Str -> Str
+let "hi" => "hello"
+let s => s
 
 val hello : Str
 let => "hello\n"

@@ -1,7 +1,7 @@
 
 data Nat : Ty
 | 0 : Nat
-| (+1\Nat) : Nat -> Nat
+| (+1#Nat) : Nat -> Nat
 
 data NatId : Nat & Nat -> Ty
 | nat-refl : (n : Nat) -> NatId n n
@@ -11,4 +11,4 @@ data Empty : Ty
 
 val not-0-+1 : (n : Nat) & NatId 0 (+1 n) -> Nat
 let _ {}
-##let (_, nat-refl(x)) => 0
+\\let (_, nat-refl(x)) => 0

@@ -1,31 +1,31 @@
 
 import Id => yu0/Id
-| _=\
+| _=#
 
 data Bool : Ty
 | true : Bool
 | false : Bool
 
-val (!\Bool) : Bool -> Bool
+val (!#Bool) : Bool -> Bool
 let true => false
 let false => true
 
-val _||\Bool : Bool & ([] -> Bool) -> Bool
+val _||#Bool : Bool & ([] -> Bool) -> Bool
 let true _ => true
 let false b => b
 
-val _&&\Bool : Bool & ([] -> Bool) -> Bool
+val _&&#Bool : Bool & ([] -> Bool) -> Bool
 let false _ => false
 let true b => b
 
 data IfThen : Ty -> Ty
-| _?then\Bool [A : Ty] : Bool & ([] -> A) -> IfThen A
+| _?then#Bool [A : Ty] : Bool & ([] -> A) -> IfThen A
 
-val _?else\IfThen [A : Ty] : IfThen A & ([] -> A) -> A
+val _?else#IfThen [A : Ty] : IfThen A & ([] -> A) -> A
 let (true ?then f) _ => f
 let (false ?then _) g => g
 
-val _=b\Bool : Bool & Bool -> Bool
+val _=b#Bool : Bool & Bool -> Bool
 let true true => true
 let false false => true
 let _ _ => false
