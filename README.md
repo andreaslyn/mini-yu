@@ -56,19 +56,19 @@ This section describes some of the features of Mini Yu.
 
 To get started, here is the Hello World program in Mini Yu:
 ```
-## Import basic functionality from standard library:
+\\ Import basic functionality from standard library:
 import "yu/prelude.yu"
 
-## Function main is the program entry point:
+\\ Function main is the program entry point:
 val main : {} ->> {}
 let () => "Hello, World!" .println
 ```
-Note that line comments start with `##`.
+Note that line comments start with `\\`.
 
 Copy the code and put it in a file named `hello-world.yu`.
 Compile it with the command
 ```
-path/to/yuc -c -o hello-world.yu
+path/to/yuc hello-world.yu -c -o
 ```
 The `-c` command line argument tells mini yu to compile the program,
 not just type check. The `-o` command line argument tells
@@ -86,12 +86,13 @@ Currently, the only supported effect is `->>`, which allows printing
 strings to standard out. I am working on extending mini yu with a
 more powerful effect system.
 
-The point of having an effect system is to control where observable
-side effects may occur. The pure function type `->` is used for functions
-which do not have side effects. Hence, we cannot print from inside such a
-function. Mini Yu will not accept the following program
+An effect system is used to control where observable side effects may
+occur. The pure function type `->` is used for functions which do not
+have side effects. Hence, we cannot print from inside such a function.
+Mini Yu will not accept the following program
 ```
-import "yu/prelude.yu"
+import yu/prelude
+| (...)
 
 val customPrint : Str -> {}
 let s => s .println
@@ -106,8 +107,8 @@ Change the type of `customPrint` to `Str ->> {}`, and then it will work.
 Mini Yu has algebraic data types. For example, the natural numbers can be defined with
 ```
 data Nat : Ty
-let 0 : Nat
-let succ : Nat -> Nat
+| 0 : Nat
+| succ : Nat -> Nat
 ```
 **Note that the examples may not type check if you import files
 from the standard library at the same time, because of name
@@ -116,7 +117,7 @@ clashes with the standard library.**
 The identity type can be defined with
 ```
 data Id [A : Ty] : A & A -> Ty
-let refl [A : Ty] [a : A] : Id a a
+| refl [A : Ty] [a : A] : Id a a
 ```
 The square brackets mark implicit arguments `[A : Ty]` and `[a : A]`,
 and `A & A -> Ty` is a binary function type.
@@ -149,16 +150,18 @@ Prefix and infix operators start with an operator symbol, such as `+`,
 specially, not regarded as operator symbols. Postfix operators
 start with a period `.` for example `.length`, `.is-true?`.
 Variable identifiers start with an alphanumeric character,
-such as `A`, `1st`, `a*b`.
+such as `A`, `1st`, `a*b`. Note that if we insert space `a * b`,
+then it will mean the infix operator `*` applied to two arguments,
+`a` and `b`, rather than the variable `a*b`.
 
-We can for example define the natural numbers by using a prefix
-operator `++` for the successor constructor,
+We can define the natural numbers by using a prefix operator `++` for
+the successor constructor,
 ```
 data Nat : Ty
-let 0 : Nat
-let (++_\Nat) : Nat -> Nat
+| 0 : Nat
+| (++#Nat) : Nat -> Nat
 ```
-The `\Nat` is indicating that this is the operator `++` for `Nat`.
+The `#Nat` is indicating that this is the operator `++` for `Nat`.
 
 Now define `1` and `2` by
 ```
@@ -171,14 +174,14 @@ let => ++ 1
 
 Addition on natural numbers as infix operator `+`,
 ```
-val _+_\Nat : Nat & Nat -> Nat
+val (+#Nat) : Nat & Nat -> Nat
 let m 0 => m
 let m (++ n) => ++ (m + n)
 ```
 
 A `.is-even?` postfix operator on natural numbers,
 ```
-val _.is-even?\Nat : Nat -> Bool
+val (.is-even?#Nat) : Nat -> Bool
 let 0 => true
 let (++ 0) => false
 let (++ ++ n) => n .is-even?
@@ -186,20 +189,20 @@ let (++ ++ n) => n .is-even?
 where `Bool` is the type
 ```
 data Bool : Ty
-let false : Bool
-let true : Bool
+| false : Bool
+| true : Bool
 ```
 
 We can overload operators based on type of an argument.
 It is possible to define addition of booleans by
 ```
-val _+_\Bool : Bool & Bool -> Bool
+val (+#Bool) : Bool & Bool -> Bool
 let true b => true
 let false b => b
 ```
 For left associative infix operators, such as `+`, mini yu uses the
 type of the first argument to determine which operator to apply. So
-`true + x` applies `_+_\Bool` and `1 + y` applies `_+_\Nat`.
+`true + x` applies `+#Bool` and `1 + y` applies `+#Nat`.
 
 ### Details on operator precedence
 
@@ -234,21 +237,20 @@ possible to mark arguments as lazy. For example, in the definition of
 addition of booleans, it is often desired to have the second argument
 evaluated only when the first argument is false. This can be achieved with
 ```
-val _+_\Bool : Bool & ([] -> Bool) -> Bool
+val (+#Bool) : Bool & ([] -> Bool) -> Bool
 let true b => true
 let false b => b
 ```
-The `[] -> Bool` is the lazy `Bool` type. It evaluates the second argument
-only when the first argument is `false`. Like this the second argument
-to `_+_\Bool` is only evaluated if it is needed.
+The type `[] -> Bool` is the lazy `Bool` type. The operator `+#Bool`
+evaluates the second argument only when the first argument is `false`.
 
 ## Dependent types
 
 Define the vector data type by
 ```
 data Vec : Nat & Ty -> Ty
-let nilv [A : Ty] : Vec 0 A
-let _::_\Vec [A : Ty] [n : Nat] : A & Vec n A -> Vec (++ n) A
+| nilv [A : Ty] : Vec 0 A
+| (::#Vec) [A : Ty] [n : Nat] : A & Vec n A -> Vec (++ n) A
 ```
 Note that infix `::` is right associative, so it overloads on the
 second argument, which is `Vec` in this case.
@@ -265,26 +267,65 @@ let (++ n) => 0 :: 0v n
 
 ## Importing and standard library
 
-Importing files in mini yu works like copying the file and pasting it in.
-There is, however, detection to avoid importing the same file twice.
-
 Mini Yu comes with a standard library with some basic functionality.
 For example, to import the list type, one can write
 ```
-import "yu/List.yu"
+import yu/List
+| List
+| nil
+| (...#List)
+```
+This puts `List` and `nil` into scope, and `(...#List)` all operators
+on `List` from the module `yu/List`. One can specify an aliases for
+modules with
+```
+import L => yu/List
+| List
+| (...#List)
+```
+This puts `List` and it's operators into scope, and we can use `nil.L`
+to refer to `nil` from module `yu/List`. In general `x.L` will refer
+`x` from module `yu/List`.
+
+Alternatively, use `(...)` to import everything from the module
+```
+import yu/List
+| (...)
 ```
 
 Take a look at the `stdlib/yu/` directory to see what is available
 in the standard library. If an import string starts with `yu/`, such
-as `"yu/List.yu"`, then mini yu will search for files in the standard
-library. If an import string starts with slash `/`, then it will
-search for files starting from the root of the project.
+as `yu/List`, then mini yu will search for files in the standard
+library.
+
+Users can specify custom packages with the `-p` command line option.
+For example we have make a directory `path/to/package`, then we
+can invoke `yuc` with `-p path/to/package`, which with bring
+modules with `package/` into scope. One can imagine a file
+called `path/to/package/mod.yu` containing
 ```
-import "/path/to/functionality.yu"
+import yu/Nat
+| Nat
+
+import L => yu/List
+| List
+
+val empty : List Nat
+let => nil.L
 ```
-will search for a file named `$DIR/path/to/functionality.yu`, where
-`$DIR` is the directory of the main file. The main file is the
-file passed to the `yuc` compiler.
+By running `yuc` with `yuc main.yu -c -p path/to/package`, then
+we can refer to the module with `package/mod`. For example, in `main.yu`
+containing
+```
+import yu/prelude
+| (...)
+
+import M => package/mod
+
+val main : {} ->> {}
+let () => empty.M .len .println
+```
+This program will print `0` when executed.
 
 ## More examples
 
