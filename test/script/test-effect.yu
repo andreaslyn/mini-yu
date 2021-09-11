@@ -11,7 +11,8 @@ let () =>
   test-io-in-lambda3(true);
   test-pass-io-fun1();
   test-pass-io-fun2(true);
-  test-higher-io();
+  test-coerce-io-fun1();
+  test-coerce-io-fun2();
   test-io-application1(true);
   test-io-lambda(true)
 
@@ -57,17 +58,24 @@ let b =>
     | false => test-io-in-case3
     end
 
+val test-coerce-io-fun1 : {} ->> {}
+let () => take-io (b => dummy b)
+where
+  val dummy : Bool -> {}
+  let _ => ()
+end
+
 val take-io : (Bool ->> {}) ->> {}
 let (f) => f true
 
-val test-higher-io : {} ->> {}
-let () => take-higher-io dummy
+val test-coerce-io-fun2 : {} ->> {}
+let () => take-higher-io (f => dummy f)
 where
   val dummy : (Bool ->> {}) -> {}
   let _ => ()
 end
 
-val take-higher-io : ((Bool ->> {}) -> {}) -> {}
+val take-higher-io : ((Bool ->> {}) ->> {}) ->> {}
 let (f) => f test-io-in-case1
 
 val test-io-application1 : Bool ->> {}
