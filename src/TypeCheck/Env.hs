@@ -161,15 +161,18 @@ getCurrentScopeId = fmap currentScopeId get
 incCurrentScopeId :: Monad m => EnvT m ()
 incCurrentScopeId = modify (\s -> s{currentScopeId = currentScopeId s + 1})
 
+{-# INLINE getRefMap #-}
 getRefMap :: Monad m => EnvT m RefMap
 getRefMap = fmap refMap get
 
+{-# INLINE getImplicitVarMap #-}
 getImplicitVarMap :: Monad m => EnvT m ImplicitVarMap
 getImplicitVarMap = fmap implicitVarMap get
 
 getExternSet :: Monad m => EnvT m ExternSet
 getExternSet = fmap externSet get
 
+{-# INLINE getImplicitMap #-}
 getImplicitMap :: Monad m => EnvT m ImplicitMap
 getImplicitMap = fmap implicitMap get
 
@@ -206,13 +209,13 @@ getNextLocalVarName = do
   put (st {nextLocalVarName = n + 1})
   return (show n)
 
+{-# NOINLINE getNextVarId #-}
 getNextVarId :: Monad m => EnvT m VarId
 getNextVarId = do
   st <- get
   let !(n, i') = hackReadGlobalVarId (hackVarId st)
   put (st {hackVarId = i' + 1})
   return n
-{-# NOINLINE getNextVarId #-}
 
 getNextRefId :: Monad m => EnvT m VarId
 getNextRefId = fmap nextRefId get

@@ -118,7 +118,7 @@ let le (isC $ isT) => x y z ltxy ltyz =>
   le z x .ind
     (b => (? b -> Empty) -> ? ! b)
     (const refl) (c => c refl .rec)
-    (contra x y z ltxy ltyz _)
+    (contra x y z ltxy ltyz)
 where
   val contra :
     (x y z : A) & ? ! le y x & ? ! le z y & ? le z x -> Empty
@@ -142,8 +142,8 @@ let R => x y z ltxy ltyz =>
   leToLtIsTransitive?
     (R .le?) (R .isOrdering? .leIsTotalPreorder)
     x y z
-    (R .isOrdering? .ltIsCompatible x y .resp (? _) ltxy)
-    (R .isOrdering? .ltIsCompatible y z .resp(? _) ltyz)
+    (R .isOrdering? .ltIsCompatible x y .resp (?) ltxy)
+    (R .isOrdering? .ltIsCompatible y z .resp (?) ltyz)
 
 
 val (.ltLeToLt?#Ordering?) [A : Ty] :
@@ -195,8 +195,8 @@ end
 val (.cmpEqIsEq?#Ordering?) [A : Ty] :
   (R : Ordering? A) & (x y : A) -> R .cmp x y .eq? = R .eq? x y
 let R x y =>
-  R .isOrdering? .cmpIsCompatible x y .rewL (_ .eq?) of
-  (_ @ ! R .isOrdering? .eqIsCompatible x y) of
+  R .isOrdering? .cmpIsCompatible x y .rewL (t => t .eq?) of
+  (p => p @ ! R .isOrdering? .eqIsCompatible x y) of
   leToCmpEqIsOp&& (R .le? x y) (R .le? y x)
 where
   val leToCmpEqIsOp&& :
@@ -211,8 +211,8 @@ end
 val (.cmpLtIsLt?#Ordering?) [A : Ty] :
   (R : Ordering? A) & (x y : A) -> R .cmp x y .lt? = R .lt? x y
 let R x y =>
-  R .isOrdering? .cmpIsCompatible x y .rewL(_ .lt?) of
-  (_ @ ! R .isOrdering? .ltIsCompatible x y) of
+  R .isOrdering? .cmpIsCompatible x y .rewL(t => t .lt?) of
+  (p => p @ ! R .isOrdering? .ltIsCompatible x y) of
   leToCmpLtIsOp! (R .le? x y) (R .le? y x) of c =>
     case pullOutOp||.B-th (R .leIsConnex? x y)
     | in1.Sum h => case ! h @ op!ToOp?false.B-th c | {} end
@@ -232,8 +232,8 @@ end
 val (.cmpLtIsGt?#Ordering?) [A : Ty] :
   (R : Ordering? A) & (x y : A) -> R .cmp x y .lt? = R .cmp y x .gt?
 let R x y =>
-  R .isOrdering? .cmpIsCompatible x y .rewL(_ .lt?) of
-  R .isOrdering? .cmpIsCompatible y x .rewR(_ .gt?) of
+  R .isOrdering? .cmpIsCompatible x y .rewL(t => t .lt?) of
+  R .isOrdering? .cmpIsCompatible y x .rewR(t => t .gt?) of
   ltIsGt (R .le? x y) (R .le? y x) (R .isOrdering? .leIsConnex? x y)
 where
   val ltIsGt :

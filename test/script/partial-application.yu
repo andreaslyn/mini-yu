@@ -1,0 +1,34 @@
+
+
+data Nat : Ty
+| 0 : Nat
+| (++#Nat) : Nat -> Nat
+
+
+val plus : Nat & Nat -> Nat
+let 0 n => n
+let (++ m) n => plus m (++ n)
+
+
+val inc : Nat -> Nat
+let => plus (++ 0)
+
+
+data (=#) [A B : Ty] : A & B -> Ty
+| refl [A : Ty] [a : A] : a = a
+
+
+val inc-is-++ : inc = (++#Nat)
+let => refl
+
+
+val partial-= : Nat -> Nat -> Ty
+let => x := (=#) 0; _ => x
+
+
+val pred : m = ++ n & (m : Nat) & (n : Nat) & (k : Nat) & k = m & ++ n = k -> Nat
+let refl m n k refl refl => m
+
+
+val test-pred : (k : Nat) & k = ++ 0 & ++ 0 = k -> Nat
+let => pred refl (++ 0) 0

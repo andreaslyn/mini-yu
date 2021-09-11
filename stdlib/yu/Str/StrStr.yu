@@ -52,7 +52,7 @@ let false => mk ('f.C :: 'a.C :: 'l.C :: 's.C :: 'e.C :: nil.L)
 
 
 val (.str#Char) : Char -> Str
-let => mk @compose (_ :: nil.L)
+let => mk @compose (c => c :: nil.L)
 
 
 val.. (.str#Nat) : Nat -> Str
@@ -72,7 +72,7 @@ let n =>
 
 
 val (.str#Order) : Order -> Str
-let => _ .rec "lt" "eq" "gt"
+let od => od .rec "lt" "eq" "gt"
 
 
 val (.str#Option) [A : Ty] : ? A & (A -> Str) -> Str

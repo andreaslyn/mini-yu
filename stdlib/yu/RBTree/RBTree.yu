@@ -96,7 +96,7 @@ end
 
 val fromList [A : Ty] [od : Ordering? A] :
   List A -> RBTree A od
-let => aux leaf _
+let => aux leaf
 where
   val aux : RBTree A od & List A -> RBTree A od
   let t nil.L => t

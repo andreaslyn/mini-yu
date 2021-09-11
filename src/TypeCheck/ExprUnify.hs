@@ -83,7 +83,7 @@ canAppUnifyBase (TermApp _ f _) = canAppUnifyBase f
 canAppUnifyBase (TermLazyApp _ f) = canAppUnifyBase f
 canAppUnifyBase (TermImplicitApp _ f _) = canAppUnifyBase f
 canAppUnifyBase (TermLazyFun _ f) = canAppUnifyBase f
-canAppUnifyBase (TermFun _ _ _ (CaseLeaf _ _ f _)) = canAppUnifyBase f
+canAppUnifyBase (TermFun _ _ _ (CaseLeaf _ f _)) = canAppUnifyBase f
 canAppUnifyBase (TermFun _ _ _ _) = False
 canAppUnifyBase (TermCase _ _) = False
 canAppUnifyBase (TermArrow _ _ _) = False
@@ -139,13 +139,6 @@ doExprUnify normalize = \t1 t2 -> do
           if null rest
           then return subst
           else throwError msg
-          {-
-            if length rest == length termPairs
-            then throwError msg
-            else do
-              rest' <- lift (substPairs rest subst)
-              eunify rest' subst
-          -}
 
         doEunify ::
           [(PreTerm, PreTerm)] -> SubstMap ->
@@ -186,21 +179,19 @@ doExprUnify normalize = \t1 t2 -> do
 
     eunify2NotVar :: PreTerm -> PreTerm -> ExprUnifResult
     eunify2NotVar ar1@(TermArrow io1 d1 c1) ar2@(TermArrow io2 d2 c2) = do
-      if io2 && not io1
+      if io2 /= io1
       then do
         s1 <- lift $ preTermToString defaultExprIndent ar1
         s2 <- lift $ preTermToString defaultExprIndent ar2
         throwError $
-          "unable to coerce effectful function type\n"
-          ++ s2 ++ "\nto regular function type\n" ++ s1
+          "unable to unify effectful function type\n"
+          ++ s1 ++ "\nwith regular function type\n" ++ s2
       else if length d1 /= length d2
         then
           throwError "function types with different arities"
         else
           catchError (
             do
-              -- Flip arguments for unification of coercions like
-              -- regular arrow => effectful arrow.
               let ds = zip d2 d1
               su <- foldlM updateArrowMap IntMap.empty ds
               let ds' = map (\(x,y) -> (substPreTerm su (snd x),
@@ -235,13 +226,13 @@ doExprUnify normalize = \t1 t2 -> do
           let x = IntMap.insert (varId n1) v m
           return (IntMap.insert (varId n2) v x)
     eunify2NotVar (TermLazyArrow io1 c1) (TermLazyArrow io2 c2) = do
-      if io2 && not io1
+      if io2 /= io1
       then do
         s1 <- lift $ preTermToString defaultExprIndent (TermLazyArrow io1 c1)
         s2 <- lift $ preTermToString defaultExprIndent (TermLazyArrow io2 c2)
         throwError $
-            "unable to assign effectful lazy type\n"
-            ++ s2 ++ "\nto regular lazy type\n" ++ s1
+            "unable to unify effectful lazy type\n"
+            ++ s1 ++ "\nwith regular lazy type\n" ++ s2
       else eunify2 c1 c2
     eunify2NotVar t1@(TermApp _ f1 x1) t2@(TermApp _ f2 x2) = do
       rm <- lift Env.getRefMap
@@ -303,8 +294,8 @@ doExprUnify normalize = \t1 t2 -> do
           unifyAlpha f1 f2
         else
           catchError (eunify2 t1 t2) (\_ -> unifyAlpha f1 f2)
-    eunify2NotVar f1@(TermFun ias1 io1 _ (CaseLeaf i1 _ t1 _))
-                  f2@(TermFun ias2 io2 _ (CaseLeaf i2 _ t2 _))
+    eunify2NotVar f1@(TermFun ias1 io1 _ (CaseLeaf i1 t1 _))
+                  f2@(TermFun ias2 io2 _ (CaseLeaf i2 t2 _))
       | io1 == io2 && ias1 == ias2 && length i1 == length i2 =
         if io1
         then
@@ -333,16 +324,14 @@ doExprUnify normalize = \t1 t2 -> do
     eunify2NotVar t1 f2@(TermLazyFun False t2) =
       catchError (eunify2 (TermLazyApp False t1) t2)
         (\_ -> unifyAlpha t1 f2)
-    eunify2NotVar f1@(TermFun [] False _ (CaseLeaf i1 io t1 _)) t2 = do
-      let !() = assert (not io) ()
+    eunify2NotVar f1@(TermFun [] False _ (CaseLeaf i1 t1 _)) t2 = do
       catchError
         (do
           (vs, su) <- lift (makeNewVarIds i1)
           let t1' = substPreTerm su t1
           eunify2 t1' (TermApp False t2 vs))
         (\_ -> unifyAlpha f1 t2)
-    eunify2NotVar t1 f2@(TermFun [] False _ (CaseLeaf i2 io t2 _)) = do
-      let !() = assert (not io) ()
+    eunify2NotVar t1 f2@(TermFun [] False _ (CaseLeaf i2 t2 _)) = do
       catchError
         (do
           (vs, su) <- lift (makeNewVarIds i2)
@@ -402,13 +391,71 @@ doExprUnify normalize = \t1 t2 -> do
           catchError (unifyVar t1 t2)
             (\msg -> if msg == "" then unifyAlpha t1 t2 else throwError msg))
 
+    unifyPartialVarApp ::
+      Bool -> PreTerm -> [PreTerm] -> PreTerm -> [PreTerm] ->
+      ExprUnifResult
+    unifyPartialVarApp io1 f1 as1 f2 as2 = do
+      let !() = assert (length as1 > length as2) ()
+      let numMissing = length as1 - length as2
+      let (as0, bs1) = splitAt numMissing as1
+      im <- lift Env.getImplicitMap
+      rm <- lift Env.getRefMap
+      iv <- lift Env.getImplicitVarMap
+      let mt1 = preTermGetAlphaType im rm iv f1
+      let mt2 = preTermGetAlphaType im rm iv f2
+      case (mt1, mt2) of
+        (Just (TermArrow aio ds c), Just at2) -> do
+          let (ds0, ds1) = splitAt numMissing ds
+          hasBound <- lift (isSomeVarBound ds0 ds1)
+          when hasBound (throwError "")
+          let su1 = makeDomSubst ds0 as0
+          let at1 = substPreTerm su1 (TermArrow aio ds1 c)
+          when (not $ preTermsEqual rm at1 at2) (throwError "")
+          g1 <- lift $ preTermPartialApplication aio numMissing f1 as0 io1
+          doUnifyVarAppRec g1 f2 bs1 as2
+        _ -> throwError ""
+      where
+        isSomeVarBound ::
+          [(Maybe Var, PreTerm)] -> [(Maybe Var, PreTerm)] ->
+          TypeCheckIO Bool
+        isSomeVarBound as bs = do
+          rm <- Env.getRefMap
+          let vs = foldl (\ acc (_, x) ->
+                              IntSet.union acc (preTermVars rm x)
+                         ) IntSet.empty as
+          return (checkIsSomeVarBound vs bs)
+
+        checkIsSomeVarBound :: VarIdSet -> [(Maybe Var, PreTerm)] -> Bool
+        checkIsSomeVarBound _ [] = False
+        checkIsSomeVarBound vs ((Nothing, _) : as) =
+          checkIsSomeVarBound vs as
+        checkIsSomeVarBound vs ((Just v, _) : as) =
+          if IntSet.member (varId v) vs
+          then True
+          else checkIsSomeVarBound vs as
+
+        makeDomSubst :: [(Maybe Var, PreTerm)] -> [PreTerm] -> SubstMap
+        makeDomSubst [] [] = IntMap.empty
+        makeDomSubst ((Nothing, _) : ds) (_ : as) = makeDomSubst ds as
+        makeDomSubst ((Just v, _) : ds) (a : as) =
+          IntMap.insert (varId v) a (makeDomSubst ds as)
+        makeDomSubst _ _ = error "makeDomSubst unexpected lenghts"
+
+    doUnifyVarAppRec ::
+      PreTerm -> PreTerm -> [PreTerm] -> [PreTerm] -> ExprUnifResult
+    doUnifyVarAppRec g1 g2 bs1 bs2 = do
+      s1 <- doUnifyVarApp g1 g2
+      foldlM (\s (a1, a2)->
+                eunify2 a1 a2 >>= mergeExprUnifMaps s
+             ) s1 (zip bs1 bs2)
+
     doUnifyVarApp :: PreTerm -> PreTerm -> ExprUnifResult
     doUnifyVarApp t1@(TermVar True _) t2 = unifyVar t1 t2
     doUnifyVarApp t1 t2@(TermVar True _) = unifyVar t1 t2
     doUnifyVarApp (TermApp _ f1 []) (TermApp _ f2 []) =
       doUnifyVarApp f1 f2
     doUnifyVarApp t1@(TermApp io1 f1 as1) t2@(TermApp io2 f2 as2) =
-      tryUnifyAll `catchError` \_ -> do
+      tryDirectUnifyApp `catchError` \_ -> do
         case varBaseVars f1 as1 of
           Just (v1, vs1) ->
             case varBaseVars f2 as2 of
@@ -436,22 +483,20 @@ doExprUnify normalize = \t1 t2 -> do
                 doUnifyVarApp f1' f2
               Nothing -> throwError ""
       where
-        tryUnifyAll :: ExprUnifResult
-        tryUnifyAll
+        tryDirectUnifyApp :: ExprUnifResult
+        tryDirectUnifyApp
           | length as1 == length as2 = do
               im <- lift Env.getImplicitMap
               rm <- lift Env.getRefMap
               iv <- lift Env.getImplicitVarMap
               if typesEqual im rm iv f1 f2
-              then recUnify
+              then doUnifyVarAppRec f1 f2 as1 as2
               else throwError ""
-          | True = throwError ""
+          | length as1 > length as2 =
+              unifyPartialVarApp io1 f1 as1 f2 as2
+          | True =
+              unifyPartialVarApp io2 f2 as2 f1 as1
           where
-            recUnify = do
-              s1 <- doUnifyVarApp f1 f2
-              foldlM (\s (a1, a2)->
-                        eunify2 a1 a2 >>= mergeExprUnifMaps s
-                     ) s1 (zip as1 as2) 
             typesEqual im rm iv x y = 
               let s = preTermGetAlphaType im rm iv x
                   t = preTermGetAlphaType im rm iv y
@@ -566,7 +611,7 @@ makeFunWithVarSubst :: Bool -> [Var] -> PreTerm -> TypeCheckIO PreTerm
 makeFunWithVarSubst isIo vs t = do
   vs' <- mapM (\v -> fmap (flip mkVar (varName v)) Env.freshVarId) vs
   let su = IntMap.fromList (zip (map varId vs) (map (TermVar False) vs'))
-  let ct = CaseLeaf vs' isIo (substPreTerm su t) []
+  let ct = CaseLeaf vs' (substPreTerm su t) []
   return (TermFun [] isIo (Just (length vs)) ct)
 
 mergeExprUnifMaps ::

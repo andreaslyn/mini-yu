@@ -14,6 +14,7 @@ import basic => yu/basic
 | refl
 | (...#Equal.basic)
 | (@compose#)
+| flip
 
 import Ord => yu/Order/Order
 | Order
@@ -265,8 +266,8 @@ where
 
   val isCmp : (x y : A) -> R .cmp x y = leToCmp le x y
   let x y =>
-    isLe x y .rew (G _ (le y x)) of
-    isLe y x .rew (G (R .le? x y) _) of
+    isLe x y .rew (flip G (le y x)) of
+    isLe y x .rew (G (R .le? x y)) of
     R .isOrdering? .cmpIsCompatible x y
   where
     val G : Bool & Bool -> Ty
@@ -280,8 +281,8 @@ where
 
   val isEq : (x y : A) -> R .eq? x y = leToEq? le x y
   let x y =>
-    isLe x y .rew (G _ (le y x)) of
-    isLe y x .rew (G (R .le? x y) _) of
+    isLe x y .rew (flip G (le y x)) of
+    isLe y x .rew (G (R .le? x y)) of
     R .isOrdering? .eqIsCompatible x y
   where
     val G : Bool & Bool -> Ty

@@ -11,6 +11,6 @@ import yu/Ordering?
 val.. (.quicksort#List)[A : Ty] : List A & Ordering? A -> List A
 let nil.L _ => nil.L
 let (x :: xs) cmp =>
-  xs .filter (cmp .lt? _ x) .quicksort cmp
+  xs .filter (y => cmp .lt? y x) .quicksort cmp
   :+: (x :: nil.L)
-  :+: xs .filter (cmp .ge? _ x) .quicksort cmp
+  :+: xs .filter (y => cmp .ge? y x) .quicksort cmp

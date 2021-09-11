@@ -113,7 +113,7 @@ val plus-plus-swap-23
 let k m n =>
   trans
     (plus-assoc k m n)
-    (trans (ap= (plus-comm m n) (k + _)) (sym (plus-assoc k n m)))
+    (trans (ap= (plus-comm m n) (t => k + t)) (sym (plus-assoc k n m)))
 
 val mul-comm : (m : Nat) & (n : Nat) -> m * n = n * m
 let m 0 => mul0 m
@@ -126,7 +126,7 @@ where
   let => mul-comm m n
 
   val t : E
-  let => ap= x (m + _)
+  let => ap= x (t => m + t)
 
   val mul-plus : (m : Nat) & (n : Nat) -> n + m * n = ++ m * n
   let m 0 => 1.Id

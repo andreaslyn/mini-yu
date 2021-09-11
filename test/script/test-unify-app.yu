@@ -25,6 +25,26 @@ data (.Vec#Ty) : Ty & Nat -> Ty
 | (::#.Vec#Ty) [A : Ty] [n : Nat] : A & A .Vec n -> A .Vec (++ n)
 
 
+val higher-id [F : Nat -> Ty] : F 0 -> F 0
+let x => x
+
+
+val apply-higher-id : {} .Vec 0
+let => higher-id vnil
+
+
+data Higher : (Nat -> Ty) -> Ty
+| mkHigher [f : Nat -> Ty] : Higher f
+
+
+val HigherId [F : Nat -> Ty] : Higher F -> Higher F
+let x => x
+
+
+val apply-HigherId : Higher ({} .Vec)
+let => mkHigher
+
+
 data (.IsTyTy#Ty) : (Ty -> Ty) -> Ty
 | mkIsTyTy[F : Ty -> Ty] : F .IsTyTy
 

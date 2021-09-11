@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 45b2988e4d8dfea9e9f703ee39b0f1da00abee293accb1a19a86d34963536b2e
+-- hash: 825a41543a8d86fd56b28387289988083042f2ce23d6f963b0c8970539558e82
 
 name:           mini-yu
-version:        0.2.0.0
+version:        0.2.1.0
 description:    Please see the README on GitHub at <https://github.com/andreaslyn/mini-yu#readme>
 homepage:       https://github.com/andreaslyn/mini-yu#readme
 bug-reports:    https://github.com/andreaslyn/mini-yu/issues

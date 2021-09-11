@@ -47,9 +47,9 @@ let ('%.C :: 'n.C :: cs) => listPreFormat cs .map natPreFormat
 let ('%.C :: 's.C :: cs) => listPreFormat cs .map strPreFormat
 let ('%.C :: 'c.C :: cs) => listPreFormat cs .map charPreFormat
 let ('%.C :: 'b.C :: cs) => listPreFormat cs .map boolPreFormat
-let ('%.C :: '%.C :: cs) => listPreFormat cs .map (constPreFormat '%.C _)
+let ('%.C :: '%.C :: cs) => listPreFormat cs .map (constPreFormat '%.C)
 let ('%.C :: _ :: cs) => errorPreFormat
-let (c :: cs) => listPreFormat cs .map (constPreFormat c _)
+let (c :: cs) => listPreFormat cs .map (constPreFormat c)
 
 
 val (.preFormat#Str) : Str -> PreFormat

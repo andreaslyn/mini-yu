@@ -1105,11 +1105,11 @@ casesToCaseTree pss = do
   x <- runExceptT (doCasesToCaseTree 0 pss)
   case x of
     Left lo -> err lo (Fatal "non-exhaustive patterns")
-    Right (t, reachedCases) -> do
+    Right (t, reachedCases, io) -> do
       let allCases = projectLocs pss
       let diff = Set.difference allCases reachedCases
       case Set.elems diff of
-        [] -> return (t, caseTreeHasIo t)
+        [] -> return (t, io)
         c:_ -> err c (Fatal "case is unreachable")
   where
     projectLocs :: [(Loc, a, b)] -> Set Loc
@@ -1119,7 +1119,7 @@ casesToCaseTree pss = do
 
 doCasesToCaseTree ::
   Int -> [(Loc, [CasePatternTriple], Maybe Term)] ->
-  ExceptT Loc TypeCheckIO (CaseTree, Set Loc)
+  ExceptT Loc TypeCheckIO (CaseTree, Set Loc, Bool)
 doCasesToCaseTree _ [] = error "no cases to build case tree"
 doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
   --rr <- lift Env.getRefMap
@@ -1142,14 +1142,13 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
         Just idx -> do
           when (isJust te)
             (lift $ err firstLoc (Fatal "unexpected case, it is absurd"))
-          return (CaseEmpty idx, Set.singleton firstLoc)
+          return (CaseEmpty idx, Set.singleton firstLoc, False)
         Nothing ->
           case te of
             Nothing -> lift . err firstLoc $ Fatal "missing case(s)"
             Just te' -> do
-              let t = CaseLeaf vis (termIo te')
-                          (termPre te') (termNestedDefs te')
-              return (t, Set.singleton firstLoc)
+              let t = CaseLeaf vis (termPre te') (termNestedDefs te')
+              return (t, Set.singleton firstLoc, termIo te')
     Right (idx, dty) -> do
       lift (tcUnfinishedData dty)
       --let !() = trace ("pattern match index: " ++ show idx) ()
@@ -1169,30 +1168,32 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
         then throwError firstLoc
         else do
           subc0 <- mapM makeSubCase csp
-          let (subc, subcLoc) = IntMap.foldlWithKey
+          let (subc, subcLoc, cio) = IntMap.foldlWithKey
                                           mergeLocs
-                                          (IntMap.empty, Set.empty)
+                                          (IntMap.empty, Set.empty, False)
                                           subc0
-          (subd, subdLoc) <- case ca of
-                              Nothing -> return (Nothing, Set.empty)
-                              Just ca' -> do
-                                (d, lo) <- makeSubCase ca'
-                                return (Just d, lo)
+          (subd, subdLoc, dio) <- case ca of
+                                    Nothing ->
+                                      return (Nothing, Set.empty, False)
+                                    Just ca' -> do
+                                      (d, lo, io) <- makeSubCase ca'
+                                      return (Just d, lo, io)
           cnode <- lift $ makeCaseNode idx subc (ca, subd)
-          return (cnode, Set.union subcLoc subdLoc)
+          return (cnode, Set.union subcLoc subdLoc, cio || dio)
   where
     mergeLocs ::
-      (IntMap ([Var], CaseTree), Set Loc) ->
-      Int -> (([Var], CaseTree), Set Loc) ->
-      (IntMap ([Var], CaseTree), Set Loc)
-    mergeLocs (m, s) i (b, t) = (IntMap.insert i b m, Set.union s t)
+      (IntMap ([Var], CaseTree), Set Loc, Bool) ->
+      Int -> (([Var], CaseTree), Set Loc, Bool) ->
+      (IntMap ([Var], CaseTree), Set Loc, Bool)
+    mergeLocs (m, s, io1) i (b, t, io2) =
+      (IntMap.insert i b m, Set.union s t, io1 || io2)
 
     makeSubCase ::
       ([(Loc, [CasePatternTriple], Maybe Term)], [Var]) ->
-      ExceptT Loc TypeCheckIO (([Var], CaseTree), Set Loc)
+      ExceptT Loc TypeCheckIO (([Var], CaseTree), Set Loc, Bool)
     makeSubCase (rss, ids) = do
-      (tr, lo) <- doCasesToCaseTree 0 rss
-      return ((ids, tr), lo)
+      (tr, lo, io) <- doCasesToCaseTree 0 rss
+      return ((ids, tr), lo, io)
 
     makeCaseNode ::
       Int -> IntMap ([Var], CaseTree) ->
@@ -1787,7 +1788,7 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
         body' <- doTcExpr isTrial subst Nothing Nothing body
         let io = termIo body'
         let fte = TermFun [] io (Just (length dom'))
-                    (CaseLeaf (map fst dom') io (termPre body') [])
+                    (CaseLeaf (map fst dom') (termPre body') [])
         let mdom = map (\(d1, d2) -> (Just d1, d2)) dom'
         let fty = TermArrow io mdom (termTy body')
         return (mkTerm fte fty False)
@@ -1801,7 +1802,7 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             body' <- doTcExpr isTrial subst Nothing Nothing body
             let io = termIo body'
             let fte = TermFun [] io (Just (length dom'))
-                        (CaseLeaf (map fst dom') io (termPre body') [])
+                        (CaseLeaf (map fst dom') (termPre body') [])
             let mdom = map (\(d1, d2) -> (Just d1, d2)) dom'
             let fty = TermArrow io mdom (termTy body')
             tcExprSubstUnify lo ty' fty
@@ -1825,7 +1826,7 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
                   "type of function is effectful, but expected "
                   ++ "pure function type"))
             let fte = TermFun [] bodyIo (Just (length dom'))
-                        (CaseLeaf (map fst dom') bodyIo (termPre body') [])
+                        (CaseLeaf (map fst dom') (termPre body') [])
             let mdom = map (\(d1, d2) -> (Just d1, d2)) dom'
             let fty = TermArrow io mdom cod'
             isu <- getExprSubst
@@ -1979,25 +1980,11 @@ doTcExpr isTrial subst _ _ (ExprLazyApp e) = do
 doTcExpr _ subst _ _ (ExprLazyArrow _ io e) = do
   e' <- tcExpr subst TermTy e
   return (mkTerm (TermLazyArrow io (termPre e')) TermTy (termIo e'))
-doTcExpr isTrial subst _ ty (ExprApp f args0) = do
-  let (partials, args) = updateBlanks args0 0
-  if null partials
-  then
-    case args of
-      [] -> doTcExprApp isTrial subst Nothing ty f args
-      [a] -> doTcExprApp isTrial subst (Just (Left a)) ty f args
-      a1 : a2 : _ -> doTcExprApp isTrial subst (Just (Right (a1, a2))) ty f args
-  else doTcExpr isTrial subst Nothing ty (ExprFun (exprLoc f) partials (ExprApp f args))
-  where
-    updateBlanks :: [Expr] -> Int -> (VarList, [Expr])
-    updateBlanks [] _ = ([], [])
-    updateBlanks (ExprVar (vlo, "_") : es) i =
-      let (bs, es') = updateBlanks es (i + 1)
-          vna = '_' : show i
-      in (((vlo, vna), Nothing) : bs, ExprVar (vlo, vna) : es')
-    updateBlanks (e : es) i =
-      let (bs, es') = updateBlanks es i
-      in (bs, e : es')
+doTcExpr isTrial subst _ ty (ExprApp f args) = do
+  case args of
+    [] -> doTcExprApp isTrial subst Nothing ty f args
+    [a] -> doTcExprApp isTrial subst (Just (Left a)) ty f args
+    a1 : a2 : _ -> doTcExprApp isTrial subst (Just (Right (a1, a2))) ty f args
 doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
   f' <- doTcExprSubst isTrial subst operandArg f
   opn <- if isTrial then return Nothing else lift (typeOperandName (termTy f'))
@@ -2244,12 +2231,12 @@ makeTermApp subst flo preTy f0 preArgs = do
         (Recoverable $
           "expected expression to have function type, "
           ++ "but type is\n" ++ ss)
-    Just (d', c', io) -> do
-      when (length d' > length preArgs)
-        (lift $ err flo
-                  (Fatal $
-                    "expected " ++ show (length d') ++ " argument(s), "
-                    ++ "but given " ++ show (length preArgs)))
+    Just (d0, c0, io) -> do
+      let numPreArgs = length preArgs
+      let numMissing = length d0 - numPreArgs
+      (d', c') <- if numMissing > 0
+                  then lift (splitDom numPreArgs d0 c0 io)
+                  else return (d0, c0)
       let (args, postArgs) = splitAt (length d') preArgs
       let ty = if null postArgs then preTy else Nothing
       iv <- lift Env.getImplicitVarMap
@@ -2265,11 +2252,17 @@ makeTermApp subst flo preTy f0 preArgs = do
       (su, ps, io') <- applyArgs ty domVars False cod IntMap.empty args1
       let ps' = map snd (sortOn fst ps)
       let c = substPreTerm su c'
-      let e = TermApp io (termPre f') ps'
-      let fap = mkTerm e c (termIo f' || io || io')
-      if null postArgs
-      then return fap
-      else makeTermApp subst flo preTy fap postArgs
+      if numMissing > 0
+      then do
+        g <- lift $ preTermPartialApplication
+                      io numMissing (termPre f') ps' (termIo f')
+        return (mkTerm g c io')
+      else do
+        let e = TermApp io (termPre f') ps'
+        let fap = mkTerm e c (termIo f' || io || io')
+        if null postArgs
+        then return fap
+        else makeTermApp subst flo preTy fap postArgs
   where
     unifyType ::
       Maybe PreTerm -> IntSet -> (Int, Int, Int, Int) ->
@@ -2341,6 +2334,27 @@ makeTermApp subst flo preTy f0 preArgs = do
     substArgs _ _ [] = []
     substArgs r m ((idx, v, p, w, e) : xs) =
       (idx, v, substPreTerm m p, w, e) : substArgs r m xs
+
+    splitDom ::
+      Int -> [(Maybe Var, PreTerm)] -> PreTerm -> Bool ->
+      TypeCheckIO ([(Maybe Var, PreTerm)], PreTerm)
+    splitDom n d c io = do
+      let (d0, d1) = splitAt n d
+      let !() = assert (length d1 > 0) ()
+      rm <- Env.getRefMap
+      let vs = foldl (\a (_, t) ->
+                        IntSet.union a (preTermVars rm t)
+                     ) IntSet.empty d0
+      mapM_ (checkNotIn vs) d1
+      return (d0, TermArrow io d1 c)
+      where
+        checkNotIn :: VarIdSet -> (Maybe Var, PreTerm) -> TypeCheckIO ()
+        checkNotIn _ (Nothing, _) = return ()
+        checkNotIn vs (Just v, _) =
+          when (IntSet.member (varId v) vs) $
+            err flo $ Fatal $
+              "invalid partial application, applied argument \
+              \depends on an unapplied argument"
 
 getAppOrderingWeight ::
   RefMap -> Env.ImplicitVarMap -> PreTerm -> Expr -> (Int, Int, Int, Int)

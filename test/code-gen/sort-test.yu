@@ -20,7 +20,7 @@ let (x :: xs) f =>
 val.. qsort [A : Ty] : List A & (A & A -> Bool) -> List A
 let nil.L _ => nil.L
 let (x :: xs) f =>
-  ls $ rs := partition xs (f _ x);
+  ls $ rs := partition xs (flip f x);
   qsort ls f :+: x :: qsort rs f
 
 

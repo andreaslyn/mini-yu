@@ -39,11 +39,11 @@ let s x f => s .list .fold x f
 
 
 val (::#Str) : Char & Str -> Str
-let c s => s .modify (c :: _)
+let c s => s .modify (cs => c :: cs)
 
 
 val (:+:#Str) : Str & Str -> Str
-let s1 s2 => s1 .modify (_ :+: s2 .list)
+let s1 s2 => s1 .modify (t => t :+: s2 .list)
 
 
 val (.rev#Str) : Str -> Str
@@ -59,11 +59,11 @@ let s P => s .list .All P
 
 
 val (.toUpper#Str) : Str -> Str
-let s => s .modify (_ .map (.toUpper))
+let s => s .modify (cs => cs .map (.toUpper))
 
 
 val (.toLower#Str) : Str -> Str
-let s => s .modify (_ .map (.toLower))
+let s => s .modify (cs => cs .map (.toLower))
 
 
 val (.cmp#Str) : Str & Str -> Order

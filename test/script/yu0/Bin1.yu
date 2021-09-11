@@ -118,7 +118,7 @@ val simpl-op++op--aux
 let true bs => 1.Id
 let false nil => 1.Id
 let false (b :: bs) =>
-  ap=.Id (simpl-op++op--aux b bs) of false :: _
+  ap=.Id (simpl-op++op--aux b bs) of t => false :: t
 
 
 val simpl-op--op++

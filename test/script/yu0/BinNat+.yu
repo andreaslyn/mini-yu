@@ -71,7 +71,7 @@ let (true :: bs1) (true :: bs2) =>
   false :: aux-plus nil (aux-plus bs1 bs2)
 
 val inc : Bin+ -> Bin+
-let => plus _ 1
+let => n => plus n 1
 
 val mul : Bin+ & Bin+ -> Bin+
 let => x y => bin+ of aux-mul (list-Bin+ x) (list-Bin+ y)
@@ -210,6 +210,6 @@ let a1 a2 =>
   trans
     (plus-assoc.N a1 a2 (a1 + a2))
     (trans
-      (ap=.Id (plus-plus-swap-12.N a2 a1 a2) (a1 + _))
+      (ap=.Id (plus-plus-swap-12.N a2 a1 a2) (x => a1 + x))
       (sym.Id (plus-assoc.N a1 a1 (a2 + a2))))
 

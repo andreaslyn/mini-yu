@@ -463,7 +463,7 @@ caseTreeLeafsCallSet ::
   CaseTree -> CallSetIO (Set (VarId, CallMatrix))
 caseTreeLeafsCallSet (CaseEmpty _) = return Set.empty
 caseTreeLeafsCallSet (CaseUnit _ (_, ct)) = caseTreeLeafsCallSet ct
-caseTreeLeafsCallSet (CaseLeaf _ _ x _) = preTermCallSet x
+caseTreeLeafsCallSet (CaseLeaf _ x _) = preTermCallSet x
 caseTreeLeafsCallSet (CaseNode _ m d) = do
   s0 <- foldrM (\(_, x) a ->
                   fmap (Set.union a) (caseTreeLeafsCallSet x)
@@ -485,7 +485,7 @@ caseTreeCallSet (CaseEmpty _) _ = return Set.empty
 caseTreeCallSet (CaseUnit idx a) xs = do
   let (x, xs') = listRemoveIdx idx xs
   caseTreeCatchAllCallSet x xs' (Just a)
-caseTreeCallSet (CaseLeaf is _ te _) xs = do
+caseTreeCallSet (CaseLeaf is te _) xs = do
   let s0 = assert (length xs == length is) (zip (map varId is) xs)
   newids <- lift (lift Env.getNextVarId)
   s <- foldlM (\a (i,t) ->
@@ -629,7 +629,7 @@ caseTreeDirectlyAccessibleRefs :: CaseTree -> VarIdSet
 caseTreeDirectlyAccessibleRefs = caseRefs
   where
     caseRefs :: CaseTree -> VarIdSet
-    caseRefs (CaseLeaf _ _ t _) = directlyAccessibleRefs t
+    caseRefs (CaseLeaf _ t _) = directlyAccessibleRefs t
     caseRefs (CaseEmpty _) = IntSet.empty
     caseRefs (CaseNode _ m d) =
       let i1 = foldl addCaseTree IntSet.empty m
@@ -724,7 +724,7 @@ caseTreeDirectlyAccessibleData :: RefMap -> IntSet -> CaseTree -> VarIdSet
 caseTreeDirectlyAccessibleData rm vis = castData
   where
     castData :: CaseTree -> VarIdSet
-    castData (CaseLeaf _ _ t _) = accessibleData rm vis t
+    castData (CaseLeaf _ t _) = accessibleData rm vis t
     castData (CaseEmpty _) = IntSet.empty
     castData (CaseNode _ m d) =
       let i1 = foldl addCaseTree IntSet.empty m
@@ -942,7 +942,7 @@ positivityCheckContainsDataCaseTree ::
 positivityCheckContainsDataCaseTree _ _ (CaseEmpty _) = return False
 positivityCheckContainsDataCaseTree vi dv (CaseUnit _ (_, ct)) =
   positivityCheckContainsDataCaseTree vi dv ct
-positivityCheckContainsDataCaseTree vi dv (CaseLeaf _ _ te _) =
+positivityCheckContainsDataCaseTree vi dv (CaseLeaf _ te _) =
   positivityCheckContainsData vi dv te
 positivityCheckContainsDataCaseTree vi dv (CaseNode _ m d) = do
   b <- foldlM (\a (_, t) ->
@@ -1005,7 +1005,7 @@ positivityCheckDomCaseTree ::
 positivityCheckDomCaseTree _ _ _ (CaseEmpty _) = return ()
 positivityCheckDomCaseTree lo vi dv (CaseUnit _ (_, ct)) =
   positivityCheckDomCaseTree lo vi dv ct
-positivityCheckDomCaseTree lo vi dv (CaseLeaf _ _ te _) =
+positivityCheckDomCaseTree lo vi dv (CaseLeaf _ te _) =
   positivityCheckDom lo vi dv te
 positivityCheckDomCaseTree lo vi dv (CaseNode _ m d) = do
   mapM_ (\(_, t) -> positivityCheckDomCaseTree lo vi dv t) (IntMap.elems m)

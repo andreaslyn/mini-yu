@@ -60,11 +60,11 @@ let => ++#Nat' 3'
 
 
 val inc : Nat -> Nat
-let => _ + 1
+let => n => n + 1
 
 
 val inc' : Nat' -> Nat'
-let => _ + 1'
+let => n => n + 1'
 
 
 val (.plus#Nat) : Nat & Nat -> Nat
@@ -72,7 +72,7 @@ let => (+)
 
 
 val add : Nat & Nat -> Nat
-let => _ + _
+let => (+)
 
 
 val (@#) [A : Ty] [B : Ty] [C : Ty] : (B -> C) & (A -> B) -> A -> C

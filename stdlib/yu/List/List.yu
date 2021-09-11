@@ -126,7 +126,7 @@ let xs ys => xs .fold ys (::)
 
 
 val (.rev#List) [A : Ty] : List A -> List A
-let => _ .accum nil (flip (::#List))
+let as => as .accum nil (flip (::#List))
 
 
 val (.concat#List) [A : Ty] : List (List A) -> List A

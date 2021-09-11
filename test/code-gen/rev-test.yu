@@ -46,7 +46,7 @@ val reverse' [A : Ty] : List A -> List A
 let => aux0 nil.L
 where
   val aux0 : List A -> List A -> List A
-  let a => aux a _
+  let a => aux a
 
   val aux : List A & List A -> List A
   let a nil.L => a

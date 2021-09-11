@@ -46,4 +46,4 @@ let (x :: xs) y f => f x (xs .fold y f)
 
 
 val (.rev#Stream) [A : Ty] : Stream A -> Stream A
-let => _ .accum nil (s x => x :: s)
+let as => as .accum nil (s x => x :: s)

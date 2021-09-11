@@ -5,7 +5,6 @@ module TypeCheck.Term
   , VarName
   , SubstMap
   , CaseTree (..)
-  , caseTreeHasIo
   , PreTerm (..)
   , RefVar (..)
   , DataCtorMap
@@ -32,7 +31,6 @@ where
 import Loc (Loc)
 import Data.IntSet (IntSet)
 import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
 
 type VarId = Int
 
@@ -114,7 +112,6 @@ type DataCtorMap = IntMap [Var] -- Data type VarId -> ctors
 data CaseTree =
     CaseLeaf
       [Var]      -- [Var] to substitute remaining arguments
-      Bool       -- Bool = True if leaf has IO effect.
       PreTerm
       [RefVar]   -- where-clause (only used for code generation)
   | CaseNode
@@ -179,16 +176,6 @@ type RefMap = IntMap (Term, RefMeta)
 type VarIdSet = IntSet
 
 -------------------------------------------------------------------------
-
-caseTreeHasIo :: CaseTree -> Bool
-caseTreeHasIo (CaseLeaf _ io _ _) = io
-caseTreeHasIo (CaseNode _ m d) =
-  any (caseTreeHasIo . snd) (IntMap.elems m)
-  || case d of
-      Nothing -> False
-      Just (_, x) -> caseTreeHasIo x
-caseTreeHasIo (CaseEmpty _) = False
-caseTreeHasIo (CaseUnit _ (_, x)) = caseTreeHasIo x
 
 mkVar :: VarId -> VarName -> Var
 mkVar i n = Var {varId = i, varName = n}

@@ -41,10 +41,10 @@ substCaseTreeInstance vi subst (is, ct) =
   in (is', doSubstCaseTree vi' subst' ct)
 
 doSubstCaseTree :: IntSet -> SubstMap -> CaseTree -> CaseTree
-doSubstCaseTree vi subst (CaseLeaf is io t ws) =
+doSubstCaseTree vi subst (CaseLeaf is t ws) =
   let (is', subst') = newSubstVariables is subst
       vi' = IntSet.difference vi (IntSet.fromList (map varId is))
-  in CaseLeaf is' io (substPreTermNonVisited vi' subst' t) ws
+  in CaseLeaf is' (substPreTermNonVisited vi' subst' t) ws
 doSubstCaseTree vi subst (CaseNode idx m d) =
   let m' = IntMap.map (substCaseTreeInstance vi subst) m
       d' = fmap (substCaseTreeInstance vi subst) d

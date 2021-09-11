@@ -24,7 +24,7 @@ where
   let (a :: b :: xs) =>
     case cmp .le? a b
     | false => descending b (a :: nil) xs
-    | true => ascending b (a :: _) xs
+    | true => ascending b (as => a :: as) xs
     end
   let xs => one.DL1 xs
 

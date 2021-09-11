@@ -14,4 +14,4 @@ let {} _
 
 
 val (.rec#Empty) [A : Ty] : Empty -> A
-let => _ .ind (const.Fun A)
+let e => e .ind (const.Fun A)

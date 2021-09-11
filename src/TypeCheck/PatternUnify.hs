@@ -25,7 +25,6 @@ import Control.Monad.Except
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import Data.Maybe (fromJust)
-import Control.Exception (assert)
 
 import Debug.Trace (trace)
 
@@ -263,8 +262,8 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
           unifyAlpha f1 f2
         else
           catchError (punify2 t1 t2) (unifyAlphaIfUnable f1 f2)
-    punify2NotVar f1@(TermFun ias1 io1 _ (CaseLeaf i1 _ t1 _))
-                           f2@(TermFun ias2 io2 _ (CaseLeaf i2 _ t2 _))
+    punify2NotVar f1@(TermFun ias1 io1 _ (CaseLeaf i1 t1 _))
+                           f2@(TermFun ias2 io2 _ (CaseLeaf i2 t2 _))
       | io1 == io2 && ias1 == ias2 && length i1 == length i2 =
         if io1
         then
@@ -295,16 +294,14 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
     punify2NotVar t1 f2@(TermLazyFun False t2) =
       catchError (punify2 (TermLazyApp False t1) t2)
         (unifyAlphaIfUnable t1 f2)
-    punify2NotVar f1@(TermFun [] False _ (CaseLeaf i1 io t1 _)) t2 = do
-      let !() = assert (not io) ()
+    punify2NotVar f1@(TermFun [] False _ (CaseLeaf i1 t1 _)) t2 = do
       catchError
         (do
           (vs, su) <- lift (makeNewVarIds i1)
           let t1' = substPreTerm su t1
           punify2 t1' (TermApp False t2 vs))
         (unifyAlphaIfUnable f1 t2)
-    punify2NotVar t1 f2@(TermFun [] False _ (CaseLeaf i2 io t2 _)) = do
-      let !() = assert (not io) ()
+    punify2NotVar t1 f2@(TermFun [] False _ (CaseLeaf i2 t2 _)) = do
       catchError
         (do
           (vs, su) <- lift (makeNewVarIds i2)
@@ -575,7 +572,7 @@ makeFunWithVarSubst :: Bool -> [Var] -> PreTerm -> TypeCheckIO PreTerm
 makeFunWithVarSubst isIo vs t = do
   vs' <- mapM (\v -> fmap (flip mkVar (varName v)) Env.freshVarId) vs
   let su = IntMap.fromList (zip (map varId vs) (map (TermVar False) vs'))
-  let ct = CaseLeaf vs' isIo (substPreTerm su t) []
+  let ct = CaseLeaf vs' (substPreTerm su t) []
   return (TermFun [] isIo (Just (length vs)) ct)
 
 mergePatUnifMaps ::

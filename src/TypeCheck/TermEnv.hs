@@ -13,6 +13,7 @@ module TypeCheck.TermEnv
   , preTermFinalCod
   , preTermDomCod
   , preTermLazyCod
+  , preTermPartialApplication
   , patternProjArgs
   , patternApply
   , prePatternApplyWithVars
@@ -52,7 +53,7 @@ caseTreeVars :: IntSet -> RefMap -> CaseTree -> VarIdSet
 caseTreeVars vis rm = caseVars
   where
     caseVars :: CaseTree -> VarIdSet
-    caseVars (CaseLeaf is _ t _) =
+    caseVars (CaseLeaf is t _) =
       let t' = doPreTermVars vis rm t
       in IntSet.difference t' (IntSet.fromList (map varId is))
     caseVars (CaseEmpty _) = IntSet.empty
@@ -133,7 +134,7 @@ caseTreeRefs :: IntSet -> RefMap -> CaseTree -> VarIdSet
 caseTreeRefs vis rm = caseRefs
   where
     caseRefs :: CaseTree -> VarIdSet
-    caseRefs (CaseLeaf _ _ t _) = doPreTermRefs vis rm t
+    caseRefs (CaseLeaf _ t _) = doPreTermRefs vis rm t
     caseRefs (CaseEmpty _) = IntSet.empty
     caseRefs (CaseNode _ m d) =
       let i1 = foldl addCaseTree IntSet.empty m
@@ -312,10 +313,10 @@ doPreTermsAlphaEqual bi r (TermLazyFun io t1) t2 =
   doPreTermsAlphaEqual bi r t1 (TermLazyApp io t2)
 doPreTermsAlphaEqual bi r t1 (TermLazyFun io t2) =
   doPreTermsAlphaEqual bi r (TermLazyApp io t1) t2
-doPreTermsAlphaEqual bi r (TermFun [] io1 _ (CaseLeaf i1 _ t1 _)) t2 =
+doPreTermsAlphaEqual bi r (TermFun [] io1 _ (CaseLeaf i1 t1 _)) t2 =
   doPreTermsAlphaEqual bi r
     t1 (TermApp io1 t2 (map (\i -> TermVar False (mkVar (varId i) "_")) i1))
-doPreTermsAlphaEqual bi r t1 (TermFun [] io2 _ (CaseLeaf i2 _ t2 _)) =
+doPreTermsAlphaEqual bi r t1 (TermFun [] io2 _ (CaseLeaf i2 t2 _)) =
   doPreTermsAlphaEqual bi r
     (TermApp io2 t1 (map (\i -> TermVar False (mkVar (varId i) "_")) i2)) t2
 doPreTermsAlphaEqual bi r (TermCase t1 ct1) (TermCase t2 ct2) =
@@ -325,9 +326,8 @@ doPreTermsAlphaEqual _ _ _ _ = False
 
 caseTreesAlphaEqual ::
   RefBisim -> SubstMap -> RefMap -> CaseTree -> CaseTree -> Bool
-caseTreesAlphaEqual bi subst rm (CaseLeaf i1 io1 t1 _) (CaseLeaf i2 io2 t2 _) = do
-  io1 == io2
-  && length i1 == length i2
+caseTreesAlphaEqual bi subst rm (CaseLeaf i1 t1 _) (CaseLeaf i2 t2 _) = do
+  length i1 == length i2
   && let su0 = if map varId i1 /= map varId i2
                 then IntMap.fromList (zip (map varId i2) (map (TermVar False) i1))
                 else IntMap.empty
@@ -374,9 +374,8 @@ preTermNormalize _ t@(TermVar _ _) = t
 preTermNormalize _ t@(TermLazyFun True _) = t
 preTermNormalize m (TermLazyFun False t) =
   TermLazyFun False (preTermNormalize m t)
-preTermNormalize m (TermFun is False n (CaseLeaf vs io t ws)) =
-  let !() = assert (not io) ()
-  in TermFun is False n (CaseLeaf vs False (preTermNormalize m t) ws)
+preTermNormalize m (TermFun is False n (CaseLeaf vs t ws)) =
+  TermFun is False n (CaseLeaf vs (preTermNormalize m t) ws)
 preTermNormalize _ t@(TermFun _ _ _ _) = t
 preTermNormalize m (TermArrow io d c) =
   TermArrow io (map normSnd d) (preTermNormalize m c)
@@ -400,11 +399,11 @@ preTermNormalize m (TermImplicitApp b f xs) =
         case caseTreeNormalize m ct (map snd xs') of
           Nothing -> TermImplicitApp b (normalizeAppBase f f') xs'
           Just r -> preTermNormalize m r
-      TermFun _ io n (CaseLeaf is io' te ws) ->
+      TermFun _ io n (CaseLeaf is te ws) ->
         let z = zip (map varId is) (map snd xs')
             is' = drop (length z) is
             te' = substPreTerm (IntMap.fromList z) te
-        in TermFun [] io n (CaseLeaf is' io' te' ws)
+        in TermFun [] io n (CaseLeaf is' te' ws)
       _ -> TermImplicitApp b f' xs'
 preTermNormalize m (TermApp io f xs) =
   let f' = preTermNormalize m f
@@ -439,7 +438,7 @@ caseTreeNormalize rm = doCaseTreeNormalize rm IntMap.empty
 
 doCaseTreeNormalize ::
   RefMap -> SubstMap -> CaseTree -> [PreTerm] -> Maybe PreTerm
-doCaseTreeNormalize _ subst (CaseLeaf is _ te _) xs =
+doCaseTreeNormalize _ subst (CaseLeaf is te _) xs =
   let s = assert (length xs == length is) (zip (map varId is) xs)
       subst' = IntMap.union subst (IntMap.fromList s)
   in Just (substPreTerm subst' te)
@@ -531,6 +530,47 @@ preTermCodRootType rm pt =
     doGetRootType TermUnitTy = Just TermUnitTy
     doGetRootType TermEmpty = Nothing
     doGetRootType TermTy = Just TermTy
+
+preTermPartialApplication :: 
+  Bool -> Int -> PreTerm -> [PreTerm] -> Bool -> TypeCheckIO PreTerm
+preTermPartialApplication appIo numMissing f args fio = do
+  let !() = assert (numMissing > 0) ()
+  avs <- newAppliedVars args
+  vs <- newUnappliedVars
+  let apArgs = map (TermVar False . fst) avs ++ map (TermVar False) vs
+  let e = TermApp appIo f apArgs
+  let fpart = TermFun [] (appIo || fio)
+                (Just (length vs)) (CaseLeaf vs e [])
+  appliedCaseExpr avs fpart
+  where
+    appliedCaseExpr :: [(Var, PreTerm)] -> PreTerm -> TypeCheckIO PreTerm
+    appliedCaseExpr [] fpart = return fpart
+    appliedCaseExpr ((v, a) : as) fpart = do
+      t <- appliedCaseExpr as fpart
+      return (TermCase a (CaseLeaf [v] t []))
+
+    newAppliedVars :: [PreTerm] -> TypeCheckIO [(Var, PreTerm)]
+    newAppliedVars [] = return []
+    newAppliedVars (a : as) = do
+      i <- Env.freshVarId
+      l <- Env.getNextLocalVarName
+      let v = mkVar i ("_" ++ l)
+      vs <- newAppliedVars as
+      return ((v, a) : vs)
+
+    newUnappliedVars :: TypeCheckIO [Var]
+    newUnappliedVars = makeNewVars 0
+
+    makeNewVars :: Int -> TypeCheckIO [Var]
+    makeNewVars n =
+      if n == numMissing
+      then return []
+      else do
+        i <- Env.freshVarId
+        l <- Env.getNextLocalVarName
+        vs <- makeNewVars (n + 1)
+        let v = mkVar i ("_" ++ l)
+        return (v : vs)
 
 prePatternApplyWithVars ::
   PrePattern -> PreTerm -> TypeCheckIO Pattern
@@ -702,7 +742,7 @@ preTermGetAlphaType _ rm _ (TermRef v _) =
 preTermGetAlphaType _ _ iv (TermVar _ v) = fmap fst (IntMap.lookup (varId v) iv)
 preTermGetAlphaType im rm iv (TermLazyFun io f) =
   fmap (TermLazyArrow io) (preTermGetAlphaType im rm iv f)
-preTermGetAlphaType im rm iv (TermFun [] io (Just _) (CaseLeaf vs _ f _)) = do
+preTermGetAlphaType im rm iv (TermFun [] io (Just _) (CaseLeaf vs f _)) = do
   ds <- mapM (inferVarAlphaType im rm iv f) vs
   fmap (TermArrow io (zip (map Just vs) ds)) (preTermGetAlphaType im rm iv f)
 preTermGetAlphaType _ _ _ (TermArrow _ _ _) = Just TermTy
@@ -747,7 +787,7 @@ inferVarAlphaType im rm iv (TermApp _ f xs) v = do
         _ -> error "expected type of applied term to be arrow"
 inferVarAlphaType im rm iv (TermLazyFun _ f) v =
   inferVarAlphaType im rm iv f v
-inferVarAlphaType im rm iv (TermFun _ _ _ (CaseLeaf _ _ f _)) v = do
+inferVarAlphaType im rm iv (TermFun _ _ _ (CaseLeaf _ f _)) v = do
   inferVarAlphaType im rm iv f v
 inferVarAlphaType _ _ _ (TermData _) _ = Nothing
 inferVarAlphaType _ _ _ (TermCtor _ _) _ = Nothing
@@ -852,7 +892,7 @@ getAppliedImplicits _ _ TermEmpty = IntSet.empty
 
 getAppliedImplicitsCaseTree ::
   IntSet -> RefMap -> CaseTree -> IntSet
-getAppliedImplicitsCaseTree vis rm (CaseLeaf _ _ te _) =
+getAppliedImplicitsCaseTree vis rm (CaseLeaf _ te _) =
   getAppliedImplicits vis rm te
 getAppliedImplicitsCaseTree vis rm (CaseUnit _ (_, ct)) =
   getAppliedImplicitsCaseTree vis rm ct
@@ -868,7 +908,7 @@ getAppliedImplicitsCaseTree _ _ (CaseEmpty _) = IntSet.empty
 
 preTermToString :: Int -> PreTerm -> TypeCheckIO String
 preTermToString indent t =
-  execWriterT (runStateT (writeIndent >> writePreTerm t) (1, indent))
+  execWriterT (runStateT (writeIndent >> writePreTerm t) indent)
 
 prePatternToString :: Int -> PrePattern -> TypeCheckIO String
 prePatternToString indent t =
@@ -876,27 +916,24 @@ prePatternToString indent t =
 
 caseTreeToString :: Int -> CaseTree -> [PreTerm] -> TypeCheckIO String
 caseTreeToString indent t as =
-  execWriterT (runStateT (writeIndent >> writeCaseTree (map Right as) t) (1, indent))
+  execWriterT (runStateT (writeIndent >> writeCaseTree (map Right as) t) indent)
 
-type ToString a = StateT (Int, Int) (WriterT String TypeCheckIO) a
+type ToString a = StateT Int (WriterT String TypeCheckIO) a
 
 liftTT :: TypeCheckIO a -> ToString a
 liftTT = lift . lift
 
 incIndent :: ToString ()
-incIndent = modify (\(x, n) -> (x, n+2))
+incIndent = modify (\n -> n+2)
 
 decIndent :: ToString ()
-decIndent = modify (\(x, n) -> (x, n-2))
+decIndent = modify (\n -> n-2)
 
-nextVarName :: ToString String
-nextVarName = do
-  (x, n) <- get
-  put (x+1, n)
-  return ('_' : show x)
+nextVarName :: ToString VarName
+nextVarName = liftTT Env.getNextLocalVarName
 
 writeIndent :: ToString ()
-writeIndent = get >>= \(_, n) -> doWrite n
+writeIndent = get >>= \n -> doWrite n
   where
     doWrite :: Int -> ToString ()
     doWrite 0 = return ()
@@ -926,7 +963,7 @@ writeFunImplicitNames (i : is) = do
   writeFunImplicitNames is
 
 writePreTerm :: PreTerm -> ToString ()
-writePreTerm (TermFun imps _ (Just _) (CaseLeaf vs _ t _)) = do
+writePreTerm (TermFun imps _ (Just _) (CaseLeaf vs t _)) = do
   writeFunImplicitNames imps
   when (not (null imps)) (writeStr " ")
   writeVarList (drop (length imps) vs)
@@ -1260,8 +1297,9 @@ writeNormalApp f xs = do
 
 writeCaseTree ::
   [Either VarName PreTerm] -> CaseTree -> ToString ()
-writeCaseTree [] (CaseLeaf [] _ t _) = writePreTerm t
-writeCaseTree (x : xs) (CaseLeaf (i : is) _ t _) = do
+writeCaseTree [] (CaseLeaf [] t _) =
+  writePreTerm t
+writeCaseTree (x : xs) (CaseLeaf (i : is) t _) = do
   when (varName i /= "_") $ do
     writeStr (varName i)
     vb <- isVerbose
@@ -1276,10 +1314,10 @@ writeCaseTree (x : xs) (CaseLeaf (i : is) _ t _) = do
         writePreTerm e
         when (hasSeqPrecOrLower e) (writeStr ")")
     writeStr "; "
-  writeCaseTree xs (CaseLeaf is False t [])
-writeCaseTree (_:_) (CaseLeaf [] _ _ _) =
+  writeCaseTree xs (CaseLeaf is t [])
+writeCaseTree (_:_) (CaseLeaf [] _ _) =
   error "expected zero arguments to print case-expression"
-writeCaseTree [] (CaseLeaf (_:_) _ _ _) =
+writeCaseTree [] (CaseLeaf (_:_) _ _) =
   error "expected more than zero arguments to print case-expression"
 writeCaseTree [] (CaseEmpty _) = error "empty case tree case without argument"
 writeCaseTree ps (CaseEmpty idx) = do
@@ -1624,18 +1662,19 @@ hasLowerPrecThanInfixOp5 (TermApp io (TermImplicitApp False t _) xs) =
 hasLowerPrecThanInfixOp5 t = hasLowerPrecThanInfixOp6 t
 
 hasLowerPrecThanInfixOp6 :: PreTerm -> Bool
-hasLowerPrecThanInfixOp6 (TermFun _ _ _ _) = True
-hasLowerPrecThanInfixOp6 (TermImplicitApp False (TermFun _ _ _ _) _) = True
 hasLowerPrecThanInfixOp6 (TermLazyArrow _ _) = True
 hasLowerPrecThanInfixOp6 (TermArrow _ _ _) = True
-hasLowerPrecThanInfixOp6 (TermLazyFun _ _) = True
-hasLowerPrecThanInfixOp6 _ = False
+hasLowerPrecThanInfixOp6 t = hasSeqPrecOrLower t
 
 hasSeqPrecOrLower :: PreTerm -> Bool
-hasSeqPrecOrLower (TermFun _ _ _ _) = True
-hasSeqPrecOrLower (TermImplicitApp False (TermFun _ _ _ _) _) = True
-hasSeqPrecOrLower (TermLazyFun _ _) = True
-hasSeqPrecOrLower _ = False
+hasSeqPrecOrLower (TermCase _ (CaseLeaf _ _ _)) = True
+hasSeqPrecOrLower t = hasFunPrecOrLower t
+
+hasFunPrecOrLower :: PreTerm -> Bool
+hasFunPrecOrLower (TermFun _ _ _ _) = True
+hasFunPrecOrLower (TermImplicitApp False (TermFun _ _ _ _) _) = True
+hasFunPrecOrLower (TermLazyFun _ _) = True
+hasFunPrecOrLower _ = False
 
 needsAppParens :: PreTerm -> Bool
 needsAppParens (TermRef _ _) = False
@@ -1646,5 +1685,7 @@ needsAppParens TermUnitElem = False
 needsAppParens TermUnitTy = False
 needsAppParens TermTy = False
 needsAppParens TermEmpty = False
+needsAppParens (TermCase _ (CaseLeaf _ _ _)) = True
 needsAppParens (TermCase _ _) = False
+needsAppParens (TermImplicitApp False t _) = needsAppParens t
 needsAppParens _ = True

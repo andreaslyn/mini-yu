@@ -84,7 +84,7 @@ let m (n % true) => ((m * n) % false) + m
 
 
 val (*2#Bin+) : Bin+ -> Bin+
-let => _ % false
+let n => n % false
 
 
 val (--#Bin+) : Bin+ -> Bin+
@@ -116,15 +116,15 @@ val (.simplOp++Op--#Bin+)
   : (n : Bin+) & (b : Bool) -> ++ -- (n % b) = n % b
 let n true => refl
 let 1 false => refl
-let (n % a) false => n .simplOp++Op-- a .ap (_ % false)
+let (n % a) false => n .simplOp++Op-- a .ap (t => t % false)
 
 
 val (.simplOp--Op++#Bin+) : (n : Bin+) -> -- ++ n = n
 let 1 => refl
 let (_ % false) => refl
 let (1 % true) => refl
-let (n % true % true) => (n % true) .simplOp--Op++ .ap (_ % true)
-let (n % false % true) => (n % false) .simplOp--Op++ .ap (_ % true)
+let (n % true % true) => (n % true) .simplOp--Op++ .ap (t => t % true)
+let (n % false % true) => (n % false) .simplOp--Op++ .ap (t => t % true)
 
 
 val.. (.ind#Bin+)

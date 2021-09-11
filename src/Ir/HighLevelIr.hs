@@ -535,7 +535,7 @@ irExpr Te.TermTy = do
 irExpr Te.TermEmpty = error "cannot generate empty term!"
 
 irCaseTree :: [Var] -> Te.CaseTree -> StM Expr
-irCaseTree xs (Te.CaseLeaf vs _ te ws) = do
+irCaseTree xs (Te.CaseLeaf vs te ws) = do
   let !() = assert (length xs == length vs) ()
   localUpdateTermVars vs xs $ do
     w <- irProgram False ws
