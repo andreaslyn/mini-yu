@@ -193,30 +193,27 @@ yur_SYSTEM_SWITCH_DEF(extern yur_ALWAYS_INLINE,
 
 _Static_assert(sizeof(rlim_t) >= 4, "size of rlim_t is too small");
 
-#define yur_DATA_SIZE ((rlim_t) 1 << 34) // 4GB.
+#ifndef yur_DISABLE_SPLIT_STACK
 
-#if 0
-static const rlim_t stack_size = yur_DATA_SIZE;
+#define yur_DATA_SIZE (6 * ((rlim_t) 1 << 30)) // 6GB.
+
+#else
+
+#define yur_DATA_SIZE (3 * ((rlim_t) 1 << 30)) // 3GB.
+
 #endif
 
 static const rlim_t data_size = yur_DATA_SIZE;
 
-int main() {
-#if 0
-  struct rlimit cs;
-  if (getrlimit(RLIMIT_STACK, &cs) == -1)
-    yur_panic_s("failed getting current stack size");
+#ifdef yur_DISABLE_SPLIT_STACK
+static const rlim_t stack_size = yur_DATA_SIZE;
 #endif
 
+#ifndef yur_DISABLE_SPLIT_STACK
+int main() {
   struct rlimit cd;
   if (getrlimit(RLIMIT_DATA, &cd) == -1)
     yur_panic_s("failed getting current data size");
-
-#if 0
-  struct rlimit ns = { stack_size, cs.rlim_max };
-  if (setrlimit(RLIMIT_STACK, &ns) == -1)
-    yur_panic_s("failed setting stack size, %s", strerror(errno));
-#endif
 
   struct rlimit nd = { data_size, cd.rlim_max };
   if (setrlimit(RLIMIT_DATA, &nd) == -1)
@@ -224,6 +221,27 @@ int main() {
 
   (void) yur_run((yur_Run) yu_main, &yur_unit);
 }
+#else
+int main() {
+  struct rlimit cs;
+  if (getrlimit(RLIMIT_STACK, &cs) == -1)
+    yur_panic_s("failed getting current stack size");
+
+  struct rlimit cd;
+  if (getrlimit(RLIMIT_DATA, &cd) == -1)
+    yur_panic_s("failed getting current data size");
+
+  struct rlimit ns = { stack_size, cs.rlim_max };
+  if (setrlimit(RLIMIT_STACK, &ns) == -1)
+    yur_panic_s("failed setting stack size, %s", strerror(errno));
+
+  struct rlimit nd = { data_size, cd.rlim_max };
+  if (setrlimit(RLIMIT_DATA, &nd) == -1)
+    yur_panic_s("failed setting stack size, %s", strerror(errno));
+
+  yu_main(&yur_unit);
+}
+#endif
 
 //////////////////// Basic extern implementations ////////////////////
 

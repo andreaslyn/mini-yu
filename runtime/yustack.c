@@ -11,20 +11,14 @@ extern volatile size_t yur_initial_stack_segment_size;
 yur_SYSTEM_DEF(yur_ALWAYS_INLINE static size_t,
     get_current_segment_size, ()) {
   size_t begin, end;
-  asm("movq %%fs:0x80, %[begin]\n\t"
-      "movq %%fs:0x70, %[end]"
+  asm("movq %" yur_STRINGIFY(CURR_SEG_BEGIN) ", %[begin]\n\t"
+      "movq %" yur_STRINGIFY(CURR_SEG_END) ", %[end]"
       : [begin] "=r" (begin), [end] "=r" (end));
   return
     begin - end
     + yur_reserved_stack_size
     + sizeof(struct yur_Stack_seg);
 }
-
-// EXTRA_SEG_RESERVE is indicating the minimal amount of reserved
-// stack segment space. Currently we need 16 bytes, to have room
-// for two return addresses on the stack, and we reserve 224 bytes
-// for a more efficient prologue when stack frame is <= 224 bytes.
-#define EXTRA_SEG_RESERVE (16 + 224)
 
 yur_SYSTEM_DEF(yur_ALWAYS_INLINE static size_t,
     byte16_align, (size_t x)) {
@@ -38,9 +32,9 @@ yur_SYSTEM_DEF(void, yur_set_stack_overlap_size, (size_t size)) {
 yur_SYSTEM_DEF(void, yur_enable_stack_red_zone, (bool b)) {
   // On top of to red zone, we need to reserve EXTRA_SEG_RESERVE bytes.
   if (b)
-    yur_reserved_stack_size = 128 + EXTRA_SEG_RESERVE;
+    yur_reserved_stack_size = RED_ZONE_SIZE + MINIMAL_SEG_RESERVE_SIZE;
   else
-    yur_reserved_stack_size = EXTRA_SEG_RESERVE;
+    yur_reserved_stack_size = MINIMAL_SEG_RESERVE_SIZE;
 }
 
 yur_SYSTEM_DEF(void, yur_set_initial_stack_segment_size, (size_t size)) {

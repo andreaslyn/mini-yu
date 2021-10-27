@@ -20,6 +20,7 @@ import System.FilePath (takeDirectory, takeFileName)
 import Str (stdRuntimePath)
 import System.Environment (getExecutablePath)
 import qualified Data.Map as Map
+import Control.Exception (catch, SomeException)
 
 runIr ::
   ProgramOptions -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap -> IO ()
@@ -41,10 +42,11 @@ runIr opts vs dm im rm = do
   when (optionAssembly opts || optionCompile opts) $ do
     Cg.genCode rcp cfile
   let root = projectRootPath opts
-  let runtime = root ++ "/" ++ stdRuntimePath
-  let mimallocInclude = root ++ "/mimalloc/include"
+  let runtimePath = root ++ "/" ++ stdRuntimePath
   let mimallocLib = root ++ "/mimalloc/out/libmimalloc.a"
-  let gcc = "/home/andreas/Desktop/install-gcc/bin/gcc"
+  let gcc = if optionNoSplitStack opts
+            then "/home/andreas/Desktop/install-gcc/bin/gcc" --"gcc"
+            else "/home/andreas/Desktop/install-gcc/bin/gcc"
   when (optionAssembly opts) $ do
     let outfile = argumentFileName opts ++ ".s"
     let cargs = if optionOptimize opts
@@ -53,11 +55,9 @@ runIr opts vs dm im rm = do
                        "-static",
                        "-S",
                        "-O3",
-                       "-fyu-stack",
-                       "-fno-omit-frame-pointer",
+                       "-DNDEBUG",
                        "-momit-leaf-frame-pointer",
-                       "-I", mimallocInclude,
-                       "-I", runtime,
+                       "-I", runtimePath,
                        "-o", outfile,
                        cfile]
                 else ["-std=gnu11",
@@ -65,36 +65,35 @@ runIr opts vs dm im rm = do
                        "-static",
                        "-S",
                        "-g",
-                       "-fyu-stack",
-                       "-fno-omit-frame-pointer",
                        "-momit-leaf-frame-pointer",
-                       "-I", mimallocInclude,
-                       "-I", runtime,
+                       "-I", runtimePath,
                        "-o", outfile,
                        cfile]
-    command_ [] gcc (cargs ++ argumentGccOptions opts)
+    let splitArgs = if optionNoSplitStack opts
+                    then ["-Dyur_DISABLE_SPLIT_STACK"]
+                    else ["-fyu-stack", "-fno-omit-frame-pointer"]
+    let allArgs = splitArgs ++ cargs ++ argumentGccOptions opts
+    when (optionVerboseOutput opts) $
+      putStrLn (gcc ++ concat (map (" "++) allArgs))
+    command_ [] gcc allArgs
   when (optionCompile opts) $ do
-    let cruntime = runtime ++ "/yu.c"
-    let parruntime = runtime ++ "/parallel.c"
-    let strruntime =  runtime++ "/yustr.c"
-    let listruntime = runtime ++ "/yulist.c"
-    let cmallocruntime = runtime ++ "/yucmalloc.c"
-    let stackruntime_s = runtime ++ "/yustack.S"
-    let stackruntime_c = runtime ++ "/yustack.c"
+    let runtime = if optionNoSplitStack opts
+                  then runtimePath ++ "/out/system-stack/libyur.a"
+                  else runtimePath ++ "/out/split-stack/libyur.a"
     let outfile = argumentFileName opts ++ ".exe"
     let cargs = if optionOptimize opts
                 then ["-std=gnu11",
                        "-Wall",
                        "-static",
                        "-O3",
-                       "-fyu-stack",
-                       "-fno-omit-frame-pointer",
+                       "-DNDEBUG",
                        "-momit-leaf-frame-pointer",
-                       "-I", mimallocInclude,
-                       "-I", runtime,
+                       "-I", runtimePath,
                        "-o", outfile,
-                       cfile, cruntime, parruntime, strruntime, listruntime,
-                       cmallocruntime, stackruntime_s, stackruntime_c,
+                       cfile,
+                       "-Wl,--whole-archive",
+                       runtime,
+                       "-Wl,--no-whole-archive",
                        mimallocLib,
                        "-lpthread",
                        "-latomic"]
@@ -102,18 +101,23 @@ runIr opts vs dm im rm = do
                        "-Wall",
                        "-static",
                        "-g",
-                       "-fyu-stack",
-                       "-fno-omit-frame-pointer",
                        "-momit-leaf-frame-pointer",
-                       "-I", mimallocInclude,
-                       "-I", runtime,
+                       "-I", runtimePath,
                        "-o", outfile,
-                       cfile, cruntime, parruntime, strruntime, listruntime,
-                       cmallocruntime, stackruntime_s, stackruntime_c,
+                       cfile,
+                       "-Wl,--whole-archive",
+                       runtime,
+                       "-Wl,--no-whole-archive",
                        mimallocLib,
                        "-lpthread",
                        "-latomic"]
-    command_ [] gcc (cargs ++ argumentGccOptions opts)
+    let splitArgs = if optionNoSplitStack opts
+                    then ["-Dyur_DISABLE_SPLIT_STACK"]
+                    else ["-fyu-stack", "-fno-omit-frame-pointer"]
+    let allArgs = splitArgs ++ cargs ++ argumentGccOptions opts
+    when (optionVerboseOutput opts) $
+      putStrLn (gcc ++ concat (map (" "++) allArgs))
+    command_ [] gcc allArgs
 
 getProjectPath :: IO FilePath
 getProjectPath = do
@@ -136,7 +140,7 @@ run :: ProgramOptions -> IO ()
 run opts = do
   verifyProgramOptions opts
   packs <- packagePaths opts
-  tc <- runTT (optionVerboseErrors opts)
+  tc <- runTT (optionVerboseOutput opts)
               (optionCompile opts || optionAssembly opts)
               packs
               (argumentFileName opts)
@@ -149,10 +153,11 @@ data ProgramOptions = ProgramOptions
   , optionCompile :: Bool
   , optionAssembly :: Bool
   , optionOptimize :: Bool
+  , optionNoSplitStack :: Bool
   , optionPrintHighLevelIR :: Bool
   , optionPrintBaseIR :: Bool
   , optionPrintRefCountIR :: Bool
-  , optionVerboseErrors :: Bool
+  , optionVerboseOutput :: Bool
   , projectRootPath :: FilePath
   , argumentFileName :: FilePath
   , argumentGccOptions :: [FilePath]
@@ -161,13 +166,19 @@ data ProgramOptions = ProgramOptions
 verifyProgramOptions :: ProgramOptions -> IO ()
 verifyProgramOptions opts
   | optionOptimize opts && not (optionAssembly opts || optionCompile opts)
-      = Exit.die $ "optimization option (-o, --optimize) requires at least one of\n\
+      = Exit.die $ "optimization option (-o, --optimize) requires\
+                   \ at least one of\n\
+                   \  compilation option (-c, --compile)\
+                   \  assembly option (-a, --assembly)"
+  | optionNoSplitStack opts && not (optionAssembly opts || optionCompile opts)
+      = Exit.die $ "disable split stack option (--no-split-stack) requires\
+                   \ at least one of\n\
                    \  compilation option (-c, --compile)\
                    \  assembly option (-a, --assembly)"
   | True = return ()
 
 makeProgramOptions ::
-  FilePath -> [FilePath] -> [String] -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool ->
+  FilePath -> [FilePath] -> [String] -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool ->
   ProgramOptions
 makeProgramOptions
   argFileName
@@ -176,19 +187,21 @@ makeProgramOptions
   optCompile
   optAssembly
   optOptimize
+  optNoSplitStack
   optPrintHighLevelIR
   optPrintBaseIR
   optPrintRefCountIR
-  optVerboseErrors
+  optVerboseOutput
   = ProgramOptions
     { optionPackages = optPackages
     , optionCompile = optCompile
     , optionAssembly = optAssembly
     , optionOptimize = optOptimize
+    , optionNoSplitStack = optNoSplitStack
     , optionPrintHighLevelIR = optPrintHighLevelIR
     , optionPrintBaseIR = optPrintBaseIR
     , optionPrintRefCountIR = optPrintRefCountIR
-    , optionVerboseErrors = optVerboseErrors
+    , optionVerboseOutput = optVerboseOutput
     , argumentFileName = argFileName
     , argumentGccOptions = argGccOptions
     , projectRootPath = ""
@@ -208,6 +221,8 @@ cmdParser = makeProgramOptions
     `Ar.Descr` "output compiler generated assembly"
   `Ar.andBy` ArPa.FlagParam ArPa.Short "optimize" id
     `Ar.Descr` "optimize to improve performance of generated program"
+  `Ar.andBy` ArPa.FlagParam ArPa.Long "no-split-stack" id
+    `Ar.Descr` "use a large (3GB) system stack instead of split (segmented) stack"
   `Ar.andBy` ArPa.FlagParam ArPa.Long "print-high-level-ir" id
     `Ar.Descr` "print initial intermediate representation"
   `Ar.andBy` ArPa.FlagParam ArPa.Long "print-base-ir" id
@@ -215,7 +230,7 @@ cmdParser = makeProgramOptions
   `Ar.andBy` ArPa.FlagParam ArPa.Long "print-ref-count-ir" id
     `Ar.Descr` "print reference counted intermediate representation"
   `Ar.andBy` ArPa.FlagParam ArPa.Long "verbose" id
-    `Ar.Descr` "print error message verbosely"
+    `Ar.Descr` "enable verbose output"
 
 cmdInterface :: IO (Ar.CmdLnInterface ProgramOptions)
 cmdInterface = mkApp cmdParser
@@ -224,6 +239,7 @@ main :: IO ()
 main = do
   interface <- cmdInterface
   runApp interface (\opts -> preRun opts >>= run)
+    `catch` (\ e -> hPutStrLn stderr $ show (e :: SomeException))
   where
     preRun :: ProgramOptions -> IO ProgramOptions
     preRun opts = do

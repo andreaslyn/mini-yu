@@ -1,13 +1,4 @@
-
-// The beginning of the current stack segment (growing downward).
-// The first (highest) valid stack segment address is CURR_SEG_BEGIN - 8.
-#define CURR_SEG_BEGIN %fs:0x80
-
-// The end of the current stack segment (growing downward).
-// This address is the last (lowest) invalid address on the sack segment.
-#define CURR_SEG_END %fs:0x70
-
-#define SYSTEM_STACK %fs:0x88
+#include "yubase.h"
 
 
 .section .data
@@ -18,7 +9,7 @@ yur_stack_overlap_size: .quad 1088
 
 .globl yur_reserved_stack_size
 .type yur_reserved_stack_size, @object
-yur_reserved_stack_size: .quad 368
+yur_reserved_stack_size: .quad RED_ZONE_SIZE + MINIMAL_SEG_RESERVE_SIZE
 
 .globl yur_maximal_stack_segment_size
 .type yur_maximal_stack_segment_size, @object
@@ -228,7 +219,7 @@ __yu_lessstack:
 
   // This (the previous) stack spointer can potantially be at it's
   // beginning as well. Check this before returning:
-  cmpq CURR_SEG_BEGIN, %rsp
+  cmpq %rbp, %rsp
   // If the stack pointer is at the beginning, then repeat:
   je __yu_lessstack
 

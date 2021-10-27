@@ -2,6 +2,8 @@ PROJECT_PATH := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 INSTALL_PATH := $(PROJECT_PATH)/bin
 EXE_PATH := $(INSTALL_PATH)/mini-yu-exe
 
+MAKEFLAGS := --no-print-directory $(MAKEFLAGS)
+
 LIBMIMALLOC := mimalloc/out/libmimalloc.a
 
 ifeq ($(DEBUG), 1)
@@ -26,20 +28,21 @@ mini-yu: $(EXE_PATH)
 .PHONY: config
 config:
 	mkdir -p mimalloc/out
-	cmake -Hmimalloc -Bmimalloc/out \
-		-DMI_OVERRIDE=OFF
-
-#-DCMAKE_C_COMPILER=/home/andreas/Desktop/install-gcc/bin/gcc
+	cmake -Hmimalloc -Bmimalloc/out -DMI_OVERRIDE=OFF
 
 all: config mini-yu
 
 .PHONY: $(EXE_PATH)
-$(EXE_PATH): $(LIBMIMALLOC)
+$(EXE_PATH): $(LIBMIMALLOC) libyur
 	@PATH="$(PATH):$(INSTALL_PATH)" stack install $(PROF) $(PEDANT) $(FAST) --local-bin-path "$(INSTALL_PATH)"
 
-.PHONY: $(EXE_PATH)
+.PHONY: $(LIBMIMALLOC)
 $(LIBMIMALLOC):
-	CC=/home/andreas/Desktop/install-gcc/bin/gcc $(MAKE) -C mimalloc/out
+	$(MAKE) -C mimalloc/out
+
+.PHONY: libyur
+libyur:
+	@$(MAKE) -C runtime
 
 .PHONY: base_clean
 base_clean:
