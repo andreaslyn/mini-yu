@@ -38,7 +38,8 @@ void yur_mark_children_static(yur_Ref *r) {
   yur_for_each_child(r, yur_mark_static);
 }
 
-void yur_atomic_memoize(yur_Ref *lazy, yur_Ref **dest, yur_Ref **src,
+yur_ALWAYS_INLINE
+static void yur_atomic_memoize(yur_Ref *lazy, yur_Ref **dest, yur_Ref **src,
     yur_Ref *expect) {
   int b = __atomic_compare_exchange_n(dest, &expect, *src, 0,
               memory_order_acq_rel, memory_order_consume);
@@ -47,6 +48,21 @@ void yur_atomic_memoize(yur_Ref *lazy, yur_Ref **dest, yur_Ref **src,
     *src = *dest;
   }
   yur_mark_children_atomic(lazy);
+}
+
+void yur_memoize(yur_Ref *lazy, yur_Ref **dest, yur_Ref **src,
+    yur_Ref *expect) {
+  yur_Vmt_index i = yur_ALOAD(lazy->vmt_index);
+  if (yur_LIKELY(i == yur_Dynamic_vmt)) {
+    *dest = *src;
+  } else if (yur_LIKELY(i == yur_Static_vmt)) {
+    __atomic_store_n(dest, *src, memory_order_relaxed);
+    yur_mark_children_static(lazy);
+  } else if (yur_UNLIKELY(i == yur_Dynamic_vmt)) {
+    *dest = *src;
+  } else {
+    yur_atomic_memoize(lazy, dest, src, expect);
+  }
 }
 
 /////////////////////////// Dynamic Ref //////////////////////////////

@@ -440,30 +440,30 @@ writeRefTag :: R.Ref -> GenCode ()
 writeRefTag (R.VarRef v) = writeVar v >> writeStr "->tag"
 writeRefTag (R.ConstRef r) = writeStr (funImpl r) >> writeStr ".tag"
 
+writeFunExprCases :: [(R.CtorId, R.FunExpr)] -> GenCode ()
+writeFunExprCases [] = error "missing case"
+writeFunExprCases [(_, e)] = do
+  newLine
+  writeStr ("default: {")
+  incIndent >> newLine
+  writeFunExpr e
+  decIndent >> newLine
+  writeStr "}"
+writeFunExprCases ((i, e) : cs) = do
+  newLine
+  writeStr ("case " ++ show i ++ ": {")
+  incIndent >> newLine
+  writeFunExpr e
+  decIndent >> newLine
+  writeStr "}"
+  writeFunExprCases cs
+
 writeFunExpr :: R.FunExpr -> GenCode ()
 writeFunExpr (R.Case r cs) = do
   writeStr "switch (" >> writeRefTag r >> writeStr ") {"
-  mapM_ writeCase cs
-  writeDefaultCase
+  writeFunExprCases cs
   newLine
   writeStr "}"
-  where
-    writeCase :: (R.CtorId, R.FunExpr) -> GenCode ()
-    writeCase (i, e) = do
-      newLine
-      writeStr ("case " ++ show i ++ ": {")
-      incIndent >> newLine
-      writeFunExpr e
-      decIndent >> newLine
-      writeStr "}"
-    writeDefaultCase :: GenCode ()
-    writeDefaultCase = do
-      newLine
-      writeStr "default:"
-      incIndent >> newLine
-      writeStr "yur_panic(\"unhandled case %zu\", "
-        >> writeRefTag r >> writeStr ");"
-      decIndent
 writeFunExpr (R.Pforce _ v rs e2) = do
   let rs' = filter (/= R.VarRef v) rs
   writeVar v >> writeStr "->nfields = "

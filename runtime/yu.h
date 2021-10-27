@@ -86,23 +86,7 @@ static yur_Ref *yur_build(yur_Num_fields nfields, size_t tag) {
 
 ////////////////////////////// Util //////////////////////////////////
 
-void yur_atomic_memoize(yur_Ref *lazy, yur_Ref **dest, yur_Ref **src,
-    yur_Ref *expect);
-
-inline static void yur_memoize(yur_Ref *lazy, yur_Ref **dest, yur_Ref **src,
-    yur_Ref *expect) {
-  yur_Vmt_index i = yur_ALOAD(lazy->vmt_index);
-  if (yur_LIKELY(i == yur_Dynamic_vmt)) {
-    *dest = *src;
-  } else if (yur_LIKELY(i == yur_Static_vmt)) {
-    __atomic_store_n(dest, *src, memory_order_relaxed);
-    yur_mark_children_static(lazy);
-  } else if (yur_UNLIKELY(i == yur_Dynamic_vmt)) {
-    *dest = *src;
-  } else {
-    yur_atomic_memoize(lazy, dest, src, expect);
-  }
-}
+void yur_memoize(yur_Ref *lazy, yur_Ref **dest, yur_Ref **src, yur_Ref *expect);
 
 void yur_unref_children(yur_Ref *r);
 
