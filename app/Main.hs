@@ -20,7 +20,6 @@ import System.FilePath (takeDirectory, takeFileName)
 import Str (stdRuntimePath)
 import System.Environment (getExecutablePath)
 import qualified Data.Map as Map
-import Data.List (intercalate)
 
 runIr ::
   ProgramOptions -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap -> IO ()
@@ -87,23 +86,7 @@ runIr opts vs dm im rm = do
                 then ["-std=gnu11",
                        "-Wall",
                        "-static",
-                       "-g",
-                       "-O2",
-                       "-fgcse-after-reload",
-                       "-fipa-cp-clone",
-                       "-floop-interchange",
-                       "-floop-unroll-and-jam",
-                       "-fpeel-loops",
-                       "-fpredictive-commoning",
-                       "-fsplit-loops",
-                       "-fsplit-paths",
-                       "-ftree-loop-distribution",
-                       "-ftree-loop-vectorize",
-                       "-ftree-partial-pre",
-                       "-ftree-slp-vectorize", -- this one?
-                       "-funswitch-loops",
-                       "-fvect-cost-model=dynamic",
-                       "-fversion-loops-for-strides",
+                       "-O3",
                        "-fyu-stack",
                        "-fno-omit-frame-pointer",
                        "-momit-leaf-frame-pointer",
@@ -130,7 +113,6 @@ runIr opts vs dm im rm = do
                        mimallocLib,
                        "-lpthread",
                        "-latomic"]
-    putStrLn (gcc ++ " " ++ intercalate " " (cargs ++ argumentGccOptions opts))
     command_ [] gcc (cargs ++ argumentGccOptions opts)
 
 getProjectPath :: IO FilePath

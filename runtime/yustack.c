@@ -148,7 +148,7 @@ yur_initial_stack_seg(size_t frame_size)
   void *p = alloc(s);
   struct yur_Stack_seg *begin = get_seg_begin(p, s);
   void *end = get_seg_end(p);
-  bzero(begin, sizeof(*begin));
+  bzero(begin, YUR_STACK_SEG_UNRESERVED_SIZE);
   return (struct yur_Stack_seq_end_pair) { begin, end };
 }
 

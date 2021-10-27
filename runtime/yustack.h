@@ -6,7 +6,10 @@ struct yur_Stack_seg {
   struct yur_Stack_seg *prev_seg_begin;
   void *prev_seg_end;
   void *prev_bp;
+  void *reserved_word;
 };
+#define YUR_STACK_SEG_UNRESERVED_SIZE \
+  (sizeof(struct yur_Stack_seg) - sizeof(void*))
 // | reserved | stack... | prev_sp | prev_begin | prev_end | prev_bp |
 //            ^          ^
 //            end        begin

@@ -39,13 +39,15 @@ __yu_morestack:
 
   // Save registers which may be used as functions arguments
   // to our caller. We need to restore these before returning.
-  subq $64, %rsp
+  subq $80, %rsp
   movq %rdi, (%rsp)
   movq %rsi, 8(%rsp)
   movq %rdx, 16(%rsp)
   movq %rcx, 24(%rsp)
   movq %r8, 32(%rsp)
   movq %r9, 40(%rsp)
+  // Preserve rax as well, since the caller may use it to hold r10:
+  movq %rax, 48(%rsp)
 
   // Save old stack pointer in rcx, argument to
   // call yur_new_stack_seg later on:
@@ -85,7 +87,7 @@ __yu_morestack:
   movq %rdi, %r9
   // Save it on the stack as well, since we need it after calling
   // yur_new_stack_seg as well.
-  movq %rdi, 48(%rsp)
+  movq %rdi, 56(%rsp)
 
   // The following registers are free:
   // r10,r11
@@ -128,7 +130,7 @@ __yu_morestack:
 .copy_size_found:
   // Preserve the size to copy from old stack, since we need it after
   // call yur_new_stack_seg:
-  movq %rdi, 56(%rsp)
+  movq %rdi, 64(%rsp)
 
   // Here:
   // - rdi (first argument) is the size to copy from old segment.
@@ -144,6 +146,8 @@ __yu_morestack:
   // Update to use the beginning and end of the new stack:
   movq %rax, CURR_SEG_BEGIN
   movq %rdx, CURR_SEG_END
+  // Preserve the beginning of the stack segment in r10:
+  movq %rax, %r10
 
   // Restore the caller's registers:
   movq (%rsp), %rdi
@@ -152,17 +156,18 @@ __yu_morestack:
   movq 24(%rsp), %rcx
   movq 32(%rsp), %r8
   movq 40(%rsp), %r9
+  movq 48(%rsp), %rax
 
   // Get size of caller's caller stack frame before switching stack:
-  movq 48(%rsp), %r11
+  movq 56(%rsp), %r11
 
   // Subtract size copied from old stack:
-  subq 56(%rsp), %rax
+  subq 64(%rsp), %r10
   // Switch to the new stack:
-  movq %rax, %rsp
+  movq %r10, %rsp
   // Add size of caller's caller stack frame and subtract 8
   // to get the new frame pointer:
-  lea -8(%r11,%rax), %rbp
+  lea -8(%r11,%r10), %rbp
   // The return address is copied from the old stack to the top of
   // the new stack. Return to caller:
   ret
@@ -261,9 +266,11 @@ yur_run:
 
   // Switch to the new stack:
   movq %rax, %rsp
-  // Push old "frame pointer":
+  // Aligh stack:
+  pushq $0
+  // Push initial "dummy" frame pointer:
   pushq %rax
-  // Setup initial frame pointer:
+  // Setup the new frame pointer:
   movq %rsp, %rbp
   // Aligh stack:
   pushq $0
