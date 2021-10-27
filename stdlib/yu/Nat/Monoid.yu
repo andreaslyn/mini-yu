@@ -1,12 +1,12 @@
 import Mon => yu/algebra/Monoid
-| IsMonoid
-| Monoid
+of IsMonoid
+of Monoid
 
 import basic => yu/basic
-| (...)
+of (...)
 
 import Prod => yu/Prod/Prod
-| ($#)
+of ($#)
 
 import N-th => yu/Nat/theorems
 
@@ -15,7 +15,7 @@ val isMonoid+ : IsMonoid Nat
 let =>
   mkIs.Mon (+) 0
     (k m n => ! associativeOp+.N-th)
-    ((n => simpl0Op+.N-th) $ of n => refl)
+    ((n => simpl0Op+.N-th) $ at n => refl)
 
 
 val monoid+ : Monoid

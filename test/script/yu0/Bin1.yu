@@ -1,14 +1,14 @@
 import List => yu0/List
-| (...)
+of (...)
 
 import Fun => yu0/Fun
-| (...)
+of (...)
 
 import Bool => yu0/Bool
-| (...)
+of (...)
 
 import Id => yu0/Id
-| (=#)
+of (=#)
 
 
 val Bits : Ty
@@ -16,7 +16,7 @@ let => List(Bool)
 
 
 data Bin1 : Ty
-| bin+ : Bits -> Bin1
+of bin+ : Bits -> Bin1
 
 
 val bits : Bin1 -> Bits
@@ -118,7 +118,7 @@ val simpl-op++op--aux
 let true bs => 1.Id
 let false nil => 1.Id
 let false (b :: bs) =>
-  ap=.Id (simpl-op++op--aux b bs) of t => false :: t
+  ap=.Id (simpl-op++op--aux b bs) at t => false :: t
 
 
 val simpl-op--op++
@@ -132,9 +132,9 @@ let nil => 1.Id
 let (false :: _) => 1.Id
 let (true :: nil) => 1.Id
 let (true :: true :: bs) =>
-  ap=.Id (simpl-op--op++aux(true :: bs)) of t => true :: t
+  ap=.Id (simpl-op--op++aux(true :: bs)) at t => true :: t
 let (true :: false :: bs) =>
-  ap=.Id (simpl-op--op++aux(false :: bs)) of t => true :: t
+  ap=.Id (simpl-op--op++aux(false :: bs)) at t => true :: t
 
 
 val.. ind
@@ -155,7 +155,7 @@ let b a0 ai => ind b (const A) a0 ai
 
 
 data (<#Bin1) : Bin1 & Bin1 -> Ty
-| len< [a : Bool] [as : Bits] : 1 < bin+ (a :: as)
-| false< [as : Bits] : bin+ (false :: as) < bin+ (true :: as)
-| step< [a : Bool] [as : Bits] [b : Bool] [bs : Bits]
+of len< [a : Bool] [as : Bits] : 1 < bin+ (a :: as)
+of false< [as : Bits] : bin+ (false :: as) < bin+ (true :: as)
+of step< [a : Bool] [as : Bits] [b : Bool] [bs : Bits]
   : bin+ as < bin+ bs -> bin+ (a :: as) < bin+ (b :: bs)

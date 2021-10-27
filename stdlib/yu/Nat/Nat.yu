@@ -1,57 +1,57 @@
 
 import Fun => yu/basic/Fun
-| id
+of id
 
 import B => yu/basic/Bool
-| Bool
-| false
-| true
-| (...#Bool)
+of Bool
+of false
+of true
+of (...#Bool)
 
 import N => yu/basic/Nat
 export
-| (...)
+of (...)
 
 import L => yu/basic/List
-| List
-| nil
-| (...#List)
+of List
+of nil
+of (...#List)
 
 import Eq => yu/basic/Equal
-| (=#)
-| refl
+of (=#)
+of refl
 
 import Ord => yu/Order/Order
-| Order
-| (...#Order)
+of Order
+of (...#Order)
 
 import Eq? => yu/Equivalence?/Equivalence?
-| Equivalence?
-| (...#Equivalence?)
+of Equivalence?
+of (...#Equivalence?)
 
 import Ord? => yu/Ordering?/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import Ord?-th => yu/Ordering?/theorems
 
 import relation? => yu/relation?/relation?
-| (...#Bool)
+of (...#Bool)
 
 import Prod => yu/Prod/Prod
-| (&&#Ty)
-| ($#)
-| (...#DProd.Prod)
+of (&&#Ty)
+of ($#)
+of (...#DProd.Prod)
 
 import Option => yu/Option/Option
-| (?#Ty)
-| no
-| yes
-| (...#Option.Option)
+of (?#Ty)
+of no
+of yes
+of (...#Option.Option)
 
 
 data (.Is++#Nat) : Nat -> Ty
-| is++ [n : Nat] : (++ n) .Is++
+of is++ [n : Nat] : (++ n) .Is++
 
 
 val (.divmod#Nat) : Nat & (n : Nat) & n .Is++ -> Nat && Nat
@@ -66,7 +66,7 @@ end
 
 val (.divmod?#Nat) : Nat & Nat -> ? (Nat && Nat)
 let _ 0 => no
-let m (++ n) => yes of m .divmod (++ n) is++
+let m (++ n) => yes at m .divmod (++ n) is++
 
 
 val (.div?#Nat) : Nat & Nat -> ? Nat

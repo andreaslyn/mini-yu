@@ -1,50 +1,50 @@
 import L => yu/basic/List
 export
-| (...)
+of (...)
 
 import Fun => yu/basic/Fun
-| flip
+of flip
 
 import N => yu/basic/Nat
-| Nat
-| 0
-| (...#Nat)
+of Nat
+of 0
+of (...#Nat)
 
 import B => yu/basic/Bool
-| Bool
-| true
-| false
-| if
-| (...#Bool)
-| (...#If.B)
-| (...#Then.B)
+of Bool
+of true
+of false
+of if
+of (...#Bool)
+of (...#If.B)
+of (...#Then.B)
 
 import Prod => yu/Prod/Prod
-| (&&#Ty)
-| ($#)
-| (...#DProd.Prod)
+of (&&#Ty)
+of ($#)
+of (...#DProd.Prod)
 
 import Opt => yu/Option/Option
-| (?#Ty)
-| yes
-| no
-| (...#Option.Opt)
+of (?#Ty)
+of yes
+of no
+of (...#Option.Opt)
 
 import Eq? => yu/Equivalence?/Equivalence?
-| Equivalence?
-| (...#Equivalence?)
+of Equivalence?
+of (...#Equivalence?)
 
 import Ord? => yu/Ordering?/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import Ord => yu/Order/Order
-| Order
-| (...#Order)
+of Order
+of (...#Order)
 
 
 data (.Is::#List) [A : Ty] : List A -> Ty
-| is:: [A : Ty] [a : A] [as : List A] : (a :: as) .Is::
+of is:: [A : Ty] [a : A] [as : List A] : (a :: as) .Is::
 
 
 val (.empty?#List) [A : Ty] : List A -> Bool
@@ -84,7 +84,7 @@ val (.update?#List) [A : Ty] : List A & A & Nat -> ? List A
 let nil _ _ => no
 let (_ :: xs) a 0 => yes(a :: xs)
 let (x :: xs) a (++ n) =>
-  xs .update? a n >>= of xs' => yes (x :: xs')
+  xs .update? a n >>= at xs' => yes (x :: xs')
 
 
 val (.update!#List) [A : Ty] : List A & A & Nat -> List A
@@ -135,9 +135,9 @@ let as => as .fold nil (:+:)
 
 val (.accumScan#List) [A B : Ty] : List A & B & (B & A -> B) -> List B
 let xs y f =>
-  xs .accum (y $ of (t : List B) => y :: t) (b a =>
+  xs .accum (y $ at (t : List B) => y :: t) (b a =>
     b' := f (b .1) a;
-    b' $ of (t : List B) => b .2 (b' :: t)
+    b' $ at (t : List B) => b .2 (b' :: t)
   ) .2 nil
 
 
@@ -163,8 +163,8 @@ let (x :: xs) (y :: ys) q =>
 
 
 data (.All#List) [A : Ty] : List A & (A -> Ty) -> Ty
-| allNil [A : Ty] [P : A -> Ty] : nil .All P
-| (::#.All#List) [A : Ty] [P : A -> Ty] [x : A] [xs : List A] :
+of allNil [A : Ty] [P : A -> Ty] : nil .All P
+of (::#.All#List) [A : Ty] [P : A -> Ty] [x : A] [xs : List A] :
   P x & xs .All P -> (x :: xs) .All P
 
 
@@ -188,6 +188,6 @@ let xs ys E => ! xs .eq? ys E
 
 
 data (.Has#List) [A : Ty] : List A & A -> Ty
-| here [A : Ty] [xs : List A] [x : A] : (x :: xs) .Has x
-| (.there#.Has#List) [A : Ty] [xs : List A] [x y : A] :
+of here [A : Ty] [xs : List A] [x : A] : (x :: xs) .Has x
+of (.there#.Has#List) [A : Ty] [xs : List A] [x y : A] :
   xs .Has x -> (y :: xs) .Has x

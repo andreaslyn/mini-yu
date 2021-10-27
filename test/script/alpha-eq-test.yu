@@ -1,7 +1,7 @@
 
 data Nat : Ty
-| 0 : Nat
-| (+1#Nat) : Nat -> Nat
+of 0 : Nat
+of (+1#Nat) : Nat -> Nat
 
 val.. f1 : Nat -> Nat
 let => f1'
@@ -9,27 +9,27 @@ let => f1'
 val.. f1' : Nat -> Nat
 let => n =>
   case n
-  | 0 => +1 f1'(f2(0))
-  | +1 n => +1 f1'(f2(+1 n))
+  of 0 => +1 f1'(f2(0))
+  of +1 n => +1 f1'(f2(+1 n))
   end
 
 val.. f2 : Nat -> Nat
 let n =>
   case n
-  | 0 => +1 f2'(f1(0))
-  | (+1)(n) => +1 f2'(f1(+1 n))
+  of 0 => +1 f2'(f1(0))
+  of (+1)(n) => +1 f2'(f1(+1 n))
   end
 where
   val.. f2' : Nat -> Nat
   let n =>
     case n
-    | 0 => (+1)(f2'(f2(0)))
-    | +1(n) => +1(f2'(f1(+1(n))))
+    of 0 => (+1)(f2'(f2(0)))
+    of +1(n) => +1(f2'(f1(+1(n))))
     end
 end
 
 data Id : (A : Ty) & A & A -> Ty
-| refl : (A : Ty) & (a : A) -> Id A a a
+of refl : (A : Ty) & (a : A) -> Id A a a
 
 val f1-f2-Id : Id (Nat -> Nat) f1 f2
 let => refl (Nat -> Nat) f1
@@ -38,7 +38,7 @@ val test-fun-eta : (f : Nat -> Nat) -> Id (Nat -> Nat) ((x : Nat) => f(x)) f
 let (f) => refl (Nat -> Nat) f
 
 data ReflectNat : Nat -> Ty
-| reflectNat : (n : Nat) -> ReflectNat(n)
+of reflectNat : (n : Nat) -> ReflectNat(n)
 
 val id1 : Nat -> Nat
 let (n) => n

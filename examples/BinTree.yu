@@ -1,27 +1,27 @@
 import yu/prelude
-| (...)
+of (...)
 
 import Bin+ => yu/Bin+
-| Bin+
-| (...#Bin+)
+of Bin+
+of (...#Bin+)
 
 import Bin => yu/Bin
-| Bin
-| (...#Bin)
-| (...#Bin+)
+of Bin
+of (...#Bin)
+of (...#Bin+)
 
 import N => yu/Nat
 
 import Ord? => yu/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import L => yu/List
 
 
 data BinTree : (A : Ty) & Ordering? A -> Ty
-| leaf [A : Ty] [od : Ordering? A] : BinTree A od
-| (.node#BinTree) [A : Ty] [od : Ordering? A] :
+of leaf [A : Ty] [od : Ordering? A] : BinTree A od
+of (.node#BinTree) [A : Ty] [od : Ordering? A] :
   BinTree A od & A & BinTree A od -> BinTree A od
 
 
@@ -29,7 +29,7 @@ val (.member#BinTree) [A : Ty] [od : Ordering? A] : BinTree A od & A -> Bool
 let t0 a => member t0 no
 where
   \\ member t candidate: the invariant is
-  \\ if candicate = yes c then e > c, for any member e of t.
+  \\ if candicate = yes c then e > c, for any member e at t.
   val member : BinTree A od & ? A -> Bool
   let leaf no => false
   let leaf (yes x) => od .eq? a x
@@ -42,22 +42,22 @@ val (.insert#BinTree) [A : Ty] [od : Ordering? A] :
   BinTree A od & A -> BinTree A od
 let t0 a =>
   case insert t0 no
-  | yes t => t
-  | no => t0
+  of yes t => t
+  of no => t0
   end
 where
   val newNode : ? BinTree A od
   let => yes (leaf .node a leaf)
 
   \\ insert t candidate: the invariant is
-  \\ if candicate = yes c then e > c, for any member e of t.
+  \\ if candicate = yes c then e > c, for any member e at t.
   val insert : BinTree A od & ? A -> ? BinTree A od
   let leaf no => newNode
   let leaf (yes x) => if (od .eq? a x) .then no .else newNode
   let (l .node x r) candidate =>
     if (od .lt? a x)
-    .then (insert l candidate >>= of l => yes (l .node x r))
-    .else (insert r (yes x) >>= of r => yes (l .node x r))
+    .then (insert l candidate >>= at l => yes (l .node x r))
+    .else (insert r (yes x) >>= at r => yes (l .node x r))
 end
 
 
@@ -109,12 +109,12 @@ where
     if r
     .then (
       t1 $ t2 := create2 q;    \\ size t1 = q and size t2 = q + 1.N
-      \\ a tree of size n = 2q + 1.N and a tree of size n + 1.N = 2q + 2:
+      \\ a tree at size n = 2q + 1.N and a tree at size n + 1.N = 2q + 2:
       t1 .node a t1 $ t2 .node a t1
     )
     .else (
       t0 $ t1 := create2 (-- q); \\ size t0 = q and size t1 = q
-      \\ a tree of size n = 2q and a tree of size n + 1.N = 2q + 1:
+      \\ a tree at size n = 2q and a tree at size n + 1.N = 2q + 1:
       t1 .node a t0 $ t1 .node a t1
     )
 end

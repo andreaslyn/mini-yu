@@ -1,13 +1,13 @@
 import Bin1 => yu0/Bin1
-| (...)
+of (...)
 
 import Prod => yu0/Prod
-| (...)
+of (...)
 
 import Empty => yu0/Empty
 
 import Id => yu0/Id
-| (=#)
+of (=#)
 
 
 val not-reflexive-op< [a : Bin1] : not.Empty (a < a)

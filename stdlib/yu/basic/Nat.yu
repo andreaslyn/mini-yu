@@ -1,10 +1,10 @@
 import Fun => yu/basic/Fun
-| const
+of const
 
 
 data Nat : Ty
-| 0 : Nat
-| (++#Nat) : Nat -> Nat
+of 0 : Nat
+of (++#Nat) : Nat -> Nat
 
 
 val 1 : Nat

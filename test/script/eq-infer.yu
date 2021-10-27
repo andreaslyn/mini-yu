@@ -1,22 +1,22 @@
 
 data Nat : Ty
-| 0 : Nat
-| (++#Nat) : Nat -> Nat
+of 0 : Nat
+of (++#Nat) : Nat -> Nat
 
 data List : Ty -> Ty
-| nil[A : Ty] : List(A)
-| cons[A : Ty] : A & List A -> List(A)
+of nil[A : Ty] : List(A)
+of cons[A : Ty] : A & List A -> List(A)
 
 val eid : (A : Ty) & A -> A
 let A a => a
 
 data Id [A : Ty] : A & A -> Ty
-| refl [a : A] [A : Ty] : Id a a
+of refl [a : A] [A : Ty] : Id a a
 
 val test2 : List Nat
 let =>
   x := eid (List (Id 0 0)) nil;
   case x
-  | nil => cons 0 nil
-  | cons refl _ => cons (++ 0) nil
+  of nil => cons 0 nil
+  of cons refl _ => cons (++ 0) nil
   end

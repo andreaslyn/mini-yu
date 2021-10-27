@@ -1,8 +1,8 @@
 import yu/prelude
-| (...)
+of (...)
 
 import yu/parallel
-| parallel'
+of parallel'
 
 import L => yu/List
 
@@ -11,9 +11,9 @@ import N => yu/Nat
 import Str => yu/Str
 
 import yu/Lazy
-| Lazy
-| lazy
-| (...#Lazy)
+of Lazy
+of lazy
+of (...#Lazy)
 
 
 val printResult : Str || {} ->> {}
@@ -28,7 +28,7 @@ val 10000 : Nat
 let => 100 * 100
 
 
-val spawnLoop : Nat ->> List (Lazy of Str || {})
+val spawnLoop : Nat ->> List (Lazy at Str || {})
 let 0.N => nil.L
 let (++ n) =>
   parallel' (_ => n .println) :: spawnLoop n
@@ -52,4 +52,4 @@ let () =>
   printResult (t6 .force);
   printResult (t5 .force);
   printResult (t4 .force);
-  spawnLoop (10.N * 10.N) .foreach of t => printResult of t .force
+  spawnLoop (10.N * 10.N) .foreach at t => printResult at t .force

@@ -1,7 +1,7 @@
 import yu/Sum/Sum
 export
-| Sum
-| in1
-| in2
-| (||#Ty)
-| (...#Sum)
+of Sum
+of in1
+of in2
+of (||#Ty)
+of (...#Sum)

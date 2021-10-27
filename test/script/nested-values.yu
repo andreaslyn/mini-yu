@@ -1,7 +1,7 @@
 
 data Nat : Ty
-| 0 : Nat
-| (++#) : Nat -> Nat
+of 0 : Nat
+of (++#) : Nat -> Nat
 
 val test1 : (m : Nat) & (n : Nat) -> Nat
 let m n => const first (plusn m)
@@ -43,9 +43,9 @@ where
 end
 
 data ListOfX : Ty -> Ty
-| nilX[X : Ty] : ListOfX (X)
-| consX[X : Ty] : (x : X) -> ListOfX(X) -> ListOfX(X)
+of nilX[X : Ty] : ListOfX (X)
+of consX[X : Ty] : (x : X) -> ListOfX(X) -> ListOfX(X)
 
 data List : Ty -> Ty
-| nil[A : Ty] : List(A)
-| cons[A : Ty] : A & List(A) -> List(A)
+of nil[A : Ty] : List(A)
+of cons[A : Ty] : A & List(A) -> List(A)

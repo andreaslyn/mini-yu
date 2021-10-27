@@ -1,5 +1,5 @@
 import yu/prelude
-| (...)
+of (...)
 
 import N => yu/Nat
 
@@ -28,10 +28,10 @@ let ns => ns .map (.isEven)
 
 val count-evens : List Bool -> Nat
 let ns =>
-  ns .fold 0.N of b x =>
+  ns .fold 0.N at b x =>
     case b
-    | true => ++ x
-    | false => x
+    of true => ++ x
+    of false => x
     end
 
 val test : Nat

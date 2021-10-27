@@ -1,5 +1,5 @@
 import yu/prelude
-| (...)
+of (...)
 
 val main : {} ->> {}
 let () =>
@@ -23,15 +23,15 @@ let false => 'A .print
 val test-io-in-case2 : Bool ->> {}
 let b =>
   case b
-  | true => ()
-  | false => 'B .print
+  of true => ()
+  of false => 'B .print
   end
 
 val test-io-in-case3 : Bool ->> {}
 let (b) =>
   case b
-  | true => ()
-  | false => ()
+  of true => ()
+  of false => ()
   end
 
 val test-io-in-lambda1 : Bool ->> {}
@@ -40,8 +40,8 @@ let => _ => 'A .print
 val test-io-in-lambda2 : Bool ->> {}
 let => b =>
   case b
-  | true => 'A .print
-  | false => 'B .print
+  of true => 'A .print
+  of false => 'B .print
   end
 
 val test-io-in-lambda3 : Bool ->> {}
@@ -54,8 +54,8 @@ val test-pass-io-fun2 : Bool ->> {}
 let b =>
   take-io
     case b
-    | true => test-io-in-case1
-    | false => test-io-in-case3
+    of true => test-io-in-case1
+    of false => test-io-in-case3
     end
 
 val test-coerce-io-fun1 : {} ->> {}
@@ -87,7 +87,7 @@ end
 
 val test-io-lambda : Bool ->> {}
 let (b) =>
-  ((b : Bool) => case b | true => 'A .print | false => 'B .print end) b
+  ((b : Bool) => case b of true => 'A .print of false => 'B .print end) b
 
 val test-effect-type1 : Bool ->> Ty
 let true => 'A .print; Bool
@@ -95,14 +95,14 @@ let b => test-io-lambda b; {}
 
 val test-effect-type2 : (b : Bool) ->> Ty
 let (b) =>
-  Bool & test-effect-type1(b) -> of 'A .print; {}
+  Bool & test-effect-type1(b) -> at 'A .print; {}
 
 val test-effect-type3 : {} ->> {}
 let () =>
   f := ((x : const [B := (_) => Bool ->> Ty] Bool test-effect-type2) => x);
   case f true
-  | true => ()
-  | false => 'F .print; ()
+  of true => ()
+  of false => 'F .print; ()
   end
 where
   val const[A : Ty] [B : A -> Ty] : (a : A) -> B a -> A

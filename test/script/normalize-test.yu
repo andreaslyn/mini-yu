@@ -1,10 +1,10 @@
 
 data Id : (A : Ty) & A & A -> Ty
-| refl : (A : Ty) & (a : A) -> Id A a a
+of refl : (A : Ty) & (a : A) -> Id A a a
 
 data Nat : Ty
-| 0 : Nat
-| (++#Nat) : Nat -> Nat
+of 0 : Nat
+of (++#Nat) : Nat -> Nat
 
 val (+#) : Nat & Nat -> Nat
 let m 0 => m
@@ -70,8 +70,8 @@ let (++ m) n =>
 val (*#Nat) : Nat & Nat -> Nat
 let m n =>
   r := case n
-    | 0 => 0
-    | ++ n => m + m * n
+    of 0 => 0
+    of ++ n => m + m * n
     end;
   r
 
@@ -83,9 +83,9 @@ val test-id-trans-case :
   Id A x z
 let A x y z e1 e2 =>
   case e1
-  | refl _ _ =>
+  of refl _ _ =>
     case e2
-    | refl _ _ => refl A x
+    of refl _ _ => refl A x
     end
   end
 
@@ -95,20 +95,20 @@ val test-id-trans-assign :
 let _ _ _ _ e1 e2 =>
   refl X a := e1; refl Y b := e2; refl Y a
 
-data Empty : Ty | {}
+data Empty : Ty of {}
 
 val test-empty : Empty -> {}
 let (e) =>
-  case e | {} end
+  case e of {} end
 
 val test-empty' : Empty -> {}
 let (e) =>
   case e
-  | e => case e | {} end
+  of e => case e of {} end
   end
 
 data Any : Ty
-| any : (A : Ty) & A -> Any
+of any : (A : Ty) & A -> Any
 
 val test-escape : {}
 let =>

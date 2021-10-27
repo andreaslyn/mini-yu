@@ -1,95 +1,95 @@
 import yu/basic/Bool
 export
-| Bool
-| false
-| true
-| If
-| if
-| Then
-| (...#Bool)
-| (...#If)
-| (...#Then)
+of Bool
+of false
+of true
+of If
+of if
+of Then
+of (...#Bool)
+of (...#If)
+of (...#Then)
 
 import yu/basic/Empty
 export
-| Empty
-| (!#Ty)
-| (...#Empty)
+of Empty
+of (!#Ty)
+of (...#Empty)
 
 import yu/basic/Equal
 export
-| Equal
-| refl
-| (=#)
-| (!=#)
-| (...#Equal)
-| funext
+of Equal
+of refl
+of (=#)
+of (!=#)
+of (...#Equal)
+of funext
 
 import yu/basic/Fun
 export
-| id
-| (:!#Ty)
-| const
-| (@compose#)
-| flip
+of id
+of (:!#Ty)
+of const
+of (@compose#)
+of flip
 
 import yu/Nat
 export
-| Nat
-| (...#Nat)
+of Nat
+of (...#Nat)
 
 import yu/List
 export
-| List
-| (...#List)
+of List
+of (...#List)
 
 import yu/Option
 export
-| (...)
+of (...)
 
 import yu/Sum
 export
-| (...)
+of (...)
 
 import yu/DProd
 export
-| (...)
+of (...)
 
 import yu/Prod
 export
-| (...)
+of (...)
 
 import yu/Char/Type
 export
-| (...)
+of (...)
 
 import yu/Char
 export
-| (...#Char)
+of (...#Char)
 
 import yu/Str/Str
 export
-| Str
-| (...#Str)
+of Str
+of (...#Str)
 
 import yu/Str/StrStr
 export
-| (...#Bool)
-| (...#Char)
-| (...#Option)
-| (...#DProd)
-| (...#Nat)
-| (...#List)
+of (...#Bool)
+of (...#Char)
+of (...#Option)
+of (...#DProd)
+of (...#Nat)
+of (...#List)
 
 import yu/Str/Format
 export
-| (...#Str)
+of (...#Str)
 
 import yu/print
 export
-| (...#Str)
-| (...#Char)
-| (...#Str)
-| (...#Bool)
-| (...#Nat)
-| (...#List)
+of (...#Str)
+of (...#Char)
+of (...#Str)
+of (...#Bool)
+of (...#Nat)
+of (...#List)

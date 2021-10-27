@@ -1,11 +1,11 @@
 
 data Nat : Ty
-| 0 : Nat
-| (++#Nat) : Nat -> Nat
+of 0 : Nat
+of (++#Nat) : Nat -> Nat
 
 data.. U : Ty
-| nat : U
-| (:->#U) : (A : U) & (El A -> U) -> U
+of nat : U
+of (:->#U) : (A : U) & (El A -> U) -> U
 
 val El : U -> Ty
 let nat => Nat

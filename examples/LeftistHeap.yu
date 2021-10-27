@@ -1,26 +1,26 @@
 import yu/prelude
-| (...)
+of (...)
 
 import Ord? => yu/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import L => yu/List
 
 import DelayList1 => yu/DelayList1
-| DelayList1
-| (...#DelayList1)
+of DelayList1
+of (...#DelayList1)
 
 
 data LeftistHeap : (A : Ty) & Ordering? A -> Ty
-| leaf [A : Ty] [od : Ordering? A] : LeftistHeap A od
-| (.node#LeftistHeap) [A : Ty] [od : Ordering? A] :
+of leaf [A : Ty] [od : Ordering? A] : LeftistHeap A od
+of (.node#LeftistHeap) [A : Ty] [od : Ordering? A] :
   LeftistHeap A od & LeftistHeap A od & A -> LeftistHeap A od
 
 
 data (.IsNode#LeftistHeap) [A : Ty] [od : Ordering? A] :
   LeftistHeap A od -> Ty
-| isNode [A : Ty] [od : Ordering? A]
+of isNode [A : Ty] [od : Ordering? A]
     [a : LeftistHeap A od] [b : LeftistHeap A od] [x : A] :
   a .node b x .IsNode
 
@@ -83,7 +83,7 @@ let (a .node b _) => a .merge b
 val fromList [A : Ty] [od : Ordering? A] : List A -> LeftistHeap A od
 let list => heapList list .tournament (.merge)
 where
-  val heapList : List A -> DelayList1 of LeftistHeap A od
+  val heapList : List A -> DelayList1 at LeftistHeap A od
   let nil.L => one.DelayList1 leaf
-  let (x :: xs) => singleton x :: of _ => heapList xs
+  let (x :: xs) => singleton x :: at _ => heapList xs
 end

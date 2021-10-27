@@ -1,17 +1,17 @@
 
 import Bin1 => yu0/Bin1
-| Bin1
+of Bin1
 
 import Empty => yu0/Empty
-| (...)
+of (...)
 
 import Fun => yu0/Fun
-| (...)
+of (...)
 
 
 data Bin0 : Ty
-| 0 : Bin0
-| pos : Bin1 -> Bin0
+of 0 : Bin0
+of pos : Bin1 -> Bin0
 
 
 val 1 : Bin0
@@ -90,7 +90,7 @@ val ind
       ((x : Bin0) & P x -> P (++ x)) -> P b
 let 0 P a0 ai => a0
 let (pos b) P a0 ai =>
-  ind.Bin1 b (P @ pos) (ai 0 a0) of x a => ai (pos x) a
+  ind.Bin1 b (P @ pos) (ai 0 a0) at x a => ai (pos x) a
 
 
 val rec [A : Ty] : (b : Bin0) & A & (Bin0 & A -> A) -> A

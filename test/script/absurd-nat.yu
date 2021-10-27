@@ -1,13 +1,13 @@
 
 data Nat : Ty
-| 0 : Nat
-| (+1#Nat) : Nat -> Nat
+of 0 : Nat
+of (+1#Nat) : Nat -> Nat
 
 data NatId : Nat & Nat -> Ty
-| nat-refl : (n : Nat) -> NatId n n
+of nat-refl : (n : Nat) -> NatId n n
 
 data Empty : Ty
-| {}
+of {}
 
 val not-0-+1 : (n : Nat) & NatId 0 (+1 n) -> Nat
 let _ {}

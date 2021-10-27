@@ -1,5 +1,5 @@
 import yu/Stream/Stream
 export
-| Stream
-| nil
-| (...#Stream)
+of Stream
+of nil
+of (...#Stream)

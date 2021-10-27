@@ -1,5 +1,5 @@
 import yu/prelude
-| (...)
+of (...)
 
 import N => yu/Nat
 
@@ -40,7 +40,7 @@ where
 end
 
 val reverse [A : Ty] : List A -> List A
-let xs => xs .accum nil.L of a x => x :: a
+let xs => xs .accum nil.L at a x => x :: a
 
 val reverse' [A : Ty] : List A -> List A
 let => aux0 nil.L
@@ -57,14 +57,14 @@ val main : {} ->> {}
 let () =>
   xs := gen-list 10000000;
   case listFirstAndLast(reverse'(reverse'(xs)))
-  | 0.N $ 0.N => "0.N" .println
-  | _ $ 0.N => "1" .println
-  | 0.N $ _ => "2" .println
-  | _ $ _ => "3" .println
+  of 0.N $ 0.N => "0.N" .println
+  of _ $ 0.N => "1" .println
+  of 0.N $ _ => "2" .println
+  of _ $ _ => "3" .println
   end;
   case listFirstAndLast(reverse(reverse(xs)))
-  | 0.N $ 0.N => "0.N" .println
-  | _ $ 0.N => "1" .println
-  | 0.N $ _ => "2" .println
-  | _ $ _ => "3" .println
+  of 0.N $ 0.N => "0.N" .println
+  of _ $ 0.N => "1" .println
+  of 0.N $ _ => "2" .println
+  of _ $ _ => "3" .println
   end

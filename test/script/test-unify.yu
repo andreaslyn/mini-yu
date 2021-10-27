@@ -1,29 +1,29 @@
 import Bin0 => yu0/Bin0
-| Bin0
-| (...#Bin0)
+of Bin0
+of (...#Bin0)
 
 import Bin1 => yu0/Bin1
-| Bin1
-| (...#Bin1)
-| bin+
+of Bin1
+of (...#Bin1)
+of bin+
 
 import B1T => yu0/Bin1-theorems
-| (...)
+of (...)
 
 import Bool => yu0/Bool
-| (...)
+of (...)
 
 import List => yu0/List
-| (...)
+of (...)
 
 import Empty => yu0/Empty
-| (...)
+of (...)
 
 import Sigma => yu0/Sigma
-| (...)
+of (...)
 
 data Reflect : Bool -> Ty
-| reflect : (b : Bool) -> Reflect(b)
+of reflect : (b : Bool) -> Reflect(b)
 
 val test1 : (b : Bool) & Reflect(b) -> {}
 let true (reflect true) => ()
@@ -50,14 +50,14 @@ let (reflect(_)) true => ()
 let (reflect(_)) false => ()
 
 data Reflect' : Ty -> Ty
-| reflect' : (A : Ty) & A -> Reflect'(A)
+of reflect' : (A : Ty) & A -> Reflect'(A)
 
 val test1' : (Reflect'(Bool)) -> {}
 let (reflect' A false) => ()
 let (xs) => ()
 
 data Is-::[A : Ty] : List A -> Ty
-| is-::[A : Ty] : (a : A) & (as : List(A)) -> Is-::(a :: as)
+of is-::[A : Ty] : (a : A) & (as : List(A)) -> Is-::(a :: as)
 
 val head[A : Ty] : (as : List(A)) & Is-:: as -> A
 let (x :: _) (is-:: _ _) => x
@@ -100,7 +100,7 @@ let h (pos.Bin0(a)) (pos.Bin0(bin+(b :: bs))) =>
   step-op++op< a h
 
 data Is-Nonempty [A : Ty] : List(A) -> Ty
-| mk-Is-Nonempty [A : Ty] [x : A] [xs : List(A)] :
+of mk-Is-Nonempty [A : Ty] [x : A] [xs : List(A)] :
   Is-Nonempty(x :: xs)
 
 val absurd-sum-case [A : Ty] : &: Is-Nonempty[A := A] -> {}

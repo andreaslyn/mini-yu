@@ -1,13 +1,13 @@
 
 data DelayList1 : Ty -> Ty
-| one [A : Ty] : A -> DelayList1 A
-| (::#DelayList1) [A : Ty] : A & ({} -> DelayList1 A) -> DelayList1 A
+of one [A : Ty] : A -> DelayList1 A
+of (::#DelayList1) [A : Ty] : A & ({} -> DelayList1 A) -> DelayList1 A
 
 
 val (.map#DelayList1) [A : Ty] [B : Ty] :
   DelayList1 A & (A -> B) -> DelayList1 B
 let (one x) f => one (f x)
-let (x :: xs) f => f x :: of _ => xs () .map f
+let (x :: xs) f => f x :: at _ => xs () .map f
 
 
 val.. (.tournament#DelayList1) [A : Ty] : DelayList1 A & (A & A -> A) -> A
@@ -16,7 +16,7 @@ let (x :: as) f => pairHead (as ()) x .tournament f
 where
   val pairHead : DelayList1 A & A -> DelayList1 A
   let (one x) y => one (f x y)
-  let (x :: as) y => f x y :: of _ => pair (as ())
+  let (x :: as) y => f x y :: at _ => pair (as ())
 
   val pair : DelayList1 A -> DelayList1 A
   let (x :: as) => pairHead (as ()) x

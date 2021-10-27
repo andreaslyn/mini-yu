@@ -1,8 +1,8 @@
 import Prod => yu/Prod/Prod
 export
-| DProd
-| ($#)
-| (...#DProd)
-| pair=
-| (&&#Ty)
-| (<->#Ty)
+of DProd
+of ($#)
+of (...#DProd)
+of pair=
+of (&&#Ty)
+of (<->#Ty)

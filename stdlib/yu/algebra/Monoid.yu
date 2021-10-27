@@ -1,12 +1,12 @@
 import basic => yu/basic
-| (...)
+of (...)
 
 import ops => yu/algebra/operations
-| (...)
+of (...)
 
 
 data IsMonoid : Ty -> Ty
-| mkIs [A : Ty] :
+of mkIs [A : Ty] :
   (op : A & A -> A) &
   (unt : A) &
   IsAssociative op &
@@ -33,7 +33,7 @@ let (mkIs _ _ _ h) => h
 
 
 data Monoid : Ty
-| mk [A : Ty] : IsMonoid A -> Monoid
+of mk [A : Ty] : IsMonoid A -> Monoid
 
 
 val (.Carrier#Monoid) : Monoid -> Ty

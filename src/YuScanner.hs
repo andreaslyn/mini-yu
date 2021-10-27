@@ -45,6 +45,7 @@ data TokType =
   | TokValDotDot
   | TokCase
   | TokOf
+  | TokAt
   | TokTy
   | TokAmp
   | TokBar
@@ -98,6 +99,7 @@ tokTypeString t =
     TokValDotDot -> "val.."
     TokCase -> "case"
     TokOf -> "of"
+    TokAt -> "at"
     TokTy -> "Ty"
     TokAmp -> "&"
     TokBar -> "|"
@@ -228,6 +230,7 @@ makeWordTok s lo
   | s == "->>" = return (tok TokDashGreaterIo lo)
   | s == "case" = return (tok TokCase lo)
   | s == "of" = return (tok TokOf lo)
+  | s == "at" = return (tok TokAt lo)
   | s == "=>" = return (tok TokEqGreater lo)
   | isOp1Char (head s) = return (tok (TokOp1 s) lo)
   | isOp2Char (head s) = return (tok (TokOp2 s) lo)

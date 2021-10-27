@@ -1,12 +1,12 @@
 import Eq => yu/basic/Equal
-| (=#)
+of (=#)
 
 import Bool => yu/basic/Bool
 export
-| (...)
+of (...)
 
 import Ord => yu/Order/Order
-| Order
+of Order
 
 
 val (?false#Bool) : Bool -> Ty

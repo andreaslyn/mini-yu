@@ -1,20 +1,20 @@
 import Fun => yu0/Fun
-| id
-| (@#)
+of id
+of (@#)
 
 import Id => yu0/Id
-| (=#)
+of (=#)
 
 import Sigma => yu0/Sigma
-| (&:#Ty)
-| ($#)
+of (&:#Ty)
+of ($#)
 
 import N => yu0/Nat
-| Nat
-| (...#Nat)
+of Nat
+of (...#Nat)
 
 import List => yu0/List
-| (...)
+of (...)
 
 val id2[A : Ty] : A -> A -> A
 let =>
@@ -23,10 +23,10 @@ let =>
 
 val evens : List(Nat) -> List(Nat)
 let (xs) =>
-  fold xs nil of n m =>
+  fold xs nil at n m =>
     case m
-    | nil => (::.yu0/List) n nil
-    | _ => (::.List#List.List) n m
+    of nil => (::.yu0/List) n nil
+    of _ => (::.List#List.List) n m
     end
 
 val fold' [A : Ty] [B : Ty] : (A & B -> B) & List(A) & B -> B
@@ -36,8 +36,8 @@ val evens' : List(Nat) -> List(Nat)
 let (xs) =>
   r := fold'(n m =>
     case m
-    | nil => (::) n nil
-    | _ => (::) n m
+    of nil => (::) n nil
+    of _ => (::) n m
     end) xs nil;
   r
 
@@ -45,18 +45,18 @@ val test1 : Nat -> &: id[A := Ty]
 let (n) => IsArg n n $ isArg n n 1.Id
 
 data IsArg : Nat & Nat -> Ty
-| isArg : (m : Nat) & (n : Nat) & n = m -> IsArg m n
+of isArg : (m : Nat) & (n : Nat) & n = m -> IsArg m n
 
 val.. list-len [A : Ty] : List(A) -> Nat
 let =>
   tl := ((f : List(A) -> Nat) (xs : List(A)) =>
     case xs
-    | nil => 0.N
-    | _ :: xs => f(xs)
+    of nil => 0.N
+    of _ :: xs => f(xs)
     end);
   aux := ((xs : List(A)) =>
     case xs
-    | nil => 0.N
-    | (::) x xs => tl ((++) @ list-len) ((::) x xs)
+    of nil => 0.N
+    of (::) x xs => tl ((++) @ list-len) ((::) x xs)
     end);
   aux

@@ -4,8 +4,8 @@ let a A => a
 
 
 data Nat : Ty
-| 0 : Nat
-| (++#Nat) : Nat -> Nat
+of 0 : Nat
+of (++#Nat) : Nat -> Nat
 
 
 val (+#Nat) : Nat & Nat -> Nat
@@ -27,7 +27,7 @@ let x => test-id(x)
 
 
 data (&&#Ty) : Ty & Ty -> Ty
-| ($#) [A : Ty] [B : Ty] : A & B -> A && B
+of ($#) [A : Ty] [B : Ty] : A & B -> A && B
 
 
 val use-test-pair : Const-Unit (0 + ++ 0) && Const-Unit (++ 0 + ++ 0) -> Const-Unit 0

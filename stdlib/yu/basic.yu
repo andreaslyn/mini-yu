@@ -1,56 +1,56 @@
 import yu/basic/Bool
 export
-| Bool
-| false
-| true
-| If
-| if
-| Then
-| (...#Bool)
-| (...#If)
-| (...#Then)
+of Bool
+of false
+of true
+of If
+of if
+of Then
+of (...#Bool)
+of (...#If)
+of (...#Then)
 
 import yu/basic/Empty
 export
-| Empty
-| (!#Ty)
-| (...#Empty)
+of Empty
+of (!#Ty)
+of (...#Empty)
 
 import yu/basic/Equal
 export
-| Equal
-| refl
-| (=#)
-| (!=#)
-| (...#Equal)
-| funext
+of Equal
+of refl
+of (=#)
+of (!=#)
+of (...#Equal)
+of funext
 
 import yu/basic/Fun
 export
-| id
-| (:!#Ty)
-| const
-| (@compose#)
-| flip
+of id
+of (:!#Ty)
+of const
+of (@compose#)
+of flip
 
 import yu/basic/List
 export
-| List
-| nil
-| (...#List)
+of List
+of nil
+of (...#List)
 
 import yu/basic/Nat
 export
-| Nat
-| (...#Nat)
-| 0
-| 1
-| 2
-| 3
-| 4
-| 5
-| 6
-| 7
-| 8
-| 9
-| 10
+of Nat
+of (...#Nat)
+of 0
+of 1
+of 2
+of 3
+of 4
+of 5
+of 6
+of 7
+of 8
+of 9
+of 10

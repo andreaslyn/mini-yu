@@ -1,15 +1,15 @@
 import yu/prelude
-| (...)
+of (...)
 
 import Ord? => yu/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import L => yu/List
 
 
 data BinomialTree : (A : Ty) & Ordering? A -> Ty
-| node [A : Ty] [od : Ordering? A] :
+of node [A : Ty] [od : Ordering? A] :
   A & List (BinomialTree A od) -> BinomialTree A od
 
 
@@ -27,7 +27,7 @@ let (node x1 c1) (node x2 c2) =>
 
 
 data BinomialHeap : (A : Ty) & Ordering? A -> Ty
-| mk [A : Ty] [od : Ordering? A] :
+of mk [A : Ty] [od : Ordering? A] :
   List (BinomialTree A od) -> BinomialHeap A od
 
 
@@ -72,17 +72,17 @@ let (mk ts1) (mk ts2) =>
 
 
 val deleteMin [A : Ty] [od : Ordering? A] :
-  (ts : List of BinomialTree A od) ->
+  (ts : List at BinomialTree A od) ->
   (ts = nil.L [A := BinomialTree A od]) ||
   BinomialTree A od && List (BinomialTree A od)
 let nil.L => in1(refl)
 let (t1 :: ts1) =>
   case deleteMin ts1
-  | in1 refl => in2 (t1 $ nil.L)
-  | in2 (t2 $ ts2) =>
+  of in1 refl => in2 (t1 $ nil.L)
+  of in2 (t2 $ ts2) =>
     if (od .le? (t1 .root) (t2 .root))
     .then (in2 (t1 $ ts1))
-    .else (in2 (t2 $ of t1 :: ts2))
+    .else (in2 (t2 $ at t1 :: ts2))
   end
 
 
@@ -90,7 +90,7 @@ val (.deleteMin#BinomialHeap) [A : Ty] [od : Ordering? A] :
   BinomialHeap A od -> BinomialHeap A od
 let (mk ts) =>
   case deleteMin ts
-  | in1 refl => mk nil.L
-  | in2 (node _ ts1 $ ts2) => 
+  of in1 refl => mk nil.L
+  of in2 (node _ ts1 $ ts2) => 
     mk (merge (ts1 .rev) ts2)
   end

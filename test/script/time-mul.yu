@@ -1,7 +1,7 @@
 
 data Nat : Ty
-| 0 : Nat
-| (+#Nat) : Nat -> Nat
+of 0 : Nat
+of (+#Nat) : Nat -> Nat
 
 val 1 : Nat
 let => +(0)
@@ -42,7 +42,7 @@ let m 0 => 0
 let m (+ n) => plus (mul m n) m
 
 data NatId : Nat & Nat -> Ty
-| refl[n : Nat] : NatId n n
+of refl[n : Nat] : NatId n n
 
 val test-eq : NatId (mul 10 (mul 9 10)) (mul 10 (mul 10 9))
 let => refl

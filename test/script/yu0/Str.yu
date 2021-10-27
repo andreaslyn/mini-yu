@@ -1,17 +1,17 @@
 
 import List => yu0/List
-| List
-| (...#List)
+of List
+of (...#List)
 
 import Char => yu0/Char
-| Char
+of Char
 
 import N => yu0/Nat
-| Nat
-| (...#Nat)
+of Nat
+of (...#Nat)
 
 import B => yu0/Bool
-| Bool
+of Bool
 
 val Str : Ty
 let => List(Char)

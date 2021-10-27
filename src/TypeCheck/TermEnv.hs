@@ -1328,7 +1328,7 @@ writeCaseTree ps (CaseEmpty idx) = do
     Right e -> writePreTerm e
   incIndent
   newLine
-  writeStr "| {}"
+  writeStr "of {}"
   newLine
   writeStr "end"
   decIndent
@@ -1344,7 +1344,7 @@ writeCaseTree ps (CaseNode idx m d) = do
     Nothing -> return ()
     Just (_vs, ct) -> do
       newLine
-      writeStr "| _ => "
+      writeStr "of _ => "
       writeCaseTree ps' ct
   newLine
   writeStr "end"
@@ -1355,7 +1355,7 @@ writeCaseTree ps (CaseNode idx m d) = do
       (VarId, ([Var], CaseTree)) -> ToString ()
     writeCase ps' (i, (_, ct)) = do
       newLine
-      writeStr "| "
+      writeStr "of "
       rm <- liftTT Env.getRefMap
       im <- liftTT Env.getImplicitMap
       let t = Env.forceLookupRefMap i rm
@@ -1453,7 +1453,7 @@ writeCaseTree ps (CaseUnit idx (_vs, ct)) = do
     Right e -> writePreTerm e
   incIndent
   newLine
-  writeStr "| () => "
+  writeStr "of () => "
   writeCaseTree ps' ct
   newLine
   writeStr "end"

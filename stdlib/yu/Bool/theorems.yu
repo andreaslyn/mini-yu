@@ -1,17 +1,17 @@
 import Bool => yu/Bool/Bool
-| (...)
+of (...)
 
 import basic => yu/basic
-| (...)
+of (...)
 
 import Prod => yu/Prod/Prod
-| ($#)
-| (...#Ty)
+of ($#)
+of (...#Ty)
 
 import Sum => yu/Sum/Sum
-| in1
-| in2
-| (||#Ty)
+of in1
+of in2
+of (||#Ty)
 
 
 val true!=false : true != false
@@ -48,8 +48,8 @@ let [a := false] [b := false] => refl
 val op<->ToOp= [b c : Bool] : ? b <-> ? c -> b = c
 let [b := true] [c := true](_) => refl
 let [b := false] [c := false](_) => refl
-let [b := true] [c := false](f $ _) => case f refl | {} end
-let [b := false] [c := true](_ $ g) => case g refl | {} end
+let [b := true] [c := false](f $ _) => case f refl of {} end
+let [b := false] [c := true](_ $ g) => case g refl of {} end
 
 
 val op=ToOp<-> [b c : Bool] : b = c -> ? b <-> ? c
@@ -63,7 +63,7 @@ let [b := false] _ => refl
 
 val pullOutOp! [b : Bool] : ? ! b -> ! ? b
 let [b := true] {}
-let [b := false] _ => e => case e | {} end
+let [b := false] _ => e => case e of {} end
 
 
 val op!ToOp?false [b : Bool] : ? ! b -> ?false b

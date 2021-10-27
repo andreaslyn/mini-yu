@@ -1,13 +1,13 @@
 
 data Id : (A : Ty) & A & A -> Ty
-| refl : (A : Ty) & (x : A) -> Id A x x
+of refl : (A : Ty) & (x : A) -> Id A x x
 
 data Nat : Ty
-| 0 : Nat
-| (+1#Nat) : Nat -> Nat
+of 0 : Nat
+of (+1#Nat) : Nat -> Nat
 
 data Vec : Ty -> Nat -> Ty
-| vnil : (A : Ty) -> Vec(A)(0)
+of vnil : (A : Ty) -> Vec(A)(0)
 
-val test-absurd : (n : Nat) & Id Ty (Vec Nat of +1 0) (Vec Nat of +1 +1 n) -> Nat
+val test-absurd : (n : Nat) & Id Ty (Vec Nat at +1 0) (Vec Nat at +1 +1 n) -> Nat
 let n {}

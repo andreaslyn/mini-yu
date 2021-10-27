@@ -1,39 +1,39 @@
 import CharType => yu/Char/Type
 export
-| (...)
+of (...)
 
 import Ord => yu/Order/Order
-| Order
-| (...#Order)
+of Order
+of (...#Order)
 
 import basic => yu/basic
-| Bool
-| (=#)
+of Bool
+of (=#)
 
 import relation? => yu/relation?/relation?
-| (...#Bool)
+of (...#Bool)
 
 import Eq? => yu/Equivalence?/Equivalence?
-| Equivalence?
-| (...#Equivalence?)
+of Equivalence?
+of (...#Equivalence?)
 
 import Ord? => yu/Ordering?/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import Ord?-th => yu/Ordering?/theorems
 
 data (.IsDigit#Char) : Char -> Ty
-| 0IsDigit : '0 .IsDigit
-| 1IsDigit : '1 .IsDigit
-| 2IsDigit : '2 .IsDigit
-| 3IsDigit : '3 .IsDigit
-| 4IsDigit : '4 .IsDigit
-| 5IsDigit : '5 .IsDigit
-| 6IsDigit : '6 .IsDigit
-| 7IsDigit : '7 .IsDigit
-| 8IsDigit : '8 .IsDigit
-| 9IsDigit : '9 .IsDigit
+of 0IsDigit : '0 .IsDigit
+of 1IsDigit : '1 .IsDigit
+of 2IsDigit : '2 .IsDigit
+of 3IsDigit : '3 .IsDigit
+of 4IsDigit : '4 .IsDigit
+of 5IsDigit : '5 .IsDigit
+of 6IsDigit : '6 .IsDigit
+of 7IsDigit : '7 .IsDigit
+of 8IsDigit : '8 .IsDigit
+of 9IsDigit : '9 .IsDigit
 
 
 val (.toUpper#Char) : Char -> Char

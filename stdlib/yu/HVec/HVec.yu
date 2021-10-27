@@ -1,19 +1,19 @@
 import Vec => yu/Vec/Vec
-| Vec
-| (...#Vec)
+of Vec
+of (...#Vec)
 
 import N => yu/Nat/Nat
-| Nat
-| (...#Nat)
+of Nat
+of (...#Nat)
 
 import B => yu/Bool/Bool
-| Bool
-| (...#Bool)
+of Bool
+of (...#Bool)
 
 
 data HVec [A : Ty] [n : Nat] : Vec n A & (A -> Ty) -> Ty
-| nil [A : Ty] [P : A -> Ty] : HVec nil.Vec P
-| (::#HVec) [A : Ty] [P : A -> Ty] [n : Nat] [x : A] [xs : Vec n A] :
+of nil [A : Ty] [P : A -> Ty] : HVec nil.Vec P
+of (::#HVec) [A : Ty] [P : A -> Ty] [n : Nat] [x : A] [xs : Vec n A] :
   P x & HVec xs P -> HVec (x :: xs) P
 
 

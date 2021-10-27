@@ -1,15 +1,15 @@
 import yu/prelude
-| (...)
+of (...)
 
 import L => yu/List
 
 import Bin => yu/Bin
-| Bin
-| (...#Bin)
+of Bin
+of (...#Bin)
 
 
 val gen-list : Bin -> List Bin
-let b => b .rec (0.Bin :: nil.L) of b x => ++ b :: x
+let b => b .rec (0.Bin :: nil.L) at b x => ++ b :: x
 
 val 100 : Bin
 let => 10.Bin * 10.Bin
@@ -27,7 +27,7 @@ val 1000000 : Bin
 let => 100000 * 10.Bin
 
 val rev [A : Ty] : List A -> List A
-let xs => xs .accum nil.L of a x => x :: a
+let xs => xs .accum nil.L at a x => x :: a
 
 val rev' [A : Ty] : List A -> List A
 let => aux0 nil.L
@@ -44,6 +44,6 @@ val main : {} ->> {}
 let () =>
   xs := gen-list 1000000;
   case rev' (rev' xs)
-  | nil.L => "0" .println
-  | _ => "1" .println
+  of nil.L => "0" .println
+  of _ => "1" .println
   end

@@ -1,11 +1,11 @@
 
 import N => yu0/Nat
-| (...#Nat)
-| Nat
+of (...#Nat)
+of Nat
 
 data List : Ty -> Ty
-| nil [A : Ty] : List A
-| (::#List) [A : Ty] : A & List(A) -> List(A)
+of nil [A : Ty] : List A
+of (::#List) [A : Ty] : A & List(A) -> List(A)
 
 val len [A : Ty] : List(A) -> Nat
 let (nil) => 0.N

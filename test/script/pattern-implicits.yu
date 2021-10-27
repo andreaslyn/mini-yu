@@ -1,18 +1,18 @@
 
 data.. Nat : Ty
-| 0 : Nat
-| p[n : Nat] : Nat
+of 0 : Nat
+of p[n : Nat] : Nat
 
 data.. Vec[n : Nat] : Ty -> Ty
-| nil[A : Ty] : Vec[n := 0](A)
-| cons[x : Nat] [A : Ty] [a : A] [t : Vec[n := x](A)] : Vec[n := p[n := x]](A)
+of nil[A : Ty] : Vec[n := 0](A)
+of cons[x : Nat] [A : Ty] [a : A] [t : Vec[n := x](A)] : Vec[n := p[n := x]](A)
 
 val head2[A : Ty] [n : Nat] : Vec[n := p[n := n]](A) -> A
 let (cons[t := cons[a := a']] [a := a] [x := p[n := _]]) => a'
 let (cons[a := a] [x := 0]) => a
 
 data Id[a2 : A] [a1 : A] [A : Ty] : Ty
-| refl[A : Ty] [a : A] : Id[a2 := a] [a1 := a]
+of refl[A : Ty] [a : A] : Id[a2 := a] [a1 := a]
 
 val 1 : Nat
 let => p[n := 0]

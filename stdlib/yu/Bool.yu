@@ -1,17 +1,17 @@
 import yu/Bool/Bool
 export
-| Bool
-| false
-| true
-| If
-| if
-| Then
-| (...#Bool)
-| (...#If)
-| (...#Then)
+of Bool
+of false
+of true
+of If
+of if
+of Then
+of (...#Bool)
+of (...#If)
+of (...#Then)
 
 import yu/Ordering?/Bool
 export
-| ordering?
-| equivalence?
-| (...#Bool)
+of ordering?
+of equivalence?
+of (...#Bool)

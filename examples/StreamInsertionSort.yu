@@ -1,13 +1,13 @@
 import yu/prelude
-| (...)
+of (...)
 
 import Stream => yu/Stream
-| Stream
-| (...#Stream)
+of Stream
+of (...#Stream)
 
 import Ord? => yu/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import N => yu/Nat
 
@@ -22,7 +22,7 @@ where
 end
 
 
-val test : of
+val test : at
   a := 3.N :: 2.N :: 5.N :: 3.N :: 1.N :: nil.Stream;
   b := 1.N :: 2.N :: 3.N :: 3.N :: 5.N :: nil.Stream;
   a .insertionSort ordering?.N = b

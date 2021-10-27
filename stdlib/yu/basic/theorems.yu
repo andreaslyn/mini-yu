@@ -1,10 +1,10 @@
 import Fun => yu/basic/Fun
-| (@compose#)
-| id
+of (@compose#)
+of id
 
 import Eq => yu/basic/Equal
-| (=#)
-| refl
+of (=#)
+of refl
 
 
 val idLeftIdentityOp@compose [A : Ty] [B : Ty]

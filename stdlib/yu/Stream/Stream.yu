@@ -1,15 +1,15 @@
 import N => yu/Nat/Nat
-| Nat
-| (...#Nat)
+of Nat
+of (...#Nat)
 
 import L => yu/List/List
-| List
-| (...#List)
+of List
+of (...#List)
 
 
 data Stream : Ty -> Ty
-| nil [A : Ty] : Stream A
-| (::#Stream) [A : Ty] : A & ([] -> Stream A) -> Stream A
+of nil [A : Ty] : Stream A
+of (::#Stream) [A : Ty] : A & ([] -> Stream A) -> Stream A
 
 
 val (:+:#Stream) [A : Ty] : Stream A & ([] -> Stream A) -> Stream A

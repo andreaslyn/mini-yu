@@ -1,25 +1,25 @@
 
 import Id => yu0/Id
-| (=#)
-| (<>#)
-| ap=
-| trans
-| resp
-| sym
+of (=#)
+of (<>#)
+of ap=
+of trans
+of resp
+of sym
 
 import Empty => yu0/Empty
-| not
+of not
 
 import Pr => yu0/Prod
-| (...)
+of (...)
 
 import B => yu0/Bool
-| (...#Bool)
-| Bool
+of (...#Bool)
+of Bool
 
 data Nat : Ty
-| 0 : Nat
-| (++#Nat) : Nat -> Nat
+of 0 : Nat
+of (++#Nat) : Nat -> Nat
 
 val 1 : Nat
 let => ++ 0
@@ -61,7 +61,7 @@ let m 0 => m
 let (++ m) (++ n) => m - n
 
 val succ-<>-0 : (n : Nat) -> ++ n <> 0
-let n => p => case p | {} end
+let n => p => case p of {} end
 
 val plus0 : (n : Nat) -> n = 0 + n
 let 0 => 1.Id
@@ -99,8 +99,8 @@ val plus-plus-swap-12
   : (k : Nat) & (m : Nat) & (n : Nat) ->
     k + (m + n) = m + (k + n)
 let k m n =>
-  resp (plus-assoc k m n) (x => x = r) of
-  rew.Id (plus-comm k m) (x => x + n = r) of
+  resp (plus-assoc k m n) (x => x = r) at
+  rew.Id (plus-comm k m) (x => x + n = r) at
   rew.Id (plus-assoc m k n) (x => x = r) 1.Id
 where
   val r : Nat
@@ -205,8 +205,8 @@ let (++ m) (++ n) => m =n n
 let _ _ => false.B
 
 data (<#Nat) : Nat & Nat -> Ty
-| 0<++ : (n : Nat) -> 0 < ++ n
-| rec< : (m : Nat) & (n : Nat) -> m < n -> ++ m < ++ n
+of 0<++ : (n : Nat) -> 0 < ++ n
+of rec< : (m : Nat) & (n : Nat) -> m < n -> ++ m < ++ n
 
 val (>#Nat) : Nat & Nat -> Ty
 let m n => n < m

@@ -1,14 +1,14 @@
 
 import B+ => yu0/BinNat+
-| Bin+
+of Bin+
 
 import N => yu0/Nat
-| Nat
-| (...#Nat)
+of Nat
+of (...#Nat)
 
 data Bin : Ty
-| 0 : Bin
-| pos : Bin+ -> Bin
+of 0 : Bin
+of pos : Bin+ -> Bin
 
 val 1 : Bin
 let => pos(1.B+)

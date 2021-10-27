@@ -1,38 +1,38 @@
 import S => yu/Str/Str
-| Str
-| (...#Str)
+of Str
+of (...#Str)
 
 import L => yu/List/List
-| List
-| (...#List)
+of List
+of (...#List)
 
 import C => yu/Char/Char
-| Char
+of Char
 
 import N => yu/Nat/Nat
-| Nat
+of Nat
 
 import B => yu/Bool/Bool
-| Bool
+of Bool
 
 import SS => yu/Str/StrStr
-| (.str#Nat)
-| (.str#Bool)
-| (.str#Char)
+of (.str#Nat)
+of (.str#Bool)
+of (.str#Char)
 
 import basic => yu/basic
-| (@compose#)
-| id
+of (@compose#)
+of id
 
 
 data PreFormat : Ty
-| natPreFormat : PreFormat -> PreFormat
-| strPreFormat : PreFormat -> PreFormat
-| charPreFormat : PreFormat -> PreFormat
-| boolPreFormat : PreFormat -> PreFormat
-| constPreFormat : Char & PreFormat -> PreFormat
-| nilPreFormat : PreFormat
-| errorPreFormat : PreFormat
+of natPreFormat : PreFormat -> PreFormat
+of strPreFormat : PreFormat -> PreFormat
+of charPreFormat : PreFormat -> PreFormat
+of boolPreFormat : PreFormat -> PreFormat
+of constPreFormat : Char & PreFormat -> PreFormat
+of nilPreFormat : PreFormat
+of errorPreFormat : PreFormat
 
 
 val (.map#PreFormat) :

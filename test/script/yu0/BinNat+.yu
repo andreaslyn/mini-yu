@@ -1,28 +1,28 @@
 
 import List => yu0/List
-| List
-| nil
-| (...#List)
+of List
+of nil
+of (...#List)
 
 import N => yu0/Nat
-| Nat
-| (...#Nat)
+of Nat
+of (...#Nat)
 
 import B => yu0/Bool
-| Bool
-| true
-| false
+of Bool
+of true
+of false
 
 import Fun => yu0/Fun
-| (@#)
+of (@#)
 
 import Id => yu0/Id
-| (=#)
-| rew
-| trans
+of (=#)
+of rew
+of trans
 
 data Bin+ : Ty
-| bin+ : List(Bool) -> Bin+
+of bin+ : List(Bool) -> Bin+
 
 val list-Bin+ : Bin+ -> List(Bool)
 let (bin+(bs)) => bs
@@ -74,7 +74,7 @@ val inc : Bin+ -> Bin+
 let => n => plus n 1
 
 val mul : Bin+ & Bin+ -> Bin+
-let => x y => bin+ of aux-mul (list-Bin+ x) (list-Bin+ y)
+let => x y => bin+ at aux-mul (list-Bin+ x) (list-Bin+ y)
 
 val aux-mul : List(Bool) & List(Bool) -> List(Bool)
 let bs1 nil => bs1

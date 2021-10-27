@@ -1,7 +1,7 @@
 import yu/Option/Option
 export
-| Option
-| no
-| yes
-| (...#Option)
-| (?#Ty)
+of Option
+of no
+of yes
+of (...#Option)
+of (?#Ty)

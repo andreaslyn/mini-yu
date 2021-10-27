@@ -1,20 +1,20 @@
 
 data Test : Ty
-| t1 : const Test t2 Test
-| t2 : const Test t3 Test
-| t3 : const Nat (++ 0) Test
+of t1 : const Test t2 Test
+of t2 : const Test t3 Test
+of t3 : const Nat (++ 0) Test
 
 val const : (A : Ty) & A & Ty -> Ty
 let A _ X => X
 
 data Nat : Ty
-| (++#Nat) : const Ty Test Nat -> const Nat 0 Nat
-| 0 : Nat
+of (++#Nat) : const Ty Test Nat -> const Nat 0 Nat
+of 0 : Nat
 
 val rec-match : Rec -> Rec
 let (rec1(r)) => rec1(rec-match(r))
 let (rec2(n)) => rec1(rec2(n))
 
 data Rec : Ty
-| rec1 : Rec -> Rec
-| rec2 : Nat -> Rec
+of rec1 : Rec -> Rec
+of rec2 : Nat -> Rec

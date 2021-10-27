@@ -1,14 +1,14 @@
 
 data LazyNat : Ty
-| 0 : [] -> LazyNat
-| p : [] -> [] -> LazyNat -> [] -> [] -> LazyNat
+of 0 : [] -> LazyNat
+of p : [] -> [] -> LazyNat -> [] -> [] -> LazyNat
 
 val plus : LazyNat & LazyNat -> LazyNat
 let m 0 => m
 let m (p n) => p (plus m n)
 
 data LazyId [A : Ty] : A -> [] -> A -> Ty
-| refl [a : A] [A : Ty] : [] -> LazyId a a
+of refl [a : A] [A : Ty] : [] -> LazyId a a
 
 val 1 : LazyNat
 let => p 0
@@ -25,5 +25,5 @@ let => refl
 val test-lazy-absurd : LazyId 2 3 -> (A : Ty) & A -> A
 let {}
 
-val test : case 0 [] | 0 => Ty | p _ => {} end
+val test : case 0 [] of 0 => Ty of p _ => {} end
 let => {}

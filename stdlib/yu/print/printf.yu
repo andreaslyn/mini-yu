@@ -1,21 +1,21 @@
 import basic => yu/basic
-| Nat
-| Bool
+of Nat
+of Bool
 
 import C => yu/Char/Type
-| Char
+of Char
 
 import S => yu/Str/Str
-| Str
+of Str
 
 import print => yu/print/print
-| (...#Str)
-| (...#Nat)
-| (...#Char)
-| (...#Bool)
+of (...#Str)
+of (...#Nat)
+of (...#Char)
+of (...#Bool)
 
 import Fmt => yu/Str/Format
-| (...#Str)
+of (...#Str)
 
 
 val (.Printf#PreFormat.Fmt) : PreFormat.Fmt -> Ty

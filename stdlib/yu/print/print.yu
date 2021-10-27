@@ -1,21 +1,21 @@
 import basic => yu/basic
-| Bool
-| Nat
-| List
-| (::#List)
+of Bool
+of Nat
+of List
+of (::#List)
 
 import C => yu/Char/Type
-| Char
+of Char
 
 import S => yu/Str/Str
-| Str
-| (...#Str)
+of Str
+of (...#Str)
 
 import SS => yu/Str/StrStr
-| (.str#Bool)
-| (.str#Nat)
-| (.str#List)
-| (.str#Char)
+of (.str#Bool)
+of (.str#Nat)
+of (.str#List)
+of (.str#Char)
 
 
 extern (.print#Char) : Char ->> {}

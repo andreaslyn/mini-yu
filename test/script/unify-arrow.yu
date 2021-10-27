@@ -1,6 +1,6 @@
 
 data Id : Ty & Ty -> Ty
-| refl : (A : Ty) -> Id A A
+of refl : (A : Ty) -> Id A A
 
 \\val error-bound : (X : Ty, Id((A : Ty) -> A, Ty -> X)) -> {}
 \\let (X, refl(_)) => []
@@ -22,15 +22,15 @@ val hard-absurd :
 let X Y {}
 
 data Bool : Ty
-| true : Bool
-| false : Bool
+of true : Bool
+of false : Bool
 
 val ite[A : Ty] : Bool & ({} -> A) & ({} -> A) -> A
 let true f _ => f ()
 let false _ g => g ()
 
 data Wrap[A : Ty] : A -> Ty
-| wrap[A : Ty] : (a : A) -> Wrap(a)
+of wrap[A : Ty] : (a : A) -> Wrap(a)
 
 val harder1-ok :
   (X : Ty) & (Y : Ty) & (b : Bool) &

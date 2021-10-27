@@ -1,11 +1,11 @@
 
 data (*#Ty) : Ty & Ty -> Ty
-| ($#) [A B : Ty] : A & B -> A * B
+of ($#) [A B : Ty] : A & B -> A * B
 
 
 data Bool : Ty
-| ff : Bool
-| tt : Bool
+of ff : Bool
+of tt : Bool
 
 
 val (*#Bool) : Bool & ([] -> Bool) -> Bool
@@ -14,7 +14,7 @@ let tt b => b
 
 
 data (=#)[A B : Ty] : A & B -> Ty
-| refl [A : Ty] [a : A] : a = a
+of refl [A : Ty] [a : A] : a = a
 
 
 val (.op*IsCommutative#Bool) : (a b : Bool) -> a * b = b * a

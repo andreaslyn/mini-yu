@@ -1,7 +1,7 @@
 
 
 data Lazy : Ty -> Ty
-| lazy [A : Ty] : ([] -> A) -> Lazy A
+of lazy [A : Ty] : ([] -> A) -> Lazy A
 
 
 val (.force#Lazy) [A : Ty] : Lazy A -> A

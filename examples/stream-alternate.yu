@@ -1,11 +1,11 @@
 import yu/prelude
-| (...)
+of (...)
 
 import N => yu/Nat
 
 import Stream => yu/Stream
-| Stream
-| (...#Stream)
+of Stream
+of (...#Stream)
 
 
 val alternate [A : Ty] : A & A -> Stream A

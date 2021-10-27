@@ -1,8 +1,8 @@
 import Order => yu/Order/Order
-| (...)
+of (...)
 
 import basic => yu/basic
-| (...)
+of (...)
 
 
 val (.notLtIsEqOrGt#Order) : (c : Order) -> ! c .lt? = c .eq? || c .gt?

@@ -1,10 +1,10 @@
 import Eq => yu/basic/Equal
-| (=#)
-| refl
+of (=#)
+of refl
 
 
 data DProd [A : Ty] : (B : A -> Ty) -> Ty
-| ($#) [A : Ty] [B : A -> Ty] : (a : A) & B a -> &: B
+of ($#) [A : Ty] [B : A -> Ty] : (a : A) & B a -> &: B
 
 
 val (&:#Ty) [A : Ty] : (B : A -> Ty) -> Ty

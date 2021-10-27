@@ -1,11 +1,11 @@
 import basic => yu/basic
-| (...)
+of (...)
 
 
 data Order : Ty
-| lt : Order
-| eq : Order
-| gt : Order
+of lt : Order
+of eq : Order
+of gt : Order
 
 val (.lt?#Order) : Order -> Bool
 let lt => true

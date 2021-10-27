@@ -1,12 +1,12 @@
 import Lazy => yu/Lazy
-| Lazy
-| lazy
+of Lazy
+of lazy
 
 import Sum => yu/Sum/Sum
-| (||#Ty)
+of (||#Ty)
 
 import S => yu/Str/Str
-| Str
+of Str
 
 
 extern parallelAxiom' : (A : Ty) & ({} ->> A) ->> Lazy (Str || A)

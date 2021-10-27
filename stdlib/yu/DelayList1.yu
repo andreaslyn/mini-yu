@@ -1,5 +1,5 @@
 import yu/DelayList1/DelayList1
 export
-| DelayList1
-| one
-| (...#DelayList1)
+of DelayList1
+of one
+of (...#DelayList1)

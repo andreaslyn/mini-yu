@@ -1,7 +1,7 @@
 
 data Sum : Ty & Ty -> Ty
-| in1 [A B : Ty] : A -> A || B
-| in2 [A B : Ty] : B -> A || B
+of in1 [A B : Ty] : A -> A || B
+of in2 [A B : Ty] : B -> A || B
 
 
 val (||#Ty) : Ty & Ty -> Ty

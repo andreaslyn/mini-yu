@@ -1,36 +1,36 @@
 import Bin+ => yu/Bin+/Bin+
-| Bin+
-| (...#Bin+)
+of Bin+
+of (...#Bin+)
 
 import Prod => yu/Prod/Prod
-| (&&#Ty)
-| ($#)
-| (...#DProd.Prod)
+of (&&#Ty)
+of ($#)
+of (...#DProd.Prod)
 
 import B => yu/Bool/Bool
-| Bool
-| false
-| true
-| (...#Bool)
-| if
-| (...#If.B)
-| (...#Then.B)
+of Bool
+of false
+of true
+of (...#Bool)
+of if
+of (...#If.B)
+of (...#Then.B)
 
 import S => yu/Str/Str
-| Str
-| (...#Str)
+of Str
+of (...#Str)
 
 import Ord => yu/Order/Order
-| Order
-| (...#Order)
+of Order
+of (...#Order)
 
 import Fun => yu/basic/Fun
-| const
+of const
 
 
 data Bin : Ty
-| 0 : Bin
-| (.inBin#Bin+) : Bin+ -> Bin
+of 0 : Bin
+of (.inBin#Bin+) : Bin+ -> Bin
 
 
 val 1 : Bin
@@ -164,7 +164,7 @@ val.. (.divmod#Bin) : Bin & Bin -> Bin && Bin
 let m n =>
   if (m <? n)
   .then (0 $ m)
-  .else of
+  .else at
     q $ r := m .divmod(*2 n);
     if (r <? n)
     .then (*2 q $ r)
@@ -183,6 +183,6 @@ let n =>
   .elif (n =? 7) .then "7"
   .elif (n =? 8) .then "8"
   .elif (n =? 9) .then "9"
-  .else of
+  .else at
     q $ r := n .divmod 10;
     q .str :+: r .str

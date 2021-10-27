@@ -1,14 +1,14 @@
 
 import Fun => yu0/Fun
-| id
+of id
 
 import Id => yu0/Id
-| (=#)
+of (=#)
 
 import vwf => yu0/very-weak-funext
 
 data Category : Ty
-| category :
+of category :
   (Obj : Ty) &
   (Hom : Obj & Obj -> Ty) &
   (id-hom : (A : Obj) -> Hom A A) &

@@ -1,14 +1,14 @@
 import yu/algebra/operations
 export
-| IsAssociative
-| HasLeftUnit
-| HasRightUnit
-| HasUnit
+of IsAssociative
+of HasLeftUnit
+of HasRightUnit
+of HasUnit
 
 import yu/algebra/Monoid
-| IsMonoid
-| mkIs
-| (...#IsMonoid)
-| Monoid
-| mk
-| (...#Monoid)
+of IsMonoid
+of mkIs
+of (...#IsMonoid)
+of Monoid
+of mk
+of (...#Monoid)

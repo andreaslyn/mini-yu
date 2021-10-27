@@ -1,10 +1,10 @@
 import L => yu/List/List
-| List
-| (...#List)
+of List
+of (...#List)
 
 import Mon => yu/algebra/Monoid
-| IsMonoid
-| (...#IsMonoid)
+of IsMonoid
+of (...#IsMonoid)
 
 
 val (.monoidProduct#List) [A : Ty] : List A & IsMonoid A -> A

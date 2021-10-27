@@ -1,23 +1,23 @@
 import RB => yu/RBTree/RBTree
-| RBTree
-| (...#RBTree)
-| (...#Color.RB)
+of RBTree
+of (...#RBTree)
+of (...#Color.RB)
 
 import Ord? => yu/Ordering?/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import L => yu/List/List
-| List
-| (...#List)
+of List
+of (...#List)
 
 import N => yu/Nat/Nat
-| Nat
-| (...#Nat)
+of Nat
+of (...#Nat)
 
 import B => yu/Bool/Bool
-| Bool
-| (...#Bool)
+of Bool
+of (...#Bool)
 
 
 val (.rootColor#RBTree) [A : Ty] [od : Ordering? A] :
@@ -39,8 +39,8 @@ val (.blackInvariant#RBTree) [A : Ty] [od : Ordering? A] :
   RBTree A od -> Bool
 let t =>
   case t .pathCountBlackNodes
-  | nil.L => true.B
-  | n :: ns => ns .accum true.B of a x => a && (x =? n)
+  of nil.L => true.B
+  of n :: ns => ns .accum true.B at a x => a && (x =? n)
   end
 
 

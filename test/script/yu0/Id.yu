@@ -2,7 +2,7 @@
 import Emp => yu0/Empty
 
 data (=#) [A : Ty] [B : Ty] : A & B -> Ty
-| 1 [A : Ty] [a : A] : a = a
+of 1 [A : Ty] [a : A] : a = a
 
 val sym [A : Ty] [B : Ty] [a : A] [b : B] : a = b -> b = a
 let 1 => 1

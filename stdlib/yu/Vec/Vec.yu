@@ -1,16 +1,16 @@
 import N => yu/Nat
-| Nat
-| 0
-| (...#Nat)
+of Nat
+of 0
+of (...#Nat)
 
 import B => yu/basic/Bool
-| Bool
-| (...#Bool)
+of Bool
+of (...#Bool)
 
 
 data Vec : Nat & Ty -> Ty
-| nil [A : Ty] : Vec 0 A
-| (::#Vec) [A : Ty] [n : Nat] : A & Vec n A -> Vec (++ n) A
+of nil [A : Ty] : Vec 0 A
+of (::#Vec) [A : Ty] [n : Nat] : A & Vec n A -> Vec (++ n) A
 
 
 val (.head#Vec) [A : Ty] [n : Nat] : Vec (++ n) A -> A

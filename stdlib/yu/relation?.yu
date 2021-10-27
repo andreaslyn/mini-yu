@@ -1,6 +1,6 @@
 import yu/basic/Bool
-| Bool
+of Bool
 
 import yu/relation?/relation?
 export
-| (...#Bool)
+of (...#Bool)

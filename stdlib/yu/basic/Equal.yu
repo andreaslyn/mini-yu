@@ -5,7 +5,7 @@ import Empty => yu/basic/Empty
 
 
 data Equal [A B : Ty] : A & B -> Ty
-| refl [A : Ty] [a : A] : a = a
+of refl [A : Ty] [a : A] : a = a
 
 
 val (=#) [A B : Ty] : A & B -> Ty

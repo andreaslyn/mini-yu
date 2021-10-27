@@ -1,16 +1,16 @@
 
 import B => yu/Bool/Bool
-| Bool
+of Bool
 
 import relation? => yu/relation?/relation?
-| (...#Bool)
+of (...#Bool)
 
 import Prod => yu/Prod
-| (...#DProd.Prod)
+of (...#DProd.Prod)
 
 
 data Equivalence? : Ty -> Ty
-| mk [A : Ty] :
+of mk [A : Ty] :
   (R : A & A -> Bool) & R .IsEquivalence? -> Equivalence? A
 
 

@@ -1,17 +1,17 @@
 import yu/List/List
 export
-| List
-| nil
-| (...#List)
-| is::
-| allNil
-| (...#.All#List)
-| here
-| (...#.Has#List)
+of List
+of nil
+of (...#List)
+of is::
+of allNil
+of (...#.All#List)
+of here
+of (...#.Has#List)
 
 \{
 import yu/List/theorems
 export
-| ordering?
-| equivalence?
+of ordering?
+of equivalence?
 \}

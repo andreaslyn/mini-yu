@@ -17,28 +17,28 @@ where
 
 end
 data List' : Ty -> Ty
-| nil' : (A : Ty) -> List'(A)
-| cons' : (A : Ty) & A & List'(A) -> List'(A)
+of nil' : (A : Ty) -> List'(A)
+of cons' : (A : Ty) & A & List'(A) -> List'(A)
 
 data List : Ty -> Ty
-| nil-extra : (A : Ty) -> List(A)
-| nil : (A : Ty) -> List(A)
-| cons : A & (A : Ty) & List(A) -> List(A)
+of nil-extra : (A : Ty) -> List(A)
+of nil : (A : Ty) -> List(A)
+of cons : A & (A : Ty) & List(A) -> List(A)
 
 data Opt : Ty -> Ty
-| none : (A : Ty) -> Opt(A)
-| some : A & (A : Ty) -> Opt(A)
+of none : (A : Ty) -> Opt(A)
+of some : A & (A : Ty) -> Opt(A)
 
 val emptyList : List(Ty)
 let => nil(Ty)
 
 data Nat : Ty
-| 0 : Nat
-| inc : Nat -> Nat
+of 0 : Nat
+of inc : Nat -> Nat
 
 data Vec : Ty -> Nat -> Ty
-| vnil : (A : Ty) -> Vec(A)(0)
-| vcons : (A : Ty) -> A & Vec(A)(n) & (n : Nat) -> Vec(A)(inc(n))
+of vnil : (A : Ty) -> Vec(A)(0)
+of vcons : (A : Ty) -> A & Vec(A)(n) & (n : Nat) -> Vec(A)(inc(n))
 
 val empty-vec : Vec(Nat)(0)
 let => vnil(Nat)

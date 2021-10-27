@@ -13,14 +13,14 @@ val test3 : {}
 let => (x => () := x; ()) ()
 
 data Id [A : Ty] : A & A -> Ty
-| refl [A : Ty] [a : A] : Id a a
+of refl [A : Ty] [a : A] : Id a a
 
 data Nat : Ty
-| 0 : Nat
-| (++#) : Nat -> Nat
+of 0 : Nat
+of (++#) : Nat -> Nat
 
 data ReflectNat : Nat -> Ty
-| reflectNat : (n : Nat) -> ReflectNat n
+of reflectNat : (n : Nat) -> ReflectNat n
 
 val reflectPlus [m : Nat] [n : Nat]
   : ReflectNat(m) & ReflectNat(n) -> Nat

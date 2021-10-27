@@ -1,5 +1,5 @@
 import yu/prelude
-| (...)
+of (...)
 
 import N => yu/Nat
 
@@ -11,8 +11,8 @@ let nil.L _ => nil.L $ nil.L
 let (x :: xs) f =>
   a $ b := partition xs f;
   case f x
-  | true => (x :: a) $ b
-  | false => a $ (x :: b)
+  of true => (x :: a) $ b
+  of false => a $ (x :: b)
   end
 
 
@@ -25,8 +25,8 @@ let (x :: xs) f =>
 
 
 data Delay-List1 : Ty -> Ty
-| one [A : Ty] : A -> Delay-List1 A
-| (::#Delay-List1) [A : Ty] : A & ({} -> Delay-List1 A) -> Delay-List1 A
+of one [A : Ty] : A -> Delay-List1 A
+of (::#Delay-List1) [A : Ty] : A & ({} -> Delay-List1 A) -> Delay-List1 A
 
 
 val sort [A : Ty] : List A & (A & A -> Bool) -> List A
@@ -35,35 +35,35 @@ where
   val sequences : List A -> Delay-List1 (List A)
   let (a :: b :: xs) =>
     case cmp a b
-    | false => descending b (a :: nil.L) xs
-    | true => ascending b (t => a :: t) xs
+    of false => descending b (a :: nil.L) xs
+    of true => ascending b (t => a :: t) xs
     end
   let xs => one xs
 
   val descending : A & List A & List A -> Delay-List1 (List A)
   let a as (b :: bs) =>
     case cmp a b
-    | false => descending b (a :: as) bs
-    | true => (a :: as) :: of _ => sequences (b :: bs)
+    of false => descending b (a :: as) bs
+    of true => (a :: as) :: at _ => sequences (b :: bs)
     end
-  let a as bs => (a :: as) :: of _ => sequences bs
+  let a as bs => (a :: as) :: at _ => sequences bs
 
   val ascending : A & (List A -> List A) & List A -> Delay-List1 (List A)
   let a as (b :: bs) =>
     case cmp a b
-    | true => ascending b (ys => as (a :: ys)) bs
-    | false => as (a :: nil.L) :: of _ => sequences (b :: bs)
+    of true => ascending b (ys => as (a :: ys)) bs
+    of false => as (a :: nil.L) :: at _ => sequences (b :: bs)
     end
-  let a as bs => as (a :: nil.L) :: of _ => sequences bs
+  let a as bs => as (a :: nil.L) :: at _ => sequences bs
 
   val.. merge-all : Delay-List1 (List A) -> List A
   let (one as) => as
-  let (as :: xs) => merge-all of merge-with-head as (xs ())
+  let (as :: xs) => merge-all at merge-with-head as (xs ())
 
   val merge-with-head : List A & Delay-List1 (List A) -> Delay-List1 (List A)
   let as (one bs) => one (merge as bs)
   let as (bs :: xs) =>
-    merge as bs :: of _ => merge-pairs (xs ())
+    merge as bs :: at _ => merge-pairs (xs ())
 
   val merge-pairs : Delay-List1 (List A) -> Delay-List1 (List A)
   let (as :: xs) => merge-with-head as (xs ())
@@ -72,8 +72,8 @@ where
   val merge : List A & List A -> List A
   let (a :: as) (b :: bs) =>
     case cmp a b
-    | false => b :: merge (a :: as) bs
-    | true => a :: merge as (b :: bs)
+    of false => b :: merge (a :: as) bs
+    of true => a :: merge as (b :: bs)
     end
   let nil.L bs => bs
   let as nil.L => as
@@ -86,24 +86,24 @@ where
   val sequences : List A -> List (List A)
   let (a :: b :: xs) =>
     case cmp a b
-    | false => descending b (a :: nil.L)  xs
-    | true => ascending b (t => a :: t) xs
+    of false => descending b (a :: nil.L)  xs
+    of true => ascending b (t => a :: t) xs
     end
   let xs => xs :: nil.L
 
   val descending : A & List A & List A -> List (List A)
   let a as (b :: bs) =>
     case cmp a b
-    | false => descending b (a :: as) bs
-    | true => (a :: as) :: sequences (b :: bs)
+    of false => descending b (a :: as) bs
+    of true => (a :: as) :: sequences (b :: bs)
     end
   let a as bs => (a :: as) :: sequences bs
 
   val ascending : A & (List A -> List A) & List A -> List (List A)
   let a as (b :: bs) =>
     case cmp a b
-    | true => ascending b (ys => as (a :: ys)) bs
-    | false => as (a :: nil.L) :: sequences (b :: bs)
+    of true => ascending b (ys => as (a :: ys)) bs
+    of false => as (a :: nil.L) :: sequences (b :: bs)
     end
   let a as bs => as (a :: nil.L) :: sequences bs
 
@@ -118,8 +118,8 @@ where
   val merge : List A & List A -> List A
   let (a :: as) (b :: bs) =>
     case cmp a b
-    | false => b :: merge (a :: as) bs
-    | true => a :: merge as (b :: bs)
+    of false => b :: merge (a :: as) bs
+    of true => a :: merge as (b :: bs)
     end
   let nil.L bs => bs
   let as nil.L => as
@@ -177,8 +177,8 @@ let _ nil.L => true
 let _ (_ :: nil.L) => true
 let cmp (x1 :: x2 :: xs) =>
   case cmp x1 x2
-  | false => false
-  | true => is-ordered cmp (x2 :: xs)
+  of false => false
+  of true => is-ordered cmp (x2 :: xs)
   end
 
 
@@ -186,19 +186,19 @@ val main : {} ->> {}
 let () =>
   ms := gen-list mN;
   case is-ordered (<=) (msort ms (<=))
-  | true => "1" .println
-  | false => "0" .println
+  of true => "1" .println
+  of false => "0" .println
   end;
   case is-ordered (>=) (msort ms (>=))
-  | true => "1" .println
-  | false => "0" .println
+  of true => "1" .println
+  of false => "0" .println
   end;
   qs := gen-list qN;
   case is-ordered (<=) (qsort qs (<=))
-  | true => "1" .println
-  | false => "0" .println
+  of true => "1" .println
+  of false => "0" .println
   end;
   case is-ordered (>=) (qsort qs (>=))
-  | true => "1" .println
-  | false => "0" .println
+  of true => "1" .println
+  of false => "0" .println
   end

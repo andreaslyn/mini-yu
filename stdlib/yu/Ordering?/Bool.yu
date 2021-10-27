@@ -1,30 +1,30 @@
 import B => yu/Bool/Bool
-| Bool
-| false
-| true
-| (...#Bool)
+of Bool
+of false
+of true
+of (...#Bool)
 
 import Eq => yu/basic/Equal
-| (=#)
-| refl
+of (=#)
+of refl
 
 import relation? => yu/relation?/relation?
-| (...#Bool)
+of (...#Bool)
 
 import Ord => yu/Order/Order
-| Order
-| (...#Order)
+of Order
+of (...#Order)
 
 import Eq? => yu/Equivalence?/Equivalence?
-| Equivalence?
-| (...#Equivalence?)
+of Equivalence?
+of (...#Equivalence?)
 
 import Ord? => yu/Ordering?/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import Ord?-th => yu/Ordering?/theorems
-| (...#Ordering?)
+of (...#Ordering?)
 
 
 val cmpIsTransitive? : cmpToLe?.Ord? (.cmp#Bool) .IsTransitive?

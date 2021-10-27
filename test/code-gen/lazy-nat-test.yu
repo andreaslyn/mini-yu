@@ -1,9 +1,9 @@
 import yu/prelude
-| (...)
+of (...)
 
 data LNat : Ty
-| zero : LNat
-| succ : ([] -> LNat) -> LNat
+of zero : LNat
+of succ : ([] -> LNat) -> LNat
 
 val L1 : LNat
 let => succ zero
@@ -56,35 +56,35 @@ let (succ m) (succ n) => minus m n
 val.. lnatToStr : LNat -> Str
 let (n0) =>
   case n0
-  | zero => "0"
-  | succ(n) =>
+  of zero => "0"
+  of succ(n) =>
     case n[]
-    | zero => "1"
-    | succ(n) =>
+    of zero => "1"
+    of succ(n) =>
       case n[]
-      | zero => "2"
-      | succ(n) =>
+      of zero => "2"
+      of succ(n) =>
         case n[]
-        | zero => "3"
-        | succ(n) =>
+        of zero => "3"
+        of succ(n) =>
           case n[]
-          | zero => "4"
-          | succ(n) =>
+          of zero => "4"
+          of succ(n) =>
             case n[]
-            | zero => "5"
-            | succ(n) =>
+            of zero => "5"
+            of succ(n) =>
               case n[]
-              | zero => "6"
-              | succ(n) =>
+              of zero => "6"
+              of succ(n) =>
                 case n[]
-                | zero => "7"
-                | succ(n) =>
+                of zero => "7"
+                of succ(n) =>
                   case n[]
-                  | zero => "8"
-                  | succ(n) =>
+                  of zero => "8"
+                  of succ(n) =>
                     case n[]
-                    | zero => "9"
-                    | succ(_) =>
+                    of zero => "9"
+                    of succ(_) =>
                       x := natDiv n0 L10;
                       y := natMod n0 L10;
                       lnatToStr x :+: lnatToStr y

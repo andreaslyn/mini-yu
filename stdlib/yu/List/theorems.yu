@@ -1,37 +1,37 @@
 import basic => yu/basic
-| Empty
-| (...#Empty)
-| Bool
-| (...#Bool)
-| (=#)
-| refl
-| (...#Equal.basic)
-| flip
-| (...#Ty)
+of Empty
+of (...#Empty)
+of Bool
+of (...#Bool)
+of (=#)
+of refl
+of (...#Equal.basic)
+of flip
+of (...#Ty)
 
 import L => yu/List/List
-| (...)
+of (...)
 
 import relation? => yu/relation?/relation?
-| (...#Bool)
+of (...#Bool)
 
 import Ord => yu/Order/Order
-| Order
-| (...#Order)
+of Order
+of (...#Order)
 
 import Ord-th => yu/Order/theorems
-| (...#Order)
+of (...#Order)
 
 import Eq? => yu/Equivalence?/Equivalence?
-| Equivalence?
-| (...#Equivalence?)
+of Equivalence?
+of (...#Equivalence?)
 
 import Ord? => yu/Ordering?/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import Ord?-th => yu/Ordering?/theorems
-| (...#Ordering?)
+of (...#Ordering?)
 
 
 val (.nilLeftIdentityOp:+:#List) [A : Ty]
@@ -69,7 +69,7 @@ val (.simplRevOp::Aux#List) [A : Ty] :
   xs .accum ys (flip (::)) = xs .accum nil (flip (::)) :+: ys
 let nil ys => refl
 let (x :: xs) ys =>
-  xs .simplRevOp::Aux (x :: nil) .rewR (t => t :+: ys) of
+  xs .simplRevOp::Aux (x :: nil) .rewR (t => t :+: ys) at
   xs .simplRevOp::Aux (x :: ys)
   @ xs .accum nil (flip (::)) .associativeOp:+: (x :: nil) ys
 
@@ -84,8 +84,8 @@ val (.revDistributesOp:+:#List) [A : Ty] :
 let nil ys => ! ys .rev .nilRightIdentityOp:+:
 let (x :: xs) ys =>
   (xs :+: ys) .simplRevOp:: x @
-  xs .revDistributesOp:+: ys .rewL (t => t :+: x :: nil) of
-  xs .simplRevOp:: x .rewR (t => ys .rev :+: t) of
+  xs .revDistributesOp:+: ys .rewL (t => t :+: x :: nil) at
+  xs .simplRevOp:: x .rewR (t => ys .rev :+: t) at
   ! ys .rev .associativeOp:+: (xs .rev) (x :: nil)
 
 
@@ -100,7 +100,7 @@ val (.revPreservesAll#List) [A : Ty] [P : A -> Ty] :
   (xs : List A) & xs .All P -> xs .rev .All P
 let nil H => allNil
 let (x :: xs) (X :: Xs) =>
-  xs .simplRevOp:: x .rew(t => t .All P) of
+  xs .simplRevOp:: x .rew(t => t .All P) at
   xs .rev .op:+:PreservesAll
     (x :: nil) (xs .revPreservesAll Xs) (X :: allNil)
 
@@ -137,7 +137,7 @@ where
     let _ gt.Ord _ _ c _ _ _ _ _ _ => c refl .rec
     let eq.Ord eq.Ord xz _ _ exy eyz e _ _ _ =>
       e refl refl .rewL
-        (a => ! a .rec lt.Ord (xs .cmp zs C) gt.Ord .gt?) of
+        (a => ! a .rec lt.Ord (xs .cmp zs C) gt.Ord .gt?) at
       isTrans xs ys zs (exy refl) (eyz refl)
     let eq.Ord lt.Ord xz _ _ _ _ _ e _ _ =>
       e refl refl .rewL
@@ -153,14 +153,14 @@ where
     let e =>
       e .rew
         (c => ? ! c .rec lt.Ord (xs .cmp ys C) gt.Ord .gt? -> Empty)
-        (a => case a | {} end)
+        (a => case a of {} end)
         lxys
 
     val cmpyzGtIsEmpty : C .cmp y z = gt.Ord -> Empty
     let e =>
       e .rew
         (c => ? ! c .rec lt.Ord (ys .cmp zs C) gt.Ord .gt? -> Empty)
-        (a => case a | {} end)
+        (a => case a of {} end)
         lyzs
 
     val cmpxyEqToGt : C .cmp x y = eq.Ord -> ? ! xs .cmp ys C .gt?
@@ -257,13 +257,13 @@ where
       val contraLt : ! ? C .cmp y x .lt?
       let ltyx =>
         case ! ltToGt y x ltyx @ C .cmp x y .eq?ToOp= eqxy
-        | {}
+        of {}
         end
 
       val contraGt : ! ? C .cmp y x .gt?
       let gtyx =>
         case ! gtToLt y x gtyx @ C .cmp x y .eq?ToOp= eqxy
-        | {}
+        of {}
         end
     end
   end

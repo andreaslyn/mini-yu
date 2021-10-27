@@ -1,6 +1,6 @@
 
 data Empty : Ty
-| {}
+of {}
 
 val not : Ty -> Ty
 let A => A -> Empty

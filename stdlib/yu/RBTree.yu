@@ -1,10 +1,10 @@
 import yu/RBTree/RBTree
 export
-| RBTree
-| leaf
-| (...#RBTree)
-| Color
-| black
-| red
-| (...#Color)
-| fromList
+of RBTree
+of leaf
+of (...#RBTree)
+of Color
+of black
+of red
+of (...#Color)
+of fromList

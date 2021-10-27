@@ -1,4 +1,4 @@
 import yu/parallel/parallel
 export
-| parallel'
-| parallel
+of parallel'
+of parallel

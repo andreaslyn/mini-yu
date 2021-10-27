@@ -1,13 +1,13 @@
 
 import Fun => yu0/Fun
-| (@#)
+of (@#)
 
 import Id => yu0/Id
-| (=#)
-| 1
+of (=#)
+of 1
 
 data Wrap[A : Ty] : A -> Ty
-| wrap[A : Ty] : (a : A) -> Wrap(a)
+of wrap[A : Ty] : (a : A) -> Wrap(a)
 
 val veryWeakFunext [A : Ty] [B : A -> Ty]
   : (f : (a : A) -> B(a)) & (g : (a : A) -> B(a)) &

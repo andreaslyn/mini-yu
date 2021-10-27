@@ -1,8 +1,8 @@
 
 
 data Nat : Ty
-| 0 : Nat
-| (++#Nat) : Nat -> Nat
+of 0 : Nat
+of (++#Nat) : Nat -> Nat
 
 
 val plus : Nat & Nat -> Nat
@@ -15,7 +15,7 @@ let => plus (++ 0)
 
 
 data (=#) [A B : Ty] : A & B -> Ty
-| refl [A : Ty] [a : A] : a = a
+of refl [A : Ty] [a : A] : a = a
 
 
 val inc-is-++ : inc = (++#Nat)

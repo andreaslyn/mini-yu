@@ -2,7 +2,7 @@ import Fun => yu/basic/Fun
 
 
 data Empty : Ty
-| {}
+of {}
 
 
 val (!#Ty) : Ty -> Ty

@@ -1,10 +1,10 @@
 
 import Id => yu0/Id
-| (=#)
+of (=#)
 
 data Bool : Ty
-| true : Bool
-| false : Bool
+of true : Bool
+of false : Bool
 
 val (!#Bool) : Bool -> Bool
 let true => false
@@ -19,7 +19,7 @@ let false _ => false
 let true b => b
 
 data IfThen : Ty -> Ty
-| (?then#Bool) [A : Ty] : Bool & ([] -> A) -> IfThen A
+of (?then#Bool) [A : Ty] : Bool & ([] -> A) -> IfThen A
 
 val (?else#IfThen) [A : Ty] : IfThen A & ([] -> A) -> A
 let (true ?then f) _ => f
@@ -36,11 +36,11 @@ let a => a = true
 val Id-b->Id : (a : Bool) & (b : Bool) -> True (a =b b) -> a = b
 let true true => _ => 1.Id
 let false false => _ => 1.Id
-let true false => c => case c | {} end
-let false true => c => case c | {} end
+let true false => c => case c of {} end
+let false true => c => case c of {} end
 
 val id->==b : (a : Bool) & (b : Bool) -> a = b -> True (a =b b)
-let true b => e => case e | 1.Id => 1.Id end
+let true b => e => case e of 1.Id => 1.Id end
 let false b => e => resp.Id e (x => True(false =b x)) 1.Id
 
 val involutionBnot : (b : Bool) -> ! ! b = b

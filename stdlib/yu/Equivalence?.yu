@@ -1,5 +1,5 @@
 import Equivalence? => yu/Equivalence?/Equivalence?
 export
-| Equivalence?
-| mk
-| (...#Equivalence?)
+of Equivalence?
+of mk
+of (...#Equivalence?)

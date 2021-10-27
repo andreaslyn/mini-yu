@@ -1,45 +1,45 @@
 import yu/Str/Str
 export
-| Str
-| mk
-| (...#Str)
-| nil
-| one
+of Str
+of mk
+of (...#Str)
+of nil
+of one
 
 import yu/basic/Bool
-| Bool
+of Bool
 
 import yu/Char/Char
-| Char
+of Char
 
 import yu/basic/Nat
-| Nat
+of Nat
 
 import yu/Option/Option
-| Option
+of Option
 
 import yu/DProd/DProd
-| DProd
+of DProd
 
 import yu/basic/List
-| List
+of List
 
 import yu/Str/StrStr
 export
-| (.str#Bool)
-| (.str#Char)
-| (.str#Nat)
-| (.str#Option)
-| (.str#DProd)
-| (.str#List)
+of (.str#Bool)
+of (.str#Char)
+of (.str#Nat)
+of (.str#Option)
+of (.str#DProd)
+of (.str#List)
 
 import yu/Str/Format
 export
-| (...#Str)
+of (...#Str)
 
 \{
 import yu/Str/theorems
 export
-| ordering?
-| equivalence?
+of ordering?
+of equivalence?
 \}

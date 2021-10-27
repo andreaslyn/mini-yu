@@ -1,9 +1,9 @@
 import yu/Char/Type
 export
-| (...)
+of (...)
 
 import yu/Char/Char
 export
-| (...#Char)
-| ordering?
-| equivalence?
+of (...#Char)
+of ordering?
+of equivalence?

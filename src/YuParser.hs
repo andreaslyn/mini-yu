@@ -118,13 +118,13 @@ parseModuleIntro = do
   where
     importElem :: YuParsec (Loc, String, Bool)
     importElem = do
-      _ <- yuKeyTok TokBar
+      _ <- yuKeyTok TokOf
       (lo, na) <- parseVarOrOp
       return (lo, na, False)
 
     exportElem :: YuParsec (Loc, String, Bool)
     exportElem = do
-      _ <- yuKeyTok TokBar
+      _ <- yuKeyTok TokOf
       (lo, na) <- parseVarOrOp
       return (lo, na, True)
 
@@ -143,13 +143,13 @@ parseCtorDecls = try emptyCtor <|> many1 doCtor
   where
     emptyCtor :: YuParsec [Decl]
     emptyCtor = do
-      _ <- yuKeyTok TokBar
+      _ <- yuKeyTok TokOf
       _ <- yuKeyTok TokCurlyL
       _ <- yuKeyTok TokCurlyR
       return []
 
     doCtor :: YuParsec Decl
-    doCtor = yuKeyTok TokBar >> parseDecl
+    doCtor = yuKeyTok TokOf >> parseDecl
 
 parseVarOrOp :: YuParsec (Loc, String)
 parseVarOrOp = do
@@ -297,7 +297,7 @@ parseDoExpr :: YuParsec Expr
 parseDoExpr = doParseDoExpr <|> parseFunExpr
 
 doParseDoExpr :: YuParsec Expr
-doParseDoExpr = yuKeyTok TokOf >> parseExpr
+doParseDoExpr = yuKeyTok TokAt >> parseExpr
 
 parseFunExpr :: YuParsec Expr
 parseFunExpr = tryParseFunExpr <|> parseExprSeq
@@ -624,7 +624,7 @@ parseCaseExpr = do
   where
     caseCase :: YuParsec CaseCase
     caseCase = do
-      _ <- yuKeyTok TokBar
+      _ <- yuKeyTok TokOf
       p <- parsePattern
       e <- optionMaybe caseDef
       case e of

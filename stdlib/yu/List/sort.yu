@@ -1,20 +1,20 @@
 import L => yu/List/List
-| List
-| nil
-| (...#List)
+of List
+of nil
+of (...#List)
 
 import basic => yu/basic
-| Bool
-| false
-| true
+of Bool
+of false
+of true
 
 import DL1 => yu/DelayList1/DelayList1
-| DelayList1
-| (...#DelayList1)
+of DelayList1
+of (...#DelayList1)
 
 import Ord? => yu/Ordering?/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 
 val (.sort#List) [A : Ty] : List A & Ordering? A -> List A
@@ -23,32 +23,32 @@ where
   val sequences : List A -> DelayList1 (List A)
   let (a :: b :: xs) =>
     case cmp .le? a b
-    | false => descending b (a :: nil) xs
-    | true => ascending b (as => a :: as) xs
+    of false => descending b (a :: nil) xs
+    of true => ascending b (as => a :: as) xs
     end
   let xs => one.DL1 xs
 
   val descending : A & List A & List A -> DelayList1 (List A)
   let a as (b :: bs) =>
     case cmp .le? a b
-    | false => descending b (a :: as) bs
-    | true => (a :: as) :: of _ => sequences (b :: bs)
+    of false => descending b (a :: as) bs
+    of true => (a :: as) :: at _ => sequences (b :: bs)
     end
-  let a as bs => (a :: as) :: of _ => sequences bs
+  let a as bs => (a :: as) :: at _ => sequences bs
 
   val ascending : A & (List A -> List A) & List A -> DelayList1 (List A)
   let a as (b :: bs) =>
     case cmp .le? a b
-    | true => ascending b (ys => as (a :: ys)) bs
-    | false => as (a :: nil) :: of _ => sequences (b :: bs)
+    of true => ascending b (ys => as (a :: ys)) bs
+    of false => as (a :: nil) :: at _ => sequences (b :: bs)
     end
-  let a as bs => as (a :: nil) :: of _ => sequences(bs)
+  let a as bs => as (a :: nil) :: at _ => sequences(bs)
 
   val merge : List A & List A -> List A
   let (a :: as) (b :: bs) =>
     case cmp .le? a b
-    | false => b :: merge (a :: as) bs
-    | true => a :: merge as (b :: bs)
+    of false => b :: merge (a :: as) bs
+    of true => a :: merge as (b :: bs)
     end
   let nil bs => bs
   let as nil => as

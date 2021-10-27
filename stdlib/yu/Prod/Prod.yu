@@ -1,9 +1,9 @@
 import DProd => yu/DProd/DProd
 export
-| DProd
-| ($#)
-| (...#DProd)
-| pair=
+of DProd
+of ($#)
+of (...#DProd)
+of pair=
 
 import Fun => yu/basic/Fun
 

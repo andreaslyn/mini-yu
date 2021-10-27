@@ -1,10 +1,10 @@
 import Fun => yu/basic/Fun
-| const
+of const
 
 
 data List : Ty -> Ty
-| nil [A : Ty] : List A
-| (::#List) [A : Ty] : A & List A -> List A
+of nil [A : Ty] : List A
+of (::#List) [A : Ty] : A & List A -> List A
 
 
 val (.ind#List) [A : Ty] :

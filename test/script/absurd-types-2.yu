@@ -1,12 +1,12 @@
 
 data Nat : Ty
-| 0 : Nat
+of 0 : Nat
 
 data Vec : {} -> {} -> Nat & Ty -> Ty
-| vnil : (A : Ty) -> Vec () () 0 A
+of vnil : (A : Ty) -> Vec () () 0 A
 
 data Id : (A : Ty) & A & A -> Ty
-| refl : (A : Ty) & (x : A) -> Id A x x
+of refl : (A : Ty) & (x : A) -> Id A x x
 
 val id-list-vec : (A : Ty) & Id Ty (Vec () () n Ty) (Vec () () n (Vec () () n A)) & (n : Nat) -> Nat
 let A {} n

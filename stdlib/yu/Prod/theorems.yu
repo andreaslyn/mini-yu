@@ -1,9 +1,9 @@
 import Prod => yu/Prod/Prod
-| (...)
+of (...)
 
 import Eq => yu/basic/Equal
-| (=#)
-| refl
+of (=#)
+of refl
 
 
 val pairMap [A B X : Ty] : (X -> A) & (X -> B) -> X -> A && B

@@ -1,5 +1,5 @@
 import yu/prelude
-| (...)
+of (...)
 
 import L => yu/List
 
@@ -15,10 +15,10 @@ extern len : (A : Ty) & List A -> Nat
 val main : {} ->> {}
 let () =>
   case !# true
-  | false => '1 .println
-  | true => '0 .println
+  of false => '1 .println
+  of true => '0 .println
   end;
   case len Nat (0.N :: 0.N :: 0.N :: nil.L)
-  | 0.N => "0\n" .print
-  | _ => "1\n" .print
+  of 0.N => "0\n" .print
+  of _ => "1\n" .print
   end

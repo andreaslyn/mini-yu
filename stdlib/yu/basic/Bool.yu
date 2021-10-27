@@ -1,12 +1,12 @@
 import Fun => yu/basic/Fun
 
 import Eq => yu/basic/Equal
-| (=#)
+of (=#)
 
 
 data Bool : Ty
-| false : Bool
-| true : Bool
+of false : Bool
+of true : Bool
 
 
 val (.ind#Bool) : (b : Bool) & (P : Bool -> Ty) & ([] -> P false) & ([] -> P true) -> P b
@@ -34,22 +34,22 @@ let true b => b
 
 
 data If : Ty -> Ty
-| if [A : Ty] : Bool -> If A
-| (.elif#Then) [A : Ty] : Then A & ([] -> Bool) -> If A
+of if [A : Ty] : Bool -> If A
+of (.elif#Then) [A : Ty] : Then A & ([] -> Bool) -> If A
 
 
 data Then : Ty -> Ty
-| (.then#If) [A : Ty] : If A & ([] -> A) -> Then A
+of (.then#If) [A : Ty] : If A & ([] -> A) -> Then A
 
 
 val (.else#Then) [A : Ty] : Then A & ([] -> A) -> A
 let (if true .then f) _ => f
 let (if false .then _) g => g
 let (i .elif b .then f) g =>
-  i .else of
+  i .else at
     case b []
-    | true => f
-    | false => g
+    of true => f
+    of false => g
     end
 
 

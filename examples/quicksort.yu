@@ -1,11 +1,11 @@
 import yu/prelude
-| (...)
+of (...)
 
 import L => yu/List
 
 import yu/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 
 val.. (.quicksort#List)[A : Ty] : List A & Ordering? A -> List A

@@ -1,11 +1,11 @@
 import bN => yu/basic/Nat
-| (...)
+of (...)
 
 import NN => yu/Nat/Nat
-| (...)
+of (...)
 
 import basic => yu/basic
-| (...)
+of (...)
 
 
 \\\\\\\\\\\\\\\\\\\\\\\\\\ Addition theormes \\\\\\\\\\\\\\\\\\\\\\\\\

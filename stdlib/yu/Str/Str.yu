@@ -1,17 +1,17 @@
 import L => yu/List/List
-| List
-| (...#List)
+of List
+of (...#List)
 
 import C => yu/Char/Char
-| Char
-| (...#Char)
+of Char
+of (...#Char)
 
 import Ord => yu/Order/Order
-| Order
+of Order
 
 
 data Str : Ty
-| mk : List Char -> Str
+of mk : List Char -> Str
 
 
 val (.list#Str) : Str -> List Char

@@ -1,12 +1,12 @@
 import Fun => yu/basic/Fun
 
 import Bool => yu/Bool/Bool
-| Bool
+of Bool
 
 
 data Option : Ty -> Ty
-| no [A : Ty] : ? A
-| yes [A : Ty] : A -> ? A
+of no [A : Ty] : ? A
+of yes [A : Ty] : A -> ? A
 
 
 val (?#Ty) : Ty -> Ty

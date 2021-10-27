@@ -1,9 +1,9 @@
 import yu/prelude
-| (...)
+of (...)
 
 import Bin => yu/Bin/Bin
-| Bin
-| (...#Bin)
+of Bin
+of (...#Bin)
 
 
 val 100 : Bin

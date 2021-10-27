@@ -1,7 +1,7 @@
 import yu/DProd/DProd
 export
-| DProd
-| ($#)
-| (&:#Ty)
-| (...#DProd)
-| pair=
+of DProd
+of ($#)
+of (&:#Ty)
+of (...#DProd)
+of pair=

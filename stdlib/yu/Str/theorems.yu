@@ -1,34 +1,34 @@
 import Str => yu/Str/Str
-| Str
-| (...#Str)
+of Str
+of (...#Str)
 
 import C => yu/Char/Char
 
 import Eq => yu/basic/Equal
-| (=#)
+of (=#)
 
 import List-th => yu/List/theorems
 
 import Ord => yu/Order/Order
-| Order
-| (...#Order)
+of Order
+of (...#Order)
 
 import B => yu/Bool/Bool
-| Bool
+of Bool
 
 import relation? => yu/relation?/relation?
-| (...#Bool)
+of (...#Bool)
 
 import Ord? => yu/Ordering?/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import Ord?-th => yu/Ordering?/theorems
-| (...#Ordering?)
+of (...#Ordering?)
 
 import Equivalence? => yu/Equivalence?/Equivalence?
-| Equivalence?
-| (...#Equivalence?)
+of Equivalence?
+of (...#Equivalence?)
 
 
 val cmpIsTransitive? : cmpToLe?.Ord? (.cmp#Str) .IsTransitive?

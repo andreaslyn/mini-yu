@@ -1,17 +1,17 @@
 
 data (.List#Ty) : Ty -> Ty
-| nil [A : Ty] : A .List
-| (::#.List#Ty) [A : Ty] : A & A .List -> A .List
+of nil [A : Ty] : A .List
+of (::#.List#Ty) [A : Ty] : A & A .List -> A .List
 
 
 data Bool : Ty
-| false : Bool
-| true : Bool
+of false : Bool
+of true : Bool
 
 
 data Nat : Ty
-| 0 : Nat
-| (++#Nat) : Nat -> Nat
+of 0 : Nat
+of (++#Nat) : Nat -> Nat
 
 
 val (+#Nat) : Nat & Nat -> Nat

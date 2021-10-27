@@ -1,5 +1,5 @@
 import yu/prelude
-| (...)
+of (...)
 
 
 import N => yu/Nat
@@ -55,8 +55,8 @@ where
   let => n =>
     o := odd;
     case n
-    | 0.N => !' b
-    | ++ n => o n
+    of 0.N => !' b
+    of ++ n => o n
     end
 
   val.. odd : [] -> Nat -> Bool
@@ -64,8 +64,8 @@ where
     e := even[];
     n =>
       case n
-      | 0.N => b
-      | ++ n => e n
+      of 0.N => b
+      of ++ n => e n
       end
 end
 

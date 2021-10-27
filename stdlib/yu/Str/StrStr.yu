@@ -1,43 +1,43 @@
 import L => yu/List/List
-| List
-| (...#List)
+of List
+of (...#List)
 
 import B => yu/basic/Bool
-| Bool
-| false
-| true
+of Bool
+of false
+of true
 
 import C => yu/Char/Char
-| Char
+of Char
 
 import N => yu/Nat/Nat
-| Nat
-| 0
-| (...#Nat)
+of Nat
+of 0
+of (...#Nat)
 
 import Str => yu/Str/Str
 export
-| Str
-| mk
-| (...#Str)
-| nil
-| one
+of Str
+of mk
+of (...#Str)
+of nil
+of one
 
 import Ord => yu/Order/Order
-| Order
-| (...#Order)
+of Order
+of (...#Order)
 
 import Opt => yu/Option/Option
-| Option
-| (?#Ty)
+of Option
+of (?#Ty)
 
 import DProd => yu/DProd/DProd
-| DProd
-| ($#)
-| (&:#Ty)
+of DProd
+of ($#)
+of (&:#Ty)
 
 import Fun => yu/basic/Fun
-| (@compose#)
+of (@compose#)
 
 
 val (.str#List) [A : Ty] : List A & (A -> Str) & Str -> Str

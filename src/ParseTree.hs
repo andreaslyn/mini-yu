@@ -33,11 +33,11 @@ import Control.Monad.Writer
 import Loc (Loc)
 
 -- import M => path/to/mod
--- | i1 (= False)
--- | i2 (= False)
+-- of i1 (= False)
+-- of i2 (= False)
 -- export
--- | e1 (= True)
--- | e2 (= True)
+-- of e1 (= True)
+-- of e2 (= True)
 --
 type ModuleIntro =
   (Maybe (Loc, String), (Loc, String), [(Loc, String, Bool)])
@@ -345,7 +345,7 @@ writeExpr (ExprCase _ e ofs) = do
   let writeOfs :: [CaseCase] -> ToString ()
       writeOfs [] = return ()
       writeOfs (Right (p, x) : os) = do
-        writeStr "| "
+        writeStr "of "
         writePattern p
         writeStr " => "
         incIndent
@@ -355,9 +355,9 @@ writeExpr (ExprCase _ e ofs) = do
         newLine
         writeOfs os
       writeOfs (Left p : os) = do
-        writeStr "| "
+        writeStr "of "
         writePattern p
-        writeStr " absurd"
+        writeStr " {}"
         newLine
         writeOfs os
   writeOfs ofs
@@ -493,9 +493,9 @@ writeModuleIntro (Just m, path, ies) = do
 writeModuleImportExportList :: [(Loc, String, Bool)] -> ToString ()
 writeModuleImportExportList [] = return ()
 writeModuleImportExportList [(_, s, False)] = do
-  writeStr " |" >> writeStr s
+  writeStr "of " >> writeStr s
 writeModuleImportExportList ((_, s, False) : ss) = do
-  writeStr " |" >> writeStr s
+  writeStr "of " >> writeStr s
   newLine
   writeModuleImportExportList ss
 writeModuleImportExportList ss@((_, _, True) : _) = do
@@ -506,9 +506,9 @@ writeModuleImportExportList ss@((_, _, True) : _) = do
 writeModuleExportList :: [(Loc, String, Bool)] -> ToString ()
 writeModuleExportList [] = return ()
 writeModuleExportList [(_, s, _)] =
-  writeStr " |" >> writeStr s
+  writeStr "of " >> writeStr s
 writeModuleExportList ((_, s, _) : ss) = do
-  writeStr " |" >> writeStr s
+  writeStr "of " >> writeStr s
   newLine
   writeModuleExportList ss
 

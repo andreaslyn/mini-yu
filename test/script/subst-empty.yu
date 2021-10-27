@@ -1,19 +1,19 @@
 
 data Empty : Ty
-| {}
+of {}
 
 data Nat : Ty
-| 0 : Nat
-| (++#Nat) : Nat -> Nat
+of 0 : Nat
+of (++#Nat) : Nat -> Nat
 
 data Id[A : Ty] [B : Ty] : A & B -> Ty
-| refl[A : Ty] [a : A] : Id a a
+of refl[A : Ty] [a : A] : Id a a
 
 val 1 : Nat
 let => ++ 0
 
 val test : Nat -> Empty -> Ty
-let (_) => e => case e | {} end
+let (_) => e => case e of {} end
 
 val subst-test : (e : Empty) -> Id (test 0) (test 1)
 let e => refl

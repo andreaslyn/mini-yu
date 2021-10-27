@@ -1,13 +1,13 @@
 
 
 data Nat : Ty
-| 0 : Nat
-| (++#Nat) : Nat -> Nat
+of 0 : Nat
+of (++#Nat) : Nat -> Nat
 
 
 data (.List#Ty) : Ty -> Ty
-| nil [A : Ty] : A .List
-| (::#.List#Ty) [A : Ty] : A & A .List -> A .List
+of nil [A : Ty] : A .List
+of (::#.List#Ty) [A : Ty] : A & A .List -> A .List
 
 
 val id-F[F : Ty -> Ty] [A : Ty] : F A -> F A
@@ -21,8 +21,8 @@ let =>
 
 
 data (.Vec#Ty) : Ty & Nat -> Ty
-| vnil[A : Ty] : A .Vec 0
-| (::#.Vec#Ty) [A : Ty] [n : Nat] : A & A .Vec n -> A .Vec (++ n)
+of vnil[A : Ty] : A .Vec 0
+of (::#.Vec#Ty) [A : Ty] [n : Nat] : A & A .Vec n -> A .Vec (++ n)
 
 
 val higher-id [F : Nat -> Ty] : F 0 -> F 0
@@ -34,7 +34,7 @@ let => higher-id vnil
 
 
 data Higher : (Nat -> Ty) -> Ty
-| mkHigher [f : Nat -> Ty] : Higher f
+of mkHigher [f : Nat -> Ty] : Higher f
 
 
 val HigherId [F : Nat -> Ty] : Higher F -> Higher F
@@ -46,7 +46,7 @@ let => mkHigher
 
 
 data (.IsTyTy#Ty) : (Ty -> Ty) -> Ty
-| mkIsTyTy[F : Ty -> Ty] : F .IsTyTy
+of mkIsTyTy[F : Ty -> Ty] : F .IsTyTy
 
 
 val id-F-IsTyTy[F : Ty -> Ty] [A : Ty] : F A & F .IsTyTy -> F A
@@ -60,7 +60,7 @@ let =>
 
 
 data (.IsTyTy'#Ty) : (Ty -> Ty) & Ty -> Ty
-| mkIsTyTy'[F : Ty -> Ty] [A : Ty] : F .IsTyTy' A
+of mkIsTyTy'[F : Ty -> Ty] [A : Ty] : F .IsTyTy' A
 
 
 val id-F-IsTyTy'1[F G : Ty -> Ty] [A B : Ty] : F A & G B & F .IsTyTy' (G A) & (G .IsTyTy) -> F A
@@ -83,7 +83,7 @@ let =>
 
 
 data (.IsTyTyTy#Ty) : (Ty & Ty -> Ty) -> Ty
-| mkIsTyTyTy[F : Ty & Ty -> Ty] : F .IsTyTyTy
+of mkIsTyTyTy[F : Ty & Ty -> Ty] : F .IsTyTyTy
 
 
 val id-F-IsTyTyTy[F : Ty & Ty -> Ty] [A B : Ty] : F A B & F .IsTyTyTy -> F A B
@@ -91,8 +91,8 @@ let x _ => x
 
 
 data (.PairList#Ty) : Ty & Ty -> Ty
-| pnil[A B : Ty] : A .PairList B
-| pcons[A B : Ty] : A & B & A .PairList B -> A .PairList B
+of pnil[A B : Ty] : A .PairList B
+of pcons[A B : Ty] : A & B & A .PairList B -> A .PairList B
 
 
 val test-id-F-PairList : {}

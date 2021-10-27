@@ -1,34 +1,34 @@
 
 import Ord? => yu/Ordering?/Ordering?
-| Ordering?
-| (...#Ordering?)
+of Ordering?
+of (...#Ordering?)
 
 import L => yu/basic/List
-| List
-| (...#List)
+of List
+of (...#List)
 
 import N => yu/Nat/Nat
-| Nat
-| (...#Nat)
+of Nat
+of (...#Nat)
 
 import B => yu/Bool/Bool
-| Bool
-| false
-| true
-| (...#Bool)
+of Bool
+of false
+of true
+of (...#Bool)
 
 import Ord => yu/Order/Order
-| Order
-| (...#Order)
+of Order
+of (...#Order)
 
 import Eq => yu/basic/Equal
-| (=#)
-| refl
+of (=#)
+of refl
 
 
 data Color : Ty
-| black : Color
-| red : Color
+of black : Color
+of red : Color
 
 
 val (.red?#Color) : Color -> Bool
@@ -41,13 +41,13 @@ let red => false
 
 
 data RBTree : (A : Ty) & Ordering? A -> Ty
-| leaf [A : Ty] [od : Ordering? A] : RBTree A od
-| (.node#RBTree) [A : Ty] [od : Ordering? A] :
+of leaf [A : Ty] [od : Ordering? A] : RBTree A od
+of (.node#RBTree) [A : Ty] [od : Ordering? A] :
   RBTree A od & RBTree A od & A & Color -> RBTree A od
 
 
 data (.IsNode#RBTree) [A : Ty] [od : Ordering? A] : RBTree A od -> Ty
-| mkIsNode [A : Ty] [od : Ordering? A]
+of mkIsNode [A : Ty] [od : Ordering? A]
     [t1 : RBTree A od] [t2 : RBTree A od] [x : A] [c : Color] :
   t1 .node t2 x c .IsNode
 
@@ -110,10 +110,10 @@ let leaf _ => false
 let (t1 .node t2 x _) y => od .eq? x y || t1 .member y || t2 .member y
 
 
-val test : of
+val test : at
   xs := 1.N :: 6.N :: 5.N :: 4.N :: 6.N :: 1.N :: 3.N :: 2.N :: nil.L;
   f := fromList [od := ordering?.N];
-  ? of
+  ? at
     f xs .member 1.N && f xs .member 2.N && f xs .member 3.N &&
     f xs .member 4.N && f xs .member 5.N && f xs .member 6.N &&
     ! f xs .member 0.N && ! f xs .member 7.N

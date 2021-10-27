@@ -1,12 +1,12 @@
 import basic => yu/basic
-| (...)
+of (...)
 
 import Prod => yu/Prod/Prod
-| ($#)
-| (...#Ty)
+of ($#)
+of (...#Ty)
 
 import Sum => yu/Sum/Sum
-| (...#Ty)
+of (...#Ty)
 
 
 val (.IsReflexive#Ty) [A : Ty] : (A & A -> Ty) -> Ty
