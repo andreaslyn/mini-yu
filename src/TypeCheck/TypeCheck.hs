@@ -1615,6 +1615,10 @@ tcExpr subst ty e = do
       e' <- tcExpr subst expectedTy e
       tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
       su <- getExprSubst
+      when (termIo e' && not io)
+        (lift $ err (exprLoc e) (Recoverable $
+          "unable to construct pure lazy value, "
+          ++ "type of expression is effectful"))
       let se = TermLazyFun io (substPreTerm su (termPre e'))
       let st = TermLazyArrow io (substPreTerm su expectedTy)
       return (mkTerm se st False)
