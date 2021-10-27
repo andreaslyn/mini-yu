@@ -4,8 +4,21 @@
 #include <errno.h>
 
 extern volatile size_t yur_stack_overlap_size;
-extern volatile size_t yur_stack_segment_size;
 extern volatile size_t yur_reserved_stack_size;
+extern volatile size_t yur_maximal_stack_segment_size;
+extern volatile size_t yur_initial_stack_segment_size;
+
+yur_SYSTEM_DEF(yur_ALWAYS_INLINE static size_t,
+    get_current_segment_size, ()) {
+  size_t begin, end;
+  asm("movq %%fs:0x80, %[begin]\n\t"
+      "movq %%fs:0x70, %[end]"
+      : [begin] "=r" (begin), [end] "=r" (end));
+  return
+    begin - end
+    + yur_reserved_stack_size
+    + sizeof(struct yur_Stack_seg);
+}
 
 // EXTRA_SEG_RESERVE is indicating the minimal amount of reserved
 // stack segment space. Currently we need 16 bytes, to have room
@@ -22,12 +35,6 @@ yur_SYSTEM_DEF(void, yur_set_stack_overlap_size, (size_t size)) {
   yur_stack_overlap_size = size;
 }
 
-yur_SYSTEM_DEF(void, yur_set_stack_segment_size, (size_t size)) {
-  if (size & 15)
-    yur_panic_s("stack segment size should be 16 byte aligned");
-  yur_stack_segment_size = size;
-}
-
 yur_SYSTEM_DEF(void, yur_enable_stack_red_zone, (bool b)) {
   // On top of to red zone, we need to reserve EXTRA_SEG_RESERVE bytes.
   if (b)
@@ -36,16 +43,33 @@ yur_SYSTEM_DEF(void, yur_enable_stack_red_zone, (bool b)) {
     yur_reserved_stack_size = EXTRA_SEG_RESERVE;
 }
 
+yur_SYSTEM_DEF(void, yur_set_initial_stack_segment_size, (size_t size)) {
+  if (size & 15)
+    yur_panic_s("initial stack segment size should be 16 byte aligned");
+  yur_initial_stack_segment_size = size;
+}
+
+yur_SYSTEM_DEF(void, yur_set_maximal_stack_segment_size, (size_t size)) {
+  if (size & 15)
+    yur_panic_s("maximal stack segment size should be 16 byte aligned");
+  yur_maximal_stack_segment_size = size;
+}
+
 yur_SYSTEM_DEF(yur_ALWAYS_INLINE static size_t, get_alloc_size,
     (size_t copy_size, size_t frame_size)) {
+  size_t next_seg_size = get_current_segment_size_s() << 1;
+  if (next_seg_size > yur_maximal_stack_segment_size)
+    next_seg_size = yur_maximal_stack_segment_size;
+
   size_t min_size = copy_size
     + frame_size
     + yur_reserved_stack_size
     + sizeof(struct yur_Stack_seg);
   min_size = byte16_align_s(min_size);
-  return min_size >= yur_stack_segment_size
+
+  return min_size >= next_seg_size
     ?  min_size
-    : yur_stack_segment_size;
+    : next_seg_size;
 }
 
 yur_SYSTEM_DEF(yur_ALWAYS_INLINE static void *, alloc, (size_t seg_size)) {
@@ -126,9 +150,21 @@ yur_SYSTEM_DEF(struct yur_Stack_seg_pair, yur_new_stack_seg,
   return (struct yur_Stack_seg_pair) { begin, end };
 }
 
+yur_SYSTEM_DEF(yur_ALWAYS_INLINE static size_t, get_initial_alloc_size,
+    (size_t frame_size)) {
+  size_t min_size =
+    frame_size
+    + yur_reserved_stack_size
+    + sizeof(struct yur_Stack_seg);
+  min_size = byte16_align_s(min_size);
+  return min_size >= yur_initial_stack_segment_size
+    ?  min_size
+    : yur_initial_stack_segment_size;
+}
+
 yur_SYSTEM_DEF(struct yur_Stack_seg_pair,
     yur_initial_stack_seg, (size_t frame_size)) {
-  size_t s = get_alloc_size_s(0, frame_size);
+  size_t s = get_initial_alloc_size_s(frame_size);
   void *p = alloc_s(s);
   struct yur_Stack_seg *begin = get_seg_begin_s(p, s);
   void *end = get_seg_end_s(p);

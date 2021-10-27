@@ -19,9 +19,13 @@ struct yur_Stack_seg_pair {
   void *end;
 };
 
+#if 0
+// TODO: yur_SYSTEM_DECL?
 void yur_set_stack_overlap_size(size_t);
-void yur_set_stack_segment_size(size_t);
 void yur_enable_stack_red_zone(bool);
+void yur_set_initial_stack_segment_size(size_t);
+void yur_set_maximal_stack_segment_size(size_t);
+#endif
 
 struct yur_Stack_seg_pair
 yur_new_stack_seg(
