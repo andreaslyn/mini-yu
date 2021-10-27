@@ -82,7 +82,7 @@ extern yur_Ref yur_unit;
 
 yur_Ref *yur_malloc(size_t nbytes);
 
-static yur_Ref *yur_alloc(size_t nfields);
+yur_Ref *yur_alloc(size_t nfields);
 
 void yur_dealloc(yur_Ref *);
 
@@ -181,31 +181,29 @@ void yur_atomic_destructor_unref(yur_Ref *r);
 
 ///////////////////////////// Methods ////////////////////////////////
 
+void yur_inc2(yur_Ref *r);
+
 yur_ALWAYS_INLINE
 static void yur_inc(yur_Ref *r) {
   yur_Vmt_index i = yur_ALOAD(r->vmt_index);
   if (yur_LIKELY(i == yur_Dynamic_vmt))
     return yur_dynamic_inc(r);
-  if (yur_UNLIKELY(i == yur_Atomic_destructor_vmt))
-    return yur_atomic_destructor_inc(r);
-  if (yur_UNLIKELY(i == yur_Destructor_vmt))
-    return yur_destructor_inc(r);
-  if (yur_UNLIKELY(i == yur_Atomic_dynamic_vmt))
-    return yur_atomic_dynamic_inc(r);
+  if (yur_UNLIKELY(i != yur_Static_vmt))
+    return yur_inc2(r);
 }
+
+void yur_unref2(yur_Ref *r);
 
 yur_ALWAYS_INLINE
 static void yur_unref(yur_Ref *r) {
   yur_Vmt_index i = yur_ALOAD(r->vmt_index);
   if (yur_LIKELY(i == yur_Dynamic_vmt))
     return yur_dynamic_unref(r);
-  if (yur_UNLIKELY(i == yur_Atomic_destructor_vmt))
-    return yur_atomic_destructor_unref(r);
-  if (yur_UNLIKELY(i == yur_Destructor_vmt))
-    return yur_destructor_unref(r);
-  if (yur_UNLIKELY(i == yur_Atomic_dynamic_vmt))
-    return yur_atomic_dynamic_unref(r);
+  if (yur_UNLIKELY(i != yur_Static_vmt))
+    return yur_unref2(r);
 }
+
+yur_Ref *yur_reset_alloc(yur_Ref *r, yur_Num_fields nfields);
 
 yur_ALWAYS_INLINE
 static yur_Ref *yur_reset(yur_Ref *r, yur_Num_fields nfields) {
@@ -214,17 +212,7 @@ static yur_Ref *yur_reset(yur_Ref *r, yur_Num_fields nfields) {
     r->vmt_index = yur_Dynamic_vmt;
     return r;
   }
-  yur_unref(r);
-  struct yur_Ref *s = yur_alloc(nfields);
-  s->nfields = nfields;
-  return s;
-}
-
-////////////////////////// Allocator /////////////////////////////////
-
-yur_ALWAYS_INLINE
-static yur_Ref *yur_alloc(size_t nfields) {
-  return yur_malloc(sizeof(yur_Ref) + nfields * sizeof(yur_Ref *));
+  return yur_reset_alloc(r, nfields);
 }
 
 #endif // YU_YU_H

@@ -94,6 +94,31 @@ void yur_atomic_destructor_unref(yur_Ref *r) {
 
 //////////////////////////// Methods /////////////////////////////////
 
+void yur_inc2(yur_Ref *r) {
+  yur_Vmt_index i = yur_ALOAD(r->vmt_index);
+  if (i == yur_Atomic_destructor_vmt)
+    return yur_atomic_destructor_inc(r);
+  if (i == yur_Atomic_dynamic_vmt)
+    return yur_atomic_dynamic_inc(r);
+  return yur_destructor_inc(r);
+}
+
+void yur_unref2(yur_Ref *r) {
+  yur_Vmt_index i = yur_ALOAD(r->vmt_index);
+  if (i == yur_Atomic_destructor_vmt)
+    return yur_atomic_destructor_unref(r);
+  if (i == yur_Atomic_dynamic_vmt)
+    return yur_atomic_dynamic_unref(r);
+  return yur_destructor_unref(r);
+}
+
+yur_Ref *yur_reset_alloc(yur_Ref *r, yur_Num_fields nfields) {
+  yur_unref(r);
+  struct yur_Ref *s = yur_alloc(nfields);
+  s->nfields = nfields;
+  return s;
+}
+
 yur_ALWAYS_INLINE
 void yur_mark_atomic(yur_Ref *r) {
   if (yur_LIKELY(yur_ALOAD(r->vmt_index) == yur_Dynamic_vmt))
@@ -145,6 +170,15 @@ yur_Ref yur_printref = {
 
 yur_SYSTEM_SWITCH(yur_Ref *, yur_malloc, (size_t nbytes)) {
   yur_Ref *r = (yur_Ref *) mi_malloc(nbytes);
+  if (!r)
+    yur_SYSTEM_SWITCH_yur_panic("memory allocation error");
+  r->count = 1;
+  r->vmt_index = yur_Dynamic_vmt;
+  return r;
+}
+
+yur_SYSTEM_SWITCH(yur_Ref *, yur_alloc, (size_t nfields)) {
+  yur_Ref *r = (yur_Ref *) mi_malloc(sizeof(yur_Ref) + nfields * sizeof(yur_Ref *));
   if (!r)
     yur_SYSTEM_SWITCH_yur_panic("memory allocation error");
   r->count = 1;
