@@ -1,4 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
+
+#include "split-stack-config.h"
 
 module Main where
 
@@ -46,7 +49,7 @@ runIr opts vs dm im rm = do
   let mimallocLib = root ++ "/mimalloc/out/libmimalloc.a"
   let gcc = if optionNoSplitStack opts
             then "gcc"
-            else "/home/andreas/Desktop/install-gcc/bin/gcc"
+            else root ++ "/gcc/yu-stack-install/bin/gcc"
   when (optionAssembly opts) $ do
     let outfile = argumentFileName opts ++ ".s"
     let cargs = if optionOptimize opts
@@ -166,15 +169,9 @@ data ProgramOptions = ProgramOptions
 verifyProgramOptions :: ProgramOptions -> IO ()
 verifyProgramOptions opts
   | optionOptimize opts && not (optionAssembly opts || optionCompile opts)
-      = Exit.die $ "optimization option (-o, --optimize) requires\
-                   \ at least one of\n\
-                   \  compilation option (-c, --compile)\
-                   \  assembly option (-a, --assembly)"
+      = Exit.die $ "optimization option (-o, --optimize) requires at least one of\n\tcompilation option (-c, --compile)\n\tassembly option (-a, --assembly)"
   | optionNoSplitStack opts && not (optionAssembly opts || optionCompile opts)
-      = Exit.die $ "disable split stack option (--no-split-stack) requires\
-                   \ at least one of\n\
-                   \  compilation option (-c, --compile)\
-                   \  assembly option (-a, --assembly)"
+      = Exit.die $ "disable split stack option (--no-split-stack) requires at least one of\n\tcompilation option (-c, --compile)\n\tassembly option (-a, --assembly)"
   | True = return ()
 
 makeProgramOptions ::
@@ -197,7 +194,7 @@ makeProgramOptions
     , optionCompile = optCompile
     , optionAssembly = optAssembly
     , optionOptimize = optOptimize
-    , optionNoSplitStack = optNoSplitStack
+    , optionNoSplitStack = NO_SPLIT_STACK || optNoSplitStack
     , optionPrintHighLevelIR = optPrintHighLevelIR
     , optionPrintBaseIR = optPrintBaseIR
     , optionPrintRefCountIR = optPrintRefCountIR

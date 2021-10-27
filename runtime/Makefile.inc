@@ -1,11 +1,11 @@
 # Command line flags:
-#   DBG=y -> Don't include debugging information. (Default is DBG=n).
+#   DBG=1 -> Don't include debugging information. (Default is DBG=0).
 #     Note that DBG has nothing to do with the CPP NDEBUG macro.
-#   VERBOSE=y -> Print verbose messages. (By default VERBOSE=n).
-#   OPT=n -> Don't optimize and define the NDEBUG CPP macro. (Default OPT=y).
+#   VERBOSE=1 -> Print verbose messages. (By default VERBOSE=0).
+#   OPT=0 -> Don't optimize and define the NDEBUG CPP macro. (Default OPT=1).
 
 ifndef MAKEFILE_INC
-MAKEFILE_INC := y
+MAKEFILE_INC := 1
 
 # CFLAGS =
 # DEPDIRS =
@@ -33,7 +33,7 @@ WORKING_DIR := $(shell pwd)
 
 LIBYUR := $(OUT_DIR)/libyur.a
 
-ifeq ($(DBG), y)
+ifeq ($(DBG), 1)
 	DBG_STR := -g
 else
 	DBG_STR :=
@@ -42,10 +42,10 @@ endif
 override CFLAGS += -MMD -std=gnu11 -c -Wall $(DBG_STR) \
 	-I$(ROOT_DIR)/../mimalloc/include
 
-ifneq ($(OPT), n)
-	override OPT := y
+ifneq ($(OPT), 0)
+	override OPT := 1
 endif
-ifeq ($(OPT), y)
+ifeq ($(OPT), 1)
 	override CFLAGS += -O3 -DNDEBUG -momit-leaf-frame-pointer
 endif
 
@@ -67,13 +67,18 @@ depdirs.inc:
 	done
 
 $(LIBYUR): $(OBJ)
-	ar rc $(LIBYUR) $^
+ifeq ($(VERBOSE), 1)
+	$(AR) rc $(LIBYUR) $^
+else
+	@$(AR) rc $(LIBYUR) $^
+	@echo AR $(LIBYUR)
+endif
 
 $(OBJ):
-ifeq ($(VERBOSE), y)
+ifeq ($(VERBOSE), 1)
 	$(CC) $(CFLAGS) -o $@ $(@:$(OUT_DIR)/%.o=$(ROOT_DIR)/%)
 else
-	@echo CC $(@:%.o=%.c)
+	@echo CC $(@:$(OUT_DIR)/%.o=$(ROOT_DIR)/%)
 	@$(CC) $(CFLAGS) -o $@ $(@:$(OUT_DIR)/%.o=$(ROOT_DIR)/%)
 endif
 -include $(DEP)
@@ -86,7 +91,7 @@ depdirs_clean.inc:
 	done
 
 clean_cobj.inc:
-ifeq ($(VERBOSE), y)
+ifeq ($(VERBOSE), 1)
 	@for f in $(OBJ); do \
 	  echo $(RM) $$f; \
 	  $(RM) $$f; \
@@ -101,7 +106,7 @@ endif
 endif
 
 clean_cdep.inc:
-ifeq ($(VERBOSE), y)
+ifeq ($(VERBOSE), 1)
 	@for f in $(DEP); do \
 	  echo $(RM) $$f; \
 	  $(RM) $$f; \
@@ -113,7 +118,7 @@ else
 endif
 
 clean_libyur.inc:
-ifeq ($(VERBOSE), y)
+ifeq ($(VERBOSE), 1)
 	$(RM) $(LIBYUR)
 else
 	@$(RM) $(LIBYUR)

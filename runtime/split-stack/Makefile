@@ -3,6 +3,6 @@ ROOT_DIR := $(shell for i in `seq 0 9`; \
   then pwd; break; else cd ..; fi; done)
 
 CFLAGS := -fyu-stack -fno-omit-frame-pointer
-CC := /home/andreas/Desktop/install-gcc/bin/gcc
+CC := $(ROOT_DIR)/../gcc/yu-stack-install/bin/gcc
 
 include $(ROOT_DIR)/Makefile.inc
