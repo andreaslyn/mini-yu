@@ -115,14 +115,22 @@ let 0 => 0
 let (n .inBin) => (*2 n) .inBin
 
 
-val (-toBin#Bin+) : Bin+ & Bin+ -> Bin
+val (-toBinAux#Bin+) : Bin+ & Bin+ -> Bin
 let 1.Bin+ _ => 0
 let m 1.Bin+ => --- m
-let (m % false) (n % false) => *2 (m -toBin n)
-let (m % true) (n % true) => *2 (m -toBin n)
-let (m % true) (n % false) => ++ *2 (m -toBin n)
+let (m % false) (n % false) => *2 (m -toBinAux n)
+let (m % true) (n % true) => *2 (m -toBinAux n)
+let (m % true) (n % false) => ++ *2 (m -toBinAux n)
 let (1.Bin+ % false) (n % true) => 0
-let (m % false) (n % true) => ++ *2 (-- m -toBin n)
+let (m % false) (n % true) => ++ *2 (-- m -toBinAux n)
+
+
+val (-toBin#Bin+) : Bin+ & Bin+ -> Bin
+let m n =>
+  case m .cmp n
+  of gt.Ord => m -toBinAux n
+  of _ => 0
+  end
 
 
 val (-#Bin) : Bin & Bin -> Bin
