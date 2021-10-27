@@ -19,7 +19,7 @@ let a => mkIO (_ => a)
 
 
 val main : {} ->> {}
-let () => (unIO at
-  mkIO (_ => "return true" .println; true) >>= at b =>
-  mkIO (_ => "received: %b\n" .printf b)
-) ()
+let () =>
+  (unIO at
+    mkIO (_ => "return true" .println; true) >>= at b =>
+    mkIO (_ => "received: %b\n" .printf b)) ()

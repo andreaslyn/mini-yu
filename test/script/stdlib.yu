@@ -17,7 +17,6 @@ import yu/Vec/Vec
 import yu/Stream
 import yu/Nat
 import yu/prelude
-import yu/parallel
 import yu/HVec
 import yu/print/print
 import yu/print/printf
@@ -74,4 +73,3 @@ import yu/Str/StrStr
 import yu/Str/Format
 import yu/Str/theorems
 import yu/Stream/Stream
-import yu/parallel/parallel

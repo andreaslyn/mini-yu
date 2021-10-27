@@ -35,7 +35,7 @@ compile_all() {
   compile "$dir/rev-test.yu"
   compile "$dir/lazy-rev-test.yu"
   compile "$dir/rev-test-bin.yu"
-  compile "$dir/thread-test.yu"
+  compile "$dir/io-monad-test.yu"
   compile "$dir/sort-test.yu"
 
   compile_ghc "$dir/HsNatTest"

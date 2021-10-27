@@ -14,7 +14,6 @@ MAKEFILE_INC := 1
 CSOURCE := \
   $(ROOT_DIR)/yucmalloc.c \
   $(ROOT_DIR)/yustr.c \
-  $(ROOT_DIR)/parallel.c \
   $(ROOT_DIR)/yu.c \
   $(ROOT_DIR)/yulist.c \
   $(ROOT_DIR)/yustack.c
