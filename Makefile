@@ -26,7 +26,10 @@ mini-yu: $(EXE_PATH)
 .PHONY: config
 config:
 	mkdir -p mimalloc/out
-	cmake -Hmimalloc -Bmimalloc/out -DMI_OVERRIDE=OFF
+	cmake -Hmimalloc -Bmimalloc/out \
+		-DMI_OVERRIDE=OFF
+
+#-DCMAKE_C_COMPILER=/home/andreas/Desktop/install-gcc/bin/gcc
 
 all: config mini-yu
 
@@ -36,7 +39,7 @@ $(EXE_PATH): $(LIBMIMALLOC)
 
 .PHONY: $(EXE_PATH)
 $(LIBMIMALLOC):
-	$(MAKE) -C mimalloc/out
+	CC=/home/andreas/Desktop/install-gcc/bin/gcc $(MAKE) -C mimalloc/out
 
 .PHONY: base_clean
 base_clean:

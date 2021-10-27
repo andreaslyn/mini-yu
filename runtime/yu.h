@@ -1,13 +1,20 @@
 #ifndef YU_YU_H
 #define YU_YU_H
 
+#include "yustack.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdatomic.h>
 
+#define yur_NO_SPLIT_STACK __attribute__((no_split_stack))
+
 #define yur_NORETURN __attribute__((noreturn))
 
 #define yur_ALWAYS_INLINE inline __attribute__((always_inline))
+
+#define yur_NOINLINE __attribute__((noinline))
+
+#define yur_NAKED __attribute__((naked))
 
 #define yur_LIKELY(x) __builtin_expect(!!(x), 1)
 
@@ -18,6 +25,22 @@
 
 #define yur_ASTORE(dest, source) \
   __atomic_store_n(&(dest), (source), memory_order_release)
+
+#define yur_DO_STRINGIFY(x) #x
+#define yur_STRINGIFY(x) yur_DO_STRINGIFY(x)
+
+#define yur_SYSTEM_SWITCH(type, name, args) \
+yur_NO_SPLIT_STACK yur_NOINLINE yur_NAKED type name args { \
+  asm ( \
+    "movq %%r15, -8(%%rsp)\n\t" \
+    "movq %%rsp, %%r15\n\t" \
+    "movq %%fs:0x88, %%rsp\n\t" \
+    "call " yur_STRINGIFY(yur_SYSTEM_SWITCH_ ## name) "\n\t" \
+    "movq %%r15, %%rsp\n\t" \
+    "movq -8(%%rsp), %%r15\n\t" \
+    "ret" : : : ); \
+} \
+yur_NO_SPLIT_STACK type yur_SYSTEM_SWITCH_ ## name args
 
 typedef uint16_t yur_Vmt_index;
 
@@ -44,8 +67,12 @@ typedef struct yur_Ref {
 
 yur_Ref *yu_main(yur_Ref *);
 
+// NOTE: call yur_panic with at most 6 arguments!
 yur_NORETURN
 void yur_panic(const char *fmt, ...);
+
+yur_NORETURN
+void yur_SYSTEM_SWITCH_yur_panic(const char *fmt, ...);
 
 yur_Ref *yur_print(yur_Ref *);
 

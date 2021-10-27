@@ -20,6 +20,7 @@ import System.FilePath (takeDirectory, takeFileName)
 import Str (stdRuntimePath)
 import System.Environment (getExecutablePath)
 import qualified Data.Map as Map
+import Data.List (intercalate)
 
 runIr ::
   ProgramOptions -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap -> IO ()
@@ -44,54 +45,93 @@ runIr opts vs dm im rm = do
   let runtime = root ++ "/" ++ stdRuntimePath
   let mimallocInclude = root ++ "/mimalloc/include"
   let mimallocLib = root ++ "/mimalloc/out/libmimalloc.a"
+  let gcc = "/home/andreas/Desktop/install-gcc/bin/gcc"
   when (optionAssembly opts) $ do
     let outfile = argumentFileName opts ++ ".s"
     let cargs = if optionOptimize opts
-                then ["-std=c11",
+                then ["-std=gnu11",
                        "-Wall",
+                       "-static",
                        "-S",
                        "-O3",
+                       "-fyu-stack",
+                       "-fno-omit-frame-pointer",
+                       "-momit-leaf-frame-pointer",
                        "-I", mimallocInclude,
                        "-I", runtime,
                        "-o", outfile,
                        cfile]
-                else ["-std=c11",
+                else ["-std=gnu11",
                        "-Wall",
+                       "-static",
                        "-S",
                        "-g",
+                       "-fyu-stack",
+                       "-fno-omit-frame-pointer",
+                       "-momit-leaf-frame-pointer",
                        "-I", mimallocInclude,
                        "-I", runtime,
                        "-o", outfile,
                        cfile]
-    command_ [] "gcc" (cargs ++ argumentGccOptions opts)
+    command_ [] gcc (cargs ++ argumentGccOptions opts)
   when (optionCompile opts) $ do
     let cruntime = runtime ++ "/yu.c"
     let parruntime = runtime ++ "/parallel.c"
     let strruntime =  runtime++ "/yustr.c"
     let listruntime = runtime ++ "/yulist.c"
+    let cmallocruntime = runtime ++ "/yucmalloc.c"
+    let stackruntime_s = runtime ++ "/yustack.S"
+    let stackruntime_c = runtime ++ "/yustack.c"
     let outfile = argumentFileName opts ++ ".exe"
     let cargs = if optionOptimize opts
-                then ["-std=c11",
+                then ["-std=gnu11",
                        "-Wall",
-                       "-O3",
-                       "-I", mimallocInclude,
-                       "-I", runtime,
-                       "-o", outfile,
-                       cfile, cruntime, parruntime, strruntime, listruntime,
-                       mimallocLib,
-                       "-lpthread",
-                       "-latomic"]
-                else ["-std=c11",
-                       "-Wall",
+                       "-static",
                        "-g",
+                       "-O2",
+                       "-fgcse-after-reload",
+                       "-fipa-cp-clone",
+                       "-floop-interchange",
+                       "-floop-unroll-and-jam",
+                       "-fpeel-loops",
+                       "-fpredictive-commoning",
+                       "-fsplit-loops",
+                       "-fsplit-paths",
+                       "-ftree-loop-distribution",
+                       "-ftree-loop-vectorize",
+                       "-ftree-partial-pre",
+                       "-ftree-slp-vectorize", -- this one?
+                       "-funswitch-loops",
+                       "-fvect-cost-model=dynamic",
+                       "-fversion-loops-for-strides",
+                       "-fyu-stack",
+                       "-fno-omit-frame-pointer",
+                       "-momit-leaf-frame-pointer",
                        "-I", mimallocInclude,
                        "-I", runtime,
                        "-o", outfile,
                        cfile, cruntime, parruntime, strruntime, listruntime,
+                       cmallocruntime, stackruntime_s, stackruntime_c,
                        mimallocLib,
                        "-lpthread",
                        "-latomic"]
-    command_ [] "gcc" (cargs ++ argumentGccOptions opts)
+                else ["-std=gnu11",
+                       "-Wall",
+                       "-static",
+                       "-g",
+                       "-fyu-stack",
+                       "-fno-omit-frame-pointer",
+                       "-momit-leaf-frame-pointer",
+                       "-I", mimallocInclude,
+                       "-I", runtime,
+                       "-o", outfile,
+                       cfile, cruntime, parruntime, strruntime, listruntime,
+                       cmallocruntime, stackruntime_s, stackruntime_c,
+                       mimallocLib,
+                       "-lpthread",
+                       "-latomic"]
+    putStrLn (gcc ++ " " ++ intercalate " " (cargs ++ argumentGccOptions opts))
+    command_ [] gcc (cargs ++ argumentGccOptions opts)
 
 getProjectPath :: IO FilePath
 getProjectPath = do

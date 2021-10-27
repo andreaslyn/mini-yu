@@ -1,5 +1,6 @@
 #include "yustr.h"
 #include "yulist.h"
+#include "yucmalloc.h"
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -1177,7 +1178,7 @@ char *yur_yustr_to_cstr(yur_Ref *s0) {
   yur_inc(s);
   yur_inc(s);
   const size_t n = yur_yulist_csize(s);
-  char *r = malloc(n + 1);
+  char *r = yur_cmalloc(n + 1);
   yur_Ref *x = s;
   for (size_t i = 0; i < n; i++) {
     yur_Ref *c = x->fields[0];
@@ -1207,9 +1208,13 @@ yur_Ref *yur_cstr_to_yustr(const char *s) {
   return r;
 }
 
+yur_SYSTEM_SWITCH(void, yur_putcchar, (int c)) {
+  putchar(c);
+}
 
-yur_Ref *yu__doprint_doyu_slprint_slprint_nuChar_doyu_slChar_slType(yur_Ref *x) {
-  putchar(yur_yuchar_to_cchar(x));
+yur_Ref *
+yu__doprint_doyu_slprint_slprint_nuChar_doyu_slChar_slType(yur_Ref *x) {
+  yur_putcchar(yur_yuchar_to_cchar(x));
   return &yur_unit;
 }
 
