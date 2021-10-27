@@ -27,6 +27,7 @@ static yur_Ref *mk_error(int e) {
   return r;
 }
 
+// XXX This is leaking on error!
 static yur_Ref *join_fn(yur_Ref *r) {
   struct yur_PThread *t = (struct yur_PThread *) r->fields[1];
   yur_Ref *result;
@@ -46,10 +47,13 @@ static yur_Ref *join_fn(yur_Ref *r) {
   yur_inc(result);
 
   mutexE = pthread_mutex_unlock(&t->mutex);
+  int destroyE = pthread_mutex_destroy(&t->mutex);
   if (joinE != 0)
     return mk_error(joinE);
   if (mutexE != 0)
     return mk_error(mutexE);
+  if (destroyE != 0)
+    return mk_error(destroyE);
 
   yur_Ref *s = yur_build(1, 1);
   s->fields[0] = result;
@@ -116,6 +120,7 @@ static struct yur_PThread *mk_yur_pthread(yur_Ref *f)
   return x;
 }
 
+// XXX This is leaking on error!
 // (A : Ty) & (f : {} ->> A) -> Lazy (Str || A)
 yur_Ref *yu_parallelAxiom_si_doyu_slparallel_slparallel(yur_Ref *f, yur_Ref *A) {
   yur_unref(A);

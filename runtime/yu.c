@@ -157,7 +157,7 @@ void yur_dealloc(yur_Ref *r) {
 
 _Static_assert(sizeof(rlim_t) >= 4, "size of rlim_t is too small");
 
-#define yur_DATA_SIZE ((rlim_t) 1 << 31) // 2GB.
+#define yur_DATA_SIZE ((rlim_t) 1 << 34) // 4GB.
 
 static const rlim_t stack_size = yur_DATA_SIZE;
 

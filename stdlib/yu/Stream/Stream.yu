@@ -12,9 +12,14 @@ data Stream : Ty -> Ty
 | (::#Stream) [A : Ty] : A & ([] -> Stream A) -> Stream A
 
 
-val (:+:#Stream) [A : Ty] : Stream A & Stream A -> Stream A
+val (:+:#Stream) [A : Ty] : Stream A & ([] -> Stream A) -> Stream A
 let nil ys => ys
 let (x :: xs) ys => x :: xs :+: ys
+
+
+val (.len#Stream) [A : Ty] : Stream A -> Nat
+let nil => 0.N
+let (_ :: xs) => ++ xs .len
 
 
 val (.take!#Stream) [A : Ty] : Stream A & Nat -> Stream A
