@@ -1,9 +1,13 @@
 #include "yu.h"
 #include <stdio.h>
 
+yur_SYSTEM_SWITCH_DEF(, static void, print_hello, ()) {
+  printf("hello extern world\n");
+}
+
 yur_Ref *yu__ex(yur_Ref *b) {
   yur_Ref *ret;
-  printf("hello extern world\n");
+  print_hello();
   if (yur_ALOAD(b->tag) == 0)
     ret = yur_build(0, 1);
   else

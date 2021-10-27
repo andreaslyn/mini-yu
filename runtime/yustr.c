@@ -1208,13 +1208,9 @@ yur_Ref *yur_cstr_to_yustr(const char *s) {
   return r;
 }
 
-yur_SYSTEM_SWITCH(void, yur_putcchar, (int c)) {
-  putchar(c);
-}
-
 yur_Ref *
 yu__doprint_doyu_slprint_slprint_nuChar_doyu_slChar_slType(yur_Ref *x) {
-  yur_putcchar(yur_yuchar_to_cchar(x));
+  yur_putchar(yur_yuchar_to_cchar(x));
   return &yur_unit;
 }
 

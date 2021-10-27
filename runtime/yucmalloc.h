@@ -3,8 +3,8 @@
 
 #include "yu.h"
 
-void *yur_cmalloc(size_t);
+yur_SYSTEM_SWITCH_DECL(, void *, yur_cmalloc, (size_t));
 
-void yur_cfree(void *);
+yur_SYSTEM_SWITCH_DECL(, void, yur_cfree, (void *));
 
 #endif // YU_CMALLOC_H

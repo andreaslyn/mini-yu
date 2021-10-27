@@ -46,14 +46,14 @@ __yu_morestack:
   movq %rcx, 24(%rsp)
   movq %r8, 32(%rsp)
   movq %r9, 40(%rsp)
-  // Preserve rax as well, since the caller may use it to hold r10:
+  // Preserve rax as well, since it is used for variadic arguments.
   movq %rax, 48(%rsp)
 
   // Save old stack pointer in rcx, argument to
-  // call yur_new_stack_seg later on:
+  // call yur_new_stack_seg_s later on:
   movq %r11, %rcx
   // Move the caller's frame size to argument register r8,
-  // which is used for calling yur_new_stack_seg later on:
+  // which is used for calling yur_new_stack_seg_s later on:
   movq %r10, %r8
 
   // At this point we have the following registers we can clobber:
@@ -66,7 +66,7 @@ __yu_morestack:
   // Save yur_stack_overlap_size in regsiter rax for efficient access:
   movq yur_stack_overlap_size, %rax
   // Save CURR_SEG_BEGIN and CURR_SEG_END for fast access and as
-  // arguments to yur_new_stack_seg later on:
+  // arguments to yur_new_stack_seg_s later on:
   movq CURR_SEG_BEGIN, %rsi
   movq CURR_SEG_END, %rdx
 
@@ -83,10 +83,10 @@ __yu_morestack:
   subq %rcx, %rdi
   addq $8, %rdi
   // Save caller's caller stack frame size in r9, which is argument
-  // to call yur_new_stack_seg later on.
+  // to call yur_new_stack_seg_s later on.
   movq %rdi, %r9
   // Save it on the stack as well, since we need it after calling
-  // yur_new_stack_seg as well.
+  // yur_new_stack_seg_s as well.
   movq %rdi, 56(%rsp)
 
   // The following registers are free:
@@ -129,7 +129,7 @@ __yu_morestack:
 
 .copy_size_found:
   // Preserve the size to copy from old stack, since we need it after
-  // call yur_new_stack_seg:
+  // call yur_new_stack_seg_s:
   movq %rdi, 64(%rsp)
 
   // Here:
@@ -139,7 +139,7 @@ __yu_morestack:
   // - rcx (fourth argument) is the old stack pointer.
   // - r8 (fifth argument) is the caller frame size.
   // - r9 (sixth argument) is the caller's caller frame size.
-  call yur_new_stack_seg
+  call yur_new_stack_seg_s
 
   // We have a new initialized stack segment with beginning pointed
   // to by register rax and end pointed to by register rdx.
@@ -160,7 +160,6 @@ __yu_morestack:
 
   // Get size of caller's caller stack frame before switching stack:
   movq 56(%rsp), %r11
-
   // Subtract size copied from old stack:
   subq 64(%rsp), %r10
   // Switch to the new stack:
@@ -192,7 +191,7 @@ __yu_lessstack:
   movq %rdx, 8(%rsp)
 
   // Save the top stack segment ending in register rdi, used as
-  // argument to call yur_delete_stack_seg later on.
+  // argument to call yur_delete_stack_seg_s later on.
   movq CURR_SEG_END, %rdi
 
   // Get the previous stack pointer, r10->prev_sp:
@@ -213,7 +212,7 @@ __yu_lessstack:
   movq %rax, 24(%rsp)
 
   // Delete the top stack segment with end pointer in rdi:
-  call yur_delete_stack_seg
+  call yur_delete_stack_seg_s
 
   // Restore potential return values from caller:
   movq (%rsp), %rax
@@ -252,7 +251,7 @@ yur_run:
 
   // Get a new stack segment:
   movq $24, %rdi
-  call yur_initial_stack_seg
+  call yur_initial_stack_seg_s
   // Set the new stack segment boundaries:
   movq %rax, CURR_SEG_BEGIN
   movq %rdx, CURR_SEG_END
@@ -292,7 +291,7 @@ yur_run:
   // Delete the remaining stack segment(s):
   movq CURR_SEG_BEGIN, %rdi
   movq CURR_SEG_END, %rsi
-  call yur_delete_all_stack_segs
+  call yur_delete_all_stack_segs_s
 
   // Restore system frame pointer:
   movq (%rsp), %rbp

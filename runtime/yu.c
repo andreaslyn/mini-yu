@@ -136,22 +136,23 @@ yur_Ref yur_unit = {
   .nfields = 0
 };
 
-yur_SYSTEM_SWITCH(yur_NORETURN void, yur_panic, (const char *fmt, ...)) {
-#if 0
+yur_SYSTEM_SWITCH_DEF(,
+    yur_NORETURN void, yur_panic, (const char *fmt, ...)) {
   va_list ap;
   va_start(ap, fmt);
   fprintf(stderr, "panic: ");
   vfprintf(stderr, fmt, ap);
   putc('\n', stderr);
   va_end(ap);
-#else
-  fprintf(stderr, "panic: error");
-#endif
   exit(EXIT_FAILURE);
 }
 
-yur_SYSTEM_SWITCH(yur_Ref *, yur_print, (yur_Ref * r)) {
-  putchar((int) r->tag);
+yur_SYSTEM_SWITCH_DEF(extern yur_ALWAYS_INLINE, void, yur_putchar, (int c)) {
+  putchar(c);
+}
+
+yur_SYSTEM_SWITCH_DEF(, yur_Ref *, yur_print, (yur_Ref * r)) {
+  yur_putchar((int) r->tag);
   return &yur_unit;
 }
 
@@ -168,25 +169,23 @@ yur_Ref yur_printref = {
 
 ///////////////////////////// Allocator ///////////////////////////
 
-yur_SYSTEM_SWITCH(yur_Ref *, yur_malloc, (size_t nbytes)) {
+yur_SYSTEM_SWITCH_DEF(extern yur_ALWAYS_INLINE,
+    yur_Ref *, yur_malloc, (size_t nbytes)) {
   yur_Ref *r = (yur_Ref *) mi_malloc(nbytes);
   if (!r)
-    yur_SYSTEM_SWITCH_yur_panic("memory allocation error");
+    yur_panic_s("memory allocation error");
   r->count = 1;
   r->vmt_index = yur_Dynamic_vmt;
   return r;
 }
 
-yur_SYSTEM_SWITCH(yur_Ref *, yur_alloc, (size_t nfields)) {
-  yur_Ref *r = (yur_Ref *) mi_malloc(sizeof(yur_Ref) + nfields * sizeof(yur_Ref *));
-  if (!r)
-    yur_SYSTEM_SWITCH_yur_panic("memory allocation error");
-  r->count = 1;
-  r->vmt_index = yur_Dynamic_vmt;
-  return r;
+yur_SYSTEM_SWITCH_DEF(extern yur_ALWAYS_INLINE,
+    yur_Ref *, yur_alloc, (size_t nfields)) {
+  return yur_malloc_s(sizeof(yur_Ref) + nfields * sizeof(yur_Ref *));
 }
 
-yur_SYSTEM_SWITCH(void, yur_dealloc, (yur_Ref *r)) {
+yur_SYSTEM_SWITCH_DEF(extern yur_ALWAYS_INLINE,
+    void, yur_dealloc, (yur_Ref *r)) {
   mi_free(r);
 }
 
@@ -206,22 +205,22 @@ int main() {
 #if 0
   struct rlimit cs;
   if (getrlimit(RLIMIT_STACK, &cs) == -1)
-    yur_panic("failed getting current stack size");
+    yur_panic_s("failed getting current stack size");
 #endif
 
   struct rlimit cd;
   if (getrlimit(RLIMIT_DATA, &cd) == -1)
-    yur_SYSTEM_SWITCH_yur_panic("failed getting current data size");
+    yur_panic_s("failed getting current data size");
 
 #if 0
   struct rlimit ns = { stack_size, cs.rlim_max };
   if (setrlimit(RLIMIT_STACK, &ns) == -1)
-    yur_panic("failed setting stack size, %s", strerror(errno));
+    yur_panic_s("failed setting stack size, %s", strerror(errno));
 #endif
 
   struct rlimit nd = { data_size, cd.rlim_max };
   if (setrlimit(RLIMIT_DATA, &nd) == -1)
-    yur_SYSTEM_SWITCH_yur_panic("failed setting stack size, %s", strerror(errno));
+    yur_panic_s("failed setting stack size, %s", strerror(errno));
 
   (void) yur_run((yur_Run) yu_main, &yur_unit);
 }
