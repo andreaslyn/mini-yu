@@ -10,11 +10,11 @@ struct yur_Stack_seg {
 };
 #define YUR_STACK_SEG_UNRESERVED_SIZE \
   (sizeof(struct yur_Stack_seg) - sizeof(void*))
-// | reserved | stack... | prev_sp | prev_begin | prev_end | prev_bp |
+// | reserved | stack... | prev_sp | prev_begin | prev_end | prev_bp | |
 //            ^          ^
 //            end        begin
 
-struct yur_Stack_seq_end_pair {
+struct yur_Stack_seg_pair {
   struct yur_Stack_seg *begin;
   void *end;
 };
@@ -23,7 +23,7 @@ void yur_set_stack_overlap_size(size_t);
 void yur_set_stack_segment_size(size_t);
 void yur_enable_stack_red_zone(bool);
 
-struct yur_Stack_seq_end_pair
+struct yur_Stack_seg_pair
 yur_new_stack_seg(
     size_t copy_size, // Amount of stack to copy from prev_sp
     struct yur_Stack_seg *prev_seg_begin,
@@ -32,7 +32,7 @@ yur_new_stack_seg(
     size_t frame_size, // Size of caller stack frame.
     size_t prev_frame_size); // Size of caller's caller stack frame.
 
-struct yur_Stack_seq_end_pair
+struct yur_Stack_seg_pair
 yur_initial_stack_seg(size_t frame_size);
 
 void

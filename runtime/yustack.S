@@ -250,7 +250,7 @@ yur_run:
   movq %rsp, SYSTEM_STACK
 
   // Get a new stack segment:
-  movq $24, %rdi
+  movq $8, %rdi
   call yur_initial_stack_seg_s
   // Set the new stack segment boundaries:
   movq %rax, CURR_SEG_BEGIN
@@ -265,14 +265,10 @@ yur_run:
 
   // Switch to the new stack:
   movq %rax, %rsp
-  // Aligh stack:
-  pushq $0
   // Push initial "dummy" frame pointer:
   pushq %rax
   // Setup the new frame pointer:
   movq %rsp, %rbp
-  // Aligh stack:
-  pushq $0
 
   // Call the continuation:
   call *%rsi

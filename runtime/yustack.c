@@ -97,7 +97,7 @@ yur_SYSTEM_DEF(yur_ALWAYS_INLINE static void *,
       copy_size, (size_t) begin, (size_t) prev_sp, prev_frame_size);
 }
 
-yur_SYSTEM_DEF(struct yur_Stack_seq_end_pair, yur_new_stack_seg,
+yur_SYSTEM_DEF(struct yur_Stack_seg_pair, yur_new_stack_seg,
     (size_t copy_size,
      struct yur_Stack_seg *prev_seg_begin,
      void *prev_seg_end,
@@ -123,17 +123,17 @@ yur_SYSTEM_DEF(struct yur_Stack_seq_end_pair, yur_new_stack_seg,
 
   void *end = get_seg_end_s(p);
 
-  return (struct yur_Stack_seq_end_pair) { begin, end };
+  return (struct yur_Stack_seg_pair) { begin, end };
 }
 
-yur_SYSTEM_DEF(struct yur_Stack_seq_end_pair,
+yur_SYSTEM_DEF(struct yur_Stack_seg_pair,
     yur_initial_stack_seg, (size_t frame_size)) {
   size_t s = get_alloc_size_s(0, frame_size);
   void *p = alloc_s(s);
   struct yur_Stack_seg *begin = get_seg_begin_s(p, s);
   void *end = get_seg_end_s(p);
   bzero(begin, YUR_STACK_SEG_UNRESERVED_SIZE);
-  return (struct yur_Stack_seq_end_pair) { begin, end };
+  return (struct yur_Stack_seg_pair) { begin, end };
 }
 
 yur_SYSTEM_DEF(extern yur_ALWAYS_INLINE void,
