@@ -45,7 +45,7 @@ runIr opts vs dm im rm = do
   let runtimePath = root ++ "/" ++ stdRuntimePath
   let mimallocLib = root ++ "/mimalloc/out/libmimalloc.a"
   let gcc = if optionNoSplitStack opts
-            then "/home/andreas/Desktop/install-gcc/bin/gcc" --"gcc"
+            then "gcc"
             else "/home/andreas/Desktop/install-gcc/bin/gcc"
   when (optionAssembly opts) $ do
     let outfile = argumentFileName opts ++ ".s"

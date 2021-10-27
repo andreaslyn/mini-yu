@@ -29,7 +29,7 @@
     asm ( \
       "movq %%r15, -8(%%rsp)\n\t" \
       "movq %%rsp, %%r15\n\t" \
-      "movq %%fs:0x88, %%rsp\n\t" \
+      "movq %" yur_STRINGIFY(SYSTEM_STACK) ", %%rsp\n\t" \
       "call " yur_STRINGIFY(name ## _s) "\n\t" \
       "movq %%r15, %%rsp\n\t" \
       "movq -8(%%rsp), %%r15\n\t" \
