@@ -90,7 +90,7 @@ __yu_morestack:
   // If this is above or equal to yur_stack_overlap_size, then we have
   // the amount of stack space to copy over already.
   cmpq %rax, %rdi
-  jae .copy_size_found
+  jae .Lcopy_size_found
 
   // Here we need to backtrack the stack to compute the amount
   // of stack to copy over. We can clobber rbp, since we will
@@ -98,14 +98,14 @@ __yu_morestack:
 
   // The below loop clobbers register r11, and r10 is still free.
 
-.add_stack_frame:
+.Ladd_stack_frame:
   // Get the next frame pointer in the sequence:
   movq (%rbp), %r11
   // If the next frame pointer is the beginning of the current stack
   // segment then we cannot copy any more. Hence have found the
   // amount to copy:
   cmpq %rsi, %r11
-  je .copy_size_found
+  je .Lcopy_size_found
   // Get the size of the next stack frame (pointed to by r11):
   subq %rbp, %r11
   // Add the size of this stack frame to the total:
@@ -115,14 +115,14 @@ __yu_morestack:
   // For potential next iteration, save next frame pointer:
   movq (%rbp), %rbp
   // If still below yur_stack_overlap_size then add one more frame:
-  jb .add_stack_frame
+  jb .Ladd_stack_frame
   // Here the total is above or equal to yur_stack_overlap_size.
   // If we are spot on equal, then we have found the amount to copy:
-  je .copy_size_found
+  je .Lcopy_size_found
   // Otherwise we have one stack frame too much, subtrack it:
   subq %r11, %rdi
 
-.copy_size_found:
+.Lcopy_size_found:
   // Preserve the size to copy from old stack, since we need it after
   // call yur_new_stack_seg_s:
   movq %rdi, 64(%rsp)
