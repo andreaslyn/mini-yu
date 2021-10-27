@@ -14,15 +14,15 @@
 
 .globl yur_stack_overlap_size
 .type yur_stack_overlap_size, @object
-yur_stack_overlap_size: .quad 672
-
-.globl yur_stack_segment_size
-.type yur_stack_segment_size, @object
-yur_stack_segment_size: .quad 8096
+yur_stack_overlap_size: .quad 688
 
 .globl yur_reserved_stack_size
 .type yur_reserved_stack_size, @object
-yur_reserved_stack_size: .quad 400
+yur_reserved_stack_size: .quad 368
+
+.globl yur_stack_segment_size
+.type yur_stack_segment_size, @object
+yur_stack_segment_size: .quad 8192
 
 
 .text
