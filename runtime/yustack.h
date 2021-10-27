@@ -46,8 +46,10 @@
     ".globl " yur_STRINGIFY(name) "\n\t" \
     ".type " yur_STRINGIFY(name) ", @function\n" \
     yur_STRINGIFY(name) ":\n\t" \
+    ".cfi_startproc\n\t" \
     "call " yur_STRINGIFY(name ## _s) "\n\t" \
-    "ret\n\t" ); \
+    "ret\n\t" \
+    ".cfi_endproc\n"); \
   __attribute__((used)) attributes \
   type name ## _s args
 
