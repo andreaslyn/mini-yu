@@ -14,7 +14,7 @@
 
 .globl yur_stack_overlap_size
 .type yur_stack_overlap_size, @object
-yur_stack_overlap_size: .quad 880
+yur_stack_overlap_size: .quad 672
 
 .globl yur_stack_segment_size
 .type yur_stack_segment_size, @object
@@ -22,7 +22,7 @@ yur_stack_segment_size: .quad 8096
 
 .globl yur_reserved_stack_size
 .type yur_reserved_stack_size, @object
-yur_reserved_stack_size: .quad 144
+yur_reserved_stack_size: .quad 400
 
 
 .text
@@ -251,7 +251,7 @@ yur_run:
   movq %rsp, SYSTEM_STACK
 
   // Get a new stack segment:
-  movq $16, %rdi
+  movq $24, %rdi
   call yur_initial_stack_seg
   // Set the new stack segment boundaries:
   movq %rax, CURR_SEG_BEGIN
