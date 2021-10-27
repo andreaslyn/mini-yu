@@ -1,0 +1,25 @@
+import yu/prelude
+of (...)
+
+
+data IO : Ty -> Ty
+of mkIO [A : Ty] : ({} ->> A) -> IO A
+
+
+val unIO [A : Ty] : IO A -> {} ->> A
+let (mkIO c) => c
+
+
+val (>>=#IO) [A B : Ty] : IO A & (A -> IO B) -> IO B
+let m f => mkIO (_ => unIO (f (unIO m ())) ())
+
+
+val return [A : Ty] : A -> IO A
+let a => mkIO (_ => a)
+
+
+val main : {} ->> {}
+let () => (unIO at
+  mkIO (_ => "return true" .println; true) >>= at b =>
+  mkIO (_ => "received: %b\n" .printf b)
+) ()

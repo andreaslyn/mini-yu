@@ -1173,9 +1173,7 @@ yur_Ref *yur_cchar_to_yuchar(char c) {
   }
 }
 
-char *yur_yustr_to_cstr(yur_Ref *s0) {
-  yur_Ref *s = s0->fields[0];
-  yur_inc(s);
+char *yur_yustr_to_cstr(yur_Ref *s) {
   yur_inc(s);
   const size_t n = yur_yulist_csize(s);
   char *r = yur_cmalloc(n + 1);
@@ -1186,26 +1184,19 @@ char *yur_yustr_to_cstr(yur_Ref *s0) {
     r[i] = yur_yuchar_to_cchar(c);
     x = x->fields[1];
   }
-  yur_unref(s0);
   yur_unref(s);
   r[n] = '\0';
   return r;
 }
 
-static yur_Ref *yur_cstr_to_yustr_aux(const char *s) {
+yur_Ref *yur_cstr_to_yustr(const char *s) {
   const char c = *s;
   if (!c)
     return &yur_unit;
   yur_Ref *n = yur_build(2, 1);
   n->fields[0] = yur_cchar_to_yuchar(c);
-  n->fields[1] = yur_cstr_to_yustr_aux(s + 1);
+  n->fields[1] = yur_cstr_to_yustr(s + 1);
   return n;
-}
-
-yur_Ref *yur_cstr_to_yustr(const char *s) {
-  yur_Ref *r = yur_build(1, 0);
-  r->fields[0] = yur_cstr_to_yustr_aux(s);
-  return r;
 }
 
 yur_Ref *

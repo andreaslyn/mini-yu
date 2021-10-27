@@ -102,25 +102,93 @@ writeDecRefsLn (v : vs) = do
   writeDecRefLn v
   writeDecRefsLn vs
 
+getUsedDecls :: R.Program -> IntSet
+getUsedDecls = IntMap.foldl addUsedDecls IntSet.empty
+  where
+    addUsedDecls :: IntSet -> (R.Const, R.ConstExpr) -> IntSet
+    addUsedDecls acc (_, e) =
+      IntSet.union acc (getUsedDeclsConstExpr e)
+
+getUsedDeclsConstExpr :: R.ConstExpr -> IntSet
+getUsedDeclsConstExpr (R.Extern _) = IntSet.empty
+getUsedDeclsConstExpr (R.Fun _ e) = getUsedDeclsFunExpr e
+getUsedDeclsConstExpr (R.Lazy _ _ e) = getUsedDeclsFunExpr e
+
+getUsedDeclsFunExpr :: R.FunExpr -> IntSet
+getUsedDeclsFunExpr (R.Case r cs) =
+  let r' = getUsedDeclsRef r
+      cs' = foldl (\acc (_, e) ->
+                    IntSet.union acc (getUsedDeclsFunExpr e)
+                  ) IntSet.empty cs
+  in IntSet.union r' cs'
+getUsedDeclsFunExpr (R.Let _ e1 e2) =
+  let e1' = getUsedDeclsLetExpr e1
+      e2' = getUsedDeclsFunExpr e2
+  in IntSet.union e1' e2'
+getUsedDeclsFunExpr (R.Ret r) = getUsedDeclsRef r
+getUsedDeclsFunExpr (R.Pforce _ _ rs e) =
+  let rs' = getUsedDeclsRefs rs
+      e' = getUsedDeclsFunExpr e
+  in IntSet.union rs' e'
+getUsedDeclsFunExpr (R.Inc _ e) =
+  getUsedDeclsFunExpr e
+getUsedDeclsFunExpr (R.Dec _ e) =
+  getUsedDeclsFunExpr e
+getUsedDeclsFunExpr (R.Unuse r e) =
+  let r' = getUsedDeclsRef r
+      e' = getUsedDeclsFunExpr e
+  in IntSet.union r' e'
+
+getUsedDeclsLetExpr :: R.LetExpr -> IntSet
+getUsedDeclsLetExpr (R.Ap _ _ rs) =
+  getUsedDeclsRefs rs
+getUsedDeclsLetExpr (R.Pap _ rs) =
+  getUsedDeclsRefs rs
+getUsedDeclsLetExpr (R.MkLazy True _ _) =
+  IntSet.empty
+getUsedDeclsLetExpr (R.MkLazy False _ c) =
+  IntSet.singleton (R.prConst c)
+getUsedDeclsLetExpr (R.Force _ r Nothing) =
+  getUsedDeclsRef r
+getUsedDeclsLetExpr (R.Force _ r (Just (_, rs))) =
+  let r' = getUsedDeclsRef r
+      rs' = getUsedDeclsRefs rs
+  in IntSet.union r' rs'
+getUsedDeclsLetExpr (R.CtorBox _ rs) =
+  getUsedDeclsRefs rs
+getUsedDeclsLetExpr (R.Proj _ r) =
+  getUsedDeclsRef r
+getUsedDeclsLetExpr (R.Reset _) = IntSet.empty
+getUsedDeclsLetExpr (R.Reuse _ _ rs) =
+  getUsedDeclsRefs rs
+
+getUsedDeclsRefs :: [R.Ref] -> IntSet
+getUsedDeclsRefs [] = IntSet.empty
+getUsedDeclsRefs (r : rs) =
+  let r' = getUsedDeclsRef r
+      rs' = getUsedDeclsRefs rs
+  in IntSet.union r' rs'
+
+getUsedDeclsRef :: R.Ref -> IntSet
+getUsedDeclsRef (R.ConstRef r) = IntSet.singleton (R.prConst r)
+getUsedDeclsRef _ = IntSet.empty
+
 writeProgram :: R.Program -> GenCode ()
 writeProgram p = do
   let cs = IntMap.elems p
   writePrelude
-  writeDecls cs
-  newLine
-  newLine
+  writeDecls (getUsedDecls p) cs
   evalStateT (writeTrivialCtors cs) IntSet.empty
   evalStateT (writePapClosures cs) Set.empty
   writeConsts cs
   where
-    writeDecls :: [(R.Const, R.ConstExpr)] -> GenCode ()
-    writeDecls [] = return ()
-    writeDecls [(c, e)] = writeDecl c e >> return ()
-    writeDecls ((c, e) : cs) = do
-      writeDecl c e
+    writeDecls :: IntSet -> [(R.Const, R.ConstExpr)] -> GenCode ()
+    writeDecls _ [] = return ()
+    writeDecls usedDecls ((c, e) : cs) = do
+      writeDecl usedDecls c e
       newLine
       newLine
-      writeDecls cs
+      writeDecls usedDecls cs
 
     writeTrivialCtors :: [(R.Const, R.ConstExpr)] -> StateT IntSet GenCode ()
     writeTrivialCtors [] = return ()
@@ -233,7 +301,7 @@ writePapClosure c v rs = do
   then return ()
   else do
     put (Set.insert (c, n) gn)
-    lift (writePapFunClosure c v rs n)
+    lift (writePapFunClosure c v rs n >> newLine >> newLine)
     when (isJust v) (lift (writeLazyFun False c n >> newLine >> newLine))
 
 writePapFunClosure :: R.Const -> Maybe R.Var -> [R.Ref] -> Int -> GenCode ()
@@ -261,8 +329,7 @@ writePapFunClosure c v rs n = do
   writeAppliedArgs recIdx n
   writeStr ");"
   decIndent >> newLine
-  writeStr "}" >> newLine
-  newLine
+  writeStr "}"
   where
     paramName :: Int -> String
     paramName i = 'a' : show i
@@ -396,31 +463,40 @@ writeLazyImpl c = do
   writeStr ("  .fields[0] = (yur_Ref *) &" ++ lazyFun c 0) >> newLine
   writeStr ("};")
 
-writeDecl :: R.Const -> R.ConstExpr -> GenCode ()
-writeDecl c (R.Extern vs) = do
+writeDecl :: IntSet -> R.Const -> R.ConstExpr -> GenCode ()
+writeDecl usedImpls c (R.Extern vs) = do
   writeFunDecl c vs
   writeStr ";"
   newLine
   newLine
   writePapFunClosure c Nothing [] 0
-  writeFunImpl c
-writeDecl c (R.Fun vs _) = do
+  when (IntSet.member (R.prConst c) usedImpls) $ do
+    newLine
+    newLine
+    writeFunImpl c
+writeDecl usedImpls c (R.Fun vs _) = do
   writeFunDecl c vs
   writeStr ";"
   newLine
   newLine
   writePapFunClosure c Nothing [] 0
-  writeFunImpl c
-writeDecl c (R.Lazy iss vs _) = do
+  when (IntSet.member (R.prConst c) usedImpls) $ do
+    newLine
+    newLine
+    writeFunImpl c
+writeDecl usedImpls c (R.Lazy iss vs _) = do
   writeFunDecl c vs >> writeStr ";"
   when iss $ do
     newLine
     newLine
     writePapFunClosure c Nothing [] 0
+    newLine
+    newLine
     writeLazyFun True c 0
-    newLine
-    newLine
-    writeLazyImpl c
+    when (IntSet.member (R.prConst c) usedImpls) $ do
+      newLine
+      newLine
+      writeLazyImpl c
 
 writeConst :: R.Const -> R.ConstExpr -> GenCode ()
 writeConst _ (R.Extern _) = return ()
@@ -567,7 +643,7 @@ writeLetExpr letVar (R.Force _ (R.ConstRef r) rs) = do
   writeStr "yur_ALOAD("
     >> writeStr (funImpl r) >> writeStr ".fields[0]);"
   newLine
-  writeStr "if (yur_LIKELY(yur_ALOAD(" >> writeStr (funImpl r) >> writeStr ".tag))) {"
+  writeStr "if (yur_ALOAD(" >> writeStr (funImpl r) >> writeStr ".tag)) {"
   incIndent >> newLine
   writeDecRefsLn (R.forceProjArgs rs)
   decIndent >> newLine

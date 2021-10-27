@@ -26,6 +26,17 @@ let => 10000 * 10.Bin
 val 1000000 : Bin
 let => 100000 * 10.Bin
 
+val listFirstAndLast : List Bin -> Bin && Bin
+let nil.L => 0.Bin $ 0.Bin
+let (x :: nil.L) => x $ x
+let (x :: xs) => x $ listlast xs
+where
+  val listlast : List Bin -> Bin
+  let nil.L => 0.Bin
+  let (x :: nil.L) => x
+  let (_ :: xs) => listlast xs
+end
+
 val rev [A : Ty] : List A -> List A
 let xs => xs .accum nil.L at a x => x :: a
 
@@ -43,7 +54,15 @@ end
 val main : {} ->> {}
 let () =>
   xs := gen-list 1000000;
-  case rev' (rev' xs)
-  of nil.L => "0" .println
-  of _ => "1" .println
+  case listFirstAndLast(rev'(rev'(xs)))
+  of 0.Bin $ 0.Bin => "0.Bin" .println
+  of _ $ 0.Bin => "1" .println
+  of 0.Bin $ _ => "2" .println
+  of _ $ _ => "3" .println
+  end;
+  case listFirstAndLast(rev(rev(xs)))
+  of 0.Bin $ 0.Bin => "0.Bin" .println
+  of _ $ 0.Bin => "1" .println
+  of 0.Bin $ _ => "2" .println
+  of _ $ _ => "3" .println
   end

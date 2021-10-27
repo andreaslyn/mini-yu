@@ -1527,9 +1527,9 @@ writeDomainList (v:vs) = do
 writeOptNamedPreTerm ::
   (Maybe Var, PreTerm) -> ToString ()
 writeOptNamedPreTerm (Nothing, t) = do
-  when (needsAppParens t) (writeStr "(")
+  when (hasLowerPrecThanInfixOp6 t) (writeStr "(")
   writePreTerm t
-  when (needsAppParens t) (writeStr ")")
+  when (hasLowerPrecThanInfixOp6 t) (writeStr ")")
 writeOptNamedPreTerm (Just v, t) = do
   writeStr "("
   writeStr (varName v)

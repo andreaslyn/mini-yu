@@ -139,6 +139,7 @@ data St = St
   , constMap :: IntMap Const -- Te ref id -> Const
   , varMap :: IntMap Var     -- Te var id -> Var
   , ctorMap :: IntMap Ctor   -- Te ctor id -> Ctor
+  , identityDataTypeSet :: IntSet
   , nextConst :: Int
   , nextVar :: Int
   , unitConst :: Const
@@ -238,6 +239,57 @@ lookupDataCtor v = do
   dm <- getDataCtorMap
   return (Env.forceLookupDataCtorMap v dm)
 
+concatRelevantDom :: 
+  Te.RefMap -> Te.Implicits -> Te.PreTerm ->
+  Maybe [(Maybe Te.Var, Te.PreTerm)]
+concatRelevantDom rm is ty = do
+  dom <- concatDom rm is ty
+  return (filter (\(_, dty) -> isRelevantTy rm dty) dom)
+
+concatDom ::
+  Te.RefMap -> Te.Implicits -> Te.PreTerm ->
+  Maybe [(Maybe Te.Var, Te.PreTerm)]
+concatDom rm [] ty = concatDomAux rm ty
+concatDom rm is ty =
+  let is' = map (\(v,t) -> (Just v, t)) is
+  in case concatDomAux rm ty of
+      Nothing -> return is'
+      Just d -> return (is' ++ d)
+
+concatDomAux ::
+  Te.RefMap -> Te.PreTerm -> Maybe [(Maybe Te.Var, Te.PreTerm)]
+concatDomAux rm t =
+  case TE.preTermDomCod rm t of
+    Nothing ->
+      case TE.preTermLazyCod rm t of
+        Nothing -> Nothing
+        Just (t', _) -> concatDomAux rm t'
+    Just (d, c, _) ->
+      case concatDomAux rm c of
+        Nothing -> Just d
+        Just d' -> Just (d ++ d')
+
+insertIdentityDataTypeSet :: Te.Var -> StM ()
+insertIdentityDataTypeSet d = do
+  modify $ \st ->
+    st {identityDataTypeSet =
+          IntSet.insert (Te.varId d) (identityDataTypeSet st)}
+
+memberIdentityDataTypeSet :: Te.Var -> StM Bool
+memberIdentityDataTypeSet d = do
+  s <- fmap identityDataTypeSet get
+  return (IntSet.member (Te.varId d) s)
+
+updateIdentityDataTypeFromCtors :: Te.Var -> [Te.Var] -> StM ()
+updateIdentityDataTypeFromCtors dat [ctor] = do
+  rm <- getRefMap
+  is <- lookupImplicit (Te.varId ctor)
+  tm <- lookupRef (Te.varId ctor)
+  case concatRelevantDom rm is (Te.termTy tm) of
+    Just [_] -> insertIdentityDataTypeSet dat
+    _ -> return ()
+updateIdentityDataTypeFromCtors _ _ = return ()
+
 runStM ::
   Bool -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap ->
   (Program, ProgramRoots)
@@ -249,6 +301,7 @@ runStM enableOptimization vs dm im rm =
               , constMap = IntMap.empty
               , varMap = IntMap.empty
               , ctorMap = IntMap.empty
+              , identityDataTypeSet = IntSet.empty
               , nextConst = 0
               , nextVar = 0
               , unitConst = Const "" 0 -- Dummy value in the beginning.
@@ -259,13 +312,13 @@ runStM enableOptimization vs dm im rm =
 
 irInitProgram :: [Te.RefVar] -> StM ProgramRoots
 irInitProgram vs = do
-  c <- getNextConst False Str.unitName
-  modify (\st -> st {unitConst = c})
+  unitC <- getNextConst False Str.unitName
+  modify (\st -> st {unitConst = unitC})
   rs <- irProgram True vs
-  p <- fmap program get
-  let r = CtorRef unitCtor []
-  modify (\st -> st {program = IntMap.insert (prConst c) (c, r, True) p})
-  return (c : rs)
+  p1 <- fmap program get
+  let unitR = CtorRef unitCtor []
+  modify (\st -> st {program = IntMap.insert (prConst unitC) (unitC, unitR, True) p1})
+  return (unitC : rs)
 
 irProgram :: Bool -> [Te.RefVar] -> StM ProgramRoots
 irProgram isStatic vs = do
@@ -289,7 +342,7 @@ doIrProgram (Te.RefVal v : vs) = do
   c <- lookupTermRef v
   return ((c, e) : m)
 doIrProgram (Te.RefData dv : vs) = do
-  e <- makeCtorConstFromVar dv dataCtor
+  e <- makeCtorConstFromVar Nothing dv dataCtor
   ctors <- lookupDataCtor (Te.varId dv)
   ctors' <- mapM irCtor ctors
   m <- doIrProgram vs
@@ -299,7 +352,7 @@ doIrProgram (Te.RefData dv : vs) = do
     irCtor :: Te.Var -> StM (Const, Expr)
     irCtor v = do
       ctor <- lookupTermCtor (Te.varId v)
-      e <- makeCtorConstFromVar v ctor
+      e <- makeCtorConstFromVar (Just dv) v ctor
       c <- lookupTermRef v
       return (c, e)
 doIrProgram (Te.RefCtor _ : vs) = doIrProgram vs
@@ -314,6 +367,7 @@ updateRefMap (Te.RefData v) = do
   case Te.termPre t of
     Te.TermData dv -> do
       cs <- lookupDataCtor (Te.varId dv)
+      updateIdentityDataTypeFromCtors dv cs
       getNextConst True (Te.varName dv) >>= updateTermRef dv
       mapM_ updateCtor (zip cs [0..])
     _ -> error "expected data from RefData"
@@ -378,30 +432,42 @@ filterRelevantRVars [] = []
 filterRelevantRVars (Relevant v : vs) = v : filterRelevantRVars vs
 filterRelevantRVars (Irrelevant _ : vs) = filterRelevantRVars vs
 
-makeCtorConstFromVar :: Te.Var -> Ctor -> StM Expr
-makeCtorConstFromVar v ctor = do
+makeCtorConstFromVar :: Maybe Te.Var -> Te.Var -> Ctor -> StM Expr
+makeCtorConstFromVar dat v ctor = do
   t <- lookupRef (Te.varId v)
   is <- lookupImplicit (Te.varId v)
   if null is
-    then makeCtorConst ctor (Te.termTy t)
+    then makeCtorConst dat ctor (Te.termTy t)
     else
       let as = map (\(i,x) -> (Just i, x)) is
-      in makeCtorConst ctor (Te.TermArrow False as (Te.termTy t))
+      in makeCtorConst dat ctor (Te.TermArrow False as (Te.termTy t))
 
-makeCtorConst :: Ctor -> Te.PreTerm -> StM Expr
-makeCtorConst ctor = make []
+makeCtorConst :: Maybe Te.Var -> Ctor -> Te.PreTerm -> StM Expr
+makeCtorConst dat ctor preTerm = do
+  b <- case dat of
+        Nothing -> return False
+        Just dat' -> memberIdentityDataTypeSet dat'
+  make b [] preTerm
   where
-    make :: [[Var]] -> Te.PreTerm -> StM Expr
-    make as t = do
+    make :: Bool -> [[Var]] -> Te.PreTerm -> StM Expr
+    make isIden as t = do
       rm <- getRefMap
       case TE.preTermDomCod rm t of
         Nothing ->
           case TE.preTermLazyCod rm t of
-            Nothing -> return (CtorRef ctor (concat (reverse as)))
-            Just (cod, _) -> fmap (Lazy False) (make as cod)
+            Nothing ->
+              let ras = concat (reverse as) in
+              if isIden
+              then
+                case ras of
+                  [a] -> return (Ret a)
+                  _ -> error "multiple relevant arguments on identity data ctor"
+              else
+                return (CtorRef ctor ras)
+            Just (cod, _) -> fmap (Lazy False) (make isIden as cod)
         Just (dom, cod, _) -> do
           a <- makeFunRVars snd dom
-          c <- make (filterRelevantRVars a : as) cod
+          c <- make isIden (filterRelevantRVars a : as) cod
           return (Fun (map prRVar a) c)
 
 irRef :: Te.Var -> StM Expr
@@ -562,7 +628,12 @@ irCaseTree xs (Te.CaseNode idx m d) = do
             c <- mapM (makeCtorCase False x xs') as
             return (map snd c)
   let allCases = sortOn (\(i, _, _) -> i) (cs ++ de)
-  return (Case x allCases)
+  case allCases of
+    [(_, Nothing, singleCase)] ->
+      return singleCase
+    _ ->
+      let allCases' = map (\ (i, n, e) -> (i, fromJust n, e)) allCases
+      in return (Case x allCases')
 irCaseTree xs (Te.CaseUnit idx (vs, ct)) = do
   let (x, xs') = removeIdx idx xs
   localUpdateTermVars vs (repeat x) $ do
@@ -574,7 +645,7 @@ irCaseTree xs (Te.CaseEmpty idx) = do
 
 makeCtorCase ::
   Bool -> Var -> [Var] -> (Te.VarId, ([Te.Var], Te.CaseTree)) ->
-  StM (Te.VarId, (CtorId, FieldCnt, Expr))
+  StM (Te.VarId, (CtorId, Maybe FieldCnt, Expr))
 makeCtorCase makeProjects x xs' (i, (vs, ct)) = do
   localUpdateTermVars vs (repeat x) $ do
     t <- lookupRef i
@@ -588,54 +659,36 @@ makeCtorCase makeProjects x xs' (i, (vs, ct)) = do
     case concatDom rm is (Te.termTy t) of
       Nothing -> do
         c <- irCaseTree xs' ct
-        return (Te.varId dataId, (prCtor i', 0, c))
-      Just dom ->
+        return (Te.varId dataId, (prCtor i', Just 0, c))
+      Just dom -> do
         if makeProjects
         then do
           ys0 <- makeFunRVars snd dom
-          (ys, p) <- makeProjs 0 dataId (zip ys0 dom)
+          isIden <- memberIdentityDataTypeSet dataId
+          (ys, p) <- makeProjs isIden 0 dataId (zip ys0 dom)
           c <- irCaseTree (ys ++ xs') ct
           let dom' = filter (\(_, dty) -> isRelevantTy rm dty) dom
-          return (Te.varId dataId, (prCtor i', length dom', p c))
+          let !() = assert (not isIden || length dom' == 1) ()
+          let nfields = if isIden then Nothing else Just (length dom')
+          return (Te.varId dataId, (prCtor i', nfields, p c))
         else do
           c <- irCaseTree xs' ct
           let dom' = filter (\(_, dty) -> isRelevantTy rm dty) dom
-          return (Te.varId dataId, (prCtor i', length dom', c))
+          return (Te.varId dataId, (prCtor i', Just (length dom'), c))
   where
     makeProjs ::
-      Int -> Te.Var -> [(RVar, (a, Te.PreTerm))] ->
+      Bool -> Int -> Te.Var -> [(RVar, (a, Te.PreTerm))] ->
       StM ([Var], Expr -> Expr)
-    makeProjs _ _ [] = return ([], id)
-    makeProjs n dataId ((Irrelevant y', (_, t)) : ys) = do
-      (ys', p) <- makeProjs n dataId ys
+    makeProjs _ _ _ [] = return ([], id)
+    makeProjs isIden n dataId ((Irrelevant y', (_, t)) : ys) = do
+      (ys', p) <- makeProjs isIden n dataId ys
       dataVal <- makeIrrelevantFunNormalized t
       return (y' : ys', Let y' dataVal . p)
-    makeProjs n dataId ((Relevant y', _) : ys) = do
-      (ys', p) <- makeProjs (n + 1) dataId ys
-      return (y' : ys', Let y' (Proj n x) . p)
-
-    concatDom ::
-      Te.RefMap -> Te.Implicits -> Te.PreTerm ->
-      Maybe [(Maybe Te.Var, Te.PreTerm)]
-    concatDom rm [] ty = concatDom' rm ty
-    concatDom rm is ty =
-      let is' = map (\(v,t) -> (Just v, t)) is
-      in case concatDom' rm ty of
-          Nothing -> return is'
-          Just d -> return (is' ++ d)
-
-    concatDom' ::
-      Te.RefMap -> Te.PreTerm -> Maybe [(Maybe Te.Var, Te.PreTerm)]
-    concatDom' rm t =
-      case TE.preTermDomCod rm t of
-        Nothing ->
-          case TE.preTermLazyCod rm t of
-            Nothing -> Nothing
-            Just (t', _) -> concatDom' rm t'
-        Just (d, c, _) ->
-          case concatDom' rm c of
-            Nothing -> Just d
-            Just d' -> Just (d ++ d')
+    makeProjs isIden n dataId ((Relevant y', _) : ys) = do
+      (ys', p) <- makeProjs isIden (n + 1) dataId ys
+      if isIden
+      then return (x : ys', p)
+      else return (y' : ys', Let y' (Proj n x) . p)
 
 removeIdx :: Int -> [a] -> (a, [a])
 removeIdx 0 (x : xs) = (x, xs)
