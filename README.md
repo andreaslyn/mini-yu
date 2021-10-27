@@ -34,15 +34,26 @@ upgrade it. This can commonly be achieved with the command
 ```
 stack upgrade
 ```
-To build mini yu, go to the project root and enter the commands
+To build mini yu quickly, go to the project root and enter the commands
 ```
 git submodule update --init
 make config
-make
+make SPLITSTACK=0
 ```
 This will clone the [mimalloc](https://github.com/microsoft/mimalloc)
 submodule, which mini yu uses as memory allocator. The `make` commands
-will configure and build the project.
+will configure and build the project. The `SPLITSTACK=0` option disables
+a split stack feature used for automatically growing/shrinking the
+runtime stack(s). This feature requires a custom gcc version. To build
+mini yu with split stack feature, use the following commands:
+```
+git submodule update --init
+make config
+make -j8 custom-gcc
+make
+```
+This will build mimalloc, the custom version of gcc, and the mini yu
+compiler. Beware that building the custom gcc will take some time.
 
 When the build has finished, the `yuc` executable in the project root
 can be used to compile mini yu source code. The next section describes
@@ -92,7 +103,7 @@ have side effects. Hence, we cannot print from inside such a function.
 Mini Yu will not accept the following program
 ```
 import yu/prelude
-| (...)
+of (...)
 
 val customPrint : Str -> {}
 let s => s .println
@@ -107,8 +118,8 @@ Change the type of `customPrint` to `Str ->> {}`, and then it will work.
 Mini Yu has algebraic data types. For example, the natural numbers can be defined with
 ```
 data Nat : Ty
-| 0 : Nat
-| succ : Nat -> Nat
+of 0 : Nat
+of succ : Nat -> Nat
 ```
 **Note that the examples may not type check if you import files
 from the standard library at the same time, because of name
@@ -117,7 +128,7 @@ clashes with the standard library.**
 The identity type can be defined with
 ```
 data Id [A : Ty] : A & A -> Ty
-| refl [A : Ty] [a : A] : Id a a
+of refl [A : Ty] [a : A] : Id a a
 ```
 The square brackets mark implicit arguments `[A : Ty]` and `[a : A]`,
 and `A & A -> Ty` is a binary function type.
@@ -158,8 +169,8 @@ We can define the natural numbers by using a prefix operator `++` for
 the successor constructor,
 ```
 data Nat : Ty
-| 0 : Nat
-| (++#Nat) : Nat -> Nat
+of 0 : Nat
+of (++#Nat) : Nat -> Nat
 ```
 The `#Nat` is indicating that this is the operator `++` for `Nat`.
 
@@ -189,8 +200,8 @@ let (++ ++ n) => n .is-even?
 where `Bool` is the type
 ```
 data Bool : Ty
-| false : Bool
-| true : Bool
+of false : Bool
+of true : Bool
 ```
 
 We can overload operators based on type of an argument.
@@ -249,8 +260,8 @@ evaluates the second argument only when the first argument is `false`.
 Define the vector data type by
 ```
 data Vec : Nat & Ty -> Ty
-| nilv [A : Ty] : Vec 0 A
-| (::#Vec) [A : Ty] [n : Nat] : A & Vec n A -> Vec (++ n) A
+of nilv [A : Ty] : Vec 0 A
+of (::#Vec) [A : Ty] [n : Nat] : A & Vec n A -> Vec (++ n) A
 ```
 Note that infix `::` is right associative, so it overloads on the
 second argument, which is `Vec` in this case.
@@ -271,17 +282,17 @@ Mini Yu comes with a standard library with some basic functionality.
 For example, to import the list type, one can write
 ```
 import yu/List
-| List
-| nil
-| (...#List)
+of List
+of nil
+of (...#List)
 ```
 This puts `List` and `nil` into scope, and `(...#List)` all operators
 on `List` from the module `yu/List`. One can specify an aliases for
 modules with
 ```
 import L => yu/List
-| List
-| (...#List)
+of List
+of (...#List)
 ```
 This puts `List` and it's operators into scope, and we can use `nil.L`
 to refer to `nil` from module `yu/List`. In general `x.L` will refer
@@ -290,7 +301,7 @@ to refer to `nil` from module `yu/List`. In general `x.L` will refer
 Alternatively, use `(...)` to import everything from the module
 ```
 import yu/List
-| (...)
+of (...)
 ```
 
 Take a look at the `stdlib/yu/` directory to see what is available
@@ -299,16 +310,16 @@ as `yu/List`, then mini yu will search for files in the standard
 library.
 
 Users can specify custom packages with the `-p` command line option.
-For example we have make a directory `path/to/package`, then we
-can invoke `yuc` with `-p path/to/package`, which with bring
-modules with `package/` into scope. One can imagine a file
-called `path/to/package/mod.yu` containing
+For example if we have a directory `path/to/package`, then we
+can invoke `yuc` with `-p path/to/package`, which will bring
+modules with `package/` prefix into scope. One can imagine a file
+called `path/to/package/mod.yu`, consisting of
 ```
 import yu/Nat
-| Nat
+of Nat
 
 import L => yu/List
-| List
+of List
 
 val empty : List Nat
 let => nil.L
@@ -318,7 +329,7 @@ we can refer to the module with `package/mod`. For example, in `main.yu`
 containing
 ```
 import yu/prelude
-| (...)
+of (...)
 
 import M => package/mod
 
