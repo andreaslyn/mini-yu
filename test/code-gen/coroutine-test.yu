@@ -1,0 +1,69 @@
+import yu/prelude
+of (...)
+
+import yu/Oneshot
+of Prompt
+of reset->
+of shift
+
+import N => yu/Nat
+
+
+val plus : Nat & Nat -> Nat
+let m 0.N => m
+let m (++ n) => plus (++ m) n
+
+
+val mul : Nat & Nat -> Nat
+let _ 0.N => 0.N
+let m (++ n) => plus (mul m n) m
+
+
+data LazyList : Ty & Ty & Ty -> Ty
+of nil [X Y A : Ty] : A -> LazyList X Y A
+of cons [X Y A : Ty] : Y & (X ->> LazyList X Y A) -> LazyList X Y A
+
+
+\{
+val coyield [X Y A : Ty] : Y & Prompt (LazyList X Y A) ->> X
+let y pt => shift (k => cons y k) pt
+\}
+
+
+val coRoutineSum : Nat & Prompt (LazyList {} Nat {}) ->> {}
+let 0.N _ => ()
+let (++ n) pt =>
+  h := (k => cons n k) :! (({} ->> LazyList {} Nat {}) ->> LazyList {} Nat {});
+  shift h pt;
+  shift h pt;
+  shift h pt;
+  coRoutineSum n pt
+
+
+val lastLazyList : LazyList {} Nat {} ->> Nat
+let (nil ()) => 10.N
+let (cons x xs) =>
+  case xs ()
+  of nil () => x
+  of xs' => lastLazyList xs'
+  end
+
+
+val runCoRoutine [X Y A : Ty] :
+  (Prompt (LazyList X Y A) ->> A) ->> LazyList X Y A
+let f => reset-> f nil
+
+
+val N : Nat
+let => mul (mul (mul (mul (mul 10.N 10.N) 10.N) 10.N) 10.N) 10.N
+
+
+val runCoRoutineSum : Nat ->> Nat
+let n => lastLazyList (runCoRoutine (coRoutineSum n))
+
+
+val main : {} ->> {}
+let () =>
+  runCoRoutineSum N .str .println;
+  runCoRoutineSum (++ N) .str .println;
+  runCoRoutineSum (++ ++ N) .str .println

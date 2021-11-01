@@ -1,8 +1,9 @@
 # Command line flags:
-#   DBG=1 -> Don't include debugging information. (Default is DBG=0).
-#     Note that DBG has nothing to do with the CPP NDEBUG macro.
+#   DEBUG=1 -> Don't include debugging information. (Default is DEBUG=0).
+#     Note that DEBUG has nothing to do with the CPP NDEBUG macro.
 #   VERBOSE=1 -> Print verbose messages. (By default VERBOSE=0).
 #   OPT=0 -> Don't optimize and define the NDEBUG CPP macro. (Default OPT=1).
+#   PROFILE=1 -> Add profiling compilation flag
 
 ifndef MAKEFILE_INC
 MAKEFILE_INC := 1
@@ -16,9 +17,11 @@ CSOURCE := \
   $(ROOT_DIR)/yustr.c \
   $(ROOT_DIR)/yu.c \
   $(ROOT_DIR)/yulist.c \
-  $(ROOT_DIR)/yustack.c
+  $(ROOT_DIR)/yustack.c \
+  $(ROOT_DIR)/yuoneshot.c
 SSOURCE := \
-  $(ROOT_DIR)/yustack.S
+  $(ROOT_DIR)/yustack.S \
+  $(ROOT_DIR)/yuoneshot.S
 
 SUB_DIR_SHELL := $(shell \
   PWD_LEN_INC="`expr length $$(pwd)`"; \
@@ -32,20 +35,26 @@ WORKING_DIR := $(shell pwd)
 
 LIBYUR := $(OUT_DIR)/libyur.a
 
-ifeq ($(DBG), 1)
+ifeq ($(PROFILE), 1)
+	PROFILE_STR := -pg
+else
+	PROFILE_STR :=
+endif
+
+ifeq ($(DEBUG), 1)
 	DBG_STR := -g
 else
 	DBG_STR :=
 endif
 
-override CFLAGS += -MMD -std=gnu11 -c -Wall $(DBG_STR) \
+override CFLAGS += -MMD -std=gnu11 -c -Wall $(DBG_STR) $(PROFILE_STR) \
 	-I$(ROOT_DIR)/../mimalloc/include
 
 ifneq ($(OPT), 0)
 	override OPT := 1
 endif
 ifeq ($(OPT), 1)
-	override CFLAGS += -O3 -DNDEBUG -momit-leaf-frame-pointer
+	override CFLAGS += -mtune=native -O3 -DNDEBUG -momit-leaf-frame-pointer
 endif
 
 COBJ := $(CSOURCE:$(ROOT_DIR)/%.c=$(OUT_DIR)/%.c.o)

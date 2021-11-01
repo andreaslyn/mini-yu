@@ -229,9 +229,9 @@ __yu_lessstack:
 .cfi_endproc
 
 
-.globl yur_run
-.type yur_run, @function
-yur_run:
+.globl yur_run_s
+.type yur_run_s, @function
+yur_run_s:
 .cfi_startproc
   // Add stack frame:
   subq $24, %rsp
@@ -291,5 +291,37 @@ yur_run:
   movq 16(%rsp), %rax
   // Remove stack frame and return:
   addq $24, %rsp
+  ret
+.cfi_endproc
+
+
+.globl yur_get_seg_bounds
+.type yur_get_seg_bounds, @function
+yur_get_seg_bounds:
+.cfi_startproc
+  movq CURR_SEG_BEGIN, %rax
+  movq CURR_SEG_END, %rdx
+  ret
+.cfi_endproc
+
+
+.globl yur_set_seg_bounds
+.type yur_set_seg_bounds, @function
+yur_set_seg_bounds:
+.cfi_startproc
+  movq %rdi, CURR_SEG_BEGIN
+  movq %rsi, CURR_SEG_END
+  ret
+.cfi_endproc
+
+
+.globl yur_switch_seg_bounds
+.type yur_switch_seg_bounds, @function
+yur_switch_seg_bounds:
+.cfi_startproc
+  movq CURR_SEG_BEGIN, %rax
+  movq CURR_SEG_END, %rdx
+  movq %rdi, CURR_SEG_BEGIN
+  movq %rsi, CURR_SEG_END
   ret
 .cfi_endproc

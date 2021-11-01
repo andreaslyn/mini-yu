@@ -156,7 +156,7 @@ yur_SYSTEM_DEF(yur_ALWAYS_INLINE static size_t, get_initial_alloc_size,
     : yur_initial_stack_segment_size;
 }
 
-yur_SYSTEM_DEF(struct yur_Stack_seg_pair,
+yur_SYSTEM_SWITCH_DEF(, struct yur_Stack_seg_pair,
     yur_initial_stack_seg, (size_t frame_size)) {
   size_t s = get_initial_alloc_size_s(frame_size);
   void *p = alloc_s(s);
@@ -171,10 +171,15 @@ yur_SYSTEM_DEF(extern yur_ALWAYS_INLINE void,
   mi_free((char *) prev_seg_end - yur_reserved_stack_size);
 }
 
-yur_SYSTEM_DEF(void, yur_delete_all_stack_segs,
+yur_SYSTEM_SWITCH_DEF(, void, yur_delete_all_stack_segs,
     (struct yur_Stack_seg *seg_begin, void *seg_end)) {
-  if (seg_begin->prev_seg_begin)
-    yur_delete_all_stack_segs_s(
-        seg_begin->prev_seg_begin, seg_begin->prev_seg_end);
-  yur_delete_stack_seg_s(seg_end);
+  struct yur_Stack_seg *prev_begin;
+  void *prev_end;
+  do {
+    prev_begin = seg_begin->prev_seg_begin;
+    prev_end = seg_begin->prev_seg_end;
+    yur_delete_stack_seg_s(seg_end);
+    seg_begin = prev_begin;
+    seg_end = prev_end;
+  } while (seg_begin);
 }

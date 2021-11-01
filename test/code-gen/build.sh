@@ -37,14 +37,18 @@ compile_all() {
   compile "$dir/rev-test-bin.yu"
   compile "$dir/io-monad-test.yu"
   compile "$dir/sort-test.yu"
+  compile "$dir/oneshot-test.yu"
+  compile "$dir/coroutine-test.yu"
 
   compile_ghc "$dir/HsNatTest"
   compile_ghc "$dir/HsRevTest"
   compile_ghc "$dir/HsSortTest"
+  compile_ghc "$dir/HsCoroutineTest"
 
   compile_ocaml "$dir/OCamlNatTest"
   compile_ocaml "$dir/OCamlRevTest"
   compile_ocaml "$dir/OCamlSortTest"
+  compile_ocaml "$dir/MulticoreOCamlCoroutineTest"
 }
 
 clean_ghc() {
@@ -52,7 +56,7 @@ clean_ghc() {
 }
 
 clean_ocaml() {
-  rm -f "$1"/Main "$1"/a.out "$1"/Main.cmi "$1"/Main.cmx "$1"/Main.o "$1"/Main.s
+  rm -f "$1"/Main "$1"/a.out "$1"/Main.cmo "$1"/Main.cmi "$1"/Main.cmx "$1"/Main.o "$1"/Main.s
 }
 
 clean_all() {
@@ -63,10 +67,12 @@ clean_all() {
   clean_ghc "$dir/"HsNatTest
   clean_ghc "$dir/"HsRevTest
   clean_ghc "$dir/"HsSortTest
+  clean_ghc "$dir/"HsCoroutineTest
 
   clean_ocaml "$dir/"OCamlNatTest
   clean_ocaml "$dir/"OCamlRevTest
   clean_ocaml "$dir/"OCamlSortTest
+  clean_ocaml "$dir/"MulticoreOCamlCoroutineTest
 }
 
 if [ "$1" = compile ]; then

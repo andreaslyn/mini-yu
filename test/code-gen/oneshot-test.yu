@@ -1,0 +1,20 @@
+import yu/prelude
+of (...)
+
+import N => yu/Nat
+
+import yu/Oneshot
+of reset
+of shift
+
+
+val main : {} ->> {}
+let () =>
+  reset (pt =>
+    m := shift (k => k 2.N) pt;
+    n :=
+      reset (qt =>
+        n := shift (k => k 3.N) pt;
+        b := shift (k => k true) qt;
+        if b .then (n + 5.N) .else n);
+    m + n) .println

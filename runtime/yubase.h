@@ -1,3 +1,9 @@
+#ifndef YU_YUBASE_H
+#define YU_YUBASE_H
+
+#ifndef __LP64__
+#error "64 bit (__LP64__) architecture is required"
+#endif
 
 #define yur_NORETURN __attribute__((noreturn))
 
@@ -44,3 +50,5 @@
 // functions by gcc, unless -mno-red-zone option is passed to gcc.
 
 #define RED_ZONE_SIZE 128
+
+#endif // YU_YUBASE_H

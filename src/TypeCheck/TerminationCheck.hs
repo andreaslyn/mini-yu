@@ -906,8 +906,11 @@ positivityCheckContainsData vi dv (TermRef v s) = do
   then return False
   else do
     let vi' = IntSet.insert (varId v) vi
-    r <- Env.forceLookupRef (varId v)
-    positivityCheckContainsData vi' dv (substPreTerm s (termPre r))
+    r0 <- Env.lookupRef (varId v)
+    case r0 of
+      Nothing -> return False
+      Just r ->
+        positivityCheckContainsData vi' dv (substPreTerm s (termPre r))
 positivityCheckContainsData _ _ (TermVar _ _) = return False
 positivityCheckContainsData vi dv (TermData v)
   | varId dv == varId v = return True
@@ -987,8 +990,11 @@ positivityCheckDom lo vi dv (TermRef v s) =
   then return ()
   else do
     let vi' = IntSet.insert (varId v) vi
-    r <- Env.forceLookupRef (varId v)
-    positivityCheckDom lo vi' dv (substPreTerm s (termPre r))
+    r0 <- Env.lookupRef (varId v)
+    case r0 of
+      Nothing -> return ()
+      Just r ->
+        positivityCheckDom lo vi' dv (substPreTerm s (termPre r))
 positivityCheckDom _ _ _ (TermVar _ _) = return ()
 positivityCheckDom _ _ _ (TermData _) = return ()
 positivityCheckDom _ _ _ (TermCtor _ _) = return ()

@@ -88,8 +88,9 @@ runIr opts vs dm im rm = do
                 then ["-std=gnu11",
                        "-Wall",
                        "-static",
-                       "-O3",
                        "-DNDEBUG",
+                       "-O3",
+                       "-mtune=native",
                        "-momit-leaf-frame-pointer",
                        "-I", runtimePath,
                        "-o", outfile,
@@ -98,7 +99,9 @@ runIr opts vs dm im rm = do
                        runtime,
                        "-Wl,--no-whole-archive",
                        mimallocLib,
+                       "-Wl,--whole-archive",
                        "-lpthread",
+                       "-Wl,--no-whole-archive",
                        "-latomic"]
                 else ["-std=gnu11",
                        "-Wall",
@@ -112,7 +115,9 @@ runIr opts vs dm im rm = do
                        runtime,
                        "-Wl,--no-whole-archive",
                        mimallocLib,
+                       "-Wl,--whole-archive",
                        "-lpthread",
+                       "-Wl,--no-whole-archive",
                        "-latomic"]
     let splitArgs = if optionNoSplitStack opts
                     then ["-Dyur_DISABLE_SPLIT_STACK"]

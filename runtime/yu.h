@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stdatomic.h>
 
+#define yur_OFFSET_OF(type, field) __builtin_offsetof(type, field)
+
 #define yur_ALOAD(x) \
   __atomic_load_n(&(x), memory_order_consume)
 

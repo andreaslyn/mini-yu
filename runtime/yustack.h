@@ -1,3 +1,6 @@
+#ifndef YU_YUSTACK_H
+#define YU_YUSTACK_H
+
 #include "yubase.h"
 #include <stddef.h>
 #include <stdbool.h>
@@ -47,8 +50,7 @@
     ".type " yur_STRINGIFY(name) ", @function\n" \
     yur_STRINGIFY(name) ":\n\t" \
     ".cfi_startproc\n\t" \
-    "call " yur_STRINGIFY(name ## _s) "\n\t" \
-    "ret\n\t" \
+    "jmp " yur_STRINGIFY(name ## _s) "\n\t" \
     ".cfi_endproc\n"); \
   __attribute__((used)) attributes \
   type name ## _s args
@@ -78,6 +80,13 @@ yur_SYSTEM_DECL(void, yur_enable_stack_red_zone, (bool));
 yur_SYSTEM_DECL(void, yur_set_initial_stack_segment_size, (size_t));
 yur_SYSTEM_DECL(void, yur_set_maximal_stack_segment_size, (size_t));
 
+struct yur_Stack_seg_pair yur_get_seg_bounds();
+
+void yur_set_seg_bounds(struct yur_Stack_seg *begin, void *end);
+
+struct yur_Stack_seg_pair
+yur_switch_seg_bounds(struct yur_Stack_seg *begin, void *end);
+
 struct yur_Stack_seg_pair
 yur_new_stack_seg(
     size_t copy_size, // Amount of stack to copy from prev_sp
@@ -87,24 +96,27 @@ yur_new_stack_seg(
     size_t frame_size, // Size of caller stack frame.
     size_t prev_frame_size); // Size of caller's caller stack frame.
 
-struct yur_Stack_seg_pair
-yur_initial_stack_seg(size_t frame_size);
+yur_SYSTEM_SWITCH_DECL(, struct yur_Stack_seg_pair,
+    yur_initial_stack_seg, (size_t frame_size));
 
-void
-yur_delete_stack_seg(void *prev_seg_end);
+yur_SYSTEM_DECL(void, yur_delete_stack_seg, (void *prev_seg_end));
 
-void
-yur_delete_all_stack_segs(struct yur_Stack_seg *seg_begin, void *seg_end);
+yur_SYSTEM_SWITCH_DECL(, void, yur_delete_all_stack_segs,
+    (struct yur_Stack_seg *seg_begin, void *seg_end));
 
 typedef void *(*yur_Run)(void *);
 
 #ifndef yur_DISABLE_SPLIT_STACK
 
-void *yur_run(yur_Run, void *);
+yur_SYSTEM_DECL(void *, yur_run, (yur_Run, void *));
 
 #else
 
-yur_ALWAYS_INLINE void *
-yur_run(yur_Run f, void *x) { return f(x); }
+yur_SYSTEM_DEF(yur_ALWAYS_INLINE void *,
+    yur_run_s, (yur_Run f, void *x)) {
+  return f(x);
+}
 
 #endif
+
+#endif // YU_YUSTACK_H

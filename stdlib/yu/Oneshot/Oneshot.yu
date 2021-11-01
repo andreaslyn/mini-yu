@@ -1,0 +1,21 @@
+
+extern PromptAxiom : Ty -> Ty
+
+data Prompt : Ty -> Ty
+of mkPrompt [A : Ty] : PromptAxiom A -> Prompt A
+
+
+extern resetAxiom : (A : Ty) & (Prompt A ->> A) ->> A
+
+val reset [A : Ty] : (Prompt A ->> A) ->> A
+let => resetAxiom A
+
+
+val reset-> [A B : Ty] : (Prompt A ->> B) & (B -> A) ->> A
+let f g => reset (x => g (f x))
+
+
+extern shiftAxiom : (A B : Ty) & ((A ->> B) ->> B) & Prompt B ->> A
+
+val shift [A B : Ty] : ((A ->> B) ->> B) & Prompt B ->> A
+let => shiftAxiom A B

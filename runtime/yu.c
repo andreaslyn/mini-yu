@@ -13,8 +13,11 @@ yur_ALWAYS_INLINE
 static void yur_for_each_child(yur_Ref *r, void (*op)(yur_Ref *)) {
   size_t n = __atomic_load_n(&r->nfields, memory_order_relaxed);
   yur_Ref **fs = r->fields;
-  for (size_t i = 0; i < n; i++)
-    op(__atomic_load_n(&fs[i], memory_order_relaxed));
+  yur_Ref **end = fs + n;
+  while (fs != end) {
+    op(__atomic_load_n(fs, memory_order_relaxed));
+    ++fs;
+  }
 }
 
 void yur_unref_children(yur_Ref *r) {
@@ -235,7 +238,7 @@ int main() {
   if (setrlimit(RLIMIT_DATA, &nd) == -1)
     yur_panic_s("failed setting stack size, %s", strerror(errno));
 
-  (void) yur_run((yur_Run) yu_main, &yur_unit);
+  (void) yur_run_s((yur_Run) yu_main, &yur_unit);
 }
 #else
 int main() {
