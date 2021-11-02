@@ -79,10 +79,15 @@ doPreTermVars :: IntSet -> RefMap -> PreTerm -> VarIdSet
 doPreTermVars vis r (TermFun _ _ _ caseTree) = caseTreeVars vis r caseTree
 doPreTermVars vis r (TermLazyFun _ t) = doPreTermVars vis r t
 doPreTermVars vis r (TermArrow _ as t) =
-  let f s (_, i) = IntSet.union s (doPreTermVars vis r i)
-      as' = foldl f IntSet.empty as
+  let (bs, as') = foldl f (IntSet.empty, IntSet.empty) as
       a' = doPreTermVars vis r t
-  in IntSet.union a' as'
+  in IntSet.difference (IntSet.union a' as') bs
+  where
+    f :: (VarIdSet, VarIdSet) -> (Maybe Var, PreTerm) -> (VarIdSet, VarIdSet)
+    f (bs, fs) (Nothing, s) =
+      (bs, IntSet.union fs (doPreTermVars vis r s))
+    f (bs, fs) (Just v, s) =
+      (IntSet.insert (varId v) bs, IntSet.union fs (doPreTermVars vis r s))
 doPreTermVars vis r (TermLazyArrow _ t) = doPreTermVars vis r t
 doPreTermVars vis r (TermApp _ a as) =
   let a' = doPreTermVars vis r a

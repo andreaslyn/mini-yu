@@ -579,8 +579,7 @@ doExprUnify normalize = \t1 t2 -> do
         throwError $
           "unable to unify implicit variable "
            ++ quote (varName v2) ++ " with term\n"
-           ++ s1
-           ++ "\ncontaining variable(s) from other scope"
+           ++ s1 ++ "\ncontaining variable(s) from other scope"
       r <- lift Env.getRefMap
       if IntSet.member (varId v2) (preTermVars r t1)
         then do
