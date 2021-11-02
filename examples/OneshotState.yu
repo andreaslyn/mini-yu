@@ -1,0 +1,37 @@
+import yu/prelude
+of (...)
+
+import yu/Oneshot
+of (...)
+
+import N => yu/Nat
+
+
+val get [S A : Ty] : Prompt (S ->> A) ->> S
+let => shift (k => s => k s s)
+
+
+val set [S A : Ty] : S & Prompt (S ->> A) ->> {}
+let s pt => shift (k => _ => k () s) pt
+
+
+val run [S A : Ty] : S & (Prompt (S ->> A) ->> A) ->> A
+let s h => reset-> [A := S ->> A] h (a => _ => a) s
+
+
+val increment [A : Ty] : Prompt (Nat ->> A) ->> {}
+let pt =>
+  n := get pt;
+  set (++ n) pt
+
+
+val incIncGet [A : Ty] : Prompt (Nat ->> A) ->> Nat
+let pt =>
+  increment pt;
+  increment pt;
+  get pt
+
+
+val main : {} ->> {}
+let () =>
+  "0 + 1 + 1 = %N\n" .printf (run 0.N incIncGet)

@@ -22,4 +22,4 @@ val main : {} ->> {}
 let () =>
   (unIO at
     mkIO (_ => "return true" .println; true) >>= at b =>
-    mkIO (_ => "received: %b\n" .printf b)) ()
+    mkIO (_ => "received: %B\n" .printf b)) ()
