@@ -68,7 +68,8 @@ This section describes some of the features of Mini Yu.
 To get started, here is the Hello World program in Mini Yu:
 ```
 \\ Import basic functionality from standard library:
-import "yu/prelude.yu"
+import yu/prelude
+of (...)
 
 \\ Function main is the program entry point:
 val main : {} ->> {}
