@@ -535,6 +535,9 @@ writeFunExprCases ((i, e) : cs) = do
   writeFunExprCases cs
 
 writeFunExpr :: R.FunExpr -> GenCode ()
+writeFunExpr (R.Case r []) =
+  writeStr "yur_panic(\"expected case %zu to be unbreachable\", "
+    >> writeRefTag r >> writeStr ");"
 writeFunExpr (R.Case r cs) = do
   writeStr "switch (" >> writeRefTag r >> writeStr ") {"
   writeFunExprCases cs
