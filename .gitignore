@@ -1,4 +1,5 @@
 app/split-stack-config.h
 gcc
 .stack-work/
+**/.yupackage
 *~

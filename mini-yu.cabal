@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 825a41543a8d86fd56b28387289988083042f2ce23d6f963b0c8970539558e82
+-- hash: 4ba185005c3d565c9361f63cf0acd5f6f4d9bb3dba96e8756c900f73e3c6d1fd
 
 name:           mini-yu
 version:        0.2.1.0
@@ -62,6 +62,7 @@ library
     , mtl
     , parsec
     , scanner
+    , time
     , transformers
     , vector
   default-language: Haskell2010
@@ -86,6 +87,7 @@ executable mini-yu-exe
     , mtl
     , parsec
     , scanner
+    , time
     , transformers
     , vector
   default-language: Haskell2010
@@ -111,6 +113,7 @@ test-suite mini-yu-test
     , mtl
     , parsec
     , scanner
+    , time
     , transformers
     , vector
   default-language: Haskell2010

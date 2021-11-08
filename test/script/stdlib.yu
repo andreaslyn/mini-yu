@@ -1,28 +1,36 @@
-import yu/Ordering?/Bool
+import yu/prelude
+of (...)
 import yu/Ordering?/Ordering?
+of Ordering?
+of (...#Ordering?)
+import B-Ord => yu/Ordering?/Bool
+of (...#Bool)
 import yu/Ordering?/theorems
+of (...#Ordering?)
 import yu/Vec
 import yu/Order/Order
 import yu/Order/theorems
-import yu/Bin/Bin
+import Bin => yu/Bin/Bin
+of Bin
+of (...#Bin)
 import yu/RBTree
 import yu/DelayList1/DelayList1
 import yu/Order
 import yu/Bin+/Bin+
 import yu/Sum
-import yu/List
+import List => yu/List
 import yu/algebra
 import yu/Bool
 import yu/Vec/Vec
 import yu/Stream
-import yu/Nat
-import yu/prelude
+import Nat => yu/Nat
 import yu/HVec
 import yu/print/print
 import yu/print/printf
 import yu/List/Monoid
 import yu/List/List
 import yu/List/sort
+of (...#List)
 import yu/List/theorems
 import yu/Char
 import yu/Str
@@ -71,9 +79,34 @@ import yu/Lazy
 import yu/Str/Str
 import yu/Str/StrStr
 import yu/Str/Format
-import yu/Str/theorems
+import yu/Str/ordering?
 import yu/Stream/Stream
 import yu/Oneshot/Oneshot
 import yu/Oneshot
+of reset
+of shift
 import yu/BatchQueue/BatchQueue
 import yu/BatchQueue
+
+\\ Use some values here to make lazy test check them
+
+val falseIsLessThanTrue : ? (false <? true)
+let => refl
+
+val boolEqLeOrdering :
+  (x y : Bool) &
+  ? ordering?.B-Ord .eq? x y ->
+  ? ordering?.B-Ord .le? x y
+let => ordering?.B-Ord .eqToLe
+
+val bin2StrIs2Str : 2.Bin .str = "2"
+let => refl
+
+val print2Plus2 : {} ->> {}
+let () => "%N + %N = %N" .printf 2.Nat 2.Nat (2.Nat + 2.Nat)
+
+val sort21 : List Nat
+let => (1.Nat :: 2.Nat :: nil.List) .sort ordering?.Nat
+
+val resetShiftOneshot : {} ->> {}
+let () => reset (shift at k => k ())

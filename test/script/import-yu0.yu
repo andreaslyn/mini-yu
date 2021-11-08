@@ -15,3 +15,16 @@ import Str => yu0/Str
 import Char => yu0/Char
 import very-weak-funext => yu0/very-weak-funext
 import Category => yu0/Category
+
+\\ Use some values here to make lazy test check them
+
+val useMulBinNat : Bin.BinNat
+let => 10.BinNat *.BinNat 2.BinNat
+
+val useInjBin1 : nil.List [A := Bool.Bool] =.Id nil.List [A := Bool.Bool]
+let => inj-bin+.Bin1-theorems (1.Id [a := 1.Bin1])
+
+val useRevAndMul :
+  reverse.List (0.Nat ::.List 1.Nat *.Nat 1.Nat ::.List nil.List)
+  =.Id (1.Nat ::.List 0.Nat ::.List nil.List)
+let => 1.Id

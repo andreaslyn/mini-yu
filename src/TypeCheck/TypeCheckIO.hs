@@ -1,6 +1,15 @@
 module TypeCheck.TypeCheckIO
-  ( TypeCheckIO
+  ( TypeCheckParams (..)
+  , TypeCheckIO
   , TypeCheckErr (..)
+  , isVerboseOn
+  , isCompileOn
+  , isResetOn
+  , typeCheckParams
+  , currentFilePath
+  , currentModuleName
+  , currentOutputFileBaseName
+  , currentOutputCheckedName
   , typeCheckErrMsg
   , err
   , lookupEnv
@@ -17,6 +26,7 @@ module TypeCheck.TypeCheckIO
   ) where
 
 import Loc (Loc)
+import qualified Str
 import qualified TypeCheck.Env as Env
 import TypeCheck.Term
 import Control.Monad.State
@@ -26,6 +36,15 @@ import Data.Map (Map)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
+import Control.Exception (assert)
+import Data.Time.Clock (UTCTime)
+
+data TypeCheckParams =
+  TypeCheckParams
+    { tcParamVerbose :: Bool
+    , tcParamCompile :: Bool
+    , tcParamReset :: Bool
+    }
 
 data TypeCheckErr =
   Fatal String | Recoverable String
@@ -36,13 +55,60 @@ typeCheckErrMsg (Recoverable s) = s
 
 type TypeCheckIO =
   Env.EnvT
-    (StateT (Map FilePath (Maybe Bool, Env.ScopeMap))
-      (ReaderT (Bool, FilePath, String)
+    (StateT (Map FilePath (Maybe UTCTime, Env.ScopeMap))
+      (ReaderT (TypeCheckParams, FilePath, VarName, FilePath)
         (ExceptT TypeCheckErr IO)))
+
+{-# INLINE isVerboseOn #-}
+isVerboseOn :: TypeCheckIO Bool
+isVerboseOn = do
+  (params, _, _, _) <- ask
+  return (tcParamVerbose params)
+
+{-# INLINE isCompileOn #-}
+isCompileOn :: TypeCheckIO Bool
+isCompileOn = do
+  (params, _, _, _) <- ask
+  return (tcParamCompile params)
+
+{-# INLINE isResetOn #-}
+isResetOn :: TypeCheckIO Bool
+isResetOn = do
+  (params, _, _, _) <- ask
+  return (tcParamReset params)
+
+{-# INLINE typeCheckParams #-}
+typeCheckParams :: TypeCheckIO TypeCheckParams
+typeCheckParams = do
+  (params, _, _, _) <- ask
+  return params
+
+{-# INLINE currentFilePath #-}
+currentFilePath :: TypeCheckIO FilePath
+currentFilePath = do
+  (_, file, _, _) <- ask
+  return file
+
+{-# INLINE currentModuleName #-}
+currentModuleName :: TypeCheckIO VarName
+currentModuleName = do
+  (_, _, modName, _) <- ask
+  return modName
+
+{-# INLINE currentOutputFileBaseName #-}
+currentOutputFileBaseName :: TypeCheckIO FilePath
+currentOutputFileBaseName = do
+  (_, _, _, outputBase) <- ask
+  return $ assert (not $ null outputBase) outputBase
+
+currentOutputCheckedName :: TypeCheckIO FilePath
+currentOutputCheckedName = do
+  base <- currentOutputFileBaseName
+  return (base ++ Str.outputCheckedExtension)
 
 err :: Loc -> TypeCheckErr -> TypeCheckIO a
 err lo msg = do
-  (_, f, _) <- ask
+  f <- currentFilePath
   case msg of
     Fatal msg' ->
       throwError (Fatal (f ++ ":" ++ show lo ++ ": " ++ msg'))
@@ -51,12 +117,12 @@ err lo msg = do
 
 expandVarNameEnv :: VarName -> TypeCheckIO VarName
 expandVarNameEnv n = do
-  (_, _, modName) <- ask
+  modName <- currentModuleName
   Env.expandVarName modName n
 
 lookupEnv :: VarName -> TypeCheckIO (Maybe Env.VarStatus)
 lookupEnv n = do
-  (_, _, modName) <- ask
+  modName <- currentModuleName
   Env.lookup modName n
 
 data ImpMap = ImpMap (IntMap (Loc, String)) (Maybe ImpMap)

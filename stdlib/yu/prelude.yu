@@ -1,4 +1,4 @@
-import yu/basic/Bool
+import yu/Bool
 export
 of Bool
 of false
@@ -67,13 +67,10 @@ import yu/Char
 export
 of (...#Char)
 
-import yu/Str/Str
+import yu/Str
 export
 of Str
 of (...#Str)
-
-import yu/Str/StrStr
-export
 of (...#Bool)
 of (...#Char)
 of (...#Option)

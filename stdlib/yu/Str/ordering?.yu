@@ -47,3 +47,22 @@ let => fromCmp.Ord? (.cmp#Str) cmpIsTransitive? cmpIsCompatible
 
 val equivalence? : Equivalence? Str
 let => ordering? .equivalence?
+
+
+val (=?#Str) : Str & Str -> Bool
+let => equivalence? .eq?
+
+val (!=?#Str) : Str & Str -> Bool
+let => equivalence? .neq?
+
+val (<?#Str) : Str & Str -> Bool
+let => ordering? .lt?
+
+val (>?#Str) : Str & Str -> Bool
+let => ordering? .gt?
+
+val (<=?#Str) : Str & Str -> Bool
+let => ordering? .le?
+
+val (>=?#Str) : Str & Str -> Bool
+let => ordering? .ge?

@@ -16,6 +16,7 @@ module ParseTree
   , astToString -- Printing
 
   -- Getters
+  , defIsData
   , defDecl
   , declLoc
   , defLoc
@@ -153,6 +154,10 @@ defDecl :: Def -> Decl
 defDecl (DefExtern d) = d
 defDecl (DefVal _ d _) = d
 defDecl (DefData _ d _) = d
+
+defIsData :: Def -> Bool
+defIsData (DefData _ _ _) = True
+defIsData _ = False
 
 declType :: Decl -> Expr
 declType (Decl _ _ t) = t

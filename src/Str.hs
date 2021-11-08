@@ -2,6 +2,8 @@ module Str
   ( quote
   , stdImportPath
   , stdRuntimePath
+  , outputFolderName
+  , outputCheckedExtension
   , isKeyword
   , isStrictKeyword
   , isPunctuation
@@ -57,6 +59,12 @@ stdImportPath = "stdlib"
 
 stdRuntimePath :: FilePath
 stdRuntimePath = "runtime"
+
+outputFolderName :: FilePath
+outputFolderName = ".yupackage"
+
+outputCheckedExtension :: FilePath
+outputCheckedExtension = ".check"
 
 isKeyword :: String -> Bool
 isKeyword s

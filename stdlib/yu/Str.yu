@@ -37,9 +37,8 @@ import yu/Str/Format
 export
 of (...#Str)
 
-\{
-import yu/Str/theorems
+import yu/Str/ordering?
 export
 of ordering?
 of equivalence?
-\}
+of (...#Str)

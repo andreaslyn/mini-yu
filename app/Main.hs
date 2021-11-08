@@ -147,8 +147,12 @@ run :: ProgramOptions -> IO ()
 run opts = do
   verifyProgramOptions opts
   packs <- packagePaths opts
-  tc <- runTT (optionVerboseOutput opts)
-              (optionCompile opts || optionAssembly opts)
+  let params = TypeCheckParams
+                { tcParamVerbose = optionVerboseOutput opts
+                , tcParamCompile = optionCompile opts || optionAssembly opts
+                , tcParamReset = optionReset opts
+                }
+  tc <- runTT params
               packs
               (argumentFileName opts)
               (runIr opts)
@@ -159,6 +163,7 @@ run opts = do
 data ProgramOptions = ProgramOptions
   { optionPackages :: [String]
   , optionCompile :: Bool
+  , optionReset :: Bool
   , optionAssembly :: Bool
   , optionOptimize :: Bool
   , optionNoSplitStack :: Bool
@@ -180,13 +185,14 @@ verifyProgramOptions opts
   | True = return ()
 
 makeProgramOptions ::
-  FilePath -> [FilePath] -> [String] -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool ->
+  FilePath -> [FilePath] -> [String] -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool ->
   ProgramOptions
 makeProgramOptions
   argFileName
   argGccOptions
   optPackages
   optCompile
+  optClean
   optAssembly
   optOptimize
   optNoSplitStack
@@ -197,6 +203,7 @@ makeProgramOptions
   = ProgramOptions
     { optionPackages = optPackages
     , optionCompile = optCompile
+    , optionReset = optClean
     , optionAssembly = optAssembly
     , optionOptimize = optOptimize
     , optionNoSplitStack = NO_SPLIT_STACK || optNoSplitStack
@@ -219,6 +226,8 @@ cmdParser = makeProgramOptions
     `Ar.Descr` "paths to include packages"
   `Ar.andBy` ArPa.FlagParam ArPa.Short "compile" id
     `Ar.Descr` "compile the source code"
+  `Ar.andBy` ArPa.FlagParam ArPa.Long "reset" id
+    `Ar.Descr` "force compiler to re-type-check and re-compile everything"
   `Ar.andBy` ArPa.FlagParam ArPa.Short "assembly" id
     `Ar.Descr` "output compiler generated assembly"
   `Ar.andBy` ArPa.FlagParam ArPa.Short "optimize" id

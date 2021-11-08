@@ -89,18 +89,20 @@ data VarStatus = StatusTerm Term
                 --  - SubstMap = delayed subst map
                 --  - EnvDepth = environment depth of ctor
                 --  - FilePath = Path for file containing ctor
+                --  - FilePath = Corresponding output file base name
                 --  - VarName = Module containing ctor
                 --  - (Loc, VarName) of data type definition
                 --  - Decl is ctor decl
-               | StatusUnknownCtor SubstMap EnvDepth FilePath VarName (Loc, VarName) Decl
+               | StatusUnknownCtor SubstMap EnvDepth FilePath VarName FilePath (Loc, VarName) Decl
                 -- StatusUnknownRef:
                 --  - SubstMap = delayed subst map
                 --  - EnvDepth = environment depth of ref
                 --  - Bool = is data type?
                 --  - FilePath = Path for file containing ref
+                --  - FilePath = Corresponding output file base name
                 --  - VarName = Module containing ref
                 --  - Def = Definition to type check
-               | StatusUnknownRef SubstMap EnvDepth Bool FilePath VarName Def
+               | StatusUnknownRef SubstMap EnvDepth Bool FilePath VarName FilePath Def
                | StatusUnknownVar SubstMap EnvDepth (Loc, VarName) VarId (Maybe Expr)
                -- StatusInProgress:
                --   - Bool = true if ctor
@@ -147,8 +149,8 @@ data EnvSt = EnvSt
 type EnvT = StateT EnvSt
 
 isStatusUnknown :: VarStatus -> Bool
-isStatusUnknown (StatusUnknownCtor _ _ _ _ _ _) = True
-isStatusUnknown (StatusUnknownRef _ _ _ _ _ _) = True
+isStatusUnknown (StatusUnknownCtor _ _ _ _ _ _ _) = True
+isStatusUnknown (StatusUnknownRef _ _ _ _ _ _ _) = True
 isStatusUnknown (StatusUnknownVar _ _ _ _ _) = True
 isStatusUnknown _ = False
 
@@ -367,7 +369,7 @@ expandVarName modName vn = do
           case termPre t of
             TermData d -> return (w ++ "#" ++ varName d)
             _ -> return (w ++ "#" ++ wm)
-        Just (StatusUnknownRef _ _ _ _ refModule _) ->
+        Just (StatusUnknownRef _ _ _ _ refModule _ _) ->
           return (w ++ "#" ++ addModule refModule wm)
         Just (StatusInProgress _ refModule _) ->
           return (w ++ "#" ++ addModule refModule wm)

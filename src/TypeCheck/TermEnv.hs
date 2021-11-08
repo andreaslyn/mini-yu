@@ -873,9 +873,7 @@ writeIndent = get >>= \n -> doWrite n
     doWrite i = tell " " >> doWrite (i - 1)
 
 isVerbose :: ToString Bool
-isVerbose = do
-  (v, _, _) <- liftTT ask
-  return v
+isVerbose = liftTT isVerboseOn
 
 writeStr :: String -> ToString ()
 writeStr s = tell s
@@ -1119,7 +1117,7 @@ simplifyModule v = do
 
     canLookup :: VarName -> ToString Bool
     canLookup na = do
-      (_, _, modName) <- ask
+      modName <- liftTT currentModuleName
       st <-liftTT (Env.lookup modName na)
       case st of
         Just (Env.StatusTerm (Term { termPre = TermRef w _ })) ->
