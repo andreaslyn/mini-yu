@@ -355,7 +355,6 @@ doIrProgram (Te.RefData dv : vs) = do
       e <- makeCtorConstFromVar (Just dv) v ctor
       c <- lookupTermRef v
       return (c, e)
-doIrProgram (Te.RefCtor _ : vs) = doIrProgram vs
 
 updateRefMap :: Te.RefVar -> StM ()
 updateRefMap (Te.RefExtern v _) =
@@ -376,7 +375,6 @@ updateRefMap (Te.RefData v) = do
     updateCtor (c, i) = do
       getNextConst True (Te.varName c) >>= updateTermRef c
       updateTermCtor c (Ctor i)
-updateRefMap (Te.RefCtor _) = return ()
 
 isRelevantTy :: Te.RefMap -> Te.PreTerm -> Bool
 isRelevantTy rm t = isRelevantTyNormalized (TE.preTermNormalize rm t)

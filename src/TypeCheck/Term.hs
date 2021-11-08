@@ -106,8 +106,7 @@ instance Show PreTerm where
   show TermTy = "TermTy"
   show TermEmpty = "TermEmpty"
 
-data RefVar =
-  RefExtern Var Int | RefVal Var | RefData Var | RefCtor Var
+data RefVar = RefExtern Var Int | RefVal Var | RefData Var
   deriving Show
 
 type DataCtorMap = IntMap [Var] -- Data type VarId -> ctors

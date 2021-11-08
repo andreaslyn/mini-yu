@@ -53,7 +53,7 @@ runTypeCheckT verbose compiling packagePaths file moduleName prog contin = do
   r <- runExceptT
         (runReaderT
           (evalStateT
-            (Env.runEnvT (tcInitProgram_ compiling packagePaths prog contin))
+            (Env.runEnvT (tcInitProgram compiling packagePaths prog contin))
               (Map.singleton file (Nothing, Map.empty)))
           (verbose, file, moduleName))
   case r of
@@ -99,15 +99,31 @@ runTT verbose compiling packagePaths file contin = do
 
 varStatusTerm :: VarStatus -> TypeCheckIO Term
 varStatusTerm (StatusTerm te) = return te
-varStatusTerm (StatusUnknownCtor subst depth n d) =
-  Env.withDepth depth (tcDataDefCtorLookup subst n d)
-varStatusTerm (StatusUnknownRef subst depth d) =
-  Env.withDepth depth (tcDef subst False d)
+varStatusTerm (StatusUnknownCtor subst depth newFile newModName n d) = do
+  (verbose, _, currModName) <- ask
+  if newModName == currModName
+  then Env.withDepth depth (tcDataDefCtorLookup subst n d)
+  else local (const (verbose, newFile, newModName)) $
+        Env.localEnvNewModule newModName $ do
+          tm <- Env.withDepth depth (tcDataDefCtorLookup subst n d)
+          na <- fullRefName (declLoc d) (declName d)
+          Env.forceInsertGlobal na (StatusTerm tm)
+          return tm
+varStatusTerm (StatusUnknownRef subst depth _ newFile newModName d) = do
+  (verbose, _, currModName) <- ask
+  if newModName == currModName
+  then Env.withDepth depth (tcDef subst False d)
+  else local (const (verbose, newFile, newModName)) $
+        Env.localEnvNewModule newModName $ do
+          tm <- Env.withDepth depth (tcDef subst False d)
+          na <- fullRefName (defLoc d) (defName d)
+          Env.forceInsertGlobal na (StatusTerm tm)
+          return tm
 varStatusTerm (StatusUnknownVar subst depth (lo, na) i e) =
   case e of
     Nothing -> err lo $ Fatal ("cannot determine type of variable " ++ quote na)
     Just e' -> Env.withDepth depth (tcVar subst (lo, na) i e')
-varStatusTerm (StatusInProgress _ (lo, na)) =
+varStatusTerm (StatusInProgress _ _ (lo, na)) =
   err lo $ Fatal (quote na ++ " has cyclic type")
 
 verifyMultipleUsesIdent :: Bool -> (Loc, VarName) -> TypeCheckIO ()
@@ -123,17 +139,21 @@ insertUnknownCtor subst da d = do
   let lo = declLoc d
   checkRefNameValid False (lo, na)
   depth <- Env.getDepth
-  x <- Env.tryInsert na (StatusUnknownCtor subst depth da d) (depth == 0)
+  (_, file, modName) <- ask
+  x <- Env.tryInsert na
+        (StatusUnknownCtor subst depth file modName da d) (depth == 0)
   verifyMultipleUsesIdent (isJust x) (lo, na)
 
-insertUnknownRef :: SubstMap -> Def -> TypeCheckIO ()
-insertUnknownRef subst d = do
+insertUnknownRef :: SubstMap -> Bool -> Def -> TypeCheckIO ()
+insertUnknownRef subst isData d = do
   let (dna, dop) = operandSplit (defName d)
   na <- updateOperandTypeString (defLoc d, dna) dop
   let lo = defLoc d
   checkRefNameValid False (lo, na)
   depth <- Env.getDepth
-  x <- Env.tryInsert na (StatusUnknownRef subst depth d) (depth == 0)
+  (_, file, modName) <- ask
+  x <- Env.tryInsert na
+        (StatusUnknownRef subst depth isData file modName d) (depth == 0)
   verifyMultipleUsesIdent (isJust x) (lo, na)
 
 insertUnknownVar ::
@@ -155,10 +175,12 @@ markInProgress isCtor (lo, na) = do
   case x of
     Just (StatusTerm t) ->
       return (Just t)
-    Just (StatusInProgress _ _) ->
+    Just (StatusInProgress _ _ _) ->
       error $ "name already in progress " ++ quote na
     _ -> do
-      y <- Env.tryUpdateIf isStatusUnknown na (StatusInProgress isCtor (lo, na))
+      (_, _, modName) <- ask
+      y <- Env.tryUpdateIf isStatusUnknown na
+              (StatusInProgress isCtor modName (lo, na))
       when (isNothing y)
             (error $ "expected unknown env status of " ++ quote na)
       return Nothing
@@ -262,27 +284,52 @@ checkMainExists = do
           "it is required that " ++ quote "main"
           ++ " is defined by let () => ...")
 
-tcInitProgram_ ::
-  Bool -> PackageMap -> Program ->
-  ([RefVar] -> DataCtorMap -> ImplicitMap -> RefMap -> IO ()) ->
-  TypeCheckIO ()
-tcInitProgram_ compiling packagePaths prog contin =
-  tcInitProgram compiling packagePaths prog contin >> return ()
-
 tcInitProgram ::
   Bool -> PackageMap -> Program ->
   ([RefVar] -> DataCtorMap -> ImplicitMap -> RefMap -> IO ()) ->
-  TypeCheckIO [RefVar]
-tcInitProgram compiling packagePaths prog contin = do
+  TypeCheckIO ()
+tcInitProgram compiling packagePaths prog contin =
+  tcStrictProgram compiling packagePaths prog contin >> return ()
+
+tcLazyProgram :: PackageMap -> Program -> TypeCheckIO ()
+tcLazyProgram packagePaths prog = do
+  (verbose, file, _) <- ask
+  when verbose $ liftIO (putStrLn ("lazy check " ++ file))
+  doTcLazyProgram
+  where
+    doTcLazyProgram :: TypeCheckIO ()
+    doTcLazyProgram = do
+      _clean <- tcImports packagePaths (fst prog)
+      let (dataDefs, otherDefs) = partition isDataDef (snd prog)
+      insertUnknownDataDefs Set.empty IntMap.empty dataDefs
+      mapM_ insertCtors dataDefs
+      mapM_ (insertUnknownRef IntMap.empty False) otherDefs
+      _ <- mapM (tcDef IntMap.empty True) dataDefs
+      return ()
+
+    isDataDef :: Def -> Bool
+    isDataDef (DefData _ _ _) = True
+    isDataDef _ = False
+
+    insertCtors :: Def -> TypeCheckIO ()
+    insertCtors (DefData _ d cs) =
+      mapM_ (insertUnknownCtor IntMap.empty (declLoc d, declName d)) cs
+    insertCtors _ = error "expected DefData for inserting ctors"
+
+tcStrictProgram ::
+  Bool -> PackageMap -> Program ->
+  ([RefVar] -> DataCtorMap -> ImplicitMap -> RefMap -> IO ()) ->
+  TypeCheckIO ()
+tcStrictProgram compiling packagePaths prog contin = do
   (verbose, file, _) <- ask
   when verbose $ liftIO (putStrLn ("check " ++ file))
   doTcInitProgram
   where
-    doTcInitProgram :: TypeCheckIO [RefVar]
+    doTcInitProgram :: TypeCheckIO ()
     doTcInitProgram = do
-      (_, rs2) <- tcImports packagePaths (fst prog)
-      rs1 <- tcProgram (snd prog)
-      let rs = rs1 ++ rs2
+      _clean <- tcImports packagePaths (fst prog)
+      tcProgram (snd prog)
+      rs <- Env.getRootRefVars
       mapM_ checkPositivity rs
       rm <- Env.getRefMap
       let ks = IntMap.keys rm
@@ -294,7 +341,6 @@ tcInitProgram compiling packagePaths prog contin = do
       cim <- Env.getImplicitMap
       crm <- Env.getRefMap
       liftIO (contin rs ccm cim crm)
-      return rs
 
     checkPositivity :: RefVar -> TypeCheckIO ()
     checkPositivity (RefData dv) = do
@@ -330,6 +376,11 @@ doInsertAllImportExport lo b ((na, (t, True)) : imex) = do
                     StatusTerm t' ->
                       not (preTermsAlphaEqual rm (termPre t') (termPre x'))
                     _ -> True
+                Just (StatusUnknownRef _ _ _ _ mod1 def1) ->
+                  case t of
+                    StatusUnknownRef _ _ _ _ mod2 def2 ->
+                      not (mod1 == mod2 && defName def1 == defName def2)
+                    _ -> True
                 _ -> True
   verifyMultipleUsesIdent multi (lo, na)
   doInsertAllImportExport lo b imex
@@ -360,15 +411,22 @@ insertImportExport vis ina em (ii@(lo, dna@('.' : '.' : '.' : '#' : na0), b) : i
                 em' <- filterM (isOperatorOf (varName v)) (Map.toList em)
                 insertAllImportExport lo b em'
                 insertImportExport Set.empty ina em imex
-              _ -> err lo (Fatal $ "unexpected operand type "
-                                   ++ quote na0 ++ ", not a data type")
-          _ -> error "expected status term for import/export"
+              _ -> err lo (Fatal notADataType)
+          StatusUnknownRef _ _ True _ rmodule rdef -> do
+            rname <- fullRefNameInModule lo rmodule (defName rdef)
+            em' <- filterM (isOperatorOf rname) (Map.toList em)
+            insertAllImportExport lo b em'
+            insertImportExport Set.empty ina em imex
+          _ -> err lo (Fatal notADataType)
   where
     isOperatorOf ::
       VarName -> (VarName, (VarStatus, Bool)) -> TypeCheckIO Bool
     isOperatorOf v (vn, _) =
       let (_, vtn) = operandSplit vn
       in return (Just v == vtn)
+    notADataType :: String
+    notADataType =
+      "unexpected operand type " ++ quote na0 ++ ", not a data type"
 insertImportExport _ ina em ((lo, ('.' : '.' : '.' : []), b) : imex) = do
   insertAllImportExport lo b (Map.toList em)
   insertImportExport Set.empty ina em imex
@@ -382,6 +440,20 @@ insertImportExport vis ina em (ii@(lo, na0, b) : imex) = do
         err lo (Fatal $ "unable to find " ++ quote na
                         ++ " in module " ++ quote ina)
       insertImportExport (Set.insert na0 vis) ina em (imex ++ [ii])
+    Just (StatusUnknownCtor csubst depth cfile cmodule cdata cdecl, True) -> do
+      let !() = assert (IntMap.null csubst) ()
+      let !() = assert (depth == 0) ()
+      x <- Env.tryInsert na
+              (StatusUnknownCtor csubst depth cfile cmodule cdata cdecl) b
+      verifyMultipleUsesIdent (isJust x) (lo, na)
+      insertImportExport Set.empty ina em imex
+    Just (StatusUnknownRef rsubst depth isData rfile rmodule rdef, True) -> do
+      let !() = assert (IntMap.null rsubst) ()
+      let !() = assert (depth == 0) ()
+      x <- Env.tryInsert na
+              (StatusUnknownRef rsubst depth isData rfile rmodule rdef) b
+      verifyMultipleUsesIdent (isJust x) (lo, na)
+      insertImportExport Set.empty ina em imex
     Just (StatusTerm tm, True) -> do
       x <- Env.tryInsert na (StatusTerm tm) b
       verifyMultipleUsesIdent (isJust x) (lo, na)
@@ -391,8 +463,8 @@ insertImportExport vis ina em (ii@(lo, na0, b) : imex) = do
       err lo (Fatal $ "name " ++ quote na
                       ++ " is not exported by module " ++ quote ina)
 
-tcImports :: PackageMap -> [ModuleIntro] -> TypeCheckIO (Bool, [RefVar])
-tcImports _ [] = return (True, [])
+tcImports :: PackageMap -> [ModuleIntro] -> TypeCheckIO Bool
+tcImports _ [] = return True
 tcImports packagePaths ((malias, (lo, ina), imex) : imps) = do
   case malias of
     Nothing -> return ()
@@ -416,15 +488,15 @@ tcImports packagePaths ((malias, (lo, ina), imex) : imps) = do
         Just (Nothing, _) -> err lo (Fatal "cyclic import")
         Just (Just clean, em) -> do
           insertImportExport Set.empty ina em imex
-          (clean', vs) <- tcImports packagePaths imps
-          return (clean && clean', vs)
+          clean' <- tcImports packagePaths imps
+          return (clean && clean')
         Nothing -> do
           doTcImport is inaPath
   where
     doTcImport ::
       Map FilePath (Maybe Bool, Env.ScopeMap) ->
       FilePath ->
-      TypeCheckIO (Bool, [RefVar])
+      TypeCheckIO Bool
     doTcImport is inaPath = do
       (verbose, _, _) <- ask
       lift (put (Map.insert inaPath (Nothing, Map.empty) is))
@@ -432,23 +504,19 @@ tcImports packagePaths ((malias, (lo, ina), imex) : imps) = do
       case prog of
         Left e -> throwError (Fatal e)
         Right prog' -> do
-          (em, vs) <- local (const (verbose, inaPath, ina)) $
-                      Env.localEnv $ do
-                        r <- tcInitProgram False packagePaths prog' (\ _ _ _ _ -> return ())
-                        Env.addToGlobals ina
-                        em <- Env.getScopeMap
-                        return (em, r)
+          em <- local (const (verbose, inaPath, ina)) $
+                Env.localEnvNewModule ina $ do
+                  tcLazyProgram packagePaths prog'
+                  Env.addToGlobals ina
+                  Env.getScopeMap
           is' <- lift get
           lift (put (Map.insert inaPath (Just False, em) is'))
           insertImportExport Set.empty ina em imex
-          (_, ws) <- tcImports packagePaths imps
-          return (False, ws ++ vs)
+          _clean <- tcImports packagePaths imps
+          return True
 
-tcProgram :: [Def] -> TypeCheckIO [RefVar]
-tcProgram defs = do
-  rs <- tcDefsToVars IntMap.empty defs
-  Env.clearImplicitVarMap
-  return rs
+tcProgram :: [Def] -> TypeCheckIO ()
+tcProgram defs = tcDefsToVars IntMap.empty defs >> return ()
 
 tcDefsToVars :: SubstMap -> [Def] -> TypeCheckIO [RefVar]
 tcDefsToVars subst defs = do
@@ -465,7 +533,6 @@ tcDefsToVars subst defs = do
           TermArrow _ d _ -> return (RefExtern v (length d))
           _ -> error "expected nonexisting ref to be extern with function type"
     extractDefVar (Term {termPre = (TermData v)}) = return (RefData v)
-    extractDefVar (Term {termPre = (TermCtor v _)}) = return (RefCtor v)
     extractDefVar t = do
       ss <- preTermToString 0 (termPre t)
       error $ "unexpected def term: " ++ ss
@@ -483,7 +550,7 @@ insertUnknownDataDefs vis subst (d : ds) = do
   where
     tryInsert :: TypeCheckIO Bool
     tryInsert = do
-      insertUnknownRef subst d
+      insertUnknownRef subst True d
       return True
 
 tcDefs :: SubstMap -> [Def] -> TypeCheckIO [Term]
@@ -491,7 +558,7 @@ tcDefs subst defs = do
   let (dataDefs, otherDefs) = partition isDataDef defs
   insertUnknownDataDefs Set.empty subst dataDefs
   mapM_ insertCtors dataDefs
-  mapM_ (insertUnknownRef subst) otherDefs
+  mapM_ (insertUnknownRef subst False) otherDefs
   mapM (tcDef subst True) (sortBy valIsLT defs)
   where
     isDataDef :: Def -> Bool
@@ -534,13 +601,12 @@ tcDef subst _ (DefExtern d) = do
           (Fatal $ "unexpected implicit arguments on "
                    ++ quote "extern" ++ " value"))
       rm <- Env.getRefMap
-      case preTermNormalize rm (termPre ty) of
-        TermArrow _ _ _ -> return ()
-        _ ->
-          err (declLoc d)
-            (Fatal $ "expected " ++ quote "extern"
-                     ++ " to have function type "
-                     ++ quote "->" ++ " or " ++ quote "->>")
+      nargs <- case preTermNormalize rm (termPre ty) of
+                TermArrow _ dm _ -> return (length dm)
+                _ -> err (declLoc d)
+                      (Fatal $ "expected " ++ quote "extern"
+                               ++ " to have function type "
+                               ++ quote "->" ++ " or " ++ quote "->>")
       i <- Env.freshRefId
       fullEname <- fullRefName (declLoc d) (declName d)
       let rv = mkVar i fullEname
@@ -550,6 +616,7 @@ tcDef subst _ (DefExtern d) = do
       stna <- updateOperandTypeString (declLoc d, stna0) stopt
       updateToStatusTerm stna r
       Env.forceInsertExtern i
+      Env.addRootRefVar (RefExtern rv nargs)
       return r
 tcDef subst _ (DefVal isPure d lets) = do
   ty1 <- Env.scope (tcDecl subst False d)
@@ -567,6 +634,10 @@ tcDef subst _ (DefVal isPure d lets) = do
       e <- tcValCases subst stna imps (termPre ty) lets
       Env.forceInsertRef (declLoc d) fullVname isPure i e
       terminationCheck (declLoc d) rv
+      depth <- Env.getDepth
+      when (depth == 0) $ do
+        Env.clearImplicitVarMap
+        Env.addRootRefVar (RefVal rv)
       return r
 tcDef subst True (DefData isPure d ctors) = do
   depth <- Env.getDepth
@@ -596,15 +667,20 @@ tcDef subst False def@(DefData isPure d _) = do
       Env.forceInsertRef (declLoc d) fullDname isPure i r
       Env.forceInsertDataCtor i []
       Env.forceInsertUnfinishedData i depth subst def
+      Env.addRootRefVar (RefData v)
       return r
 
-fullRefName :: Loc -> VarName -> TypeCheckIO VarName
-fullRefName lo na = do
+fullRefNameInModule :: Loc -> VarName -> VarName -> TypeCheckIO VarName
+fullRefNameInModule lo modName na = do
   let (na0, opty) = operandSplit na
-  (_, _, modName) <- ask
   if modName /= ""
   then updateOperandTypeString (lo, na0 ++ "." ++ modName) opty
   else updateOperandTypeString (lo, na0) opty
+
+fullRefName :: Loc -> VarName -> TypeCheckIO VarName
+fullRefName lo na = do
+  (_, _, modName) <- ask
+  fullRefNameInModule lo modName na
 
 tcDataAndCtors ::
   SubstMap -> Bool -> Decl -> [Decl] -> TypeCheckIO Term
@@ -656,6 +732,7 @@ tcDataAndCtors subst isPure d ctors = do
       Env.forceInsertRef (declLoc d) fullDname isPure i r
       mapM_ (tcDataDefCtor subst v) (zip cis ctors)
       Env.removeUnfinishedData i
+      Env.addRootRefVar (RefData v)
       return r
   where
     addVarNotIn :: Set VarName -> Decl -> [Var] -> TypeCheckIO [Var]
@@ -816,9 +893,9 @@ updateOperandTypeString (nlo, na) (Just ss0) = do
             case termPre vt of
               TermData d -> return (na ++ "#" ++ varName d)
               _ -> errorNotData
-          StatusUnknownRef _ _ _ -> addCurrentModule ss
-          StatusInProgress _ _ -> addCurrentModule ss
-          StatusUnknownCtor _ _ _ _ -> errorNotData
+          StatusUnknownRef _ _ _ _ _ _ -> addCurrentModule ss
+          StatusInProgress _ _ _ -> addCurrentModule ss
+          StatusUnknownCtor _ _ _ _ _ _ -> errorNotData
           StatusUnknownVar _ _ _ _ _ -> errorNotData
   else
     return (na ++ "#" ++ ss0)
@@ -858,7 +935,7 @@ tcDataDefCtorLookup subst (dlo, dna) d = do
           Nothing ->
             error ("cannot find data type " ++ quote dna
                    ++ " for ctor " ++ quote (declName d))
-          Just (StatusUnknownCtor _ _ _ _) ->
+          Just (StatusUnknownCtor _ _ _ _ _ _) ->
             error ("ctor " ++ quote dna
                    ++ " was expected to be data type")
           Just (StatusUnknownVar _ _ _ _ _) ->
@@ -866,9 +943,9 @@ tcDataDefCtorLookup subst (dlo, dna) d = do
                    ++ " was expected to be data type")
           Just (StatusTerm t) ->
             return t
-          Just x'@(StatusUnknownRef _ _ _) ->
+          Just x'@(StatusUnknownRef _ _ _ _ _ _) ->
             varStatusTerm x'
-          Just (StatusInProgress _ _) ->
+          Just (StatusInProgress _ _ _) ->
             err dlo (Fatal $ "data type " ++ quote dna ++ " has cyclic type")
   case termPre dt of
     TermData v -> do
@@ -880,11 +957,11 @@ tcDataDefCtorLookup subst (dlo, dna) d = do
       case ctor of
         Just (StatusTerm ctor') ->
           return ctor'
-        Just (StatusInProgress _ _) ->
+        Just (StatusInProgress _ _ _) ->
           err dlo (Fatal $
                     "constructor " ++ quote (declName d)
                     ++ " has cyclic type")
-        Just (StatusUnknownCtor _ _ _ _) -> do
+        Just (StatusUnknownCtor _ _ _ _ _ _) -> do
           eis <- Env.forceLookupDataCtor (varId v)
           fullCname <- fullRefName (declLoc d) (declName d)
           case find (\ei -> varName ei == fullCname) eis of
@@ -2677,13 +2754,13 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
     Just (StatusTerm (Term {termPre = TermCtor v dd, termTy = ty'})) -> do
       checkCtorType v dd ty'
       --return (su, Pattern {patternPre = PatternCtor v did, patternTy = ty'})
-    Just x'@(StatusUnknownCtor _ _ _ _) -> do
+    Just x'@(StatusUnknownCtor _ _ _ _ _ _) -> do
       (v, dd, ty') <- ctorFromVarStatus x'
       checkCtorType v dd ty'
       --return (su, Pattern {patternPre = PatternCtor v did, patternTy = ty'})
-    Just x'@(StatusInProgress True _) -> do
+    Just x'@(StatusInProgress True _ _) -> do
       _ <- ctorFromVarStatus x'
-      error "this should be unreachable"
+      error "StatusInProgress True was supposed to be unreachable"
     _ -> do
       ss <- preTermToString defaultExprIndent ty
       if hasImplicitApp || hasApp

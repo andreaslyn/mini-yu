@@ -9,17 +9,17 @@ module TypeCheck.Env
   , getEnv
   , ScopeMap
   , GlobalMap
+  , forceInsertGlobal
   , getRefMap
   , getImplicitMap
   , getDataCtorMap
   , runEnvT
-  , forceInsertGlobal
   , addToGlobals
   , TypeCheck.Env.lookup
   , getModuleExpandMap
   , tryInsertModuleExpand
   , expandVarName
-  , localEnv
+  , localEnvNewModule
   , forceInsert
   , tryInsert
   , tryUpdateIf
@@ -44,6 +44,8 @@ module TypeCheck.Env
   , forceLookupDataCtorMap
   , forceInsertRefMeta
   , forceLookupRefMeta
+  , addRootRefVar
+  , getRootRefVars
   , lookupRef
   , isExtern
   , forceLookupRef
@@ -74,22 +76,42 @@ import Loc (Loc)
 import Str (quote, operandSplit, operandConcatMaybe, varNameModuleSplit)
 import Control.Exception (assert)
 
---import Debug.Trace (trace)
-
 type EnvDepth = Int
 
 type ScopeId = Int
 
+-- Note:
+-- Currently ctors and data types are never unknown after
+-- type checking a module, even lazily. The below ctors should
+-- support if lazy checking of ctors and data is needed at some point.
 data VarStatus = StatusTerm Term
-               | StatusUnknownCtor SubstMap EnvDepth (Loc, VarName) Decl
-               | StatusUnknownRef SubstMap EnvDepth Def
+                -- StatusUnknownCtor:
+                --  - SubstMap = delayed subst map
+                --  - EnvDepth = environment depth of ctor
+                --  - FilePath = Path for file containing ctor
+                --  - VarName = Module containing ctor
+                --  - (Loc, VarName) of data type definition
+                --  - Decl is ctor decl
+               | StatusUnknownCtor SubstMap EnvDepth FilePath VarName (Loc, VarName) Decl
+                -- StatusUnknownRef:
+                --  - SubstMap = delayed subst map
+                --  - EnvDepth = environment depth of ref
+                --  - Bool = is data type?
+                --  - FilePath = Path for file containing ref
+                --  - VarName = Module containing ref
+                --  - Def = Definition to type check
+               | StatusUnknownRef SubstMap EnvDepth Bool FilePath VarName Def
                | StatusUnknownVar SubstMap EnvDepth (Loc, VarName) VarId (Maybe Expr)
-               | StatusInProgress Bool (Loc, VarName) -- Bool true is ctor
+               -- StatusInProgress:
+               --   - Bool = true if ctor
+               --   - VarName = Module containing in progress definition
+               --   - (Loc, VarName) of definition
+               | StatusInProgress Bool VarName (Loc, VarName) 
                deriving Show
 
 type UnfinishedDataMap = IntMap (EnvDepth, SubstMap, Def)
 
-type GlobalMap = Map.Map VarName Term
+type GlobalMap = Map.Map VarName VarStatus
 
 type ModuleExpandMap = Map.Map VarName VarName
 
@@ -98,18 +120,24 @@ type ScopeMap = Map.Map VarName (VarStatus, Bool)
 
 data Env = Env ScopeId ScopeMap (Maybe Env) deriving Show
 
+-- Module name -> (module's expand map, root environment of module)
+type ModuleStateMap =
+  Map.Map VarName (ModuleExpandMap, Env)
+
 type ImplicitVarMap = IntMap.IntMap (PreTerm, [ScopeId])
 
 data EnvSt = EnvSt
   { env :: Env
   , globalEnv :: GlobalMap
   , moduleExpandMap :: ModuleExpandMap
+  , moduleStateMap :: ModuleStateMap
   , nextLocalVarName :: VarId
   , hackVarId :: VarId
   , nextRefId :: VarId
   , currentScopeId :: ScopeId
   , refMap :: RefMap
   , implicitVarMap :: ImplicitVarMap
+  , rootRefVars :: [RefVar]
   , externSet :: ExternSet
   , implicitMap :: ImplicitMap
   , dataCtorMap :: DataCtorMap
@@ -119,13 +147,13 @@ data EnvSt = EnvSt
 type EnvT = StateT EnvSt
 
 isStatusUnknown :: VarStatus -> Bool
-isStatusUnknown (StatusUnknownCtor _ _ _ _) = True
-isStatusUnknown (StatusUnknownRef _ _ _) = True
+isStatusUnknown (StatusUnknownCtor _ _ _ _ _ _) = True
+isStatusUnknown (StatusUnknownRef _ _ _ _ _ _) = True
 isStatusUnknown (StatusUnknownVar _ _ _ _ _) = True
 isStatusUnknown _ = False
 
 isStatusInProgress :: VarStatus -> Bool
-isStatusInProgress (StatusInProgress _ _) = True
+isStatusInProgress (StatusInProgress _ _ _) = True
 isStatusInProgress _ = False
 
 isStatusTerm :: VarStatus -> Bool
@@ -138,12 +166,14 @@ emptyCtxSt =
     { env = Env 0 Map.empty Nothing
     , globalEnv = Map.empty
     , moduleExpandMap = Map.empty
+    , moduleStateMap = Map.empty
     , nextLocalVarName = 0
     , hackVarId = 0
     , nextRefId = 0
     , currentScopeId = 0
     , refMap = IntMap.empty
     , implicitVarMap = IntMap.empty
+    , rootRefVars = []
     , externSet = IntSet.empty
     , implicitMap = IntMap.empty
     , dataCtorMap = IntMap.empty
@@ -187,6 +217,13 @@ modifyRefMap f = modify (\s -> s{refMap = f (refMap s)})
 
 modifyImplicitVarMap :: Monad m => (ImplicitVarMap -> ImplicitVarMap) -> EnvT m ()
 modifyImplicitVarMap f = modify (\s -> s{implicitVarMap = f (implicitVarMap s)})
+
+addRootRefVar :: Monad m => RefVar -> EnvT m ()
+addRootRefVar v =
+  modify (\s -> s{rootRefVars = v : rootRefVars s})
+
+getRootRefVars :: Monad m => EnvT m [RefVar]
+getRootRefVars = fmap rootRefVars get
 
 modifyExternSet :: Monad m => (ExternSet -> ExternSet) -> EnvT m ()
 modifyExternSet f = modify (\s -> s{externSet = f (externSet s)})
@@ -241,7 +278,7 @@ modifyGlobalEnv f = modify (\s -> s{globalEnv = f (globalEnv s)})
 putGlobalEnv :: Monad m => GlobalMap -> EnvT m ()
 putGlobalEnv g = modifyGlobalEnv (const g)
 
-forceInsertGlobal :: Monad m => VarName -> Term -> EnvT m ()
+forceInsertGlobal :: Monad m => VarName -> VarStatus -> EnvT m ()
 forceInsertGlobal na t = modifyGlobalEnv (Map.insert na t)
 
 getEnv :: Monad m => EnvT m Env
@@ -252,6 +289,27 @@ modifyEnv f = modify (\s -> s{env = f (env s)})
 
 putEnv :: Monad m => Env -> EnvT m ()
 putEnv s = modifyEnv (const s)
+
+getModuleStateMap :: Monad m => EnvT m ModuleStateMap
+getModuleStateMap = fmap moduleStateMap get
+
+modifyModuleStateMap :: Monad m =>
+  (ModuleStateMap -> ModuleStateMap) -> EnvT m ()
+modifyModuleStateMap f =
+  modify (\s -> s{moduleStateMap = f (moduleStateMap s)})
+
+lookupOrCreateModuleStateMap :: Monad m =>
+  VarName -> EnvT m (ModuleExpandMap, Env)
+lookupOrCreateModuleStateMap modName = do
+  m <- getModuleStateMap
+  case Map.lookup modName m of
+    Nothing -> do
+      incCurrentScopeId
+      nid <- getCurrentScopeId
+      let p = (Map.empty, Env nid Map.empty Nothing)
+      modifyModuleStateMap (Map.insert modName p)
+      return p
+    Just p -> return p
 
 getModuleExpandMap :: Monad m => EnvT m ModuleExpandMap
 getModuleExpandMap = fmap moduleExpandMap get
@@ -266,12 +324,21 @@ tryInsertModuleExpand alias mo = do
     put (s {moduleExpandMap = Map.insert alias mo m})
     return True
 
-localEnv :: Monad m => EnvT m a -> EnvT m a
-localEnv c = do
+-- Assumes that newModName is different from the current module!
+localEnvNewModule :: Monad m => VarName -> EnvT m a -> EnvT m a
+localEnvNewModule newModName c = do
   s <- get
-  let Env sid _ _ = env s
-  (x, s') <- lift (runStateT c (s {moduleExpandMap = Map.empty, env = Env sid Map.empty Nothing}))
-  put (s' {moduleExpandMap = moduleExpandMap s, env = env s})
+  (ex, en) <- lookupOrCreateModuleStateMap newModName
+  msm <- getModuleStateMap
+  (x, s') <- lift (runStateT c
+                    (s { moduleStateMap = msm
+                       , moduleExpandMap = ex
+                       , env = en }))
+  let msm' = moduleStateMap s'
+  put (s' { moduleStateMap =
+              Map.insert newModName (moduleExpandMap s', env s') msm'
+          , moduleExpandMap = moduleExpandMap s
+          , env = env s })
   return x
 
 expandModuleName :: Monad m => VarName -> EnvT m VarName
@@ -300,22 +367,24 @@ expandVarName modName vn = do
           case termPre t of
             TermData d -> return (w ++ "#" ++ varName d)
             _ -> return (w ++ "#" ++ wm)
-        Just (StatusUnknownRef _ _ _) -> return (w ++ "#" ++ addCurrentModule wm)
-        Just (StatusInProgress _ _) -> return (w ++ "#" ++ addCurrentModule wm)
+        Just (StatusUnknownRef _ _ _ _ refModule _) ->
+          return (w ++ "#" ++ addModule refModule wm)
+        Just (StatusInProgress _ refModule _) ->
+          return (w ++ "#" ++ addModule refModule wm)
         _ -> return (w ++ "#" ++ wm)
   where
-    addCurrentModule :: VarName -> VarName
-    addCurrentModule ss =
+    addModule :: VarName -> VarName -> VarName
+    addModule moduleToAdd ss =
       let (s0, s1) = operandSplit ss
-          s0' = case modName of
+          s0' = case moduleToAdd of
                   "" -> s0
-                  _ -> s0 ++ "." ++ modName
+                  _ -> s0 ++ "." ++ moduleToAdd
       in operandConcatMaybe s0' s1
 
 doLookup :: GlobalMap -> VarName -> Env -> Maybe VarStatus
 doLookup g v (Env _ m Nothing) =
   case Map.lookup v m of
-    Nothing -> fmap StatusTerm (Map.lookup v g)
+    Nothing -> Map.lookup v g
     Just (x, _) -> Just x
 doLookup g v (Env _ m (Just p)) =
   case Map.lookup v m of
@@ -355,17 +424,15 @@ getScopeMap = do
 
 addToGlobals :: Monad m => VarName -> EnvT m ()
 addToGlobals moduleName = do
-  --let !() = trace ("add globals from mod: " ++ moduleName) ()
   Env _ em p <- getEnv
   let !() = assert (isNothing p) ()
   g <- getGlobalEnv
   putGlobalEnv $! (Map.foldrWithKey insertGlob g em)
   where
     insertGlob :: VarName -> (VarStatus, Bool) -> GlobalMap -> GlobalMap
-    insertGlob na (StatusTerm tm, True) g =
-      --let !() = trace ("add: " ++ insertModuleName na) () in
-      Map.insert (insertModuleName na) tm g
-    insertGlob _ (_, b) g = assert (not b) g
+    insertGlob na (s, True) g =
+      Map.insert (insertModuleName na) s g
+    insertGlob _ _ g = g
 
     insertModuleName :: VarName -> VarName
     insertModuleName na =
