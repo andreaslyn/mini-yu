@@ -558,7 +558,7 @@ preTermPartialApplication appIo numMissing f args fio = do
     newAppliedVars [] = return []
     newAppliedVars (a : as) = do
       i <- Env.freshVarId
-      l <- Env.getNextLocalVarName
+      l <- Env.getNextLocalVarIdStr
       let v = mkVar i ("_" ++ l)
       vs <- newAppliedVars as
       return ((v, a) : vs)
@@ -572,7 +572,7 @@ preTermPartialApplication appIo numMissing f args fio = do
       then return []
       else do
         i <- Env.freshVarId
-        l <- Env.getNextLocalVarName
+        l <- Env.getNextLocalVarIdStr
         vs <- makeNewVars (n + 1)
         let v = mkVar i ("_" ++ l)
         return (v : vs)
@@ -935,7 +935,7 @@ decIndent :: ToString ()
 decIndent = modify (\n -> n-2)
 
 nextVarName :: ToString VarName
-nextVarName = liftTT Env.getNextLocalVarName
+nextVarName = liftTT (fmap ('_':) Env.getNextLocalVarIdStr)
 
 writeIndent :: ToString ()
 writeIndent = get >>= \n -> doWrite n

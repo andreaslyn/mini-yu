@@ -1776,7 +1776,7 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
     getImplicit :: (Var, PreTerm) -> ExprIO (Var, PreTerm)
     getImplicit (v, vt) = do
       i <- lift Env.freshVarId
-      l <- lift Env.getNextLocalVarName
+      l <- lift Env.getNextLocalVarIdStr
       let v' = mkVar i (varName v ++ "_" ++ l)
       impMapInsert i vt lo $
         "unable to infer implicit argument " ++ varName v
@@ -2709,7 +2709,7 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
     getImplicit :: (Var, PreTerm) -> TypeCheckIO (Var, PrePattern)
     getImplicit (v, _) = do
       i <- Env.freshVarId
-      l <- Env.getNextLocalVarName
+      l <- Env.getNextLocalVarIdStr
       let v' = mkVar i (varName v ++ "_" ++ l)
       return (v, PatternVar v')
 doTcPattern _ _ newpids ty (ParsePatternEmpty lo) = do

@@ -24,6 +24,7 @@ yur_initial_stack_segment_size: .quad 4096
 
 .globl __yu_morestack
 .type __yu_morestack, @function
+.p2align 4
 __yu_morestack:
 .cfi_startproc
   // Save old stack pointer before switching stack:
@@ -170,6 +171,7 @@ __yu_morestack:
 
 .globl __yu_lessstack
 .type __yu_lessstack, @function
+.p2align 4
 __yu_lessstack:
 .cfi_startproc
   // On entry here we have rsp == CURR_SEG_BEGIN.
@@ -231,6 +233,7 @@ __yu_lessstack:
 
 .globl yur_run_s
 .type yur_run_s, @function
+.p2align 4
 yur_run_s:
 .cfi_startproc
   // Add stack frame:
@@ -297,6 +300,7 @@ yur_run_s:
 
 .globl yur_get_seg_bounds
 .type yur_get_seg_bounds, @function
+.p2align 4
 yur_get_seg_bounds:
 .cfi_startproc
   movq CURR_SEG_BEGIN, %rax
@@ -307,6 +311,7 @@ yur_get_seg_bounds:
 
 .globl yur_set_seg_bounds
 .type yur_set_seg_bounds, @function
+.p2align 4
 yur_set_seg_bounds:
 .cfi_startproc
   movq %rdi, CURR_SEG_BEGIN
@@ -317,6 +322,7 @@ yur_set_seg_bounds:
 
 .globl yur_switch_seg_bounds
 .type yur_switch_seg_bounds, @function
+.p2align 4
 yur_switch_seg_bounds:
 .cfi_startproc
   movq CURR_SEG_BEGIN, %rax

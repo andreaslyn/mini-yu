@@ -64,19 +64,19 @@ val (.is::Map#List) [A : Ty] [B : Ty] :
 let (x :: xs) f is:: => is::
 
 
-val (.simplRevOp::Aux#List) [A : Ty] :
+val (.simplRevAuxOp::#List) [A : Ty] :
   (xs ys : List A) ->
-  xs .accum ys (flip (::)) = xs .accum nil (flip (::)) :+: ys
+  xs .revAux ys = xs .revAux nil :+: ys
 let nil ys => refl
 let (x :: xs) ys =>
-  xs .simplRevOp::Aux (x :: nil) .rewR (t => t :+: ys) at
-  xs .simplRevOp::Aux (x :: ys)
-  @ xs .accum nil (flip (::)) .associativeOp:+: (x :: nil) ys
+  xs .simplRevAuxOp:: (x :: ys)
+  @ xs .revAux nil .associativeOp:+: (x :: nil) ys
+  @ (! xs .simplRevAuxOp:: (x :: nil)) .ap (l => l :+: ys)
 
 
 val (.simplRevOp::#List) [A : Ty] :
   (xs : List A) & (x : A) -> (x :: xs) .rev = xs .rev :+: x :: nil
-let xs x => xs .simplRevOp::Aux (x :: nil)
+let xs x => xs .simplRevAuxOp:: (x :: nil)
 
 
 val (.revDistributesOp:+:#List) [A : Ty] :

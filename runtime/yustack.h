@@ -29,7 +29,7 @@
 #define yur_SYSTEM_SWITCH_DEF(attributes, type, name, args) \
   __attribute__((no_split_stack)) yur_NOINLINE yur_NAKED \
   type name args { \
-    asm ( \
+    asm volatile ( \
       "movq %%r15, -8(%%rsp)\n\t" \
       "movq %%rsp, %%r15\n\t" \
       "movq %" yur_STRINGIFY(SYSTEM_STACK) ", %%rsp\n\t" \
@@ -48,6 +48,7 @@
   asm ( \
     ".globl " yur_STRINGIFY(name) "\n\t" \
     ".type " yur_STRINGIFY(name) ", @function\n" \
+    ".p2align 4\n" \
     yur_STRINGIFY(name) ":\n\t" \
     ".cfi_startproc\n\t" \
     "jmp " yur_STRINGIFY(name ## _s) "\n\t" \

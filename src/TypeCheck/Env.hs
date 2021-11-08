@@ -50,7 +50,7 @@ module TypeCheck.Env
   , toString
   , withDepth
   , getDepth
-  , getNextLocalVarName
+  , getNextLocalVarIdStr
   , getNextVarId
   , ImplicitVarMap
   , getImplicitVarMap
@@ -202,8 +202,8 @@ modifyUnfinishedDataMap :: Monad m =>
 modifyUnfinishedDataMap f =
   modify (\s -> s{unfinishedDataMap = f (unfinishedDataMap s)})
 
-getNextLocalVarName :: Monad m => EnvT m VarName
-getNextLocalVarName = do
+getNextLocalVarIdStr :: Monad m => EnvT m VarName
+getNextLocalVarIdStr = do
   st <- get
   let n = nextLocalVarName st
   put (st {nextLocalVarName = n + 1})

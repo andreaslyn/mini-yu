@@ -6,6 +6,7 @@
 
 .globl yur_oneshot_jmp
 .type yur_oneshot_jmp, @function
+.p2align 4
 yur_oneshot_jmp:
 .cfi_startproc
   // Add stack frame:
@@ -48,6 +49,7 @@ yur_oneshot_jmp:
 // Function yur_setjmp is based on musl libc, MIT license.
 .globl yur_setjmp
 .type yur_setjmp, @function
+.p2align 4
 yur_setjmp:
 .cfi_startproc
   movq %rbx, (%rdi)         /* rdi is jmp_buf, move registers onto it */
@@ -68,6 +70,7 @@ yur_setjmp:
 // Function yur_longjmp is based on musl libc, MIT license.
 .globl yur_longjmp
 .type yur_longjmp, @function
+.p2align 4
 yur_longjmp:
   movq (%rdi),%rbx         /* rdi is the jmp_buf, restore regs from it */
   movq 8(%rdi),%rbp

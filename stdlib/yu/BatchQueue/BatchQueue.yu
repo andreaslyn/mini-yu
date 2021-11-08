@@ -1,0 +1,67 @@
+import L => yu/List/List
+of List
+of (...#List)
+
+import yu/basic/Bool
+of Bool
+of true
+of false
+of (...#Bool)
+
+import Option => yu/Option/Option
+of (?#Ty)
+of yes
+of no
+of (...#Option.Option)
+
+import Prod => yu/Prod/Prod
+of (&&#Ty)
+of ($#)
+of (...#DProd.Prod)
+
+
+data BatchQueue : Ty -> Ty
+of mkBatchQueue [A : Ty] : List A & List A -> BatchQueue A
+
+
+val empty [A : Ty] : BatchQueue A
+let => mkBatchQueue nil.L nil.L
+
+
+val (.empty?#BatchQueue) [A : Ty] : BatchQueue A -> Bool
+let (mkBatchQueue ff _) => ff .empty?
+
+
+val (.nonempty?#BatchQueue) [A : Ty] : BatchQueue A -> Bool
+let q => ! q .empty?
+
+
+val (.snoc#BatchQueue) [A : Ty] : BatchQueue A & A -> BatchQueue A
+let (mkBatchQueue nil.L _) a => mkBatchQueue (a :: nil.L) nil.L
+let (mkBatchQueue ff rr) a => mkBatchQueue ff (a :: rr)
+
+
+val (.head?#BatchQueue) [A : Ty] : BatchQueue A -> ? A
+let (mkBatchQueue nil.L _) => no
+let (mkBatchQueue (x :: _) _) => yes x
+
+
+val (.head#BatchQueue) [A : Ty] : (q : BatchQueue A) & ? q .nonempty? -> A
+let (mkBatchQueue nil.L _) {}
+let (mkBatchQueue (x :: _) _) _ => x
+
+
+val (.tail!#BatchQueue) [A : Ty] : BatchQueue A -> BatchQueue A
+let (mkBatchQueue nil.L _) => mkBatchQueue nil.L nil.L
+let (mkBatchQueue (x :: nil.L) rr) => mkBatchQueue (rr .rev) nil.L
+let (mkBatchQueue (_ :: ff) rr) => mkBatchQueue ff rr
+
+
+val (.uncons?#BatchQueue) [A : Ty] : BatchQueue A -> ? (A && BatchQueue A)
+let (mkBatchQueue nil.L _) => no
+let (mkBatchQueue (x :: nil.L) rr) => yes at x $ mkBatchQueue (rr .rev) nil.L
+let (mkBatchQueue (x :: ff) rr) => yes at x $ mkBatchQueue ff rr
+
+
+val (.tail?#BatchQueue) [A : Ty] : BatchQueue A -> ? BatchQueue A
+let q => q .uncons? .map (.2)
