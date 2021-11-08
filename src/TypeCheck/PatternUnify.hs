@@ -143,11 +143,11 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
       if withNormalize
       then
         return $
-          map (\(x,y) -> (preTermNormalize r (substPreTerm m x),
-                          preTermNormalize r (substPreTerm m y))) ps
+          map (\(x,y) -> (preTermNormalize r (substPreTerm r m x),
+                          preTermNormalize r (substPreTerm r m y))) ps
       else
         return $
-          map (\(x,y) -> (substPreTerm m x, substPreTerm m y)) ps
+          map (\(x,y) -> (substPreTerm r m x, substPreTerm r m y)) ps
 
     punify2 :: PreTerm -> PreTerm -> PatUnifResult
     punify2 t1 t2 =
@@ -169,17 +169,17 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
             do
               let ds = zip d1 d2
               su <- foldlM updateArrowMap IntMap.empty ds
-              let ds' = map (\(x,y) -> (substPreTerm su (snd x),
-                                        substPreTerm su (snd y))) ds
               r <- lift Env.getRefMap
+              let ds' = map (\(x,y) -> (substPreTerm r su (snd x),
+                                        substPreTerm r su (snd y))) ds
               m <- punify ds' IntMap.empty
               u <- if withNormalize
                    then punify2
-                          (preTermNormalize r (substPreTerm m (substPreTerm su c1)))
-                          (preTermNormalize r (substPreTerm m (substPreTerm su c2)))
+                          (preTermNormalize r (substPreTerm r m (substPreTerm r su c1)))
+                          (preTermNormalize r (substPreTerm r m (substPreTerm r su c2)))
                    else punify2
-                          (substPreTerm m (substPreTerm su c1))
-                          (substPreTerm m (substPreTerm su c2))
+                          (substPreTerm r m (substPreTerm r su c1))
+                          (substPreTerm r m (substPreTerm r su c2))
               mergePatUnifMaps newPatternIds boundIds m u)
             (unifyAlphaIfUnable ar1 ar2)
       where
@@ -275,8 +275,9 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
               let upd m (j1, j2) = IntMap.insert (varId j2)
                                     (fromJust (IntMap.lookup (varId j1) su1)) m
               let su2 = foldl upd IntMap.empty (zip i1 i2)
-              let t1' = substPreTerm su1 t1
-              let t2' = substPreTerm su2 t2
+              r <- lift Env.getRefMap
+              let t1' = substPreTerm r su1 t1
+              let t2' = substPreTerm r su2 t2
               punify2 t1' t2')
             (unifyAlphaIfUnable f1 f2)
       | io1 /= io2 =
@@ -298,14 +299,16 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
       catchError
         (do
           (vs, su) <- lift (makeNewVarIds i1)
-          let t1' = substPreTerm su t1
+          r <- lift Env.getRefMap
+          let t1' = substPreTerm r su t1
           punify2 t1' (TermApp False t2 vs))
         (unifyAlphaIfUnable f1 t2)
     punify2NotVar t1 f2@(TermFun [] False _ (CaseLeaf i2 t2 _)) = do
       catchError
         (do
           (vs, su) <- lift (makeNewVarIds i2)
-          let t2' = substPreTerm su t2
+          r <- lift Env.getRefMap
+          let t2' = substPreTerm r su t2
           punify2 (TermApp False t1 vs) t2')
         (unifyAlphaIfUnable t1 f2)
     punify2NotVar t1 t2 = unifyAlphaCheckRigid t1 t2
@@ -572,7 +575,8 @@ makeFunWithVarSubst :: Bool -> [Var] -> PreTerm -> TypeCheckIO PreTerm
 makeFunWithVarSubst isIo vs t = do
   vs' <- mapM (\v -> fmap (flip mkVar (varName v)) Env.freshVarId) vs
   let su = IntMap.fromList (zip (map varId vs) (map (TermVar False) vs'))
-  let ct = CaseLeaf vs' (substPreTerm su t) []
+  r <- Env.getRefMap
+  let ct = CaseLeaf vs' (substPreTerm r su t) []
   return (TermFun [] isIo (Just (length vs)) ct)
 
 mergePatUnifMaps ::

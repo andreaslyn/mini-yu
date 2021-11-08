@@ -16,7 +16,7 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Char (isPrint)
 import Scanner (Scanner, scanOnly, anyChar8, lookAheadChar8)
 import Control.Monad
-import Loc
+import Loc (Loc, loc, line, column)
 import Str (quote, errorMsg, isOp1Char, isOp2Char, isOp3Char,
             isOp4Char, isOp5Char, isOp6Char, isGeneralWordChar)
 import Control.Monad.Trans.Class

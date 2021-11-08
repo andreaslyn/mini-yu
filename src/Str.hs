@@ -46,7 +46,7 @@ module Str
   )
 where
 
-import Loc
+import Loc (Loc)
 import Data.Char (ord, isAlphaNum)
 
 quote :: String -> String

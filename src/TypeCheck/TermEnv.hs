@@ -1,8 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 
 module TypeCheck.TermEnv
-  ( preTermVars
-  , preTermRefs
+  ( preTermRefs
   , preTermExistsVar
   , prePatternVars
   , preTermCodRootType
@@ -48,77 +47,6 @@ import Debug.Trace (trace)
 
 _useTrace :: String -> a -> a
 _useTrace = trace
-
-caseTreeVars :: IntSet -> RefMap -> CaseTree -> VarIdSet
-caseTreeVars vis rm = caseVars
-  where
-    caseVars :: CaseTree -> VarIdSet
-    caseVars (CaseLeaf is t _) =
-      let t' = doPreTermVars vis rm t
-      in IntSet.difference t' (IntSet.fromList (map varId is))
-    caseVars (CaseEmpty _) = IntSet.empty
-    caseVars (CaseNode _ m d) =
-      let i1 = foldl addCaseTree IntSet.empty m
-      in case d of
-          Nothing -> i1
-          Just d' ->
-            let a = addCaseTree IntSet.empty d'
-            in IntSet.union i1 a
-    caseVars (CaseUnit _ d) = addCaseTree IntSet.empty d
-
-    addCaseTree :: VarIdSet -> ([Var], CaseTree) -> VarIdSet
-    addCaseTree s (i, t) =
-      let j = caseVars t
-          i' = IntSet.difference j (IntSet.fromList (map varId i))
-      in IntSet.union i' s
-
-preTermVars :: RefMap -> PreTerm -> VarIdSet
-preTermVars r t = doPreTermVars IntSet.empty r t
-
-doPreTermVars :: IntSet -> RefMap -> PreTerm -> VarIdSet
-doPreTermVars vis r (TermFun _ _ _ caseTree) = caseTreeVars vis r caseTree
-doPreTermVars vis r (TermLazyFun _ t) = doPreTermVars vis r t
-doPreTermVars vis r (TermArrow _ as t) =
-  let (bs, as') = foldl f (IntSet.empty, IntSet.empty) as
-      a' = doPreTermVars vis r t
-  in IntSet.difference (IntSet.union a' as') bs
-  where
-    f :: (VarIdSet, VarIdSet) -> (Maybe Var, PreTerm) -> (VarIdSet, VarIdSet)
-    f (bs, fs) (Nothing, s) =
-      (bs, IntSet.union fs (doPreTermVars vis r s))
-    f (bs, fs) (Just v, s) =
-      (IntSet.insert (varId v) bs, IntSet.union fs (doPreTermVars vis r s))
-doPreTermVars vis r (TermLazyArrow _ t) = doPreTermVars vis r t
-doPreTermVars vis r (TermApp _ a as) =
-  let a' = doPreTermVars vis r a
-      f s i = IntSet.union s (doPreTermVars vis r i)
-      as' = foldl f IntSet.empty as
-  in IntSet.union a' as'
-doPreTermVars vis r (TermImplicitApp _ a as) =
-  let a' = doPreTermVars vis r a
-      f s i = IntSet.union s (doPreTermVars vis r (snd i))
-      as' = foldl f IntSet.empty as
-  in IntSet.union a' as'
-doPreTermVars vis r (TermLazyApp _ t) = doPreTermVars vis r t
-doPreTermVars vis r (TermRef v su) = do
-  if IntSet.member (varId v) vis
-    then IntSet.empty
-    else let vis' = IntSet.insert (varId v) vis
-             t0 = IntMap.lookup (varId v) r
-         in case t0 of
-              Nothing -> IntSet.empty
-              Just (t, _) -> doPreTermVars vis' r (substPreTerm su (termPre t))
-doPreTermVars _ _ (TermVar _ v) = IntSet.singleton (varId v)
-doPreTermVars _ _ (TermData _) = IntSet.empty
-doPreTermVars _ _ (TermCtor _ _) = IntSet.empty
-doPreTermVars vis r (TermCase t ct) =
-  let t' = doPreTermVars vis r t
-      ct' = caseTreeVars vis r ct
-  in IntSet.union t' ct'
-doPreTermVars _ _ TermUnitElem = IntSet.empty
-doPreTermVars _ _ TermUnitTy = IntSet.empty
-doPreTermVars _ _ TermEmpty = IntSet.empty
-doPreTermVars _ _ TermTy = IntSet.empty
 
 prePatternVars :: PrePattern -> VarIdSet
 prePatternVars (PatternVar v) = IntSet.singleton (varId v)
@@ -182,7 +110,7 @@ doPreTermRefs vis r (TermRef v su) = do
          in case t0 of
               Nothing -> IntSet.singleton (varId v)
               Just (t, _) ->
-                let s = doPreTermRefs vis' r (substPreTerm su (termPre t))
+                let s = doPreTermRefs vis' r (substPreTerm r su (termPre t))
                 in IntSet.insert (varId v) s
 doPreTermRefs _ _ (TermVar _ _) = IntSet.empty
 doPreTermRefs _ _ (TermData _) = IntSet.empty
@@ -229,7 +157,7 @@ doPreTermsAlphaEqual bi r (TermArrow io1 as1 a1) (TermArrow io2 as2 a2) =
          su = foldl addArrowSubst IntMap.empty as
          as2' = map (substArrow su) as2
      in and (map (uncurry (doPreTermsAlphaEqual bi r)) (zip (map snd as1) (map snd as2')))
-        && doPreTermsAlphaEqual bi r a1 (substPreTerm su a2)
+        && doPreTermsAlphaEqual bi r a1 (substPreTerm r su a2)
   where
     addArrowSubst ::
       SubstMap -> ((Maybe Var, PreTerm), (Maybe Var, PreTerm)) -> SubstMap
@@ -244,8 +172,8 @@ doPreTermsAlphaEqual bi r (TermArrow io1 as1 a1) (TermArrow io2 as2 a2) =
                 Nothing -> v
                 Just (TermVar _ x) -> x
                 _ -> error "unexpected term in subst map"
-      in (Just v', substPreTerm su t)
-    substArrow su (Nothing, t) = (Nothing, substPreTerm su t)
+      in (Just v', substPreTerm r su t)
+    substArrow su (Nothing, t) = (Nothing, substPreTerm r su t)
 doPreTermsAlphaEqual bi r (TermLazyArrow io1 a1) (TermLazyArrow io2 a2) =
   io1 == io2 && doPreTermsAlphaEqual bi r a1 a2
 doPreTermsAlphaEqual bi r (TermApp io1 f xs) (TermApp io2 g ys) =
@@ -284,8 +212,8 @@ doPreTermsAlphaEqual bi r (TermRef v1 s1') (TermRef v2 s2')
      || bisimHasPair p1 p2 bi
      || let r1 = Env.forceLookupRefMap (varId v1) r
             r2 = Env.forceLookupRefMap (varId v2) r
-            r1' = substPreTerm s1 (termPre r1)
-            r2' = substPreTerm s2 (termPre r2)
+            r1' = substPreTerm r s1 (termPre r1)
+            r2' = substPreTerm r s2 (termPre r2)
         in doPreTermsAlphaEqual ((p1, p2) : bi) r r1' r2'
   where
     termRefsTest :: (Var, SubstMap) -> (Var, SubstMap) -> Bool
@@ -306,13 +234,13 @@ doPreTermsAlphaEqual bi r (TermRef v1 s1) t2
   | isNothing (IntMap.lookup (varId v1) r) = False
   | True =
   let r1 = Env.forceLookupRefMap (varId v1) r
-      r1' = substPreTerm s1 (termPre r1)
+      r1' = substPreTerm r s1 (termPre r1)
   in doPreTermsAlphaEqual bi r r1' t2
 doPreTermsAlphaEqual bi r t1 (TermRef v2 s2)
   | isNothing (IntMap.lookup (varId v2) r) = False
   | True =
   let r2 = Env.forceLookupRefMap (varId v2) r
-      r2' = substPreTerm s2 (termPre r2)
+      r2' = substPreTerm r s2 (termPre r2)
   in doPreTermsAlphaEqual bi r t1 r2'
 doPreTermsAlphaEqual bi r (TermLazyFun io t1) t2 =
   doPreTermsAlphaEqual bi r t1 (TermLazyApp io t2)
@@ -337,7 +265,7 @@ caseTreesAlphaEqual bi subst rm (CaseLeaf i1 t1 _) (CaseLeaf i2 t2 _) = do
                 then IntMap.fromList (zip (map varId i2) (map (TermVar False) i1))
                 else IntMap.empty
          su = IntMap.union subst su0
-     in doPreTermsAlphaEqual bi rm t1 (substPreTerm su t2)
+     in doPreTermsAlphaEqual bi rm t1 (substPreTerm rm su t2)
 caseTreesAlphaEqual bi subst rm (CaseNode idx1 m1 d1) (CaseNode idx2 m2 d2) =
   idx1 == idx2
   && IntMap.keysSet m1 == IntMap.keysSet m2
@@ -392,7 +320,7 @@ preTermNormalize m (TermRef v s) =
   in case t0 of
       Nothing -> TermRef v s
       Just (t, meta) ->
-        let t' = substPreTerm s (termPre t)
+        let t' = substPreTerm m s (termPre t)
         in if refMetaIsDeclaredPure meta
            then preTermNormalize m t'
            else t'
@@ -407,7 +335,7 @@ preTermNormalize m (TermImplicitApp b f xs) =
       TermFun _ io n (CaseLeaf is te ws) ->
         let z = zip (map varId is) (map snd xs')
             is' = drop (length z) is
-            te' = substPreTerm (IntMap.fromList z) te
+            te' = substPreTerm m (IntMap.fromList z) te
         in TermFun [] io n (CaseLeaf is' te' ws)
       _ -> TermImplicitApp b f' xs'
 preTermNormalize m (TermApp io f xs) =
@@ -443,10 +371,10 @@ caseTreeNormalize rm = doCaseTreeNormalize rm IntMap.empty
 
 doCaseTreeNormalize ::
   RefMap -> SubstMap -> CaseTree -> [PreTerm] -> Maybe PreTerm
-doCaseTreeNormalize _ subst (CaseLeaf is te _) xs =
+doCaseTreeNormalize rm subst (CaseLeaf is te _) xs =
   let s = assert (length xs == length is) (zip (map varId is) xs)
       subst' = IntMap.union subst (IntMap.fromList s)
-  in Just (substPreTerm subst' te)
+  in Just (substPreTerm rm subst' te)
 doCaseTreeNormalize rm subst (CaseUnit idx (is, ct)) xs =
   let (x, xs') = listRemoveIdx idx xs
       a = zip (map varId is) (repeat x)
@@ -636,7 +564,7 @@ patternApply im rm p0 = \is as ->
           let imps = Env.forceLookupImplicitMap (varId v) im
               z = zip (map snd is) (map (\(x, t) -> (Just x, t)) imps)
               su = makePatternArgSubst (assert (length imps == length is) z)
-              c = substPreTerm su ty
+              c = substPreTerm rm su ty
           in doPatternApply c (PatternImplicitApp True p is) [] as
         _ -> error "implicit arguments on non-ctor pattern"
     doPatternApply ty p [] (Nothing : as) =
@@ -651,7 +579,7 @@ patternApply im rm p0 = \is as ->
         Just (d, c', _) ->
           let su = makePatternArgSubst
                     (assert (length a == length d) $ zip a d)
-              c = substPreTerm su c'
+              c = substPreTerm rm su c'
           in doPatternApply c (PatternApp p a) [] as
 
 patternProjArgs ::
@@ -672,8 +600,8 @@ patternProjArgs im rm pat =
           su = makePatternArgSubst xs
           as' = map (\(a, (_, d)) ->
                         Pattern {patternPre = a,
-                                 patternTy = substPreTerm su d}) xs
-      in (substPreTerm su ty, (zip (map fst as) as', ps))
+                                 patternTy = substPreTerm rm su d}) xs
+      in (substPreTerm rm su ty, (zip (map fst as) as', ps))
     doProj (PatternLazyApp p) =
       let (ty, (b, ps)) = doProj p
           (c, _) = fromJust (preTermLazyCod rm ty)
@@ -685,8 +613,8 @@ patternProjArgs im rm pat =
           su = makePatternArgSubst xs
           as' = map (\(a, (_, d)) ->
                         Pattern {patternPre = a,
-                                 patternTy = substPreTerm su d}) xs
-      in (substPreTerm su c, (b, Just as' : ps))
+                                 patternTy = substPreTerm rm su d}) xs
+      in (substPreTerm rm su c, (b, Just as' : ps))
     doProj _ = (patternTy pat, ([], []))
 
 preTermProjArgs :: PreTerm -> Maybe (Var, [PreTerm])
@@ -724,7 +652,7 @@ preTermGetAlphaType im rm iv (TermImplicitApp _ f xs) = do
           _ -> Nothing
   let !() = assert (length is == length xs) ()
   let su = foldl addSubst IntMap.empty (zip is xs)
-  return (substPreTerm su ty)
+  return (substPreTerm rm su ty)
   where
     addSubst :: SubstMap -> ((Var, PreTerm), (VarName, PreTerm)) -> SubstMap
     addSubst s ((v, _), (_, t)) = IntMap.insert (varId v) t s
@@ -733,7 +661,7 @@ preTermGetAlphaType im rm iv (TermApp _ f xs) = do
   (dom, cod, _) <- preTermDomCod rm ty
   let !() = assert (length dom == length xs) ()
   let su = foldl addSubst IntMap.empty (zip dom xs)
-  return (substPreTerm su cod)
+  return (substPreTerm rm su cod)
   where
     addSubst :: SubstMap -> ((Maybe Var, PreTerm), PreTerm) -> SubstMap
     addSubst s ((Nothing, _), _) = s
@@ -874,7 +802,7 @@ getAppliedImplicits vis rm (TermRef v s) =
     in case t0 of
         Nothing -> IntSet.empty
         Just (t, _) ->
-          let t' = substPreTerm s (termPre t)
+          let t' = substPreTerm rm s (termPre t)
           in getAppliedImplicits (IntSet.insert (varId v) vis) rm t'
 getAppliedImplicits vis rm (TermArrow _ d c) =
   IntSet.union

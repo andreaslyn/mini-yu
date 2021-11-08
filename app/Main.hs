@@ -21,9 +21,8 @@ import System.Command (command_)
 import System.IO (hPutStrLn, stderr)
 import System.FilePath (takeDirectory, takeFileName)
 import Str (stdRuntimePath)
-import System.Environment (getExecutablePath)
+import System.Environment (getArgs, getExecutablePath)
 import qualified Data.Map as Map
-import Control.Exception (catch, SomeException)
 
 runIr ::
   ProgramOptions -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap -> IO ()
@@ -152,9 +151,10 @@ run opts = do
               (optionCompile opts || optionAssembly opts)
               packs
               (argumentFileName opts)
+              (runIr opts)
   case tc of
-    Left msg -> hPutStrLn stderr msg
-    Right (vs, dm, im, rm) -> runIr opts vs dm im rm
+    Just msg -> hPutStrLn stderr msg >> Exit.exitWith (Exit.ExitFailure 1)
+    Nothing -> return ()
 
 data ProgramOptions = ProgramOptions
   { optionPackages :: [String]
@@ -240,8 +240,14 @@ cmdInterface = mkApp cmdParser
 main :: IO ()
 main = do
   interface <- cmdInterface
-  runApp interface (\opts -> preRun opts >>= run)
-    `catch` (\ e -> hPutStrLn stderr $ show (e :: SomeException))
+  args <- getArgs
+  case parseArgs args interface of
+    Right opts -> preRun opts >>= run
+    Left msg -> do
+      if msg == "too many arguments"
+      then hPutStrLn stderr "invalid command line arguments, try again with just --help"
+      else hPutStrLn stderr msg
+      Exit.exitWith (Exit.ExitFailure 1)
   where
     preRun :: ProgramOptions -> IO ProgramOptions
     preRun opts = do

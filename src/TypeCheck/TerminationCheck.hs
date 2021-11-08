@@ -247,7 +247,7 @@ makeCallMapRef v = do
         let fs0 = IntSet.elems (preTermVars rm (termPre r))
         fs <- lift (makeArgVars fs0)
         let rsu = IntMap.fromList (zip fs0 fs)
-        case substPreTerm rsu (termPre r) of
+        case substPreTerm rm rsu (termPre r) of
           TermFun ias _ n ct -> do
             ias' <- lift (makeArgVars ias)
             as <- case n of
@@ -327,7 +327,7 @@ callRel p a = do
           un <- lift (lift (runExceptT (patternUnify2 newids pty aty)))
           case un of
             Left _ -> return (p, b)
-            Right s -> return (substPreTerm s p, substPreTerm s b)
+            Right s -> return (substPreTerm rm s p, substPreTerm rm s b)
         _ -> return (p, b)
 
 callRelNotEq :: PreTerm -> PreTerm -> CallSetIO CallRel
@@ -355,7 +355,7 @@ preTermAppCallSet v rsu args = do
     Just (r, _) -> do
       lift (pushCallStack v)
       let fs0 = IntSet.elems (preTermVars rm (termPre r))
-      let fs = map (\i -> substPreTerm rsu (TermVar False (mkVar i "_"))) fs0
+      let fs = map (\i -> substPreTerm rm rsu (TermVar False (mkVar i "_"))) fs0
       let args' = fs ++ args
       if isNothing (IntMap.lookup (varId v) rm)
       then foldrM (\x s ->
@@ -490,8 +490,9 @@ caseTreeCallSet (CaseLeaf is te _) xs = do
   newids <- lift (lift Env.getNextVarId)
   s <- foldlM (\a (i,t) ->
         lift . lift $ tryAddSubst newids i t a) IntMap.empty s0
-  let te' = substPreTerm s te
-  local (newEnvCallSet s) (preTermCallSet te')
+  rm <- lift (lift Env.getRefMap)
+  let te' = substPreTerm rm s te
+  local (newEnvCallSet rm s) (preTermCallSet te')
   where
     tryAddSubst ::
       VarId -> VarId -> PreTerm -> SubstMap -> TypeCheckIO SubstMap
@@ -528,8 +529,9 @@ caseTreeAddCase x0 xs (cid, (is, ct)) acc = do
       case unif of
         Right s -> do
           --let !() = trace ("unify subst map: " ++ show s) ()
-          let ct' = substCaseTree s ct
-          local (newEnvCallSet s) $
+          rm <- lift (lift Env.getRefMap)
+          let ct' = substCaseTree rm s ct
+          local (newEnvCallSet rm s) $
             fmap (Set.union acc) (caseTreeCatchAllCallSet x xs' (Just (is, ct')))
         Left (UnifyAbsurd _) -> return acc
         Left (UnifyUnable _) ->
@@ -543,11 +545,12 @@ caseTreeCatchAllCallSet _ _ Nothing = return Set.empty
 caseTreeCatchAllCallSet x xs' (Just (is, ct)) = do
   let s0 = zip (map varId is) (repeat x)
   let s = IntMap.fromList s0
-  let ct' = substCaseTree s ct
-  local (newEnvCallSet s) (caseTreeCallSet ct' xs')
+  rm <- lift (lift Env.getRefMap)
+  let ct' = substCaseTree rm s ct
+  local (newEnvCallSet rm s) (caseTreeCallSet ct' xs')
 
-newEnvCallSet :: SubstMap -> [PreTerm] -> [PreTerm]
-newEnvCallSet s as = map (substPreTerm s) as
+newEnvCallSet :: RefMap -> SubstMap -> [PreTerm] -> [PreTerm]
+newEnvCallSet r s as = map (substPreTerm r s) as
 
 listRemoveIdx :: Int -> [a] -> (a, [a])
 listRemoveIdx 0 (x:xs) = (x, xs)
@@ -707,7 +710,7 @@ accessibleData rm vis (TermRef v s) =
   else
     let vis' = IntSet.insert (varId v) vis
         r = Env.forceLookupRefMap (varId v) rm
-    in accessibleData rm vis' (substPreTerm s (termPre r))
+    in accessibleData rm vis' (substPreTerm rm s (termPre r))
 accessibleData _ _ (TermVar _ _) = IntSet.empty
 accessibleData _ _ (TermData v) = IntSet.singleton (varId v)
 accessibleData _ _ (TermCtor _ _) = IntSet.empty
@@ -909,8 +912,9 @@ positivityCheckContainsData vi dv (TermRef v s) = do
     r0 <- Env.lookupRef (varId v)
     case r0 of
       Nothing -> return False
-      Just r ->
-        positivityCheckContainsData vi' dv (substPreTerm s (termPre r))
+      Just r -> do
+        rm <- Env.getRefMap
+        positivityCheckContainsData vi' dv (substPreTerm rm s (termPre r))
 positivityCheckContainsData _ _ (TermVar _ _) = return False
 positivityCheckContainsData vi dv (TermData v)
   | varId dv == varId v = return True
@@ -993,8 +997,9 @@ positivityCheckDom lo vi dv (TermRef v s) =
     r0 <- Env.lookupRef (varId v)
     case r0 of
       Nothing -> return ()
-      Just r ->
-        positivityCheckDom lo vi' dv (substPreTerm s (termPre r))
+      Just r -> do
+        rm <- Env.getRefMap
+        positivityCheckDom lo vi' dv (substPreTerm rm s (termPre r))
 positivityCheckDom _ _ _ (TermVar _ _) = return ()
 positivityCheckDom _ _ _ (TermData _) = return ()
 positivityCheckDom _ _ _ (TermCtor _ _) = return ()

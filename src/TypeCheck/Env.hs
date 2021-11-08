@@ -11,6 +11,7 @@ module TypeCheck.Env
   , GlobalMap
   , getRefMap
   , getImplicitMap
+  , getDataCtorMap
   , runEnvT
   , forceInsertGlobal
   , addToGlobals
@@ -151,9 +152,8 @@ emptyCtxSt =
 toString :: Monad m => EnvT m String
 toString = fmap show getEnv
 
-runEnvT :: Monad m => EnvT m a -> m (a, DataCtorMap, ImplicitMap, RefMap)
-runEnvT s =
-  fmap (\(x,r) -> (x, dataCtorMap r, implicitMap r, refMap r)) (runStateT s emptyCtxSt)
+runEnvT :: Monad m => EnvT m () -> m ()
+runEnvT s = evalStateT s emptyCtxSt
 
 getCurrentScopeId :: Monad m => EnvT m ScopeId
 getCurrentScopeId = fmap currentScopeId get
@@ -355,13 +355,15 @@ getScopeMap = do
 
 addToGlobals :: Monad m => VarName -> EnvT m ()
 addToGlobals moduleName = do
+  --let !() = trace ("add globals from mod: " ++ moduleName) ()
   Env _ em p <- getEnv
   let !() = assert (isNothing p) ()
   g <- getGlobalEnv
-  putGlobalEnv (Map.foldrWithKey insertGlob g em)
+  putGlobalEnv $! (Map.foldrWithKey insertGlob g em)
   where
     insertGlob :: VarName -> (VarStatus, Bool) -> GlobalMap -> GlobalMap
     insertGlob na (StatusTerm tm, True) g =
+      --let !() = trace ("add: " ++ insertModuleName na) () in
       Map.insert (insertModuleName na) tm g
     insertGlob _ (_, b) g = assert (not b) g
 
@@ -479,11 +481,13 @@ forceInsertExtern = modifyExternSet . IntSet.insert
 forceInsertRef ::
   Monad m => Loc -> VarName -> Bool -> VarId -> Term -> EnvT m ()
 forceInsertRef lo na isPure i t = do
+  depth <- getDepth
   let meta = RefMeta
               { refMetaIsTerminationChecked = False
               , refMetaIsDeclaredPure = isPure
               , refMetaLoc = lo
               , refMetaName = na
+              , refMetaIsGlobal = depth == 0
               }
   modifyRefMap (IntMap.insert i (t, meta))
 

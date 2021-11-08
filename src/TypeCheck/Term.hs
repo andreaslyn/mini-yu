@@ -36,7 +36,8 @@ type VarId = Int
 
 type VarName = String
 
-data Var = Var {varId :: VarId, varName :: VarName} deriving Show
+data Var = Var {varId :: VarId, varName :: VarName}
+  deriving Show
 
 type SubstMap = IntMap PreTerm
 
@@ -59,7 +60,7 @@ data PreTerm = TermFun [VarName] Bool (Maybe Int) CaseTree
              | TermRef Var SubstMap -- Val name and lazy substitution.
              | TermVar Bool Var     -- Variable, Bool = True if implicit.
              | TermData Var         -- Data type definition with ctors
-             | TermCtor Var VarId   -- Data constructor with data type
+             | TermCtor Var Var     -- Data constructor with data type
              | TermCase PreTerm CaseTree
              | TermUnitElem
              | TermUnitTy
@@ -105,7 +106,9 @@ instance Show PreTerm where
   show TermTy = "TermTy"
   show TermEmpty = "TermEmpty"
 
-data RefVar = RefExtern Var Int | RefVal Var | RefData Var | RefCtor Var deriving Show
+data RefVar =
+  RefExtern Var Int | RefVal Var | RefData Var | RefCtor Var
+  deriving Show
 
 type DataCtorMap = IntMap [Var] -- Data type VarId -> ctors
 
@@ -113,11 +116,11 @@ data CaseTree =
     CaseLeaf
       [Var]      -- [Var] to substitute remaining arguments
       PreTerm
-      [RefVar]   -- where-clause (only used for code generation)
+      [RefVar]   -- where-clause (not used for "normal" type checking stuff)
   | CaseNode
       -- Which argument to pattern match on.
       Int
-      -- Constructor cases VarId -> ([Var], CaseTree)
+      -- Constructor cases VarId -> (VarName, [Var], CaseTree)
       -- The [Var] is indicating which variables to substitute
       -- the term for.
       (IntMap ([Var], CaseTree))
@@ -132,7 +135,8 @@ data Term = Term
   { termPre :: PreTerm
   , termTy :: PreTerm
   , termIo :: Bool
-  , termNestedDefs :: [RefVar] } deriving Show
+  , termNestedDefs :: [RefVar] }
+  deriving Show
 
 mkTerm :: PreTerm -> PreTerm -> Bool -> Term
 mkTerm tp tt io =
@@ -148,7 +152,7 @@ data PrePattern = PatternApp PrePattern [PrePattern]
                   -- has been given explicitly.
                 | PatternImplicitApp Bool PrePattern [(VarName, PrePattern)]
                 | PatternLazyApp PrePattern
-                | PatternCtor Var VarId
+                | PatternCtor Var Var
                 | PatternVar Var
                 | PatternUnit
                 | PatternEmpty
@@ -167,7 +171,9 @@ data RefMeta = RefMeta
   , refMetaIsDeclaredPure :: Bool
   , refMetaLoc :: Loc
   , refMetaName :: VarName
-  } deriving Show
+  , refMetaIsGlobal :: Bool
+  }
+  deriving Show
 
 type ExternSet = IntSet
 
@@ -204,7 +210,7 @@ prePatternToPreTerm (PatternImplicitApp b a as) =
     implicitToPreTerm :: (VarName, PrePattern) -> (VarName, PreTerm)
     implicitToPreTerm (n, p) = (n, prePatternToPreTerm p)
 prePatternToPreTerm (PatternVar v) = TermVar False v
-prePatternToPreTerm (PatternCtor v i) = TermCtor v i
+prePatternToPreTerm (PatternCtor v d) = TermCtor v d
 prePatternToPreTerm PatternUnit = TermUnitElem
 prePatternToPreTerm PatternEmpty = TermEmpty
 

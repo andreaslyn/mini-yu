@@ -27,7 +27,7 @@ import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import TypeCheck.SubstMap
-import Data.List (find, sortOn, sortBy, partition, isPrefixOf)
+import Data.List (find, sortOn, sortBy, partition, isPrefixOf, intercalate)
 import Data.Foldable (foldlM, foldrM)
 import System.Directory
   (canonicalizePath, doesFileExist, getPermissions, readable)
@@ -37,7 +37,6 @@ import TypeCheck.PatternUnify
 import TypeCheck.ExprUnify
 import TypeCheck.TerminationCheck
 
-import Data.List (intercalate)
 import Debug.Trace (trace)
 
 _useTrace :: String -> a -> a
@@ -48,16 +47,18 @@ _useIntercalate = intercalate
 
 runTypeCheckT ::
   Bool -> Bool -> PackageMap -> FilePath -> String -> Program ->
-  IO (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
-runTypeCheckT verbose compiling packagePaths file moduleName prog = do
+  ([RefVar] -> DataCtorMap -> ImplicitMap -> RefMap -> IO ()) ->
+  IO (Maybe String)
+runTypeCheckT verbose compiling packagePaths file moduleName prog contin = do
   r <- runExceptT
         (runReaderT
           (evalStateT
-            (Env.runEnvT (tcInitProgram compiling packagePaths prog))
-              (Map.singleton file Map.empty)) (verbose, file, moduleName))
+            (Env.runEnvT (tcInitProgram_ compiling packagePaths prog contin))
+              (Map.singleton file (Nothing, Map.empty)))
+          (verbose, file, moduleName))
   case r of
-    Left e -> return (Left (typeCheckErrMsg e))
-    Right x -> return (Right x)
+    Left e -> return (Just (typeCheckErrMsg e))
+    Right () -> return Nothing
 
 importFilePath ::
   PackageMap -> FilePath -> TypeCheckIO (Either String FilePath)
@@ -78,22 +79,23 @@ importFilePath packagePaths p =
 
 runTT ::
   Bool -> Bool -> PackageMap -> FilePath ->
-  IO (Either String ([RefVar], DataCtorMap, ImplicitMap, RefMap))
-runTT verbose compiling packagePaths file = do
+  ([RefVar] -> DataCtorMap -> ImplicitMap -> RefMap -> IO ()) ->
+  IO (Maybe String)
+runTT verbose compiling packagePaths file contin = do
   isf <- liftIO (doesFileExist file)
   if not isf
-  then return (Left $ "unable to open file " ++ file)
+  then return (Just $ "unable to open file " ++ file)
   else do
     perms <- liftIO (getPermissions file)
     if not (readable perms)
-    then return (Left $ "unable to read file " ++ file)
+    then return (Just $ "unable to read file " ++ file)
     else do
       prog <- runParse file
       case prog of
-        Left e -> return (Left e)
+        Left e -> return (Just e)
         Right prog' -> do
           file' <- liftIO (canonicalizePath file)
-          runTypeCheckT verbose compiling packagePaths file' "" prog'
+          runTypeCheckT verbose compiling packagePaths file' "" prog' contin
 
 varStatusTerm :: VarStatus -> TypeCheckIO Term
 varStatusTerm (StatusTerm te) = return te
@@ -260,13 +262,27 @@ checkMainExists = do
           "it is required that " ++ quote "main"
           ++ " is defined by let () => ...")
 
+tcInitProgram_ ::
+  Bool -> PackageMap -> Program ->
+  ([RefVar] -> DataCtorMap -> ImplicitMap -> RefMap -> IO ()) ->
+  TypeCheckIO ()
+tcInitProgram_ compiling packagePaths prog contin =
+  tcInitProgram compiling packagePaths prog contin >> return ()
+
 tcInitProgram ::
-  Bool -> PackageMap -> Program -> TypeCheckIO [RefVar]
-tcInitProgram compiling packagePaths prog = doTcInitProgram
+  Bool -> PackageMap -> Program ->
+  ([RefVar] -> DataCtorMap -> ImplicitMap -> RefMap -> IO ()) ->
+  TypeCheckIO [RefVar]
+tcInitProgram compiling packagePaths prog contin = do
+  (verbose, file, _) <- ask
+  when verbose $ liftIO (putStrLn ("check " ++ file))
+  doTcInitProgram
   where
     doTcInitProgram :: TypeCheckIO [RefVar]
     doTcInitProgram = do
-      rs <- tcProgram packagePaths prog
+      (_, rs2) <- tcImports packagePaths (fst prog)
+      rs1 <- tcProgram (snd prog)
+      let rs = rs1 ++ rs2
       mapM_ checkPositivity rs
       rm <- Env.getRefMap
       let ks = IntMap.keys rm
@@ -274,6 +290,10 @@ tcInitProgram compiling packagePaths prog = doTcInitProgram
       mapM_ verifyDataImpureChains rs
       mapM_ verifyImpureIsNotTerminationChecked ks
       when compiling checkMainExists
+      ccm <- Env.getDataCtorMap
+      cim <- Env.getImplicitMap
+      crm <- Env.getRefMap
+      liftIO (contin rs ccm cim crm)
       return rs
 
     checkPositivity :: RefVar -> TypeCheckIO ()
@@ -371,12 +391,9 @@ insertImportExport vis ina em (ii@(lo, na0, b) : imex) = do
       err lo (Fatal $ "name " ++ quote na
                       ++ " is not exported by module " ++ quote ina)
 
-tcProgram :: PackageMap -> Program -> TypeCheckIO [RefVar]
-tcProgram _ ([], defs) = do
-  rs <- tcDefsToVars IntMap.empty defs
-  Env.clearImplicitVarMap
-  return rs
-tcProgram packagePaths ((malias, (lo, ina), imex) : imps, defs) = do
+tcImports :: PackageMap -> [ModuleIntro] -> TypeCheckIO (Bool, [RefVar])
+tcImports _ [] = return (True, [])
+tcImports packagePaths ((malias, (lo, ina), imex) : imps) = do
   case malias of
     Nothing -> return ()
     Just (alo, alias) -> do
@@ -384,7 +401,6 @@ tcProgram packagePaths ((malias, (lo, ina), imex) : imps, defs) = do
       canInsert <- Env.tryInsertModuleExpand alias ina
       when (not canInsert)
         (err alo (Fatal $ "multiple module aliases " ++ quote alias))
-  (verbose, _, _) <- ask
   inaPath0 <- importFilePath packagePaths ina
   case inaPath0 of
     Left e0 -> err lo (Fatal e0)
@@ -397,25 +413,42 @@ tcProgram packagePaths ((malias, (lo, ina), imex) : imps, defs) = do
         (err lo (Fatal $ "unable to read file \"" ++ inaPath ++ "\""))
       is <- lift get
       case Map.lookup inaPath is of
-        Just em -> do
+        Just (Nothing, _) -> err lo (Fatal "cyclic import")
+        Just (Just clean, em) -> do
           insertImportExport Set.empty ina em imex
-          tcProgram packagePaths (imps, defs)
+          (clean', vs) <- tcImports packagePaths imps
+          return (clean && clean', vs)
         Nothing -> do
-          lift (put (Map.insert inaPath Map.empty is))
-          prog <- runParse inaPath
-          case prog of
-            Left e -> throwError (Fatal e)
-            Right prog' -> do
-              (em, vs) <- local (const (verbose, inaPath, ina)) $
-                          Env.localEnv $ do
-                            r <- tcProgram packagePaths prog'
-                            Env.addToGlobals ina
-                            em <- Env.getScopeMap
-                            return (em, r)
-              is' <- lift get
-              lift (put (Map.insert inaPath em is'))
-              insertImportExport Set.empty ina em imex
-              fmap (++vs) (tcProgram packagePaths (imps, defs))
+          doTcImport is inaPath
+  where
+    doTcImport ::
+      Map FilePath (Maybe Bool, Env.ScopeMap) ->
+      FilePath ->
+      TypeCheckIO (Bool, [RefVar])
+    doTcImport is inaPath = do
+      (verbose, _, _) <- ask
+      lift (put (Map.insert inaPath (Nothing, Map.empty) is))
+      prog <- runParse inaPath
+      case prog of
+        Left e -> throwError (Fatal e)
+        Right prog' -> do
+          (em, vs) <- local (const (verbose, inaPath, ina)) $
+                      Env.localEnv $ do
+                        r <- tcInitProgram False packagePaths prog' (\ _ _ _ _ -> return ())
+                        Env.addToGlobals ina
+                        em <- Env.getScopeMap
+                        return (em, r)
+          is' <- lift get
+          lift (put (Map.insert inaPath (Just False, em) is'))
+          insertImportExport Set.empty ina em imex
+          (_, ws) <- tcImports packagePaths imps
+          return (False, ws ++ vs)
+
+tcProgram :: [Def] -> TypeCheckIO [RefVar]
+tcProgram defs = do
+  rs <- tcDefsToVars IntMap.empty defs
+  Env.clearImplicitVarMap
+  return rs
 
 tcDefsToVars :: SubstMap -> [Def] -> TypeCheckIO [RefVar]
 tcDefsToVars subst defs = do
@@ -434,7 +467,7 @@ tcDefsToVars subst defs = do
     extractDefVar (Term {termPre = (TermData v)}) = return (RefData v)
     extractDefVar (Term {termPre = (TermCtor v _)}) = return (RefCtor v)
     extractDefVar t = do
-      ss <- preTermToString defaultExprIndent (termPre t)
+      ss <- preTermToString 0 (termPre t)
       error $ "unexpected def term: " ++ ss
 
 insertUnknownDataDefs ::
@@ -660,7 +693,7 @@ tcDataDefCtor subst v (cva, ctor) = do
             then hasIoErr
             else return ()
         _ -> badCtorType
-      let r = mkTerm (TermCtor cva (varId v)) (termPre ty) False
+      let r = mkTerm (TermCtor cva v) (termPre ty) False
       let (stna0, stopt) = operandSplit (declName ctor)
       stna <- updateOperandTypeString (declLoc ctor, stna0) stopt
       updateToStatusTerm stna r
@@ -1054,7 +1087,8 @@ buildValCaseTree valName subst impParams domain codomain valCases = do
         vs <- case w of
                 Just w' -> tcDefsToVars bsu w'
                 _ -> return []
-        b <- evalTcExpr bsu (substPreTerm bsu $ substPreTerm tsu codomain) e
+        rm <- Env.getRefMap
+        b <- evalTcExpr bsu (substPreTerm rm bsu $ substPreTerm rm tsu codomain) e
         return (lo, patternsToTriple ps, Just (b {termNestedDefs = vs}))
     doCheckCase args lo Nothing =
       Env.scope $ do
@@ -1203,7 +1237,7 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
     makeCaseNode idx subc (_, subd) =
       case IntMap.lookup (-1) subc of
         Nothing -> return (CaseNode idx subc subd)
-        Just subc' -> return (CaseUnit idx subc')
+        Just (vs, ct) -> return (CaseUnit idx (vs, ct))
 
     findCaseIndex ::
       [CasePatternTriple] -> TypeCheckIO (Either Bool (Int, VarId))
@@ -1216,10 +1250,10 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
         doFindCaseIndex idx ((_, q) : qs) =
           case prePatternGetRoot (patternPre q) of
             PatternUnit -> return (Right (idx, -1))
-            PatternCtor _ i -> do
+            PatternCtor _ dt -> do
               d <- hasLateDependency q qs
               if not d
-              then return (Right (idx, i))
+              then return (Right (idx, varId dt))
               else doFindCaseIndex (idx + 1) qs
             _ -> doFindCaseIndex (idx + 1) qs
 
@@ -1339,7 +1373,7 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
     makeCtorPatterns b (i : is) ty = do
       x <- Env.forceLookupRef i
       let cp = case termPre x of
-                TermCtor vv ii -> PatternCtor vv ii
+                TermCtor vv dd -> PatternCtor vv dd
                 _ -> error $ "expected ref to be a ctor " ++ show i
       c <- prePatternApplyWithVars cp (termTy x)
       newpids <- Env.getNextVarId
@@ -1398,7 +1432,7 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
             Just bsu0 -> do
               let rs0 = as2 ++ qs'
               bsu <- reorderForceSubst newpids bsu0 rs0
-              let rs1 = substTripleForce tsu bsu rs0
+              let rs1 = substTripleForce rm tsu bsu rs0
               let rs = (lo, substForcedCatchAllPatterns bsu rs1, t)
               --let !() = trace ("initial data:\n" ++ showCasesToCaseTree im0 rm0 [(lo, rs0, t)]) ()
               case IntMap.lookup i' m of
@@ -1503,11 +1537,11 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
       return (Just qs' : qss')
 
     substTripleForce ::
-      SubstMap -> SubstMap -> [CasePatternTriple] -> [CasePatternTriple]
-    substTripleForce _ _ [] = []
-    substTripleForce tsu bsu (((v, b), q) : qs) = do
-      let qs' = substTripleForce tsu bsu qs
-      let qty = substPreTerm bsu (substPreTerm tsu (patternTy q))
+      RefMap -> SubstMap -> SubstMap -> [CasePatternTriple] -> [CasePatternTriple]
+    substTripleForce _ _ _ [] = []
+    substTripleForce rm tsu bsu (((v, b), q) : qs) = do
+      let qs' = substTripleForce rm tsu bsu qs
+      let qty = substPreTerm rm bsu (substPreTerm rm tsu (patternTy q))
       let q' = q {patternTy = qty}
       case v of
         Nothing -> ((Nothing, b), q') : qs'
@@ -1605,31 +1639,34 @@ tcExpr subst ty e = do
       e0 <- doTcExpr False subst Nothing (Just expectedTy) e
       e' <- forceIfLazyTerm e0
       tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
+      rm <- lift Env.getRefMap
       su <- getExprSubst
-      let se = substPreTerm su (termPre e')
-      let st = substPreTerm su expectedTy
+      let se = substPreTerm rm su (termPre e')
+      let st = substPreTerm rm su expectedTy
       return (mkTerm se st (termIo e'))
 
     exprCheckLazy :: Bool -> PreTerm -> ExprIO Term
     exprCheckLazy io expectedTy = do
       e' <- tcExpr subst expectedTy e
       tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
-      su <- getExprSubst
       when (termIo e' && not io)
         (lift $ err (exprLoc e) (Recoverable $
           "unable to construct pure lazy value, "
           ++ "type of expression is effectful"))
-      let se = TermLazyFun io (substPreTerm su (termPre e'))
-      let st = TermLazyArrow io (substPreTerm su expectedTy)
+      rm <- lift Env.getRefMap
+      su <- getExprSubst
+      let se = TermLazyFun io (substPreTerm rm su (termPre e'))
+      let st = TermLazyArrow io (substPreTerm rm su expectedTy)
       return (mkTerm se st False)
 
 doTcExprSubst ::
   Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) -> Expr -> ExprIO Term
 doTcExprSubst isTrial subst operandArg e = do
   e' <- doTcExpr isTrial subst operandArg Nothing e
+  rm <- lift Env.getRefMap
   isu <- getExprSubst
-  return (mkTerm (substPreTerm isu (termPre e'))
-                 (substPreTerm isu (termTy e'))
+  return (mkTerm (substPreTerm rm isu (termPre e'))
+                 (substPreTerm rm isu (termTy e'))
                  (termIo e'))
 
 -- The first Bool is a simple heuristic. It is indicating whether
@@ -1654,9 +1691,10 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
         (TermData v) -> makeImplicitApp v vt
         (TermCtor v _) -> makeImplicitApp v vt
         _ -> do
+          rm <- lift Env.getRefMap
           isu <- getExprSubst
-          let e = substPreTerm subst (substPreTerm isu (termPre vt))
-          let ety = substPreTerm subst (substPreTerm isu (termTy vt))
+          let e = substPreTerm rm subst (substPreTerm rm isu (termPre vt))
+          let ety = substPreTerm rm subst (substPreTerm rm isu (termTy vt))
           return (mkTerm e ety False)
   where
     getOperatorContext ::
@@ -1770,7 +1808,8 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
           let su = IntMap.fromList (map (\(v0, x) -> (varId v0, x)) imps1)
           let ias = map (\(v0, x) -> (varName v0, x)) imps1
           let a = TermImplicitApp False (termPre t) ias
-          let aty = substPreTerm su (termTy t)
+          rm <- lift Env.getRefMap
+          let aty = substPreTerm rm su (termTy t)
           return (mkTerm a aty False)
 
     getImplicit :: (Var, PreTerm) -> ExprIO (Var, PreTerm)
@@ -1822,7 +1861,7 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             let bs = dependencyOrderArgs (preTermVars rm0) dom as'
             (su0, dom0) <- insertTypedParams IntMap.empty bs
             let dom' = map snd (sortOn fst dom0)
-            let cod' = substPreTerm su0 cod
+            let cod' = substPreTerm rm0 su0 cod
             body' <- tcExpr subst cod' body
             let bodyIo = termIo body'
             when (bodyIo && not io)
@@ -1833,8 +1872,9 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
                         (CaseLeaf (map fst dom') (termPre body') [])
             let mdom = map (\(d1, d2) -> (Just d1, d2)) dom'
             let fty = TermArrow io mdom cod'
+            rm1 <- lift Env.getRefMap
             isu <- getExprSubst
-            tcExprUnify lo ty' (substPreTerm isu fty)
+            tcExprUnify lo ty' (substPreTerm rm1 isu fty)
             return (mkTerm fte fty False)
   where
     insertImplicit ::
@@ -1896,7 +1936,8 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
       pa <- if vna == "_"
               then return Nothing
               else lift (markInProgress False (vlo, vna))
-      let t' = substPreTerm su t
+      rm <- lift Env.getRefMap
+      let t' = substPreTerm rm su t
       case e of
         Nothing -> return ()
         Just e' -> do
@@ -2010,11 +2051,11 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
     let su = foldl (\m (i, _) ->
                       IntMap.insert (varId i) (fromJust (Map.lookup (varName i) ias')) m
                    ) IntMap.empty tys
+    rm <- lift Env.getRefMap
     let z = zipWith (\x y ->
-                      (fst y, (snd y, substPreTerm su (snd x)))
+                      (fst y, (snd y, substPreTerm rm su (snd x)))
                     ) tys ias
     let m = Map.fromList z
-    rm <- lift Env.getRefMap
     let dias = map (\(_, (n, t)) -> (justImplicitVar n, t)) z
     let nameOrd = dependencyOrderArgs (preTermVars rm) dias (map fst z)
     let argsOrd = orderImplicitArgsBy nameOrd args
@@ -2060,10 +2101,11 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
             then do
               e0 <- tcExpr subst ty e
               e' <- runUnify a e0
+              rm <- lift Env.getRefMap
               isu <- getExprSubst
-              let ias' = Map.map (\(n, t) -> (n, substPreTerm isu t)) ias
-              let imap' = map (\(n, t) -> (n, substPreTerm isu t)) imap
-              let fty' = substPreTerm isu fty
+              let ias' = Map.map (\(n, t) -> (n, substPreTerm rm isu t)) ias
+              let imap' = map (\(n, t) -> (n, substPreTerm rm isu t)) imap
+              let fty' = substPreTerm rm isu fty
               (io, imap'', fty'') <- unifyImplicits (Set.delete na remain) ias' es imap' fty'
               return (io || termIo e', imap'', fty'')
             else
@@ -2133,18 +2175,22 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
         let su' = IntMap.union su subst
         b <- case expectedTy of
               Nothing -> doTcExprSubst False su' Nothing e
-              Just ty' -> tcExpr su' (substPreTerm su ty') e
+              Just ty' -> do
+                rm <- lift Env.getRefMap
+                tcExpr su' (substPreTerm rm su ty') e
         checkNoVariableEscape (patternLoc p) p' (termTy b)
-        return (b, patternToTriple su' p')
+        rm <- lift Env.getRefMap
+        return (b, patternToTriple rm su' p')
       return (patternLoc p, tr, Just e')
     doCheckCase newpids t p Nothing _ = do
       lift . Env.scope $ do
         (su, p') <- tcPattern newpids t p
-        return (patternLoc p, patternToTriple su p', Nothing)
+        rm <- Env.getRefMap
+        return (patternLoc p, patternToTriple rm su p', Nothing)
 
-    patternToTriple :: SubstMap -> Pattern -> [CasePatternTriple]
-    patternToTriple su p =
-      let p' = p {patternTy = substPreTerm su (patternTy p)}
+    patternToTriple :: RefMap -> SubstMap -> Pattern -> [CasePatternTriple]
+    patternToTriple rm su p =
+      let p' = p {patternTy = substPreTerm rm su (patternTy p)}
       in [((Nothing, False), p')]
 
     checkNoVariableEscape ::
@@ -2211,9 +2257,10 @@ doTcExprApp isTrial subst operandArg ty f args = do
         Nothing -> makeTermApp subst (exprLoc f) ty f' args
         Just (a1, args') -> do
           e1 <- makeTermApp subst (exprLoc f) Nothing f' [a1]
+          rm <- lift Env.getRefMap
           isu <- getExprSubst
-          let e1' = mkTerm (substPreTerm isu (termPre e1))
-                      (substPreTerm isu (termTy e1)) (termIo e1)
+          let e1' = mkTerm (substPreTerm rm isu (termPre e1))
+                      (substPreTerm rm isu (termTy e1)) (termIo e1)
           makeTermApp subst (exprLoc f) ty e1' args'
 
     isPostfixExpr :: Expr -> Bool
@@ -2255,7 +2302,8 @@ makeTermApp subst flo preTy f0 preArgs = do
       cod <- forceIfLazyPreTerm c'
       (su, ps, io') <- applyArgs ty domVars False cod IntMap.empty args1
       let ps' = map snd (sortOn fst ps)
-      let c = substPreTerm su c'
+      rm <- lift Env.getRefMap
+      let c = substPreTerm rm su c'
       if numMissing > 0
       then do
         g <- lift $ preTermPartialApplication
@@ -2274,12 +2322,12 @@ makeTermApp subst flo preTy f0 preArgs = do
     unifyType ty domVars w cod su = do
       case ty of
         Just ty' -> do
-          let cod' = substPreTerm su cod
+          rm <- lift Env.getRefMap
+          let cod' = substPreTerm rm su cod
           cw <- uniWeight cod'
           if w < cw
           then return False
           else do
-            rm <- lift Env.getRefMap
             let fs = preTermVars rm cod'
             if IntSet.null (IntSet.intersection fs domVars)
             then (tcExprSubstUnify flo ty' cod' >> return True)
@@ -2327,8 +2375,9 @@ makeTermApp subst flo preTy f0 preArgs = do
             `catchRecoverable` (\_ -> return False)
 
     applyTc p _ e = do
+      rm <- lift Env.getRefMap
       isu <- getExprSubst
-      let p' = substPreTerm isu p
+      let p' = substPreTerm rm isu p
       fmap (\d -> (termPre d, termIo d)) (tcExpr subst p' e)
 
     substArgs ::
@@ -2337,7 +2386,7 @@ makeTermApp subst flo preTy f0 preArgs = do
       [(Int, Maybe Var, PreTerm, (Int, Int, Int, Int), Expr)]
     substArgs _ _ [] = []
     substArgs r m ((idx, v, p, w, e) : xs) =
-      (idx, v, substPreTerm m p, w, e) : substArgs r m xs
+      (idx, v, substPreTerm r m p, w, e) : substArgs r m xs
 
     splitDom ::
       Int -> [(Maybe Var, PreTerm)] -> PreTerm -> Bool ->
@@ -2461,11 +2510,12 @@ makePatternApp flo newpids ty (fsu, f') prePargs = do
       let (pargs, postPargs) = splitAt (length dom0) prePargs
       let (fcod, _) = preTermFinalCod r cod
       dsu <- tcPatternUnify newpids flo fcod ty
-      let dsubts = \(d, t) -> (d, substPreTerm dsu t)
+      rm <- Env.getRefMap
+      let dsubts = \(d, t) -> (d, substPreTerm rm dsu t)
       let args0 = dependencyOrderArgs (preTermVars r) dom0 pargs
       let args = map (\(i, d, a) -> (i, dsubts d, a)) args0
       (tsu, bsu, ps) <- tcPatternArgs newpids IntMap.empty fsu args
-      let c = substPreTerm tsu cod
+      let c = substPreTerm rm tsu cod
       r0 <- Env.getRefMap
       psu <- if isNothing (preTermDomCod r0 cod)
                 && isNothing (preTermLazyCod r0 cod)
@@ -2533,7 +2583,6 @@ doTcPattern _ _ newpids ty (ParsePatternApp f pargs) = do
     isPostfixPattern (ParsePatternImplicitApp v@(ParsePatternVar _) _) =
       isPostfixPattern v
     isPostfixPattern _ = False
-
 doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
   (fsu, f') <- doTcPatternForceLazy True hasApp newpids ty f
   rm <- Env.getRefMap
@@ -2547,7 +2596,7 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
   tys0 <- Env.forceLookupImplicit (varId v)
   let (fcod, _) = preTermFinalCod rm (patternTy f')
   dsu <- tcPatternUnify newpids (patternLoc f) fcod ty
-  let tys = map (\(d, t) -> (d, substPreTerm dsu t)) tys0
+  let tys = map (\(d, t) -> (d, substPreTerm rm dsu t)) tys0
   pnames <- getImplicitNames (Set.fromList (map (varName . fst) tys)) Set.empty pargs
   let ias' = Map.fromList ias
   let su = foldl (\m (i, _) ->
@@ -2558,7 +2607,7 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
   let z = foldr (\(i, x) a ->
                   if Set.member (varName (fst x)) pnames
                     then (Just (patternVarVar (snd i)),
-                          substPreTerm su (snd x)) : a
+                          substPreTerm rm su (snd x)) : a
                     else a
                 ) [] (zip ias tys)
   let pmap = Map.fromList (map (\(x,y) -> (snd x, y)) pargs)
@@ -2574,7 +2623,7 @@ doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
   let args = map (\(d, (i, _, a)) -> (i, d, a)) (zip z args0)
   (tsu, bsu, ps) <- tcPatternArgs newpids IntMap.empty fsu args
   let pt = patternTy f'
-  let c = substPreTerm tsu pt
+  let c = substPreTerm rm tsu pt
   r0 <- Env.getRefMap
   psu <- if isNothing (preTermDomCod r0 pt)
             && isNothing (preTermLazyCod r0 pt)
@@ -2625,12 +2674,12 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
               x1 <- lookupEnv na
               return (x1, na)
   case x of
-    Just (StatusTerm (Term {termPre = TermCtor v did, termTy = ty'})) -> do
-      checkCtorType v did ty'
+    Just (StatusTerm (Term {termPre = TermCtor v dd, termTy = ty'})) -> do
+      checkCtorType v dd ty'
       --return (su, Pattern {patternPre = PatternCtor v did, patternTy = ty'})
     Just x'@(StatusUnknownCtor _ _ _ _) -> do
-      (v, did, ty') <- ctorFromVarStatus x'
-      checkCtorType v did ty'
+      (v, dd, ty') <- ctorFromVarStatus x'
+      checkCtorType v dd ty'
       --return (su, Pattern {patternPre = PatternCtor v did, patternTy = ty'})
     Just x'@(StatusInProgress True _) -> do
       _ <- ctorFromVarStatus x'
@@ -2668,19 +2717,19 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
           return (Just c)
         _ -> return Nothing
 
-    ctorFromVarStatus :: VarStatus -> TypeCheckIO (Var, VarId, PreTerm)
+    ctorFromVarStatus :: VarStatus -> TypeCheckIO (Var, Var, PreTerm)
     ctorFromVarStatus x = do
       x' <- varStatusTerm x
       case x' of
-        Term {termPre = TermCtor v did, termTy = ty'} ->
-          return (v, did, ty')
+        Term {termPre = TermCtor v dd, termTy = ty'} ->
+          return (v, dd, ty')
         _ -> error $ "expected var status to return ctor " ++ show x
 
     checkCtorType ::
-      Var -> VarId -> PreTerm -> TypeCheckIO (SubstMap, Pattern)
-    checkCtorType cv did cty = do
+      Var -> Var -> PreTerm -> TypeCheckIO (SubstMap, Pattern)
+    checkCtorType cv dd cty = do
       r <- Env.getRefMap
-      p <- makeImplicitApp cv did cty
+      p <- makeImplicitApp cv dd cty
       if not hasImplicitApp
          && isNothing (preTermDomCod r cty)
          && isNothing (preTermLazyCod r cty)
@@ -2690,10 +2739,10 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
         else return (IntMap.empty, p)
 
     makeImplicitApp ::
-      Var -> VarId -> PreTerm -> TypeCheckIO Pattern
-    makeImplicitApp cv did cty = do
+      Var -> Var -> PreTerm -> TypeCheckIO Pattern
+    makeImplicitApp cv dd cty = do
       imps0 <- Env.forceLookupImplicit (varId cv)
-      let ctor = PatternCtor cv did
+      let ctor = PatternCtor cv dd
       if null imps0
         then return (Pattern {patternPre = ctor, patternTy = cty})
         else do
@@ -2703,7 +2752,8 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
                       (varId v0, prePatternToPreTerm x)) imps1)
           let ias = map (\(v0, x) -> (varName v0, x)) imps1
           let a = PatternImplicitApp False ctor ias
-          let aty = substPreTerm su cty
+          rm <- Env.getRefMap
+          let aty = substPreTerm rm su cty
           return (Pattern {patternPre = a, patternTy = aty})
 
     getImplicit :: (Var, PreTerm) -> TypeCheckIO (Var, PrePattern)
@@ -2725,13 +2775,15 @@ tcPatternArgs ::
   TypeCheckIO (SubstMap, SubstMap, [(Int, (Maybe Var, Pattern))])
 tcPatternArgs _ su asu [] = return (su, asu, [])
 tcPatternArgs newpids su asu ((idx, (Nothing, p), e) : xs) = do
-  (psu, e') <- tcPattern newpids (substPreTerm asu (substPreTerm su p)) e
+  rm <- Env.getRefMap
+  (psu, e') <- tcPattern newpids (substPreTerm rm asu (substPreTerm rm su p)) e
   asu' <- tcMergePatUnifMaps newpids (patternLoc e) psu asu
   (tsu, bsu, es') <- tcPatternArgs newpids su asu' xs
   let r = e' {patternTy = p}
   return (tsu, bsu, (idx, (Nothing, r)) : es')
 tcPatternArgs newpids su asu ((idx, (Just v, p), e) : xs) = do
-  (psu, e') <- tcPattern newpids (substPreTerm asu (substPreTerm su p)) e
+  rm <- Env.getRefMap
+  (psu, e') <- tcPattern newpids (substPreTerm rm asu (substPreTerm rm su p)) e
   asu' <- tcMergePatUnifMaps newpids (patternLoc e) psu asu
   let e'' = prePatternToPreTerm (patternPre e')
   let su' = IntMap.insert (varId v) e'' su

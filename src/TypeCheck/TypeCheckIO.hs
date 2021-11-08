@@ -35,7 +35,10 @@ typeCheckErrMsg (Fatal s) = s
 typeCheckErrMsg (Recoverable s) = s
 
 type TypeCheckIO =
-  Env.EnvT (StateT (Map FilePath Env.ScopeMap) (ReaderT (Bool, FilePath, String) (ExceptT TypeCheckErr IO)))
+  Env.EnvT
+    (StateT (Map FilePath (Maybe Bool, Env.ScopeMap))
+      (ReaderT (Bool, FilePath, String)
+        (ExceptT TypeCheckErr IO)))
 
 err :: Loc -> TypeCheckErr -> TypeCheckIO a
 err lo msg = do
