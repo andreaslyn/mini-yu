@@ -29,6 +29,7 @@ compile_all() {
   compile "$dir/extern-str.yu" "$dir/extern-str.c"
   compile "$dir/hello-world.yu"
   compile "$dir/lazy-test.yu"
+  compile "$dir/delay-test.yu"
   compile "$dir/list-map-to-even.yu"
   compile "$dir/nat-test.yu"
   compile "$dir/lazy-nat-test.yu"

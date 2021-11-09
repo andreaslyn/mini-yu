@@ -16,11 +16,11 @@ let => succ(succ(succ(succ(succ(succ(succ(succ L2)))))))
 
 val plus : LNat & LNat -> LNat
 let m zero => m
-let m (succ n) => succ (plus m n)
+let m (succ n) => succ (plus m (n []))
 
 val mul : LNat & LNat -> LNat
 let _ zero => zero
-let m (succ n) => plus (mul m n) m
+let m (succ n) => plus (mul m (n [])) m
 
 val L100 : LNat
 let => mul L10 L10
@@ -37,21 +37,21 @@ let => mul L10000 L1000
 
 val ldivmod : LNat & LNat & LNat & LNat -> LNat && LNat
 let zero  _ q u => q $ u
-let (succ m) n q zero => ldivmod m n (succ q) n
-let (succ m) n q (succ u) => ldivmod m n q u
+let (succ m) n q zero => ldivmod (m []) n (succ q) n
+let (succ m) n q (succ u) => ldivmod (m []) n q (u [])
 
 val natDiv : LNat & LNat -> LNat
 let _ zero => zero
-let m (succ n) => ldivmod m n zero n .1
+let m (succ n) => ldivmod m (n []) zero (n []) .1
 
 val natMod : LNat & LNat -> LNat
 let _ zero => zero
-let m (succ n) => minus n (ldivmod m n zero n .2)
+let m (succ n) => minus (n []) (ldivmod m (n []) zero (n []) .2)
 
 val minus : LNat & LNat -> LNat
 let zero _ => zero
 let m zero => m
-let (succ m) (succ n) => minus m n
+let (succ m) (succ n) => minus (m []) (n [])
 
 val.. lnatToStr : LNat -> Str
 let (n0) =>

@@ -10,7 +10,7 @@ import N => yu/Nat
 
 val gen-stream : Nat -> [] -> Stream Nat
 let 0.N => 0.N :: nil.Stream
-let (++ n) => ++ n :: gen-stream n
+let (++ n) => ++ n :: gen-stream n []
 
 val 100 : Nat
 let => 10.N * 10.N
@@ -35,7 +35,7 @@ let nil.Stream => 0.N $ 0.N
 let (x :: xs) =>
   case xs []
   of nil.Stream => x $ x
-  of _ :: _ => x $ streamLast xs
+  of _ :: _ => x $ streamLast (xs [])
   end
 where
   val streamLast : Stream Nat -> Nat
@@ -43,37 +43,37 @@ where
   let (x :: xs) =>
     case xs []
     of nil.Stream => x
-    of _ :: _ => streamLast xs
+    of _ :: _ => streamLast (xs [])
     end
 end
 
 val streamFirstAndLast : ([] -> Stream Nat) -> Nat && Nat
-let s => streamFirstAndLast' s
+let s => streamFirstAndLast' (s [])
 
 val sreverse' [A : Ty] : Stream A -> [] -> Stream A
 let => aux0 nil.Stream
 where
   val aux0 : ([] -> Stream A) -> Stream A -> [] -> Stream A
-  let a => xs => aux a xs
+  let a => xs => aux (a []) xs []
 
   val aux : ([] -> Stream A) & Stream A -> [] -> Stream A
-  let a nil.Stream => a
-  let a (x :: xs) => aux (x :: a) xs
+  let a nil.Stream => a []
+  let a (x :: xs) => aux (x :: a []) (xs []) []
 end
 
 val sreverse [A : Ty] : ([] -> Stream A) -> [] -> Stream A
-let s => sreverse' s
+let s => sreverse' (s []) []
 
 val main : {} ->> {}
 let () =>
   xs := gen-stream 1000000;
-  case streamFirstAndLast (sreverse' (sreverse' xs))
+  case streamFirstAndLast (sreverse' (sreverse' (xs []) []) [])
   of 0.N $ 0.N => "0" .println
   of _ $ 0.N => "1" .println
   of 0.N $ _ => "2" .println
   of _ $ _ => "3" .println
   end;
-  case streamFirstAndLast (sreverse (sreverse xs))
+  case streamFirstAndLast (sreverse (sreverse (xs []) []) [])
   of 0.N $ 0.N => "0" .println
   of _ $ 0.N => "1" .println
   of 0.N $ _ => "2" .println

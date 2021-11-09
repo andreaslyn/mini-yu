@@ -12,6 +12,7 @@ module TypeCheck.TermEnv
   , preTermFinalCod
   , preTermDomCod
   , preTermLazyCod
+  , preTermLazyOrDelayCod
   , preTermPartialApplication
   , patternProjArgs
   , patternApply
@@ -438,6 +439,20 @@ preTermLazyCod = \r t ->
     doPreTermLazyCod :: PreTerm -> Maybe (PreTerm, Bool)
     doPreTermLazyCod (TermLazyArrow io c) = Just (c, io)
     doPreTermLazyCod _ = Nothing
+
+-- Returns (True, t, io) when lazy
+-- Returns (False, t, io) when delay arrow
+preTermLazyOrDelayCod :: RefMap -> PreTerm -> Maybe (Bool, PreTerm, Bool)
+preTermLazyOrDelayCod = \r t ->
+  case t of
+    TermLazyArrow io c -> Just (True, c, io)
+    TermArrow io [] c -> Just (False, c, io)
+    _ -> doPreTermLazyOrDelayCod (preTermNormalize r t)
+  where
+    doPreTermLazyOrDelayCod :: PreTerm -> Maybe (Bool, PreTerm, Bool)
+    doPreTermLazyOrDelayCod (TermLazyArrow io c) = Just (True, c, io)
+    doPreTermLazyOrDelayCod (TermArrow io [] c) = Just (False, c, io)
+    doPreTermLazyOrDelayCod _ = Nothing
 
 preTermCodRootType :: RefMap -> PreTerm -> Maybe (PreTerm, Bool)
 preTermCodRootType rm pt =
@@ -913,6 +928,11 @@ writePreTerm (TermFun imps _ (Just n) ct) = do
   writeCaseTree (map Left imps ++ map Left args) ct
 writePreTerm (TermLazyFun _ f) =
   writeStr "[] => " >> writePreTerm f
+writePreTerm (TermArrow io [] c) = do
+  if io
+    then writeStr "() ->> "
+    else writeStr "() -> "
+  writePreTerm c
 writePreTerm (TermArrow io d c) = do
   writeDomainList d
   if io
@@ -1222,7 +1242,9 @@ writeNormalApp f xs = do
   when b (writeStr "(")
   writePreTerm f
   when b (writeStr ")")
-  when (not (null xs)) $ do
+  if null xs
+  then writeStr " ()"
+  else do
     writeStr " "
     writePreTermList xs
 

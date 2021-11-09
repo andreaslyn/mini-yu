@@ -22,12 +22,12 @@ where
   val 2 : Nat
   let => ++ 1
 
-  val plus : ([] -> Nat) & ([] -> Nat) -> Nat
-  let m n => aux (n [])
+  val plus : (() -> Nat) & (() -> Nat) -> Nat
+  let m n => aux (n ())
   where
     val aux : Nat -> Nat
-    let 0.N => m []
-    let (++ n) => ++ plus (m []) n
+    let 0.N => m ()
+    let (++ n) => ++ plus (m ()) n
   end
 
   val even : Nat -> Bool
@@ -35,7 +35,7 @@ where
   let (++ 0.N) => false
   let (++ ++ n) => even n
 end
-let b => odd [] (plus 1 (plus 1 1))
+let b => odd () (plus 1 (plus 1 1))
 where
   val 1 : Nat
   let => ++ 0.N
@@ -43,25 +43,25 @@ where
   val 2 : Nat
   let => ++ 1
 
-  val plus : ([] -> Nat) & ([] -> Nat) -> Nat
-  let m n => aux (n [])
+  val plus : (() -> Nat) & (() -> Nat) -> Nat
+  let m n => aux (n ())
   where
     val aux : Nat -> Nat
-    let 0.N => m []
-    let (++ n) => ++ plus (m []) n
+    let 0.N => m ()
+    let (++ n) => ++ plus (m ()) n
   end
 
-  val.. even : [] -> Nat -> Bool
+  val.. even : () -> Nat -> Bool
   let => n =>
     o := odd;
     case n
     of 0.N => !' b
-    of ++ n => o [] n
+    of ++ n => o () n
     end
 
-  val.. odd : [] -> Nat -> Bool
+  val.. odd : () -> Nat -> Bool
   let =>
-    e := even[];
+    e := even ();
     n =>
       case n
       of 0.N => b
@@ -74,15 +74,15 @@ let () =>
   boolToAscii (nat-package true) .print;
   boolToAscii (nat-package false) .print;
   'lf .print;
-  lazy-print1 [];
-  lazy-print2 [];
-  lazy-print1 [];
-  lazy-print2 [];
+  lazy-print1 ();
+  lazy-print2 ();
+  lazy-print1 ();
+  lazy-print2 ();
   "" .print
 where
-  val lazy-print1 : [] ->> {}
+  val lazy-print1 : () ->> {}
   let => '1 .println
 
-  val lazy-print2 : [] ->> {}
+  val lazy-print2 : () ->> {}
   let => '2 .println
 end

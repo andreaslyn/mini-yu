@@ -85,5 +85,5 @@ let list => heapList list .tournament (.merge)
 where
   val heapList : List A -> DelayList1 at LeftistHeap A od
   let nil.L => one.DelayList1 leaf
-  let (x :: xs) => singleton x :: at _ => heapList xs
+  let (x :: xs) => singleton x :: heapList xs
 end

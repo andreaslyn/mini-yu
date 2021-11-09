@@ -77,6 +77,7 @@ data Expr = ExprFun Loc VarList Expr
               -- ExprArrow Bool = True if it is an IO arrow.
           | ExprArrow Loc Bool [ExprListTypedElem] Expr
           | ExprLazyArrow Loc Bool Expr
+          | ExprDelayArrow Loc Bool Expr
           | ExprApp Expr [Expr]
           | ExprImplicitApp Expr [((Loc, String), Expr)]
           | ExprLazyApp Expr
@@ -95,6 +96,7 @@ type ExprListTypedElem = Either Expr ((Loc, String), Expr)
 type CaseCase = Either ParsePattern (ParsePattern, Expr)
 
 data ParsePattern = ParsePatternApp ParsePattern [ParsePattern]
+                  | ParsePatternLazyApp ParsePattern
                   | ParsePatternImplicitApp ParsePattern
                                             [((Loc, String), ParsePattern)]
                   | ParsePatternVar (Loc, String)
@@ -119,6 +121,7 @@ defLoc (DefData _ d _) = declLoc d
 
 patternLoc :: ParsePattern -> Loc
 patternLoc (ParsePatternApp p _) = patternLoc p
+patternLoc (ParsePatternLazyApp p) = patternLoc p
 patternLoc (ParsePatternImplicitApp p _) = patternLoc p
 patternLoc (ParsePatternVar (lo, _)) = lo
 patternLoc (ParsePatternUnit lo) = lo
@@ -134,6 +137,7 @@ exprLoc (ExprUnitTy lo) = lo
 exprLoc (ExprFun lo _ _) = lo
 exprLoc (ExprArrow lo _ _ _) = lo
 exprLoc (ExprLazyArrow lo _ _) = lo
+exprLoc (ExprDelayArrow lo _ _) = lo
 exprLoc (ExprApp e _) = exprLoc e
 exprLoc (ExprImplicitApp e _) = exprLoc e
 exprLoc (ExprLazyApp e) = exprLoc e
@@ -230,6 +234,7 @@ writePatternImplicitArgs ps = doWriteArgs ps >> writeStr "]"
 
 writePattern :: ParsePattern -> ToString ()
 writePattern (ParsePatternApp p ps) = writePattern p >> writePatternArgs ps
+writePattern (ParsePatternLazyApp p) = writePattern p >> writeStr " []"
 writePattern (ParsePatternImplicitApp p ps) =
   writePattern p >> writePatternImplicitArgs ps
 writePattern (ParsePatternUnit _) = writeStr "()"
@@ -278,6 +283,11 @@ writeExpr (ExprLazyArrow _ b e) = do
     then writeStr "[] ->> "
     else writeStr "[] -> "
   writeExpr e
+writeExpr (ExprDelayArrow _ b e) = do
+  if b
+    then writeStr "() ->> "
+    else writeStr "() -> "
+  writeExpr e
 writeExpr (ExprLazyApp e) = do
   writeExpr e
   writeStr "[]"
@@ -285,6 +295,7 @@ writeExpr (ExprApp e as) =
   let hasLowerPrec (ExprFun _ _ _) = True
       hasLowerPrec (ExprArrow _ _ _ _) = True
       hasLowerPrec (ExprLazyArrow _ _ _) = True
+      hasLowerPrec (ExprDelayArrow _ _ _) = True
       hasLowerPrec _ = False
       
       writeExprs [] = return ()
@@ -305,6 +316,7 @@ writeExpr (ExprImplicitApp e as) =
   let hasLowerPrec (ExprFun _ _ _) = True
       hasLowerPrec (ExprArrow _ _ _ _) = True
       hasLowerPrec (ExprLazyArrow _ _ _) = True
+      hasLowerPrec (ExprDelayArrow _ _ _) = True
       hasLowerPrec _ = False
       
       writeExprs [] = return ()

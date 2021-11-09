@@ -4,7 +4,7 @@ of 0 : Nat
 of (++#) : Nat -> Nat
 
 val test1 : (m : Nat) & (n : Nat) -> Nat
-let m n => const first (plusn m)
+let m n => const first [] [] (plusn m)
 where
   val first : Nat
   let => m

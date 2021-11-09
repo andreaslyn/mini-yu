@@ -87,8 +87,8 @@ let => (@#) inc inc2
 
 
 val (+'#Nat) : ([] -> Nat) & Nat -> Nat
-let n 0 => n
-let n (++ m) => ++ (n +' m)
+let n 0 => n []
+let n (++ m) => ++ (n [] +' m)
 
 val inc4 : Nat -> Nat
 let (n) => 4 +' n

@@ -251,10 +251,21 @@ evaluated only when the first argument is false. This can be achieved with
 ```
 val (+#Bool) : Bool & ([] -> Bool) -> Bool
 let true b => true
-let false b => b
+let false b => b []
 ```
 The type `[] -> Bool` is the lazy `Bool` type. The operator `+#Bool`
 evaluates the second argument only when the first argument is `false`.
+
+## Delayed evaluation
+
+Delayed evaluation is similar to lazy evaluation, but it will
+not memoize its result, like lazy does. The below definition of
+`Bool` product demonstrates delayed evaluation.
+```
+val (*#Bool) : Bool & (() -> Bool) -> Bool
+let false b => false
+let true b => b ()
+```
 
 ## Dependent types
 

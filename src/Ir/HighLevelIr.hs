@@ -707,52 +707,82 @@ optimizeProgram roots = do
 
 doOptimizeProgram :: ProgramRoots -> StM ProgramRoots
 doOptimizeProgram roots = do
-  simplLazyForce roots
+  simplLazyAndDelayForce roots
   return roots
 
-simplLazyForce :: ProgramRoots -> StM ()
-simplLazyForce [] = return ()
-simplLazyForce (c : rs) = do
-  p <- fmap program get
-  let (e, isStatic) = lookupConst c p
-  e' <- simplLazyForceExpr e
-  let p' = IntMap.insert (prConst c) (c, e', isStatic) p
-  modify (\st -> st {program = p'})
-  simplLazyForce rs
+simplLazyAndDelayForce :: ProgramRoots -> StM ()
+simplLazyAndDelayForce [] = return ()
+simplLazyAndDelayForce (c : rs) = do
+  p0 <- fmap program get
+  let (e, isStatic) = lookupConst c p0
+  e' <- simplLazyAndDelayForceExpr e
+  p1 <- fmap program get
+  let p2 = IntMap.insert (prConst c) (c, e', isStatic) p1
+  modify (\st -> st {program = p2})
+  simplLazyAndDelayForce rs
 
-simplLazyForceExpr :: Expr -> StM Expr
-simplLazyForceExpr (Lazy io e) = do
-  e' <- simplLazyForceExpr e
-  case removeForce e of
+simplLazyAndDelayForceExpr :: Expr -> StM Expr
+simplLazyAndDelayForceExpr (Lazy io e) = do
+  e' <- simplLazyAndDelayForceExpr e
+  p <- fmap program get
+  case removeLazyForce p e of
     Nothing -> return (Lazy io e')
     Just d -> return d
-simplLazyForceExpr e@(Force _ _) = return e
-simplLazyForceExpr e@(Ap _ _ _) = return e
-simplLazyForceExpr (Fun vs e) =
-  fmap (Fun vs) (simplLazyForceExpr e)
-simplLazyForceExpr e@(Extern _) = return e
-simplLazyForceExpr (Case v cs) = do
-  cs' <-  mapM (\(i, n, e) -> fmap ((,,) i n) (simplLazyForceExpr e)) cs
+simplLazyAndDelayForceExpr (Fun [] e) = do
+  e' <- simplLazyAndDelayForceExpr e
+  p <- fmap program get
+  case removeDelayForce p e of
+    Nothing -> return (Fun [] e')
+    Just d -> return d
+simplLazyAndDelayForceExpr (Fun vs e) = do
+  e' <- simplLazyAndDelayForceExpr e
+  return (Fun vs e')
+simplLazyAndDelayForceExpr e@(Ap _ _ _) = return e
+simplLazyAndDelayForceExpr e@(Force _ _) = return e
+simplLazyAndDelayForceExpr e@(Extern _) = return e
+simplLazyAndDelayForceExpr (Case v cs) = do
+  cs' <-  mapM (\(i, n, e) -> fmap ((,,) i n) (simplLazyAndDelayForceExpr e)) cs
   return (Case v cs')
-simplLazyForceExpr e@(ConstRef _) = return e
-simplLazyForceExpr e@(CtorRef _ _) = return e
-simplLazyForceExpr e@(Proj _ _) = return e
-simplLazyForceExpr (Let v e1 e2) = do
-  e1' <- simplLazyForceExpr e1
-  e2' <- simplLazyForceExpr e2
+simplLazyAndDelayForceExpr e@(ConstRef _) = return e
+simplLazyAndDelayForceExpr e@(CtorRef _ _) = return e
+simplLazyAndDelayForceExpr e@(Proj _ _) = return e
+simplLazyAndDelayForceExpr (Let v e1 e2) = do
+  e1' <- simplLazyAndDelayForceExpr e1
+  e2' <- simplLazyAndDelayForceExpr e2
   return (Let v e1' e2')
-simplLazyForceExpr e@(Ret _) = return e
-simplLazyForceExpr (Where e rs) = do
-  e' <- simplLazyForceExpr e
-  simplLazyForce rs
+simplLazyAndDelayForceExpr e@(Ret _) = return e
+simplLazyAndDelayForceExpr (Where e rs) = do
+  e' <- simplLazyAndDelayForceExpr e
+  simplLazyAndDelayForce rs
   return (Where e' rs)
 
-removeForce :: Expr -> Maybe Expr
-removeForce (Let v1 (Ret v2) e) = do
-  e' <- removeForce e
+removeLazyForce :: Program -> Expr -> Maybe Expr
+removeLazyForce prog (Let v1 (Ret v2) e) = do
+  e' <- removeLazyForce prog e
   Just (Let v1 (Ret v2) e')
-removeForce (Force _ v) = Just (Ret v)
-removeForce _ = Nothing
+removeLazyForce prog (Let v (ConstRef c) e) = do
+  let (t, _) = lookupConst c prog
+  case t of
+    Lazy _ _ -> do
+      e' <- removeLazyForce prog e
+      Just (Let v (ConstRef c) e')
+    _ -> Nothing
+removeLazyForce _ (Force _ v) = Just (Ret v)
+removeLazyForce _ _ = Nothing
+
+removeDelayForce :: Program -> Expr -> Maybe Expr
+removeDelayForce prog (Let v1 (Ret v2) e) = do
+  e' <- removeDelayForce prog e
+  Just (Let v1 (Ret v2) e')
+removeDelayForce prog (Let v (ConstRef c) e) = do
+  let (t, _) = lookupConst c prog
+  case t of
+    Fun _ _ -> do
+      e' <- removeDelayForce prog e
+      Just (Let v (ConstRef c) e')
+    _ -> Nothing
+removeDelayForce _ (Ap _ v []) = Just (Ret v)
+removeDelayForce _ _ = Nothing
 
 ------------------- Printing -----------------------------
 

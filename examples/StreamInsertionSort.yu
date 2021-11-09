@@ -18,7 +18,7 @@ where
   val insert : A & Stream A -> Stream A
   let x nil.Stream => x :: nil.Stream
   let x (a :: as) =>
-    if (od .le? x a) .then (x :: a :: as) .else (a :: insert x as)
+    if (od .le? x a) .then (x :: a :: as []) .else (a :: insert x (as []))
 end
 
 

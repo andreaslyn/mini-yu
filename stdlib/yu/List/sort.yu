@@ -32,17 +32,17 @@ where
   let a as (b :: bs) =>
     case cmp .le? a b
     of false => descending b (a :: as) bs
-    of true => (a :: as) :: at _ => sequences (b :: bs)
+    of true => (a :: as) :: sequences (b :: bs)
     end
-  let a as bs => (a :: as) :: at _ => sequences bs
+  let a as bs => (a :: as) :: sequences bs
 
   val ascending : A & (List A -> List A) & List A -> DelayList1 (List A)
   let a as (b :: bs) =>
     case cmp .le? a b
     of true => ascending b (ys => as (a :: ys)) bs
-    of false => as (a :: nil) :: at _ => sequences (b :: bs)
+    of false => as (a :: nil) :: sequences (b :: bs)
     end
-  let a as bs => as (a :: nil) :: at _ => sequences(bs)
+  let a as bs => as (a :: nil) :: sequences(bs)
 
   val merge : List A & List A -> List A
   let (a :: as) (b :: bs) =>

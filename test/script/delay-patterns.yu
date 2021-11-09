@@ -1,0 +1,29 @@
+
+data DelayNat : Ty
+of 0 : () -> DelayNat
+of p : () -> () -> DelayNat -> () -> () -> DelayNat
+
+val plus : DelayNat & DelayNat -> DelayNat
+let m (0 ()) => m
+let m (p () () n () ()) => p () () (plus m n) () ()
+
+data DelayId [A : Ty] : A -> () -> A -> Ty
+of refl [a : A] [A : Ty] : () -> DelayId a () a
+
+val 1 : DelayNat
+let => p () () (0 ()) () ()
+
+val 2 : DelayNat
+let => p () () 1 () ()
+
+val 3 : DelayNat
+let => p () () 2 () ()
+
+val test-plus : DelayId 3 () (plus 1 2)
+let => refl ()
+
+val test-lazy-absurd : DelayId 2 () 3 -> (A : Ty) & A -> A
+let {}
+
+val test : case 0 () of 0 () => Ty of p () () _ () () => {} end
+let => {}

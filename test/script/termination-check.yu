@@ -27,17 +27,17 @@ of nils[A : Ty] : [] -> A .Stream
 of (::#.Stream#Ty) [A : Ty] : ([] -> A) & ([] -> A .Stream) -> [] -> A .Stream
 
 val last-nat-Stream : Nat .Stream -> Nat
-let nils => 0
-let (x :: xs) =>
+let (nils []) => 0
+let ((x :: xs) []) =>
   case xs []
-  of nils => x
-  of y :: ys => last-nat-Stream xs
+  of nils [] => x []
+  of (y :: ys) [] => last-nat-Stream (xs [])
   end
 
 val last-nat'-Stream : Nat .Stream -> Nat
-let nils => 0
-let (x :: xs) =>
+let (nils []) => 0
+let ((x :: xs) []) =>
   case xs []
-  of nils => x
-  of y :: ys => last-nat'-Stream (y :: ys)
+  of nils [] => x []
+  of (y :: ys) [] => last-nat'-Stream ((y [] :: ys []) [])
   end

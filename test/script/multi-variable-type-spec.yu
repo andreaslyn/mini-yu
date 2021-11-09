@@ -10,7 +10,7 @@ of tt : Bool
 
 val (*#Bool) : Bool & ([] -> Bool) -> Bool
 let ff _ => ff
-let tt b => b
+let tt b => b []
 
 
 data (=#)[A B : Ty] : A & B -> Ty

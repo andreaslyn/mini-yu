@@ -5,4 +5,4 @@ of lazy [A : Ty] : ([] -> A) -> Lazy A
 
 
 val (.force#Lazy) [A : Ty] : Lazy A -> A
-let (lazy a) => a
+let (lazy a) => a []

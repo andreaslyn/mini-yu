@@ -22,11 +22,11 @@ let _ => false
 
 val (.ind#Order) :
   (c : Order) & (P : Order -> Ty) &
-    ([] -> P lt) & ([] -> P eq) & ([] -> P gt) -> P c
-let lt P x _ _ => x
-let eq P _ y _ => y
-let gt P _ _ z => z
+    (() -> P lt) & (() -> P eq) & (() -> P gt) -> P c
+let lt P x _ _ => x ()
+let eq P _ y _ => y ()
+let gt P _ _ z => z ()
 
 
-val (.rec#Order) [A : Ty] : Order & ([] -> A) & ([] -> A) & ([] -> A) -> A
-let c x y z => c .ind (const A) x y z
+val (.rec#Order) [A : Ty] : Order & (() -> A) & (() -> A) & (() -> A) -> A
+let c x y z => c .ind (const A) (x ()) (y ()) (z ())

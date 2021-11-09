@@ -13,41 +13,41 @@ of (::#Stream) [A : Ty] : A & ([] -> Stream A) -> Stream A
 
 
 val (:+:#Stream) [A : Ty] : Stream A & ([] -> Stream A) -> Stream A
-let nil ys => ys
-let (x :: xs) ys => x :: xs :+: ys
+let nil ys => ys []
+let (x :: xs) ys => x :: xs [] :+: ys []
 
 
 val (.len#Stream) [A : Ty] : Stream A -> Nat
 let nil => 0.N
-let (_ :: xs) => ++ xs .len
+let (_ :: xs) => ++ xs [] .len
 
 
 val (.take!#Stream) [A : Ty] : Stream A & Nat -> Stream A
 let _ 0.N => nil
 let nil _ => nil
-let (x :: xs) (++ n) => x :: xs .take! n
+let (x :: xs) (++ n) => x :: xs [] .take! n
 
 
 val (.takeList!#Stream) [A : Ty] : Stream A & Nat -> List A
 let nil _ => nil.L
 let _ 0.N => nil.L
-let (x :: xs) (++ n) => x :: xs .takeList! n
+let (x :: xs) (++ n) => x :: xs [] .takeList! n
 
 
 val (.drop!#Stream) [A : Ty] : Stream A & Nat -> Stream A
 let xs 0.N => xs
 let nil _ => nil
-let (_ :: xs) (++ n) => xs .drop! n
+let (_ :: xs) (++ n) => xs [] .drop! n
 
 
 val (.accum#Stream) [A B : Ty] : Stream A & B & (B & A -> B) -> B
 let nil y _ => y
-let (x :: xs) y f => xs .accum (f y x) f
+let (x :: xs) y f => xs [] .accum (f y x) f
 
 
 val (.fold#Stream) [A B : Ty] : Stream A & B & (A & B -> B) -> B
 let nil y _ => y
-let (x :: xs) y f => f x (xs .fold y f)
+let (x :: xs) y f => f x (xs [] .fold y f)
 
 
 val (.rev#Stream) [A : Ty] : Stream A -> Stream A

@@ -10,12 +10,12 @@ of true : Bool
 
 
 val (.ind#Bool) : (b : Bool) & (P : Bool -> Ty) & ([] -> P false) & ([] -> P true) -> P b
-let false P x _ => x
-let true P _ y => y
+let false P x _ => x []
+let true P _ y => y []
 
 
 val (.rec#Bool) [A : Ty] : (b : Bool) & ([] -> A) & ([] -> A) -> A
-let b x y => b .ind (const.Fun A) x y
+let b x y => b .ind (const.Fun A) (x []) (y [])
 
 
 val (!#Bool) : Bool -> Bool
@@ -25,12 +25,12 @@ let false => true
 
 val (||#Bool) : Bool & ([] -> Bool) -> Bool
 let true _ => true
-let false b => b
+let false b => b []
 
 
 val (&&#Bool) : Bool & ([] -> Bool) -> Bool
 let false _ => false
-let true b => b
+let true b => b []
 
 
 data If : Ty -> Ty
@@ -43,13 +43,13 @@ of (.then#If) [A : Ty] : If A & ([] -> A) -> Then A
 
 
 val (.else#Then) [A : Ty] : Then A & ([] -> A) -> A
-let (if true .then f) _ => f
-let (if false .then _) g => g
+let (if true .then f) _ => f []
+let (if false .then _) g => g []
 let (i .elif b .then f) g =>
   i .else at
     case b []
-    of true => f
-    of false => g
+    of true => f []
+    of false => g []
     end
 
 

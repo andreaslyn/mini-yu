@@ -1712,48 +1712,16 @@ dataScope e = do
   put st'
   return x
 
-forceIfLazyPreTerm :: PreTerm -> ExprIO PreTerm
-forceIfLazyPreTerm t = do
-  rm <- lift Env.getRefMap
-  let n = preTermNormalize rm t
-  case n of
-    TermLazyArrow _ _ -> return (doForceIfLazyPreTerm n)
-    _ -> return t
-
-doForceIfLazyPreTerm :: PreTerm -> PreTerm
-doForceIfLazyPreTerm (TermLazyArrow _ t) = doForceIfLazyPreTerm t
-doForceIfLazyPreTerm t = t
-
-forceIfLazyTerm :: Term -> ExprIO Term
-forceIfLazyTerm t = do
-  rm <- lift Env.getRefMap
-  let n = preTermNormalize rm (termTy t)
-  case n of
-    TermLazyArrow _ _ ->
-      doForceIfLazyTerm (termPre t) n (termIo t) (termNestedDefs t)
-    _ -> return t
-
-doForceIfLazyTerm ::
-  PreTerm -> PreTerm -> Bool -> [RefVar] -> ExprIO Term
-doForceIfLazyTerm te (TermLazyArrow io1 cod) io2 defs =
-  doForceIfLazyTerm (TermLazyApp io1 te) cod (io1 || io2) defs
-doForceIfLazyTerm te ty io defs =
-  return $ Term { termPre = te
-                , termTy = ty
-                , termNestedDefs = defs
-                , termIo = io }
-
 tcExpr :: SubstMap -> PreTerm -> Expr -> ExprIO Term
 tcExpr subst ty e = do
   rm <- lift Env.getRefMap
-  case preTermLazyCod rm ty of
+  case preTermLazyOrDelayCod rm ty of
     Nothing -> exprCheck ty
-    Just (cod, io) -> exprCheckLazy io cod
+    Just (isLazy, cod, io) -> exprCheckLazyOrDelay isLazy io cod
   where
     exprCheck :: PreTerm -> ExprIO Term
     exprCheck expectedTy = do
-      e0 <- doTcExpr False subst Nothing (Just expectedTy) e
-      e' <- forceIfLazyTerm e0
+      e' <- doTcExpr False subst Nothing (Just expectedTy) e
       tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
       rm <- lift Env.getRefMap
       su <- getExprSubst
@@ -1761,8 +1729,8 @@ tcExpr subst ty e = do
       let st = substPreTerm rm su expectedTy
       return (mkTerm se st (termIo e'))
 
-    exprCheckLazy :: Bool -> PreTerm -> ExprIO Term
-    exprCheckLazy io expectedTy = do
+    exprCheckLazyOrDelay :: Bool -> Bool -> PreTerm -> ExprIO Term
+    exprCheckLazyOrDelay isLazy io expectedTy = do
       e' <- tcExpr subst expectedTy e
       tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
       when (termIo e' && not io)
@@ -1771,8 +1739,13 @@ tcExpr subst ty e = do
           ++ "type of expression is effectful"))
       rm <- lift Env.getRefMap
       su <- getExprSubst
-      let se = TermLazyFun io (substPreTerm rm su (termPre e'))
-      let st = TermLazyArrow io (substPreTerm rm su expectedTy)
+      let fe = substPreTerm rm su (termPre e')
+      let te = substPreTerm rm su expectedTy
+      let (se, st) = if isLazy
+                     then (TermLazyFun io fe, TermLazyArrow io te)
+                     else
+                      let ct = CaseLeaf [] fe []
+                      in (TermFun [] io (Just 0) ct, TermArrow io [] te)
       return (mkTerm se st False)
 
 doTcExprSubst ::
@@ -2141,6 +2114,9 @@ doTcExpr isTrial subst _ _ (ExprLazyApp e) = do
 doTcExpr _ subst _ _ (ExprLazyArrow _ io e) = do
   e' <- tcExpr subst TermTy e
   return (mkTerm (TermLazyArrow io (termPre e')) TermTy (termIo e'))
+doTcExpr _ subst _ _ (ExprDelayArrow _ io e) = do
+  e' <- tcExpr subst TermTy e
+  return (mkTerm (TermArrow io [] (termPre e')) TermTy (termIo e'))
 doTcExpr isTrial subst _ ty (ExprApp f args) = do
   case args of
     [] -> doTcExprApp isTrial subst Nothing ty f args
@@ -2387,18 +2363,18 @@ doTcExprApp isTrial subst operandArg ty f args = do
 makeTermApp ::
   SubstMap -> Loc ->
   Maybe PreTerm -> Term -> [Expr] -> ExprIO Term
-makeTermApp subst flo preTy f0 preArgs = do
-  f' <- forceIfLazyTerm f0
+makeTermApp subst flo preTy f' preArgs0 = do
   r <- lift Env.getRefMap
   let dc = preTermDomCod r (termTy f')
   case dc of
-    Nothing -> do
-      ss <- lift $ preTermToString defaultExprIndent (termTy f')
-      lift $ err flo
-        (Recoverable $
-          "expected expression to have function type, "
-          ++ "but type is\n" ++ ss)
+    Nothing -> errorExpectedFunctionType
     Just (d0, c0, io) -> do
+      preArgs <- if null d0
+                 then
+                  case preArgs0 of
+                    (ExprUnitElem _ : as) -> return as
+                    _ -> errorExpectedFunctionType
+                  else return preArgs0
       let numPreArgs = length preArgs
       let numMissing = length d0 - numPreArgs
       (d', c') <- if numMissing > 0
@@ -2415,8 +2391,7 @@ makeTermApp subst flo preTy f0 preArgs = do
                     args
       let args1 = map (\(i, (v, (p, w)), e) -> (i, v, p, w, e)) args0
       let domVars = getDomVars d'
-      cod <- forceIfLazyPreTerm c'
-      (su, ps, io') <- applyArgs ty domVars False cod IntMap.empty args1
+      (su, ps, io') <- applyArgs ty domVars False c' IntMap.empty args1
       let ps' = map snd (sortOn fst ps)
       rm <- lift Env.getRefMap
       let c = substPreTerm rm su c'
@@ -2432,6 +2407,21 @@ makeTermApp subst flo preTy f0 preArgs = do
         then return fap
         else makeTermApp subst flo preTy fap postArgs
   where
+    errorExpectedFunctionType :: ExprIO a
+    errorExpectedFunctionType = do
+      ss <- lift $ preTermToString defaultExprIndent (termTy f')
+      case preArgs0 of
+        (ExprUnitElem _ : _) ->
+          lift $ err flo
+            (Recoverable $
+              "expected expression to have delay or function type, "
+              ++ "but type is\n" ++ ss)
+        _ ->
+          lift $ err flo
+            (Recoverable $
+              "expected expression to have function type, "
+              ++ "but type is\n" ++ ss)
+
     unifyType ::
       Maybe PreTerm -> IntSet -> (Int, Int, Int, Int) ->
       PreTerm -> SubstMap -> ExprIO Bool
@@ -2585,7 +2575,7 @@ appOrdering (_, n1) (_, n2) = compare n1 n2
 tcPattern ::
   VarId -> PreTerm -> ParsePattern -> TypeCheckIO (SubstMap, Pattern)
 tcPattern newpids ty p = do
-  (su, p')  <- doTcPatternForceLazy False False newpids ty p
+  (su, p')  <- doTcPattern False False newpids ty p
   rm <- Env.getRefMap
   --let !() = trace ("type: " ++ preTermToString 0 (patternTy p')) ()
   when (patternPreCanApply (patternPre p') && isArrowType rm (patternTy p')) $ do
@@ -2604,20 +2594,22 @@ tcPattern newpids ty p = do
 makePatternApp ::
   Loc -> VarId -> PreTerm -> (SubstMap, Pattern) -> [ParsePattern] ->
   TypeCheckIO (SubstMap, Pattern)
-makePatternApp flo newpids ty (fsu, f') prePargs = do
+makePatternApp flo newpids ty (fsu, f') prePargs0 = do
   r <- Env.getRefMap
   when (not $ patternPreCanApply (patternPre f')) $ do
-    ss <- preTermToString defaultExprIndent (patternTy f')
-    err flo (Recoverable $
-      "unable to match pattern with inferred type\n" ++ ss)
+    unableToMatchPattern flo (patternTy f')
   let dc = preTermDomCod r (patternTy f')
   case dc of
     Nothing -> do
-      ss <- preTermToString defaultExprIndent (patternTy f')
-      err flo (Recoverable $
-        "unable to match pattern with inferred type\n" ++ ss)
+      unableToMatchPattern flo (patternTy f')
     Just (dom0, cod, io) -> do
       let !() = assert (not io) ()
+      prePargs <- if null dom0
+                  then
+                    case prePargs0 of
+                      (ParsePatternUnit _ : as) -> return as
+                      _ -> unableToMatchPattern flo (patternTy f')
+                  else return prePargs0
       when (length dom0 > length prePargs)
         (err flo
           (Fatal $
@@ -2647,39 +2639,38 @@ makePatternApp flo newpids ty (fsu, f') prePargs = do
       then return (psu, p)
       else makePatternApp flo newpids ty (psu, p) postPargs
 
-
-forceIfLazyPattern :: Pattern -> TypeCheckIO Pattern
-forceIfLazyPattern p = do
-  rm <- Env.getRefMap
-  let n = preTermNormalize rm (patternTy p)
-  case n of
-    TermLazyArrow _ _ -> doForceIfLazyPattern (patternPre p) n
-    _ -> return p
-
-doForceIfLazyPattern ::
-  PrePattern -> PreTerm -> TypeCheckIO Pattern
-doForceIfLazyPattern p (TermLazyArrow io cod) =
-  assert (not io) $ doForceIfLazyPattern (PatternLazyApp p) cod
-doForceIfLazyPattern p ty =
-  return $ Pattern {patternPre = p, patternTy = ty}
-
-
-doTcPatternForceLazy ::
-  Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckIO (SubstMap, Pattern)
-doTcPatternForceLazy hasImplicitApp hasApp newpids ty p = do
-  (su, p0) <- doTcPattern hasImplicitApp hasApp newpids ty p
-  if patternPreCanApply (patternPre p0)
-  then do
-    p' <- forceIfLazyPattern p0
-    return (su, p')
-  else
-    return (su, p0)
-
+unableToMatchPattern :: Loc -> PreTerm -> TypeCheckIO a
+unableToMatchPattern lo ty = do
+  ss <- preTermToString defaultExprIndent ty
+  err lo (Recoverable $
+    "unable to match pattern with inferred type\n" ++ ss)
 
 doTcPattern ::
   Bool -> Bool -> VarId -> PreTerm -> ParsePattern -> TypeCheckIO (SubstMap, Pattern)
+doTcPattern _ _ newpids ty (ParsePatternLazyApp f) = do
+  (fsu, f') <- doTcPattern False True newpids ty f
+  r <- Env.getRefMap
+  let flo = patternLoc f
+  when (not $ patternPreCanApply (patternPre f')) $ do
+    unableToMatchPattern flo (patternTy f')
+  let dc = preTermLazyCod r (patternTy f')
+  case dc of
+    Nothing -> unableToMatchPattern flo (patternTy f')
+    Just (cod, io) -> do
+      let !() = assert (not io) ()
+      let p = Pattern {patternPre = PatternLazyApp (patternPre f'),
+                       patternTy = cod}
+      r0 <- Env.getRefMap
+      psu <- if isNothing (preTermDomCod r0 cod)
+                && isNothing (preTermLazyCod r0 cod)
+              then do
+                m <- tcPatternUnify newpids flo ty cod
+                tcMergePatUnifMaps newpids flo m fsu
+              else
+                return fsu
+      return (psu, p)
 doTcPattern _ _ newpids ty (ParsePatternApp f pargs) = do
-  f' <- doTcPatternForceLazy False True newpids ty f
+  f' <- doTcPattern False True newpids ty f
   case pargs of
     a1 : a2 : pargs' ->
       if isPostfixPattern f
@@ -2700,7 +2691,7 @@ doTcPattern _ _ newpids ty (ParsePatternApp f pargs) = do
       isPostfixPattern v
     isPostfixPattern _ = False
 doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
-  (fsu, f') <- doTcPatternForceLazy True hasApp newpids ty f
+  (fsu, f') <- doTcPattern True hasApp newpids ty f
   rm <- Env.getRefMap
   (r, v, ias) <- case patternPre f' of
                   PatternImplicitApp False r@(PatternCtor v _) a -> return (r, v, a)
