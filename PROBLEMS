@@ -1,6 +1,0 @@
-There are performance problems (exponential blowup in certain cases)
-with the way operand type is currently being determined for operator
-applications. It would be better to parse the AST when searching for
-operand type, and memoise all operand types inferred on the way. It
-will not be necessary to search under binders, since functions and
-arrows are base cases for this operand type search.

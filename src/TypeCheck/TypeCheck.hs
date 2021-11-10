@@ -580,7 +580,7 @@ tcDefsToVars subst defs = do
       else do
         case preTermNormalize rm (termTy t) of
           TermArrow _ d _ -> return (RefExtern v (length d))
-          _ -> error "expected nonexisting ref to be extern with function type"
+          _ -> error "expected nonexisting ref to be extern with arrow type"
     extractDefVar (Term {termPre = (TermData v)}) = return (RefData v)
     extractDefVar t = do
       ss <- preTermToString 0 (termPre t)
@@ -645,7 +645,7 @@ tcDef subst _ (DefExtern d) = do
                 TermArrow _ dm _ -> return (length dm)
                 _ -> err (declLoc d)
                       (Fatal $ "expected " ++ quote "extern"
-                               ++ " to have function type "
+                               ++ " to have arrow type "
                                ++ quote "->" ++ " or " ++ quote "->>")
       i <- Env.freshRefId
       fullEname <- fullRefName (declLoc d) (declName d)
@@ -1051,7 +1051,7 @@ tcValCases subst na ips ty (le@(ValCase lo' _ (Just _) _) : lets) = do
   case preTermDomCod r ty of
     Nothing -> err lo' (Recoverable $
                           "application of " ++ quote na
-                          ++ ", but does not have function type")
+                          ++ ", but does not have arrow type")
     Just (dom, cod, io) -> do
       (ct, hasIo) <- buildValCaseTree na subst ips (Just dom) cod (le : lets)
       let ins = map (varName . fst) ips
@@ -1702,36 +1702,63 @@ evalTcExpr su ty e = do
     ImpMap imps' Nothing ->
       verifyExprNoImplicits s1 imps' >> return e'
 
-scope :: ExprIO Term -> ExprIO Term
+scope :: ExprIO t -> ExprIO t
 scope e = fmap fst (dataScope (fmap (\e' -> (e', ())) e))
 
-dataScope :: ExprIO (Term, a) -> ExprIO (Term, a)
+dataScope :: ExprIO (t, a) -> ExprIO (t, a)
 dataScope e = do
   st <- get
   (x, st') <- lift (Env.scope (runStateT e st))
   put st'
   return x
 
+updateExprWithType :: PreTerm -> Expr -> Expr
+updateExprWithType ty (ExprFun _ lo as a) =
+  ExprFun (Just ty) lo as a
+updateExprWithType ty (ExprApp _ e es) =
+  ExprApp (Just ty) e es
+updateExprWithType ty (ExprImplicitApp _ e es) =
+  ExprImplicitApp (Just ty) e es
+updateExprWithType ty (ExprLazyApp _ e) =
+  ExprLazyApp (Just ty) e
+updateExprWithType ty (ExprVar _ n) =
+  ExprVar (Just ty) n
+updateExprWithType ty (ExprSeq _ e1 e2) =
+  ExprSeq (Just ty) e1 e2
+updateExprWithType ty (ExprCase _ lo e cs) =
+  ExprCase (Just ty) lo e cs
+updateExprWithType _ e = e
+
 tcExpr :: SubstMap -> PreTerm -> Expr -> ExprIO Term
 tcExpr subst ty e = do
+  (_, _, r) <- tcExprOperandResult subst ty e
+  return r
+
+tcExprOperandResult ::
+  SubstMap -> PreTerm -> Expr -> ExprIO (OperandResult, Expr, Term)
+tcExprOperandResult subst ty e = do
   rm <- lift Env.getRefMap
   case preTermLazyOrDelayCod rm ty of
     Nothing -> exprCheck ty
     Just (isLazy, cod, io) -> exprCheckLazyOrDelay isLazy io cod
   where
-    exprCheck :: PreTerm -> ExprIO Term
+    exprCheck :: PreTerm -> ExprIO (OperandResult, Expr, Term)
     exprCheck expectedTy = do
-      e' <- doTcExpr False subst Nothing (Just expectedTy) e
+      (_, opex, e') <- doTcExpr False subst Nothing (Just expectedTy) e
       tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
       rm <- lift Env.getRefMap
       su <- getExprSubst
       let se = substPreTerm rm su (termPre e')
       let st = substPreTerm rm su expectedTy
-      return (mkTerm se st (termIo e'))
+      return
+        ( NoOperandUsed
+        , updateExprWithType st opex
+        , mkTerm se st (termIo e') )
 
-    exprCheckLazyOrDelay :: Bool -> Bool -> PreTerm -> ExprIO Term
+    exprCheckLazyOrDelay ::
+      Bool -> Bool -> PreTerm -> ExprIO (OperandResult, Expr, Term)
     exprCheckLazyOrDelay isLazy io expectedTy = do
-      e' <- tcExpr subst expectedTy e
+      (_, opex, e') <- tcExprOperandResult subst expectedTy e
       tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
       when (termIo e' && not io)
         (lift $ err (exprLoc e) (Recoverable $
@@ -1746,45 +1773,69 @@ tcExpr subst ty e = do
                      else
                       let ct = CaseLeaf [] fe []
                       in (TermFun [] io (Just 0) ct, TermArrow io [] te)
-      return (mkTerm se st False)
+      return
+        ( NoOperandUsed
+        , updateExprWithType st opex
+        , mkTerm se st False )
 
 doTcExprSubst ::
-  Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) -> Expr -> ExprIO Term
+  Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) -> Expr ->
+  ExprIO (OperandResult, Expr, Term)
 doTcExprSubst isTrial subst operandArg e = do
-  e' <- doTcExpr isTrial subst operandArg Nothing e
+  (opres, opex, e') <- doTcExpr isTrial subst operandArg Nothing e
   rm <- lift Env.getRefMap
   isu <- getExprSubst
-  return (mkTerm (substPreTerm rm isu (termPre e'))
-                 (substPreTerm rm isu (termTy e'))
-                 (termIo e'))
+  let p = substPreTerm rm isu (termPre e')
+  let t = substPreTerm rm isu (termTy e')
+  return
+    ( opres
+    , updateExprWithType t opex
+    , mkTerm p t (termIo e') )
+
+data OperandResult =
+  NoOperandUsed | LeftOperand Expr | RightOperand Expr
+
+tryTrialShortCircuit ::
+  Bool -> Maybe PreTerm -> Expr -> ExprIO (OperandResult, Expr, Term) ->
+  ExprIO (OperandResult, Expr, Term)
+tryTrialShortCircuit True (Just t) e _ =
+  return (NoOperandUsed, e, mkTerm TermEmpty t False)
+tryTrialShortCircuit _ _ _ d = d
 
 -- The first Bool is a simple heuristic. It is indicating whether
 -- only the root type of the expression is needed. It is certainly
 -- possible to do better, fx by adding this to tcExpr as well.
 doTcExpr ::
   Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) ->
-  Maybe PreTerm -> Expr -> ExprIO Term
-doTcExpr _ _ _ _ (ExprUnitElem _) = return mkTermUnitElem
-doTcExpr _ _ _ _ (ExprUnitTy _) = return mkTermUnitTy
-doTcExpr _ _ _ _ (ExprTy _) = return mkTermTy
-doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
+  Maybe PreTerm -> Expr -> ExprIO (OperandResult, Expr, Term)
+doTcExpr _ _ _ _ (ExprUnitElem lo) =
+  return (NoOperandUsed, ExprUnitElem lo, mkTermUnitElem)
+doTcExpr _ _ _ _ (ExprUnitTy lo) =
+  return (NoOperandUsed, ExprUnitTy lo, mkTermUnitTy)
+doTcExpr _ _ _ _ (ExprTy lo) =
+  return (NoOperandUsed, ExprTy lo, mkTermTy)
+doTcExpr isTrial subst operandArg ty expr@(ExprVar exty (lo, na0)) =
+  tryTrialShortCircuit isTrial exty expr $ do
   lift (checkRefNameValid True (lo, na0))
-  na <- operandVarName
+  (operandResult, na) <- operandVarName
   x <- lift (lookupEnv na)
   case x of
     Nothing -> lift $ err lo (Fatal $ "identifier not in scope " ++ quote na)
     Just x' -> do
       vt <- lift (varStatusTerm x')
       case termPre vt of
-        (TermRef v _) -> makeImplicitApp v vt
-        (TermData v) -> makeImplicitApp v vt
-        (TermCtor v _) -> makeImplicitApp v vt
+        (TermRef v _) -> makeImplicitApp operandResult v vt
+        (TermData v) -> makeImplicitApp operandResult v vt
+        (TermCtor v _) -> makeImplicitApp operandResult v vt
         _ -> do
           rm <- lift Env.getRefMap
           isu <- getExprSubst
           let e = substPreTerm rm subst (substPreTerm rm isu (termPre vt))
           let ety = substPreTerm rm subst (substPreTerm rm isu (termTy vt))
-          return (mkTerm e ety False)
+          return
+            ( operandResult
+            , ExprVar (Just ety) (lo, na0)
+            , mkTerm e ety False )
   where
     getOperatorContext ::
       TypeCheckIO
@@ -1808,51 +1859,62 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
             Just (Left e) -> return (Just (Left (Left e)))
             Just (Right e) -> return (Just (Right (Left e)))
 
-    operandVarName :: ExprIO VarName
+    operandVarName :: ExprIO (OperandResult, VarName)
     operandVarName =
       if not (isOperator na0)
-      then return na0
+      then return (NoOperandUsed, na0)
       else
         if '#' `elem` na0
         then do
           let (na1, opty) = operandSplit na0
           na1' <- lift (expandVarNameEnv na1)
-          lift (updateOperandTypeString (lo, na1') opty)
+          lift $ fmap
+                  ((,) NoOperandUsed)
+                  (updateOperandTypeString (lo, na1') opty)
         else do
           ctx <- lift getOperatorContext
           case ctx of
-            Nothing -> unableToInferOperand
+            Nothing -> fmap ((,) NoOperandUsed) unableToInferOperand
             Just (Left u) -> unaryContext u
             Just (Right b) -> binaryContext b
 
     binaryContext ::
-      Either (Expr, Expr) (PreTerm, PreTerm) -> ExprIO VarName
+      Either (Expr, Expr) (PreTerm, PreTerm) ->
+      ExprIO (OperandResult, VarName)
     binaryContext (Left (e1, e2)) =
-        if isRightAssocFixOp na0
-        then operandVarNameFromArg e2
-        else -- postfix or left assoc:
-          operandVarNameFromArg e1
+      if isRightAssocFixOp na0
+      then do
+        (opex, n) <- operandVarNameFromArg e2
+        return (RightOperand opex, n)
+      else do -- postfix or left assoc:
+        (opex, n) <- operandVarNameFromArg e1
+        return (LeftOperand opex, n)
     binaryContext (Right (t1, t2)) =
+      fmap ((,) NoOperandUsed) $
         if isRightAssocFixOp na0
         then operandVarNameFromType t2
         else -- postfix or left assoc:
           operandVarNameFromType t1
 
     unaryContext ::
-      Either Expr PreTerm -> ExprIO VarName
-    unaryContext (Left e1) = operandVarNameFromArg e1
-    unaryContext (Right t1) = operandVarNameFromType t1
+      Either Expr PreTerm -> ExprIO (OperandResult, VarName)
+    unaryContext (Left e1) = do
+      (opex, n) <- operandVarNameFromArg e1
+      return (LeftOperand opex, n)
+    unaryContext (Right t1) =
+      fmap ((,) NoOperandUsed) (operandVarNameFromType t1)
 
-    checkOperand :: Expr -> ExprIO Term
+    checkOperand :: Expr -> ExprIO (Expr, Term)
     checkOperand a = do
       s <- get
-      r <- lift $ evalStateT (doTcExprSubst True subst Nothing a) s
-      return r
+      (_, opex, r) <- lift $ evalStateT (doTcExprSubst True subst Nothing a) s
+      return (opex, r)
 
-    operandVarNameFromArg :: Expr -> ExprIO VarName
+    operandVarNameFromArg :: Expr -> ExprIO (Expr, VarName)
     operandVarNameFromArg a = do
-      a' <- checkOperand a
-      operandVarNameFromType (termTy a')
+      (opex, a') <- checkOperand a
+      n <- operandVarNameFromType (termTy a')
+      return (opex, n)
 
     operandVarNameFromType :: PreTerm -> ExprIO VarName
     operandVarNameFromType aty = do
@@ -1887,11 +1949,16 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
                   "unable to infer operand type of " ++ quote na0))
       return na0'
 
-    makeImplicitApp :: Var -> Term -> ExprIO Term
-    makeImplicitApp v t = do
+    makeImplicitApp ::
+      OperandResult -> Var -> Term -> ExprIO (OperandResult, Expr, Term)
+    makeImplicitApp operandResult v t = do
       imps0 <- lift (Env.forceLookupImplicit (varId v))
       if null imps0
-        then return t
+        then
+          return
+            ( operandResult
+            , ExprVar (Just (termTy t)) (lo, na0)
+            , t )
         else do
           imps1 <- mapM getImplicit imps0
           let su = IntMap.fromList (map (\(v0, x) -> (varId v0, x)) imps1)
@@ -1899,7 +1966,10 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
           let a = TermImplicitApp False (termPre t) ias
           rm <- lift Env.getRefMap
           let aty = substPreTerm rm su (termTy t)
-          return (mkTerm a aty False)
+          return
+            ( operandResult
+            , ExprVar (Just aty) (lo, na0)
+            , mkTerm a aty False )
 
     getImplicit :: (Var, PreTerm) -> ExprIO (Var, PreTerm)
     getImplicit (v, vt) = do
@@ -1909,7 +1979,8 @@ doTcExpr _ subst operandArg ty (ExprVar (lo, na0)) = do
       impMapInsert i vt lo $
         "unable to infer implicit argument " ++ varName v
       return (v, TermVar True v')
-doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
+doTcExpr isTrial subst _ ty expr@(ExprFun exty lo as body) =
+  tryTrialShortCircuit isTrial exty expr $
   scope $ do
     as' <- mapM (\a -> fmap ((,) a) (lift Env.freshVarId)) as
     case ty of
@@ -1917,13 +1988,16 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
         implicits <- mapM insertImplicit as
         ats <- mapM insertUnknownUntypedParam (zip as' implicits)
         dom' <- mapM checkParam (zip as' ats)
-        body' <- doTcExpr isTrial subst Nothing Nothing body
+        (_, opex, body') <- doTcExpr isTrial subst Nothing Nothing body
         let io = termIo body'
         let fte = TermFun [] io (Just (length dom'))
                     (CaseLeaf (map fst dom') (termPre body') [])
         let mdom = map (\(d1, d2) -> (Just d1, d2)) dom'
         let fty = TermArrow io mdom (termTy body')
-        return (mkTerm fte fty False)
+        return
+          ( NoOperandUsed
+          , ExprFun (Just fty) lo as opex
+          , mkTerm fte fty False )
       Just ty' -> do
         rm <- lift Env.getRefMap
         case preTermDomCod rm ty' of
@@ -1931,14 +2005,17 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             implicits <- mapM insertImplicit as
             ats <- mapM insertUnknownUntypedParam (zip as' implicits)
             dom' <- mapM checkParam (zip as' ats)
-            body' <- doTcExpr isTrial subst Nothing Nothing body
+            (_, opex, body') <- doTcExpr isTrial subst Nothing Nothing body
             let io = termIo body'
             let fte = TermFun [] io (Just (length dom'))
                         (CaseLeaf (map fst dom') (termPre body') [])
             let mdom = map (\(d1, d2) -> (Just d1, d2)) dom'
             let fty = TermArrow io mdom (termTy body')
             tcExprSubstUnify lo ty' fty
-            return (mkTerm fte fty False)
+            return
+              ( NoOperandUsed
+              , ExprFun (Just fty) lo as opex
+              , mkTerm fte fty False )
           Just (dom, cod, io) -> do
             when (length dom /= length as')
               (lift $ err lo (Fatal $
@@ -1951,12 +2028,12 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             (su0, dom0) <- insertTypedParams IntMap.empty bs
             let dom' = map snd (sortOn fst dom0)
             let cod' = substPreTerm rm0 su0 cod
-            body' <- tcExpr subst cod' body
+            (_, opex, body') <- tcExprOperandResult subst cod' body
             let bodyIo = termIo body'
             when (bodyIo && not io)
               (lift $ err lo (Recoverable $
                   "type of function is effectful, but expected "
-                  ++ "pure function type"))
+                  ++ "pure arrow type"))
             let fte = TermFun [] bodyIo (Just (length dom'))
                         (CaseLeaf (map fst dom') (termPre body') [])
             let mdom = map (\(d1, d2) -> (Just d1, d2)) dom'
@@ -1964,7 +2041,10 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
             rm1 <- lift Env.getRefMap
             isu <- getExprSubst
             tcExprUnify lo ty' (substPreTerm rm1 isu fty)
-            return (mkTerm fte fty False)
+            return
+              ( NoOperandUsed
+              , ExprFun (Just fty) lo as opex
+              , mkTerm fte fty False )
   where
     insertImplicit ::
       VarListElem -> ExprIO (Maybe PreTerm)
@@ -2049,7 +2129,8 @@ doTcExpr isTrial subst _ ty (ExprFun lo as body) = do
                   Just v' -> IntMap.insert (varId v') tvar su 
       (su'', ts) <- insertTypedParams su' xs
       return (su'', (idx, (var, t')) : ts)
-doTcExpr _ subst _ _ (ExprArrow _ io dom cod) = do
+doTcExpr isTrial subst _ _ expr@(ExprArrow _ io dom cod) =
+  tryTrialShortCircuit isTrial (Just TermTy) expr $
   scope $ do
     mapM_ insertUnknownParam dom
     dom0 <- mapM checkParam dom
@@ -2057,7 +2138,10 @@ doTcExpr _ subst _ _ (ExprArrow _ io dom cod) = do
                                 ((v,p) : xs, b || c)) ([], False) dom0
     cod' <- tcExpr subst TermTy cod
     let ar = TermArrow io dom' (termPre cod')
-    return (mkTerm ar TermTy (iod || termIo cod'))
+    return
+      ( NoOperandUsed
+      , expr
+      , mkTerm ar TermTy (iod || termIo cod') )
   where
     insertUnknownParam :: ExprListTypedElem -> ExprIO ()
     insertUnknownParam (Left _) = return ()
@@ -2086,19 +2170,21 @@ doTcExpr _ subst _ _ (ExprArrow _ io dom cod) = do
               return (Just v, tt, ti)
             _ ->
               error $ "not a variable term " ++ quote vna
-doTcExpr isTrial subst _ _ (ExprLazyApp e) = do
-  e' <- doTcExprSubst isTrial subst Nothing e
-  if not isTrial
-  then doMakeLazyApp e'
-  else do
-    rm <- lift Env.getRefMap
-    case preTermLazyCod rm (termTy e') of
-      Nothing -> doMakeLazyApp e'
-      Just (cod, _) -> do
-        opn <- lift (typeOperandName cod)
-        if isNothing opn
-        then doMakeLazyApp e'
-        else return (mkTerm TermEmpty cod False)
+doTcExpr isTrial subst _ _ expr@(ExprLazyApp exty e) =
+  tryTrialShortCircuit isTrial exty expr $ do
+  (_, _, e') <- doTcExprSubst isTrial subst Nothing e
+  r <- if not isTrial
+       then doMakeLazyApp e'
+       else do
+        rm <- lift Env.getRefMap
+        case preTermLazyCod rm (termTy e') of
+          Nothing -> doMakeLazyApp e'
+          Just (cod, _) -> do
+            opn <- lift (typeOperandName cod)
+            if isNothing opn
+            then doMakeLazyApp e'
+            else return (mkTerm TermEmpty cod False)
+  return (NoOperandUsed, ExprLazyApp (Just (termTy r)) e, r)
   where
     doMakeLazyApp :: Term -> ExprIO Term
     doMakeLazyApp e' = do
@@ -2111,22 +2197,42 @@ doTcExpr isTrial subst _ _ (ExprLazyApp e) = do
             ++ "but type is\n" ++ ss)
         Just (ty', io) -> do
           return (mkTerm (TermLazyApp io (termPre e')) ty' (termIo e' || io))
-doTcExpr _ subst _ _ (ExprLazyArrow _ io e) = do
-  e' <- tcExpr subst TermTy e
-  return (mkTerm (TermLazyArrow io (termPre e')) TermTy (termIo e'))
-doTcExpr _ subst _ _ (ExprDelayArrow _ io e) = do
-  e' <- tcExpr subst TermTy e
-  return (mkTerm (TermArrow io [] (termPre e')) TermTy (termIo e'))
-doTcExpr isTrial subst _ ty (ExprApp f args) = do
-  case args of
-    [] -> doTcExprApp isTrial subst Nothing ty f args
-    [a] -> doTcExprApp isTrial subst (Just (Left a)) ty f args
-    a1 : a2 : _ -> doTcExprApp isTrial subst (Just (Right (a1, a2))) ty f args
-doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
-  f' <- doTcExprSubst isTrial subst operandArg f
-  opn <- if isTrial then return Nothing else lift (typeOperandName (termTy f'))
+doTcExpr isTrial subst _ _ expr@(ExprLazyArrow _ io e) =
+  tryTrialShortCircuit isTrial (Just TermTy) expr $ do
+    e' <- tcExpr subst TermTy e
+    return
+      ( NoOperandUsed
+      , expr
+      , mkTerm (TermLazyArrow io (termPre e')) TermTy (termIo e') )
+doTcExpr isTrial subst _ _ expr@(ExprDelayArrow _ io e) = do
+  tryTrialShortCircuit isTrial (Just TermTy) expr $ do
+    e' <- tcExpr subst TermTy e
+    return
+      ( NoOperandUsed
+      , expr
+      , mkTerm (TermArrow io [] (termPre e')) TermTy (termIo e') )
+doTcExpr isTrial subst _ ty expr@(ExprApp exty f args) =
+  tryTrialShortCircuit isTrial exty expr $ do
+  (args', f', r) <- case args of
+                      [] ->
+                        doTcExprApp isTrial subst Nothing ty f args
+                      [a] ->
+                        doTcExprApp isTrial subst (Just (Left a)) ty f args
+                      a1 : a2 : _ ->
+                        doTcExprApp isTrial subst (Just (Right (a1, a2))) ty f args
+  return (NoOperandUsed, ExprApp (Just (termTy r)) f' args', r)
+doTcExpr isTrial subst operandArg _ expr@(ExprImplicitApp exty f args) =
+  tryTrialShortCircuit isTrial exty expr $ do
+  (opres, opex, f') <- doTcExprSubst isTrial subst operandArg f
+  opn <- if not isTrial
+         then return Nothing
+         else lift (typeOperandName (termTy f'))
   if isTrial && isJust opn
-  then return (mkTerm TermEmpty (termTy f') False)
+  then
+    return
+      ( opres
+      , ExprImplicitApp (Just (termTy f')) opex args
+      , mkTerm TermEmpty (termTy f') False )
   else do
     (r, v, ias) <- case termPre f' of
                     TermImplicitApp False r@(TermRef v _) a -> return (r, v, a)
@@ -2151,10 +2257,14 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
     let dias = map (\(_, (n, t)) -> (justImplicitVar n, t)) z
     let nameOrd = dependencyOrderArgs (preTermVars rm) dias (map fst z)
     let argsOrd = orderImplicitArgsBy nameOrd args
-    (io, tias, tty) <- unifyImplicits (Map.keysSet m) m argsOrd ias (termTy f')
-    return (f' { termPre = TermImplicitApp True r tias
+    (io, opexes, tias, tty) <- unifyImplicits (Map.keysSet m) m argsOrd ias (termTy f')
+    let x = f' { termPre = TermImplicitApp True r tias
                , termTy = tty
-               , termIo = termIo f' || io})
+               , termIo = termIo f' || io}
+    return
+      ( opres
+      , ExprImplicitApp (Just tty) opex opexes
+      , x )
   where
     justImplicitVar :: PreTerm -> Maybe Var
     justImplicitVar (TermVar _ v) = Just v
@@ -2182,8 +2292,8 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
     unifyImplicits ::
       Set VarName -> Map VarName (PreTerm, PreTerm) ->
       [((Loc, String), Expr)] -> [(VarName, PreTerm)] -> PreTerm ->
-      ExprIO (Bool, [(VarName, PreTerm)], PreTerm)
-    unifyImplicits _ _ [] imap fty = return (False, imap, fty)
+      ExprIO (Bool, [((Loc, String), Expr)], [(VarName, PreTerm)], PreTerm)
+    unifyImplicits _ _ [] imap fty = return (False, [], imap, fty)
     unifyImplicits remain ias (((lo, na), e) : es) imap fty = do
       case Map.lookup na ias of
         Nothing -> lift (err lo (Fatal $ "unexpected implicit argument name "
@@ -2191,15 +2301,17 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
         Just (a, ty) ->
           if Set.member na remain
             then do
-              e0 <- tcExpr subst ty e
+              (_, opex, e0) <- tcExprOperandResult subst ty e
               e' <- runUnify a e0
               rm <- lift Env.getRefMap
               isu <- getExprSubst
               let ias' = Map.map (\(n, t) -> (n, substPreTerm rm isu t)) ias
               let imap' = map (\(n, t) -> (n, substPreTerm rm isu t)) imap
               let fty' = substPreTerm rm isu fty
-              (io, imap'', fty'') <- unifyImplicits (Set.delete na remain) ias' es imap' fty'
-              return (io || termIo e', imap'', fty'')
+              (io, opexes, imap'', fty'') <- unifyImplicits
+                                              (Set.delete na remain)
+                                              ias' es imap' fty'
+              return (io || termIo e', ((lo, na), opex) : opexes, imap'', fty'')
             else
               lift (err lo (Fatal $ "implicit argument " ++ quote na
                                     ++ " is given multiple times"))
@@ -2211,13 +2323,14 @@ doTcExpr isTrial subst operandArg _ (ExprImplicitApp f args) = do
         runUnify :: PreTerm -> Term -> ExprIO Term
         runUnify a e0 =
           runExprUnifResult lo False msgPrefix a (termPre e0) >> return e0
-doTcExpr _ subst _ ty (ExprSeq (Left e1) e2) =
+doTcExpr isTrial subst _ ty (ExprSeq exty (Left e1) e2) =
   let p1 = ParsePatternUnit (exprLoc e1)
-  in doTcExpr False subst Nothing ty (ExprSeq (Right (p1, e1)) e2)
-doTcExpr _ subst _ ty (ExprSeq (Right (p1, e1)) e2) =
-  doTcExpr False subst Nothing ty (ExprCase (patternLoc p1) e1 [Right (p1, e2)])
-doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
-  expr' <- doTcExprSubst False subst Nothing expr
+  in doTcExpr isTrial subst Nothing ty (ExprSeq exty (Right (p1, e1)) e2)
+doTcExpr isTrial subst _ ty (ExprSeq exty (Right (p1, e1)) e2) =
+  doTcExpr isTrial subst Nothing ty (ExprCase exty (patternLoc p1) e1 [Right (p1, e2)])
+doTcExpr isTrial subst _ ty exprCase@(ExprCase exty lo expr cases) =
+  tryTrialShortCircuit isTrial exty exprCase $ do
+  (_, _, expr') <- doTcExprSubst False subst Nothing expr
   newpids <- lift Env.getNextVarId
   --let !() = trace ("expr type is: " ++ preTermToString 0 (termTy expr')) ()
   (cases', ty0) <- checkCases newpids (termTy expr') cases ty
@@ -2228,7 +2341,10 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
       --let cases'' = substPatternTriples isu cases'
       (ct, io) <- lift (casesToCaseTree cases')
       let c = TermCase (termPre expr') ct
-      return (mkTerm c ty' (termIo expr' || io))
+      return
+        ( NoOperandUsed
+        , ExprCase (Just ty') lo expr cases
+        , mkTerm c ty' (termIo expr' || io) )
   where
     checkCases ::
       VarId -> PreTerm -> [CaseCase] -> Maybe PreTerm ->
@@ -2266,7 +2382,9 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
                            (Recoverable $ "unification error, " ++ msg))
         let su' = IntMap.union su subst
         b <- case expectedTy of
-              Nothing -> doTcExprSubst False su' Nothing e
+              Nothing -> do
+                (_, _, se) <- doTcExprSubst False su' Nothing e
+                return se
               Just ty' -> do
                 rm <- lift Env.getRefMap
                 tcExpr su' (substPreTerm rm su ty') e
@@ -2299,37 +2417,46 @@ doTcExpr _ subst _ ty (ExprCase lo expr cases) = do
 
 doTcExprApp ::
   Bool -> SubstMap -> Maybe (Either Expr (Expr, Expr)) ->
-  Maybe PreTerm -> Expr -> [Expr] -> ExprIO Term
-doTcExprApp isTrial subst operandArg ty f args = do
-  f' <- doTcExprSubst False subst operandArg f
-  if not isTrial
-  then doMakeTermApp f'
-  else do
-    rm <- lift Env.getRefMap
-    case preTermDomCod rm (termTy f') of
-      Nothing -> doMakeTermApp f'
-      Just (dom, cod, _) ->
-        if length dom /= length args
-        then
-          doMakeTermApp f'
-        else do
-          asp <- getArgSplit f'
-          if isNothing asp
-          then makeTrivialApp f' cod
-          else
-            case preTermDomCod rm cod of
-              Nothing -> doMakeTermApp f'
-              Just (_, cod', _) -> makeTrivialApp f' cod'
+  Maybe PreTerm -> Expr -> [Expr] -> ExprIO ([Expr], Expr, Term)
+doTcExprApp isTrial subst operandArg ty f preArgs = do
+  (opres, opex, f') <- doTcExprSubst False subst operandArg f
+  let args = case opres of
+              NoOperandUsed -> preArgs
+              LeftOperand a -> a : tail preArgs
+              RightOperand b ->
+                case preArgs of
+                  (a : _ : as) -> a : b : as
+                  _ -> error "expected at least two arguments applied"
+  (args', r) <- do
+    if not isTrial
+    then doMakeTermApp f' args
+    else do
+      rm <- lift Env.getRefMap
+      case preTermDomCod rm (termTy f') of
+        Nothing -> doMakeTermApp f' args
+        Just (dom, cod, _) ->
+          if length dom /= length args
+          then
+            doMakeTermApp f' args
+          else do
+            asp <- getArgSplit f' args
+            if isNothing asp
+            then makeTrivialApp f' args cod
+            else
+              case preTermDomCod rm cod of
+                Nothing -> doMakeTermApp f' args
+                Just (_, cod', _) -> makeTrivialApp f' args cod'
+  return (args', opex, r)
   where
-    makeTrivialApp :: Term -> PreTerm -> ExprIO Term
-    makeTrivialApp f' cod = do
+    makeTrivialApp :: Term -> [Expr] -> PreTerm -> ExprIO ([Expr], Term)
+    makeTrivialApp f' args cod = do
       opn <- lift (typeOperandName cod)
       if isNothing opn
-      then doMakeTermApp f'
-      else return (mkTerm TermEmpty cod False)
+      then doMakeTermApp f' args
+      else return (args, mkTerm TermEmpty cod False)
 
-    getArgSplit :: Term -> ExprIO (Maybe (Expr, [Expr]))
-    getArgSplit f' =
+    getArgSplit :: Term -> [Expr] -> ExprIO (Maybe (Expr, [Expr]))
+    getArgSplit f' args =
       case args of
         a1 : a2 : args' ->
           if isPostfixExpr f
@@ -2342,39 +2469,41 @@ doTcExprApp isTrial subst operandArg ty f args = do
           else return Nothing
         _ -> return Nothing
 
-    doMakeTermApp :: Term -> ExprIO Term
-    doMakeTermApp f' = do
-      asp <- getArgSplit f'
+    doMakeTermApp :: Term -> [Expr] -> ExprIO ([Expr], Term)
+    doMakeTermApp f' args = do
+      asp <- getArgSplit f' args
       case asp of
         Nothing -> makeTermApp subst (exprLoc f) ty f' args
         Just (a1, args') -> do
-          e1 <- makeTermApp subst (exprLoc f) Nothing f' [a1]
+          (ex1, e1) <- makeTermApp subst (exprLoc f) Nothing f' [a1]
           rm <- lift Env.getRefMap
           isu <- getExprSubst
           let e1' = mkTerm (substPreTerm rm isu (termPre e1))
                       (substPreTerm rm isu (termTy e1)) (termIo e1)
-          makeTermApp subst (exprLoc f) ty e1' args'
+          (ex2, e2) <- makeTermApp subst (exprLoc f) ty e1' args'
+          return (ex1 ++ ex2, e2)
 
     isPostfixExpr :: Expr -> Bool
-    isPostfixExpr (ExprVar (_, vna)) = isPostfixOp vna && not ('#' `elem` vna)
-    isPostfixExpr (ExprImplicitApp v@(ExprVar _) _) = isPostfixExpr v
+    isPostfixExpr (ExprVar _ (_, vna)) = isPostfixOp vna && not ('#' `elem` vna)
+    isPostfixExpr (ExprImplicitApp _ v@(ExprVar _ _) _) = isPostfixExpr v
     isPostfixExpr _ = False
 
 makeTermApp ::
   SubstMap -> Loc ->
-  Maybe PreTerm -> Term -> [Expr] -> ExprIO Term
+  Maybe PreTerm -> Term -> [Expr] -> ExprIO ([Expr], Term)
 makeTermApp subst flo preTy f' preArgs0 = do
   r <- lift Env.getRefMap
   let dc = preTermDomCod r (termTy f')
   case dc of
     Nothing -> errorExpectedFunctionType
     Just (d0, c0, io) -> do
-      preArgs <- if null d0
-                 then
-                  case preArgs0 of
-                    (ExprUnitElem _ : as) -> return as
-                    _ -> errorExpectedFunctionType
-                  else return preArgs0
+      (missingUnit, preArgs) <- if null d0
+                                then
+                                  case preArgs0 of
+                                    (ExprUnitElem _ : as) ->
+                                      return (True, as)
+                                    _ -> errorExpectedFunctionType
+                                else return (False, preArgs0)
       let numPreArgs = length preArgs
       let numMissing = length d0 - numPreArgs
       (d', c') <- if numMissing > 0
@@ -2392,20 +2521,28 @@ makeTermApp subst flo preTy f' preArgs0 = do
       let args1 = map (\(i, (v, (p, w)), e) -> (i, v, p, w, e)) args0
       let domVars = getDomVars d'
       (su, ps, io') <- applyArgs ty domVars False c' IntMap.empty args1
-      let ps' = map snd (sortOn fst ps)
+      let (opexes0, ps') = foldr
+                            (\(_, opex, p) (a1, a2) ->
+                                (opex : a1, p : a2)
+                            ) ([], []) (sortOn (\(x, _, _) -> x) ps)
+      let opexes = if missingUnit
+                   then head preArgs0 : opexes0
+                   else opexes0
       rm <- lift Env.getRefMap
       let c = substPreTerm rm su c'
       if numMissing > 0
       then do
         g <- lift $ preTermPartialApplication
                       io numMissing (termPre f') ps' (termIo f')
-        return (mkTerm g c io')
+        return (opexes, mkTerm g c io')
       else do
         let e = TermApp io (termPre f') ps'
         let fap = mkTerm e c (termIo f' || io || io')
         if null postArgs
-        then return fap
-        else makeTermApp subst flo preTy fap postArgs
+        then return (opexes, fap)
+        else do
+          (opexes', fap') <- makeTermApp subst flo preTy fap postArgs
+          return (opexes ++ opexes', fap')
   where
     errorExpectedFunctionType :: ExprIO a
     errorExpectedFunctionType = do
@@ -2414,12 +2551,12 @@ makeTermApp subst flo preTy f' preArgs0 = do
         (ExprUnitElem _ : _) ->
           lift $ err flo
             (Recoverable $
-              "expected expression to have delay or function type, "
+              "expected expression to have delay or arrow type, "
               ++ "but type is\n" ++ ss)
         _ ->
           lift $ err flo
             (Recoverable $
-              "expected expression to have function type, "
+              "expected expression to have arrow type, "
               ++ "but type is\n" ++ ss)
 
     unifyType ::
@@ -2455,21 +2592,21 @@ makeTermApp subst flo preTy f' preArgs0 = do
     applyArgs ::
       Maybe PreTerm -> IntSet -> Bool -> PreTerm -> SubstMap ->
       [(Int, Maybe Var, PreTerm, (Int, Int, Int, Int), Expr)] ->
-      ExprIO (SubstMap, [(Int, PreTerm)], Bool)
+      ExprIO (SubstMap, [(Int, Expr, PreTerm)], Bool)
     applyArgs _ _ _ _ su [] = return (su, [], False)
     applyArgs ty domVars unified cod su ((idx, Nothing, p, w, e) : xs) = do
       unified' <- unifyCod ty domVars unified w cod su
-      (e', eio) <- applyTc p w e
+      (e', opex, eio) <- applyTc p w e
       (su', es', io) <- applyArgs ty domVars unified' cod su xs
-      return (su', (idx, e') : es', io || eio)
+      return (su', (idx, opex, e') : es', io || eio)
     applyArgs ty domVars unified cod su ((idx, Just v, p, w, e) : xs) = do
       unified' <- unifyCod ty domVars unified w cod su
-      (e', eio) <- applyTc p w e
+      (e', opex, eio) <- applyTc p w e
       r <- lift Env.getRefMap
       let xs' = substArgs r (IntMap.singleton (varId v) e') xs
       let su' = IntMap.insert (varId v) e' su
       (su'', es', io) <- applyArgs ty domVars unified' cod su' xs'
-      return (su'', (idx, e') : es', io || eio)
+      return (su'', (idx, opex, e') : es', io || eio)
 
     unifyCod ::
       Maybe PreTerm -> IntSet -> Bool -> (Int, Int, Int, Int) ->
@@ -2484,7 +2621,7 @@ makeTermApp subst flo preTy f' preArgs0 = do
       rm <- lift Env.getRefMap
       isu <- getExprSubst
       let p' = substPreTerm rm isu p
-      fmap (\d -> (termPre d, termIo d)) (tcExpr subst p' e)
+      fmap (\(_, x, d) -> (termPre d, x, termIo d)) (tcExprOperandResult subst p' e)
 
     substArgs ::
       RefMap -> SubstMap ->
@@ -2529,29 +2666,29 @@ getAppOrderingWeight rm iv ty e =
     funWeight :: PreTerm -> Expr -> Int
     funWeight t@(TermArrow _ _ _) x = IntSet.size (funImplicits t x)
     funWeight t@(TermLazyArrow _ _) x = IntSet.size (funImplicits t x)
-    funWeight _ x@(ExprFun _ _ _) = funWeightNoType x
+    funWeight _ x@(ExprFun _ _ _ _) = funWeightNoType x
     funWeight t x = IntSet.size (funImplicits t x)
 
     funImplicits :: PreTerm -> Expr -> IntSet
-    funImplicits (TermArrow _ d _) (ExprVar (_, n))
+    funImplicits (TermArrow _ d _) (ExprVar _ (_, n))
       | isOperator n && not ('#' `elem` n) =
           foldl (\s (_, x) ->
                   IntSet.union s (allImplicits x)
                 ) IntSet.empty d
     funImplicits (TermArrow _ d _)
-        (ExprApp (ExprVar (_, n)) (ExprVar (_, "_") : _))
+        (ExprApp _ (ExprVar _ (_, n)) (ExprVar _ (_, "_") : _))
       | (isPostfixOp n || isLeftAssocFixOp n)
             && not ('#' `elem` n) =
           foldl (\s (_, x) ->
                   IntSet.union s (allImplicits x)
                 ) IntSet.empty d
     funImplicits (TermArrow _ d _)
-        (ExprApp (ExprVar (_, n)) (_ : ExprVar (_, "_") : _))
+        (ExprApp _ (ExprVar _ (_, n)) (_ : ExprVar _ (_, "_") : _))
       | isRightAssocFixOp n && not ('#' `elem` n) =
           foldl (\s (_, x) ->
                   IntSet.union s (allImplicits x)
                 ) IntSet.empty d
-    funImplicits (TermArrow _ d c) (ExprFun _ ps b) =
+    funImplicits (TermArrow _ d c) (ExprFun _ _ ps b) =
       let s0 = foldl (\s ((_, x), (_, t)) ->
                         if isNothing t
                         then IntSet.union s (allImplicits x)
@@ -2563,7 +2700,7 @@ getAppOrderingWeight rm iv ty e =
     funImplicits _ _ = IntSet.empty
 
     funWeightNoType :: Expr -> Int
-    funWeightNoType (ExprFun _ ps x) =
+    funWeightNoType (ExprFun _ _ ps x) =
       funWeightNoType x + foldl (\a (_, t) ->
                             if isNothing t then a + 1 else a) 0 ps
     funWeightNoType _ = 0

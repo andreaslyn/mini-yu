@@ -29,6 +29,7 @@ module ParseTree
   )
 where
 
+import TypeCheck.Term (PreTerm)
 import Control.Monad.Trans.State
 import Control.Monad.Writer
 import Loc (Loc)
@@ -67,27 +68,22 @@ type VarListElem = ((Loc, String), Maybe Expr)
 
 type OptWhereClause = Maybe [Def]
 
--- I should have just treated x = y as an expression of type Unit,
--- and when it is an absurd pattern, such as
---   () = z
---   ctor(x, ()) = z'
--- Then is has any type.
-
-data Expr = ExprFun Loc VarList Expr
-              -- ExprArrow Bool = True if it is an IO arrow.
-          | ExprArrow Loc Bool [ExprListTypedElem] Expr
-          | ExprLazyArrow Loc Bool Expr
-          | ExprDelayArrow Loc Bool Expr
-          | ExprApp Expr [Expr]
-          | ExprImplicitApp Expr [((Loc, String), Expr)]
-          | ExprLazyApp Expr
-          | ExprVar (Loc, String)
-          | ExprSeq ExprSeqElem Expr
-          | ExprCase Loc Expr [CaseCase]
-          | ExprUnitElem Loc
-          | ExprUnitTy Loc
-          | ExprTy Loc
-          deriving Show
+data Expr =
+    ExprFun (Maybe PreTerm) Loc VarList Expr
+      -- ExprArrow Bool = True if it is an IO arrow.
+  | ExprArrow Loc Bool [ExprListTypedElem] Expr
+  | ExprLazyArrow Loc Bool Expr
+  | ExprDelayArrow Loc Bool Expr
+  | ExprApp (Maybe PreTerm) Expr [Expr]
+  | ExprImplicitApp (Maybe PreTerm) Expr [((Loc, String), Expr)]
+  | ExprLazyApp (Maybe PreTerm) Expr
+  | ExprVar (Maybe PreTerm) (Loc, String)
+  | ExprSeq (Maybe PreTerm) ExprSeqElem Expr
+  | ExprCase (Maybe PreTerm) Loc Expr [CaseCase]
+  | ExprUnitElem Loc
+  | ExprUnitTy Loc
+  | ExprTy Loc
+  deriving Show
 
 type ExprSeqElem = Either Expr (ParsePattern, Expr)
 
@@ -134,17 +130,17 @@ exprSeqElemLoc (Right (p, _)) = patternLoc p
 exprLoc :: Expr -> Loc
 exprLoc (ExprUnitElem lo) = lo
 exprLoc (ExprUnitTy lo) = lo
-exprLoc (ExprFun lo _ _) = lo
+exprLoc (ExprFun _ lo _ _) = lo
 exprLoc (ExprArrow lo _ _ _) = lo
 exprLoc (ExprLazyArrow lo _ _) = lo
 exprLoc (ExprDelayArrow lo _ _) = lo
-exprLoc (ExprApp e _) = exprLoc e
-exprLoc (ExprImplicitApp e _) = exprLoc e
-exprLoc (ExprLazyApp e) = exprLoc e
-exprLoc (ExprVar (lo, _)) = lo
-exprLoc (ExprCase lo _ _) = lo
+exprLoc (ExprApp _ e _) = exprLoc e
+exprLoc (ExprImplicitApp _ e _) = exprLoc e
+exprLoc (ExprLazyApp _ e) = exprLoc e
+exprLoc (ExprVar _ (lo, _)) = lo
+exprLoc (ExprCase _ lo _ _) = lo
 exprLoc (ExprTy lo) = lo
-exprLoc (ExprSeq e _) = exprSeqElemLoc e
+exprLoc (ExprSeq _ e _) = exprSeqElemLoc e
 
 declName :: Decl -> String
 declName (Decl (_, s) _ _) = s
@@ -268,7 +264,7 @@ writeExpr :: Expr -> ToString ()
 writeExpr (ExprTy _) = writeStr "Ty"
 writeExpr (ExprUnitElem _) = writeStr "()"
 writeExpr (ExprUnitTy _) = writeStr "{}"
-writeExpr (ExprFun _ vs e) = do
+writeExpr (ExprFun _ _ vs e) = do
   writeVarList vs
   writeStr " => "
   writeExpr e
@@ -288,11 +284,11 @@ writeExpr (ExprDelayArrow _ b e) = do
     then writeStr "() ->> "
     else writeStr "() -> "
   writeExpr e
-writeExpr (ExprLazyApp e) = do
+writeExpr (ExprLazyApp _ e) = do
   writeExpr e
   writeStr "[]"
-writeExpr (ExprApp e as) =
-  let hasLowerPrec (ExprFun _ _ _) = True
+writeExpr (ExprApp _ e as) =
+  let hasLowerPrec (ExprFun _ _ _ _) = True
       hasLowerPrec (ExprArrow _ _ _ _) = True
       hasLowerPrec (ExprLazyArrow _ _ _) = True
       hasLowerPrec (ExprDelayArrow _ _ _) = True
@@ -312,8 +308,8 @@ writeExpr (ExprApp e as) =
      writeStr "(";
      writeExprs as;
      writeStr ")" }
-writeExpr (ExprImplicitApp e as) =
-  let hasLowerPrec (ExprFun _ _ _) = True
+writeExpr (ExprImplicitApp _ e as) =
+  let hasLowerPrec (ExprFun _ _ _ _) = True
       hasLowerPrec (ExprArrow _ _ _ _) = True
       hasLowerPrec (ExprLazyArrow _ _ _) = True
       hasLowerPrec (ExprDelayArrow _ _ _) = True
@@ -333,8 +329,8 @@ writeExpr (ExprImplicitApp e as) =
      writeStr "[";
      writeExprs as;
      writeStr "]" }
-writeExpr (ExprVar (_, v)) = writeStr v
-writeExpr (ExprSeq e1 e2) = do
+writeExpr (ExprVar _ (_, v)) = writeStr v
+writeExpr (ExprSeq _ e1 e2) = do
   writeStr "("
   incIndent
   writeExprSeqElem e1
@@ -352,10 +348,10 @@ writeExpr (ExprSeq e1 e2) = do
       writeExpr e
       writeStr ";"
       newLine
-    writeExprSeqTail (ExprSeq e1' e2') =
+    writeExprSeqTail (ExprSeq _ e1' e2') =
       writeExprSeqElem e1' >> writeExprSeqTail e2'
     writeExprSeqTail e = writeExpr e
-writeExpr (ExprCase _ e ofs) = do
+writeExpr (ExprCase _ _ e ofs) = do
   writeStr "case "
   writeExpr e
   newLine
