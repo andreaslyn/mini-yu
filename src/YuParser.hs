@@ -178,8 +178,10 @@ parseDecl = do
     varListElem :: YuParsec [VarListElem]
     varListElem = do
       vars <- many1 parseVarOrOp
-      ty <- parseTypeSpec
-      return (zip vars (repeat $ Just ty))
+      mty <- optionMaybe parseTypeSpec
+      case mty of
+        Nothing -> return (zip vars (repeat Nothing))
+        Just ty -> return (zip vars (repeat $ Just ty))
 
 parseDataDecl :: YuParsec (Bool, Decl)
 parseDataDecl = impureData <|> pureData

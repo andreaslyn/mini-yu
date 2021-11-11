@@ -845,9 +845,11 @@ doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
   t <- markInProgress isCtor (lo, na)
   case t of
     Nothing -> do
-      mapM_ insertUnknownImplicit impls
-      impls' <- mapM checkImplicit impls
-      ty' <- evalTcExpr subst TermTy ty
+      (impls', ty') <- runExprIO $ do
+                        lift $ mapM_ insertUnknownImplicit impls
+                        impls1 <- mapM checkImplicit impls
+                        ty1 <- tcExpr subst TermTy ty
+                        return (impls1, ty1)
       verifyNoIoEscapeFromType lo prena ty'
       verifyOperandArgument na (termPre ty')
       return (Right (impls', ty'))
@@ -876,29 +878,34 @@ doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
                 "expected at least one argument for postix operator"
 
     insertUnknownImplicit :: VarListElem -> TypeCheckIO ()
-    insertUnknownImplicit (_, Nothing) =
-      error "expected implicit argument to have a type spec (@1)"
+    insertUnknownImplicit (_, Nothing) = return ()
     insertUnknownImplicit ((vlo, vna), Just e) = do
       checkVarNameValid (vlo, vna)
       i <- Env.freshVarId
       insertUnknownVar subst (vlo, vna) i (Just e)
 
     checkImplicit ::
-      VarListElem -> TypeCheckIO (Var, PreTerm)
-    checkImplicit (_, Nothing) =
-      error "expected implicit argument to have a type spec (@2)"
+      VarListElem -> ExprIO (Var, PreTerm)
+    checkImplicit ((vlo, vna), Nothing) = do
+      i <- lift Env.freshVarId
+      let t = TermVar True (mkVar i ("TypeOf_" ++ vna))
+      impMapInsert i TermTy vlo $
+        "unable to infer type of implicit name " ++ quote vna
+      j <- lift Env.freshVarId
+      v <- lift $ insertNonblankVariable (vlo, vna) j t
+      return (v, t)
     checkImplicit ((vlo, vna), Just e)
       | vna == "_" =
-          err vlo (Fatal $ "invalid implicit name " ++ quote "_")
+          lift $ err vlo (Fatal $ "invalid implicit name " ++ quote "_")
       | True = do
-          pa <- markInProgress False (vlo, vna)
+          pa <- lift $ markInProgress False (vlo, vna)
           case pa of
             Nothing -> do
-              e' <- evalTcExpr subst TermTy e
-              verifyNoIoEscapeFromType vlo vna e'
-              i <- Env.freshVarId
+              e' <- tcExpr subst TermTy e
+              lift $ verifyNoIoEscapeFromType vlo vna e'
+              i <- lift Env.freshVarId
               let v = mkVar i vna
-              updateToStatusTerm vna (mkTerm (TermVar False v) (termPre e') False)
+              lift $ updateToStatusTerm vna (mkTerm (TermVar False v) (termPre e') False)
               return (v, termPre e')
             Just (Term {termPre = TermVar _ v, termTy = tt}) ->
               return (v, tt)
@@ -1693,14 +1700,17 @@ verifyExprNoImplicits isu imps = do
     let imps'' = sortOn fst (map snd (IntMap.toList imps'))
     in mapM_ (\(lo, msg) -> err lo (Recoverable msg)) imps''
 
-evalTcExpr :: SubstMap -> PreTerm -> Expr -> TypeCheckIO Term
-evalTcExpr su ty e = do
-  (e', (s1, imps)) <- runStateT (tcExpr su ty e)
+runExprIO :: ExprIO t -> TypeCheckIO t
+runExprIO expr = do
+  (e', (s1, imps)) <- runStateT expr
                         (IntMap.empty, ImpMap IntMap.empty Nothing)
   case imps of
     ImpMap _ (Just _) -> error "unexpected parent ImpMap"
     ImpMap imps' Nothing ->
       verifyExprNoImplicits s1 imps' >> return e'
+
+evalTcExpr :: SubstMap -> PreTerm -> Expr -> TypeCheckIO Term
+evalTcExpr su ty e = runExprIO (tcExpr su ty e)
 
 scope :: ExprIO t -> ExprIO t
 scope e = fmap fst (dataScope (fmap (\e' -> (e', ())) e))

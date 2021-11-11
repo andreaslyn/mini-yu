@@ -3,7 +3,7 @@
 
 #include "split-stack-config.h"
 
-module Main where
+module Main (main) where
 
 import PackageMap (PackageMap)
 import System.Console.ArgParser.Params as ArPa
@@ -13,7 +13,7 @@ import TypeCheck.TypeCheck
 import qualified Ir.BaseIr as Ba
 import qualified Ir.HighLevelIr as Hl
 import qualified Ir.RefCountIr as Rc
-import System.Directory (makeAbsolute)
+import System.Directory (canonicalizePath)
 import Control.Monad
 import qualified System.Exit as Exit
 import qualified Ir.CodeGen as Cg
@@ -129,17 +129,12 @@ runIr opts vs dm im rm = do
 getProjectPath :: IO FilePath
 getProjectPath = do
   e <- getExecutablePath
-  makeAbsolute (takeDirectory e ++ "/..")
-
-getMainPath :: ProgramOptions -> IO FilePath
-getMainPath opts = do
-  let a = argumentFileName opts
-  makeAbsolute (takeDirectory a)
+  canonicalizePath (takeDirectory e ++ "/..")
 
 packagePaths :: ProgramOptions -> IO PackageMap
 packagePaths opts = do
   let yuPath = projectRootPath opts ++ "/stdlib/yu"
-  aps <- mapM makeAbsolute (optionPackages opts)
+  aps <- mapM canonicalizePath (optionPackages opts)
   let ps = map (\ p -> (takeFileName p, p)) aps
   return (Map.fromList (("yu", yuPath) : ps))
 
@@ -260,7 +255,7 @@ main = do
   where
     preRun :: ProgramOptions -> IO ProgramOptions
     preRun opts = do
-      a <- makeAbsolute (argumentFileName opts)
+      a <- canonicalizePath (argumentFileName opts)
       p <- getProjectPath
       return (opts { argumentFileName = a
                    , projectRootPath = p })
