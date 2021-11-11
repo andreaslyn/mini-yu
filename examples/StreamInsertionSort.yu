@@ -12,7 +12,7 @@ of (...#Ordering?)
 import N => yu/Nat
 
 
-val (.insertionSort#Stream) [A : Ty] : Stream A & Ordering? A -> Stream A
+val (.insertionSort#Stream) [A] : Stream A & Ordering? A -> Stream A
 let xs od => xs .fold nil.Stream insert
 where
   val insert : A & Stream A -> Stream A

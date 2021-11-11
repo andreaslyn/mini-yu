@@ -25,7 +25,7 @@ of (.node#BinTree) [A : Ty] [od : Ordering? A] :
   BinTree A od & A & BinTree A od -> BinTree A od
 
 
-val (.member#BinTree) [A : Ty] [od : Ordering? A] : BinTree A od & A -> Bool
+val (.member#BinTree) [A] [od : Ordering? A] : BinTree A od & A -> Bool
 let t0 a => member t0 no
 where
   \\ member t candidate: the invariant is
@@ -38,7 +38,7 @@ where
 end
 
 
-val (.insert#BinTree) [A : Ty] [od : Ordering? A] :
+val (.insert#BinTree) [A] [od : Ordering? A] :
   BinTree A od & A -> BinTree A od
 let t0 a =>
   case insert t0 no
@@ -61,7 +61,7 @@ where
 end
 
 
-val fromList [A : Ty] [od : Ordering? A] : List A -> BinTree A od
+val fromList [A] [od : Ordering? A] : List A -> BinTree A od
 let nil.L => leaf
 let (x :: xs) => fromList xs .insert x
 
@@ -86,7 +86,7 @@ val test4 :
 let => refl
 
 
-val completeDepth [A : Ty] [od : Ordering? A] :
+val completeDepth [A] [od : Ordering? A] :
   Nat & A -> BinTree A od
 let depth a => complete depth
 where
@@ -96,7 +96,7 @@ where
 end
 
 
-val completeSize [A : Ty] [od : Ordering? A] : Bin & A -> BinTree A od
+val completeSize [A] [od : Ordering? A] : Bin & A -> BinTree A od
 let size a => create2 size .1
 where
   val.. create2 : Bin -> BinTree A od && BinTree A od

@@ -128,8 +128,8 @@ clashes with the standard library.**
 
 The identity type can be defined with
 ```
-data Id [A : Ty] : A & A -> Ty
-of refl [A : Ty] [a : A] : Id a a
+data Id [A] : A & A -> Ty
+of refl [A] [a : A] : Id a a
 ```
 The square brackets mark implicit arguments `[A : Ty]` and `[a : A]`,
 and `A & A -> Ty` is a binary function type.
@@ -145,7 +145,7 @@ let m (succ n) => succ (plus m n)
 ```
 And transitivity of identity
 ```
-val trans [A : Ty] [x y z : A] : Id x y & Id y z -> Id x z
+val trans [A] [x y z : A] : Id x y & Id y z -> Id x z
 let refl p => p
 ```
 
@@ -272,8 +272,8 @@ let true b => b ()
 Define the vector data type by
 ```
 data Vec : Nat & Ty -> Ty
-of nilv [A : Ty] : Vec 0 A
-of (::#Vec) [A : Ty] [n : Nat] : A & Vec n A -> Vec (++ n) A
+of nilv [A] : Vec 0 A
+of (::#Vec) [A n] : A & Vec n A -> Vec (++ n) A
 ```
 Note that infix `::` is right associative, so it overloads on the
 second argument, which is `Vec` in this case.
