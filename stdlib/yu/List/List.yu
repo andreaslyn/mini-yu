@@ -122,7 +122,8 @@ let (x :: xs) a f => f x (xs .fold a f)
 
 
 val (:+:#List) [A : Ty] : List A & List A -> List A
-let xs ys => xs .fold ys (::)
+let nil ys => ys
+let (x :: xs) ys => x :: xs :+: ys
 
 
 val (.revAux#List) [A : Ty] : List A & List A -> List A

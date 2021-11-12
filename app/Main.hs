@@ -89,6 +89,7 @@ runIr opts vs dm im rm = do
                        "-static",
                        "-DNDEBUG",
                        "-O3",
+                       "-flto",
                        "-mtune=native",
                        "-momit-leaf-frame-pointer",
                        "-I", runtimePath,
