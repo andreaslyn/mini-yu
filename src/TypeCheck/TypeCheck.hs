@@ -847,8 +847,15 @@ doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
     Nothing -> do
       (impls', ty') <- runExprIO $ do
                         lift $ mapM_ insertUnknownImplicit impls
-                        impls1 <- mapM checkImplicit impls
+                        untypedImpls <- insertUntypedImplicits impls
+                        typedImpls <- checkTypedImplicits impls
+                        let is = untypedImpls ++ typedImpls
                         ty1 <- tcExpr subst TermTy ty
+                        rm <- lift Env.getRefMap
+                        su <- getExprSubst
+                        let impls1 = map (\(v, x) ->
+                                            (v, substPreTerm rm su x)
+                                         ) is
                         return (impls1, ty1)
       verifyNoIoEscapeFromType lo prena ty'
       verifyOperandArgument na (termPre ty')
@@ -884,33 +891,45 @@ doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
       i <- Env.freshVarId
       insertUnknownVar subst (vlo, vna) i (Just e)
 
-    checkImplicit ::
-      VarListElem -> ExprIO (Var, PreTerm)
-    checkImplicit ((vlo, vna), Nothing) = do
+    insertUntypedImplicits ::
+      [VarListElem] -> ExprIO [(Var, PreTerm)]
+    insertUntypedImplicits [] = return []
+    insertUntypedImplicits (((vlo, vna), Nothing) : is) = do
       i <- lift Env.freshVarId
       let t = TermVar True (mkVar i ("TypeOf_" ++ vna))
       impMapInsert i TermTy vlo $
         "unable to infer type of implicit name " ++ quote vna
       j <- lift Env.freshVarId
       v <- lift $ insertNonblankVariable (vlo, vna) j t
-      return (v, t)
-    checkImplicit ((vlo, vna), Just e)
+      is' <- insertUntypedImplicits is
+      return ((v, t) : is')
+    insertUntypedImplicits (_ : is) =
+      insertUntypedImplicits is
+
+    checkTypedImplicits ::
+      [VarListElem] -> ExprIO [(Var, PreTerm)]
+    checkTypedImplicits [] = return []
+    checkTypedImplicits (((vlo, vna), Just e) : is)
       | vna == "_" =
           lift $ err vlo (Fatal $ "invalid implicit name " ++ quote "_")
       | True = do
           pa <- lift $ markInProgress False (vlo, vna)
-          case pa of
-            Nothing -> do
-              e' <- tcExpr subst TermTy e
-              lift $ verifyNoIoEscapeFromType vlo vna e'
-              i <- lift Env.freshVarId
-              let v = mkVar i vna
-              lift $ updateToStatusTerm vna (mkTerm (TermVar False v) (termPre e') False)
-              return (v, termPre e')
-            Just (Term {termPre = TermVar _ v, termTy = tt}) ->
-              return (v, tt)
-            _ ->
-              error $ "not a variable term " ++ quote vna
+          x <- case pa of
+                Nothing -> do
+                  e' <- tcExpr subst TermTy e
+                  lift $ verifyNoIoEscapeFromType vlo vna e'
+                  i <- lift Env.freshVarId
+                  let v = mkVar i vna
+                  lift $ updateToStatusTerm vna (mkTerm (TermVar False v) (termPre e') False)
+                  return (v, termPre e')
+                Just (Term {termPre = TermVar _ v, termTy = tt}) ->
+                  return (v, tt)
+                _ ->
+                  error $ "not a variable term " ++ quote vna
+          is' <- checkTypedImplicits is
+          return (x : is')
+    checkTypedImplicits (_ : is) =
+      checkTypedImplicits is
 
 isKeyOperandType :: String -> Bool
 isKeyOperandType "Ty" = True
