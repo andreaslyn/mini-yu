@@ -85,6 +85,7 @@ data Expr =
   | Let Var Expr Expr
   | Ret Var
   | Where Expr ProgramRoots
+  | Hidden Bool -- Bool = False if function/lazy, and True otherwise.
 
 type Program = IntMap (Const, Expr, Bool) -- Bool = True if static.
 
@@ -104,6 +105,7 @@ freeVars p = \e -> evalState (freev e) IntSet.empty
     freev (Fun vs e) = do
       e' <- freev e
       return (IntSet.difference e' (IntSet.fromList vs))
+    freev (Hidden _) = return IntSet.empty
     freev (Extern _) = return IntSet.empty
     freev (Lazy _ e) = freev e
     freev (Case v cs) = do
@@ -134,6 +136,7 @@ freeVars p = \e -> evalState (freev e) IntSet.empty
 data St = St
   { teImplicitMap :: Te.ImplicitMap
   , teRefMap :: Te.RefMap
+  , teModuleName :: Te.VarName
   , teDataCtorMap :: Te.DataCtorMap
   , program :: Program
   , constMap :: IntMap Const -- Te ref id -> Const
@@ -149,7 +152,8 @@ data St = St
 type StM = State St
 
 highLevelIr ::
-  Bool -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap ->
+  Bool -> Te.VarName ->
+  [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap ->
   (Program, ProgramRoots)
 highLevelIr = runStM
 
@@ -217,6 +221,9 @@ lookupTermVar i =
 
 getRefMap :: StM Te.RefMap
 getRefMap = fmap teRefMap get
+
+getModuleName :: StM Te.VarName
+getModuleName = fmap teModuleName get
 
 lookupRef :: Te.VarId -> StM Te.Term
 lookupRef v = do
@@ -291,11 +298,13 @@ updateIdentityDataTypeFromCtors dat [ctor] = do
 updateIdentityDataTypeFromCtors _ _ = return ()
 
 runStM ::
-  Bool -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap ->
+  Bool -> Te.VarName ->
+  [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap ->
   (Program, ProgramRoots)
-runStM enableOptimization vs dm im rm =
+runStM enableOptimization moduleName vs dm im rm =
   let st = St { teImplicitMap = im
               , teRefMap = rm
+              , teModuleName = moduleName
               , teDataCtorMap = dm
               , program = IntMap.empty
               , constMap = IntMap.empty
@@ -323,36 +332,77 @@ irInitProgram vs = do
 irProgram :: Bool -> [Te.RefVar] -> StM ProgramRoots
 irProgram isStatic vs = do
   mapM_ updateRefMap vs
-  ps <- doIrProgram vs
+  ps <- doIrProgram isStatic vs
   st <- get
   p <- fmap program get
   let p' = foldl (\m (c,x) -> IntMap.insert (prConst c) (c, x, isStatic) m) p ps
   put (st {program = p'})
   return (map fst ps)
 
-doIrProgram :: [Te.RefVar] -> StM [(Const, Expr)]
-doIrProgram [] = return []
-doIrProgram (Te.RefExtern v a : vs) = do
-  m <- doIrProgram vs
+isInThisModule :: Te.Var -> StM Bool
+isInThisModule v =
+  case Str.moduleSplit (Te.varName v) of
+    (_, Nothing) -> return True
+    (_, Just m) -> fmap (== m) getModuleName
+
+hiddenFromRef :: Te.Var -> StM Expr
+hiddenFromRef v = do
+  r <- lookupRef (Te.varId v)
+  case Te.termPre r of
+    Te.TermFun _ _ _ _ -> return (Hidden False)
+    Te.TermLazyFun _ _ -> return (Hidden False)
+    _ -> return (Hidden True)
+
+hiddenFromRefTy :: Te.Var -> StM Expr
+hiddenFromRefTy v = do
+  t <- lookupRef (Te.varId v)
+  is <- lookupImplicit (Te.varId v)
+  if not (null is)
+  then return (Hidden False)
+  else do
+    rm <- getRefMap
+    case TE.preTermDomCod rm (Te.termTy t) of
+      Nothing ->
+        case TE.preTermLazyCod rm (Te.termTy t) of
+          Nothing -> return (Hidden True)
+          Just _ -> return (Hidden False)
+      Just _ -> return (Hidden False)
+
+doIrProgram :: Bool -> [Te.RefVar] -> StM [(Const, Expr)]
+doIrProgram _ [] = return []
+doIrProgram isStatic (Te.RefExtern v a : vs) = do
+  m <- doIrProgram isStatic vs
   c <- lookupTermRef v
-  return ((c, Extern a) : m)
-doIrProgram (Te.RefVal v : vs) = do
-  e <- irRef v
-  m <- doIrProgram vs
+  inm <- isInThisModule v
+  if isStatic && not inm
+  then return ((c, Hidden False) : m)
+  else return ((c, Extern a) : m)
+doIrProgram isStatic (Te.RefVal v : vs) = do
+  inm <- isInThisModule v
+  e <- if isStatic && not inm
+       then hiddenFromRef v
+       else irRef v
+  m <- doIrProgram isStatic vs
   c <- lookupTermRef v
   return ((c, e) : m)
-doIrProgram (Te.RefData dv : vs) = do
-  e <- makeCtorConstFromVar Nothing dv dataCtor
+doIrProgram isStatic (Te.RefData dv : vs) = do
+  inm <- isInThisModule dv
+  e <- if isStatic && not inm
+       then hiddenFromRefTy dv
+       else makeCtorConstFromVar Nothing dv dataCtor
   ctors <- lookupDataCtor (Te.varId dv)
-  ctors' <- mapM irCtor ctors
-  m <- doIrProgram vs
+  ctors' <- mapM (irCtor inm) ctors
+  m <- doIrProgram isStatic vs
   c <- lookupTermRef dv
   return ((c, e) : ctors' ++ m)
   where
-    irCtor :: Te.Var -> StM (Const, Expr)
-    irCtor v = do
-      ctor <- lookupTermCtor (Te.varId v)
-      e <- makeCtorConstFromVar (Just dv) v ctor
+    irCtor :: Bool -> Te.Var -> StM (Const, Expr)
+    irCtor inm v = do
+      e <- if isStatic && not inm
+           then hiddenFromRefTy v
+           else do
+            ctor <- lookupTermCtor (Te.varId v)
+            makeCtorConstFromVar (Just dv) v ctor
       c <- lookupTermRef v
       return (c, e)
 
@@ -739,6 +789,7 @@ simplLazyAndDelayForceExpr (Fun vs e) = do
   return (Fun vs e')
 simplLazyAndDelayForceExpr e@(Ap _ _ _) = return e
 simplLazyAndDelayForceExpr e@(Force _ _) = return e
+simplLazyAndDelayForceExpr e@(Hidden _) = return e
 simplLazyAndDelayForceExpr e@(Extern _) = return e
 simplLazyAndDelayForceExpr (Case v cs) = do
   cs' <-  mapM (\(i, n, e) -> fmap ((,,) i n) (simplLazyAndDelayForceExpr e)) cs
@@ -862,6 +913,7 @@ writeExpr _ p (Fun vs e) = do
   when (isLetExpr e) (writeStr "(")
   writeExpr True p e
   when (isLetExpr e) (writeStr ")")
+writeExpr _ _ (Hidden b) = writeStr ("hidden-" ++ show b)
 writeExpr _ _ (Extern a) = writeStr ("extern " ++ show a)
 writeExpr _ p (Lazy _ e) = writeStr "[]. " >> writeExpr True p e
 writeExpr inci p (Case v cs) = do
@@ -878,7 +930,7 @@ writeExpr inci p (Case v cs) = do
     writeCases [] = return ()
     writeCases ((i, n, w) : ws) = do
       newLine
-      writeStr "let "
+      writeStr "of "
       writeStr (show i)
       writeStr "("
       writeStr (show n)
@@ -900,7 +952,6 @@ writeExpr _ _ (Proj i v) = do
 writeExpr inci p (Let v e1 e2) = do
   when inci incIndent
   newLine
-  --writeStr "let "
   writeVar v
   writeStr " := "
   writeExpr True p e1

@@ -117,6 +117,7 @@ data ConstExpr =
     Fun [Var] FunExpr
   | Lazy Bool [Var] FunExpr -- Bool is indicating whether it is static, not effect.
   | Extern [Var]
+  | Hidden
 
 freeVarsRef :: Ref -> IntSet
 freeVarsRef (VarRef v) = IntSet.singleton v
@@ -147,6 +148,7 @@ freeVarsFunExpr (Case v cs) =
   in IntSet.union (freeVarsRef v) cs'
 
 freeVarsConstExpr :: ConstExpr -> IntSet
+freeVarsConstExpr Hidden = IntSet.empty
 freeVarsConstExpr (Extern _) = IntSet.empty
 freeVarsConstExpr (Lazy _ vs e) =
   IntSet.difference (freeVarsFunExpr e) (IntSet.fromList vs)
@@ -183,6 +185,7 @@ getConstsFromFunExpr (Case v cs) =
   in IntSet.union (getConstsFromRef v) cs'
 
 getConstsFromConstExpr :: ConstExpr -> IntSet
+getConstsFromConstExpr Hidden = IntSet.empty
 getConstsFromConstExpr (Extern _) = IntSet.empty
 getConstsFromConstExpr (Lazy _ _ e) = getConstsFromFunExpr e
 getConstsFromConstExpr (Fun _ e) = getConstsFromFunExpr e
@@ -204,7 +207,6 @@ data St = St
   , nextConst :: Int
   , nextVar :: Int
   , optimize :: Bool
-  , needsMain :: Bool
   , partialSpecializationMap :: Map (Int, Int) (Const, [Bool])
       -- Partial specializations:
       --   (Const, number of partial args) ->
@@ -214,8 +216,8 @@ data St = St
 
 type StM = State St
 
-baseIr :: Bool -> Bool -> Hl.Program -> Hl.ProgramRoots -> Program
-baseIr doOptimize doNeedMain p r =
+baseIr :: Bool -> Hl.Program -> Hl.ProgramRoots -> Program
+baseIr doOptimize p r =
   let st = St { hlProgram = p
               , program = IntMap.empty
               , varMap = IntMap.empty
@@ -228,7 +230,6 @@ baseIr doOptimize doNeedMain p r =
               , nextConst = 0
               , nextVar = 0
               , optimize = doOptimize
-              , needsMain = doNeedMain
               , partialSpecializationMap = Map.empty
               }
   in program (execState (irInitProgram r) st)
@@ -402,6 +403,7 @@ makeMaps rs = do
     addToVarMap (Hl.Fun vs e) = do
       mapM_ (\v -> lift (updateVarMapVar v v)) vs
       addToVarMap e
+    addToVarMap (Hl.Hidden _) = return ()
     addToVarMap (Hl.Extern _) = return ()
     addToVarMap (Hl.Lazy _ e) = addToVarMap e
     addToVarMap (Hl.Case _ cs) = do
@@ -430,6 +432,7 @@ doMakeConstMaps :: Hl.Expr -> StM ()
 doMakeConstMaps (Hl.Ap _ _ _) = return ()
 doMakeConstMaps (Hl.Force _ _) = return ()
 doMakeConstMaps (Hl.Fun _ e) = doMakeConstMaps e
+doMakeConstMaps (Hl.Hidden _) = return ()
 doMakeConstMaps (Hl.Extern _) = return ()
 doMakeConstMaps (Hl.Lazy _ e) = doMakeConstMaps e
 doMakeConstMaps (Hl.Case _ cs) =
@@ -476,6 +479,7 @@ cleanupConstToVarMap ((s, e, False) : ss) = do
   cleanupConstToVarMap ss
 
 nonStaticConstExprNeedsVar :: Hl.Expr -> StM Bool
+nonStaticConstExprNeedsVar (Hl.Hidden _) = return False
 nonStaticConstExprNeedsVar (Hl.Extern _) = return False
 nonStaticConstExprNeedsVar (Hl.Fun _ _) = return False
 nonStaticConstExprNeedsVar (Hl.Lazy True _) = return True
@@ -489,7 +493,6 @@ irOptimizeLoop :: Hl.ProgramRoots -> DeadCodeConsts -> Bool -> StM ()
 irOptimizeLoop roots cs hasInlinedCases = do
   (b1, cs') <- removeDeadLets cs
   b2 <- funInline False
-  removeUnusedVals roots
   if b1 || b2
     then irOptimizeLoop roots cs' hasInlinedCases
     else return ()
@@ -507,8 +510,6 @@ irInitProgram p = do
   mapM_ updatePostConstSubst (IntMap.elems p')
   p'' <- fmap program get
   mapM_ updatePostMissingSubst (IntMap.elems p'')
-  nm <- fmap needsMain get
-  when nm (removeUnusedVals p)
   opt <- fmap optimize get
   when opt (irOptimize p)
   where
@@ -523,7 +524,8 @@ irInitProgram p = do
         Nothing -> return ()
         Just (v, r) ->
           case e of
-            (Extern _) -> return ()
+            Hidden -> return ()
+            Extern _ -> return ()
             Lazy io vs e' ->
               updateProgram c (Lazy io vs (listSubst [v] [r] e'))
             Fun vs e' ->
@@ -605,6 +607,7 @@ constSubstFunExpr (Case v cs) = do
   return (f (Case v' cs'))
 
 constSubstConstExpr :: ConstExpr -> StM ConstExpr
+constSubstConstExpr Hidden = return Hidden
 constSubstConstExpr (Extern vs) = return (Extern vs)
 constSubstConstExpr (Lazy iss vs e) =
   fmap (Lazy iss vs) (constSubstFunExpr e)
@@ -668,6 +671,7 @@ irProgram parentExpr rs = do
     maxUseCount vis p c (Hl.Fun _ e) = do
       u <- maxUseCount vis p c e
       if u == 0 then Just 0 else Nothing
+    maxUseCount _ _ _ (Hl.Hidden _) = Just 0
     maxUseCount _ _ _ (Hl.Extern _) = Just 0
     maxUseCount vis p c (Hl.Lazy io e) = do
       u <- maxUseCount vis p c e
@@ -706,6 +710,7 @@ nonStaticConstUnits = \e -> do
     getConstUnits _ (Hl.Ap _ _ __) = return (IntSet.empty, IntSet.empty)
     getConstUnits _ (Hl.Force _ _) = return (IntSet.empty, IntSet.empty)
     getConstUnits vis (Hl.Fun _ e) = getConstUnits vis e
+    getConstUnits _ (Hl.Hidden _) = return (IntSet.empty, IntSet.empty)
     getConstUnits _ (Hl.Extern _) = return (IntSet.empty, IntSet.empty)
     getConstUnits vis (Hl.Lazy _ e) = getConstUnits vis e
     getConstUnits vis (Hl.Case _ cs) =
@@ -843,6 +848,13 @@ irConstExpr Nothing con fe@(Hl.Lazy io e) = do
 irConstExpr Nothing con (Hl.Where e p) = do
   f <- irProgram (Just e) p
   irConstExpr f con e
+irConstExpr Nothing _ (Hl.Hidden False) = do
+  return (Hidden, Nothing, [])
+irConstExpr Nothing con (Hl.Hidden True) = do
+  updateConstSubst con (Right (Force False (ConstRef con) Nothing))
+  return (Hidden, Nothing, [])
+irConstExpr (Just _) _ (Hl.Hidden _) =
+  error "unexpected nested hidden value with free variables"
 irConstExpr ls con e = do
   e' <- irFunExpr e
   (fs0, cs) <- nonStaticConstUnits e
@@ -896,6 +908,7 @@ irFunExpr (Hl.Force io v) = do
   v' <- lookupVarMapRef v
   v0 <- getNextVar
   return (Let v0 (Force io v' Nothing) (Ret (VarRef v0)))
+irFunExpr (Hl.Hidden _) = error "unexpected hidden in irFunExpr"
 irFunExpr (Hl.Extern _) = error "unexpected extern in irFunExpr"
 irFunExpr (Hl.Case v cs) = do
   v' <- lookupVarMapRef v
@@ -950,6 +963,7 @@ irLetExpr f (Hl.Ap io v vs) = do
 irLetExpr f (Hl.Force io v) = do
   v' <- lookupVarMapRef v
   f (Right (Nothing, Force io v' Nothing))
+irLetExpr _ (Hl.Hidden _) = error "unexpected extern in irLetExpr"
 irLetExpr _ (Hl.Extern _) = error "unexpected extern in irLetExpr"
 irLetExpr f (Hl.ConstRef c) = do
   c' <- lookupConstMap c
@@ -1066,6 +1080,7 @@ isInlineCandidate inlineCases con = isCandidateFunExpr
 
 funInlineConstExpr ::
   Bool -> Const -> [Var] -> FunExpr -> ConstExpr -> StM (Bool, ConstExpr)
+funInlineConstExpr _ _ _ _ Hidden = return (False, Hidden)
 funInlineConstExpr _ _ _ _ (Extern vs) = return (False, Extern vs)
 funInlineConstExpr cand con vs e (Fun us d) = do
   (b, x) <- funInlineFunExpr IntMap.empty cand con vs e d
@@ -1178,6 +1193,7 @@ papInline letVar partialCon partialRefs = do
 papSpecializeConstExpr :: ConstExpr -> StM ()
 papSpecializeConstExpr (Fun _ e) = papSpecializeFunExpr e
 papSpecializeConstExpr (Lazy _ _ e) = papSpecializeFunExpr e
+papSpecializeConstExpr Hidden = return ()
 papSpecializeConstExpr (Extern _) = return ()
 
 papSpecializeFunExpr :: FunExpr -> StM ()
@@ -1286,6 +1302,7 @@ updateLeafsFunExpr v leaf (Let w e1 e2) =
 type FreshVarMap = IntMap Var
 
 makeFreshVarsConstExpr :: ConstExpr -> StM ConstExpr
+makeFreshVarsConstExpr Hidden = return Hidden
 makeFreshVarsConstExpr (Extern vs) = do
   vs' <- mapM (const getNextVar) vs
   return (Extern vs')
@@ -1371,6 +1388,7 @@ removeOneBranchCases = do
       aux cs
 
 removeOneBranchCaseConstExpr :: ConstExpr -> ConstExpr
+removeOneBranchCaseConstExpr Hidden = Hidden
 removeOneBranchCaseConstExpr (Extern vs) = Extern vs
 removeOneBranchCaseConstExpr (Fun vs e) =
   Fun vs (removeOneBranchCaseFunExpr e)
@@ -1392,8 +1410,8 @@ removeOneBranchCaseFunExpr (Ret v) = Ret v
 removeOneBranchCaseFunExpr (VarFieldCnt v n e) =
   VarFieldCnt v n (removeOneBranchCaseFunExpr e)
 
-removeUnusedVals :: Hl.ProgramRoots -> StM ()
-removeUnusedVals roots = do
+_removeUnusedVals :: Hl.ProgramRoots -> StM ()
+_removeUnusedVals roots = do
   (mc, ma) <- findMain
   p <- evalStateT (getReachableConstExpr ma)
         (IntSet.singleton (prConst mc))
@@ -1412,6 +1430,7 @@ removeUnusedVals roots = do
           lookupProgramConst c
 
 getReachableConstExpr :: ConstExpr -> StateT IntSet StM Program
+getReachableConstExpr Hidden = return IntMap.empty
 getReachableConstExpr (Extern _) = return IntMap.empty
 getReachableConstExpr (Fun _ e) = getReachableFunExpr e
 getReachableConstExpr (Lazy _ _ e) = getReachableFunExpr e
@@ -1535,6 +1554,8 @@ changeRemovedFunLetExpr _ _ _ e = return e
 removeDeadCodeConstExpr ::
   DeadCodeConsts -> Const -> ConstExpr ->
   StM (Bool, ConstExpr, DeadCodeConsts)
+removeDeadCodeConstExpr dead _ Hidden =
+  return (False, Hidden, dead)
 removeDeadCodeConstExpr dead _ (Extern vs) =
   return (False, Extern vs, dead)
 removeDeadCodeConstExpr dead c (Fun vs e) = do
@@ -1781,6 +1802,9 @@ constExprToString :: Const -> ConstExpr -> String
 constExprToString c e = execWriter (runStateT (writeConst c e) 0)
 
 writeConst :: Const -> ConstExpr -> ToString ()
+writeConst c Hidden = do
+  writeStr "hidden "
+  writeStr (nameConst c)
 writeConst c (Extern vs) = do
   writeStr "extern "
   writeStr (nameConst c)
@@ -1835,7 +1859,7 @@ writeFunExpr b (Case v cs) = do
     writeCases [] = return ()
     writeCases ((i, n, w) : ws) = do
       newLine
-      writeStr "let "
+      writeStr "of "
       writeStr (show i)
       writeStr "("
       writeStr (show n)

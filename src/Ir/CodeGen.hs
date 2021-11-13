@@ -1,6 +1,8 @@
 {-# LANGUAGE BangPatterns #-}
 
-module Ir.CodeGen where
+module Ir.CodeGen
+  ( genCode
+  ) where
 
 import qualified Str as Str
 import qualified Ir.RefCountIr as R
@@ -20,81 +22,109 @@ import Data.Maybe (isNothing, isJust)
 import Control.Exception (assert)
 --import Debug.Trace (trace)
 
-type GenCode = StateT (Int, SysIO.Handle, R.Program) IO
+type GenCode = StateT (Int, SysIO.Handle, SysIO.Handle, R.Program) IO
 
-genCode :: R.Program -> FilePath -> IO ()
-genCode p s =
-  SysIO.withFile s SysIO.WriteMode (runGenCode p)
+genCode :: R.Program -> FilePath -> FilePath -> [FilePath] -> IO ()
+genCode prog cfile hfile himports =
+  SysIO.withFile cfile SysIO.WriteMode $ \ch ->
+  SysIO.withFile hfile SysIO.WriteMode $ \hh ->
+  runGenCode prog hfile himports ch hh
 
-runGenCode :: R.Program -> SysIO.Handle -> IO ()
-runGenCode p fh = evalStateT (writeProgram p) (0, fh, p)
+runGenCode ::
+  R.Program ->
+  FilePath ->
+  [FilePath] ->
+  SysIO.Handle ->
+  SysIO.Handle ->
+  IO ()
+runGenCode p hpath himports ch hh =
+  evalStateT (writeProgram p hpath himports) (0, ch, hh, p)
 
-writeStr :: String -> GenCode ()
-writeStr s = do
-  fh <- getFile
-  liftIO (SysIO.hPutStr fh s)
+writeHStr :: String -> GenCode ()
+writeHStr s = do
+  h <- getHHandle
+  liftIO (SysIO.hPutStr h s)
+
+writeCStr :: String -> GenCode ()
+writeCStr s = do
+  h <- getCHandle
+  liftIO (SysIO.hPutStr h s)
+
+data FF = HFile | CFile
+
+writeStr :: FF -> String -> GenCode ()
+writeStr HFile = writeHStr
+writeStr CFile = writeCStr
 
 incIndent :: GenCode ()
-incIndent = modify (\(n, x, y) -> (n+2, x, y))
+incIndent = modify (\(n, x, y, z) -> (n+2, x, y, z))
 
 decIndent :: GenCode ()
-decIndent = modify (\(n, x, y) -> (n-2, x, y))
+decIndent = modify (\(n, x, y, z) -> (n-2, x, y, z))
 
-getFile :: GenCode SysIO.Handle
-getFile = fmap (\(_, x, _) -> x) get
+getCHandle :: GenCode SysIO.Handle
+getCHandle = fmap (\(_, x, _, _) -> x) get
+
+getHHandle :: GenCode SysIO.Handle
+getHHandle = fmap (\(_, _, x, _) -> x) get
 
 constArity :: R.Const -> GenCode Int
 constArity c = do
-  p <- fmap (\(_, _, y) -> y) get
+  p <- fmap (\(_, _, _, z) -> z) get
   let e = R.lookupProgram c p
   case e of
+    R.Hidden -> error "attempt to get arity of hidden value"
     R.Extern vs -> return (length vs)
     R.Fun vs _ -> return (length vs)
     R.Lazy _ vs _ -> return (length vs)
 
-writeIndent :: GenCode ()
-writeIndent = get >>= doWrite . (\(a, _, _) -> a)
+writeIndent :: FF -> GenCode ()
+writeIndent ff = get >>= doWrite . (\(a, _, _, _) -> a)
   where
     doWrite :: Int -> GenCode ()
     doWrite 0 = return ()
-    doWrite i = writeStr " " >> doWrite (i - 1)
+    doWrite i = writeStr ff " " >> doWrite (i - 1)
 
-newLine :: GenCode ()
-newLine = writeStr "\n" >> writeIndent
+newLine :: FF -> GenCode ()
+newLine ff = writeStr ff "\n" >> writeIndent ff
 
-writeStructYuRef :: GenCode ()
-writeStructYuRef = writeStr "yur_Ref"
+writeStructYuRef :: FF -> GenCode ()
+writeStructYuRef ff = writeStr ff "yur_Ref"
 
-writeStructYuRefPtr :: GenCode ()
-writeStructYuRefPtr = writeStructYuRef >> writeStr " *"
+writeStructYuRefPtr :: FF -> GenCode ()
+writeStructYuRefPtr ff = writeStructYuRef ff >> writeStr ff " *"
 
-writeVarDecl :: R.Var -> GenCode ()
-writeVarDecl v = do
-  writeStructYuRefPtr
-  writeStr (varName v)
+writeVarDecl :: FF -> R.Var -> GenCode ()
+writeVarDecl ff v = do
+  writeStructYuRefPtr ff
+  writeStr ff (varName v)
 
-writeVarDecls :: [R.Var] -> GenCode ()
-writeVarDecls [] = return ()
-writeVarDecls [v] = writeVarDecl v
-writeVarDecls (v : vs) = writeVarDecls vs >> writeStr ", " >> writeVarDecl v
+writeVarDecls :: FF -> [R.Var] -> GenCode ()
+writeVarDecls _ [] = return ()
+writeVarDecls ff [v] = writeVarDecl ff v
+writeVarDecls ff (v : vs) =
+  writeVarDecls ff vs >> writeStr ff ", " >> writeVarDecl ff v
 
-writeParenVars :: [R.Var] -> GenCode ()
-writeParenVars vs = writeStr "(" >> writeVarDecls vs >> writeStr ")"
+writeParenVars :: FF -> [R.Var] -> GenCode ()
+writeParenVars ff vs =
+  writeStr ff "(" >> writeVarDecls ff vs >> writeStr ff ")"
 
-writeVar :: R.Var -> GenCode ()
-writeVar v = writeStr (varName v)
+writeVar :: FF -> R.Var -> GenCode ()
+writeVar ff v = writeStr ff (varName v)
 
-writeRef :: R.Ref -> GenCode ()
-writeRef (R.VarRef v) = writeVar v
-writeRef (R.ConstRef r) = writeStr (funRef r)
+writeRef :: FF -> R.Ref -> GenCode ()
+writeRef ff (R.VarRef v) = writeVar ff v
+writeRef ff (R.ConstRef r) = writeStr ff (funRef r)
 
-writeRefs :: [R.Ref] -> GenCode ()
-writeRefs [] = return ()
-writeRefs [v] = writeRef v
-writeRefs (v : vs) = writeRefs vs >> writeStr ", " >> writeRef v
+writeRefs :: FF -> [R.Ref] -> GenCode ()
+writeRefs _ [] = return ()
+writeRefs ff [v] = writeRef ff v
+writeRefs ff (v : vs) =
+  writeRefs ff vs >> writeStr ff ", " >> writeRef ff v
 
-writeParenRefs :: [R.Ref] -> GenCode ()
-writeParenRefs vs = writeStr "(" >> writeRefs vs >> writeStr ")"
+writeParenRefs :: FF -> [R.Ref] -> GenCode ()
+writeParenRefs ff vs =
+  writeStr ff "(" >> writeRefs ff vs >> writeStr ff ")"
 
 writeDecRefsLn :: [R.Ref] -> GenCode ()
 writeDecRefsLn [] = return ()
@@ -102,13 +132,22 @@ writeDecRefsLn (v : vs) = do
   writeDecRefLn v
   writeDecRefsLn vs
 
-writeProgram :: R.Program -> GenCode ()
-writeProgram p = do
+notHiddenConstExpr :: R.ConstExpr -> Bool
+notHiddenConstExpr R.Hidden = False
+notHiddenConstExpr _ = True
+
+notExternConstExpr :: R.ConstExpr -> Bool
+notExternConstExpr (R.Extern _) = False
+notExternConstExpr _ = True
+
+writeProgram :: R.Program -> FilePath -> [FilePath] -> GenCode ()
+writeProgram p hpath himports = do
   let cs = IntMap.elems p
-  writePrelude
+  writeHPrelude himports
+  writeCPrelude hpath
   writeDecls cs
-  newLine
-  newLine
+  newLine CFile
+  newLine CFile
   evalStateT (writeTrivialCtors cs) IntSet.empty
   evalStateT (writePapClosures cs) Set.empty
   writeConsts cs
@@ -117,9 +156,9 @@ writeProgram p = do
     writeDecls [] = return ()
     writeDecls [(c, e)] = writeDecl c e >> return ()
     writeDecls ((c, e) : cs) = do
-      writeDecl c e
-      newLine
-      newLine
+      when (R.nameConst c /= Str.unitName) $ do
+        writeDecl c e
+        when (notHiddenConstExpr e) $ newLine CFile >> newLine CFile
       writeDecls cs
 
     writeTrivialCtors :: [(R.Const, R.ConstExpr)] -> StateT IntSet GenCode ()
@@ -142,15 +181,26 @@ writeProgram p = do
     writeConsts [] = return ()
     writeConsts [(c, e)] = writeConst c e
     writeConsts ((c, e) : cs) = do
-      writeConst c e
-      newLine
-      newLine
+      when (R.nameConst c /= Str.unitName) $ do
+        writeConst c e
+        when (notHiddenConstExpr e && notExternConstExpr e) $
+          newLine CFile >> newLine CFile
       writeConsts cs
 
-writePrelude :: GenCode ()
-writePrelude = writeStr "#include \"yu.h\"" >> newLine >> newLine
+writeHPrelude :: [FilePath] -> GenCode ()
+writeHPrelude ps = do
+  writeStr HFile "#pragma once" >> newLine HFile
+  writeStr HFile "#include <yu.h>" >> newLine HFile
+  mapM_ (\p -> writeStr HFile ("#include \"" ++ p ++ "\"") >> newLine HFile) ps
+  newLine HFile
+
+writeCPrelude :: FilePath -> GenCode ()
+writeCPrelude headerPath = do
+  writeStr CFile ("#include \"" ++ headerPath ++ "\"")
+  newLine CFile >> newLine CFile
 
 writeTrivialCtorsConstExpr :: R.ConstExpr -> StateT IntSet GenCode ()
+writeTrivialCtorsConstExpr R.Hidden = return ()
 writeTrivialCtorsConstExpr (R.Extern _) = return ()
 writeTrivialCtorsConstExpr (R.Fun _ e) =
   writeTrivialCtorsFunExpr e
@@ -183,20 +233,27 @@ writeTrivialCtorsLetExpr (R.CtorBox c []) = do
     lift (writeTrivialCtor c)
 writeTrivialCtorsLetExpr _ = return ()
 
+writeTrivialCtorDecl :: FF -> R.Ctor -> GenCode ()
+writeTrivialCtorDecl ff c =
+  when (R.prCtor c /= 0) $ do
+    writeStr ff "static "
+    writeStructYuRef ff >> writeStr ff (" " ++ trivialCtorName c);
+
 writeTrivialCtor :: R.Ctor -> GenCode ()
 writeTrivialCtor c = do
   when (R.prCtor c /= 0) $ do
-    writeStructYuRef
-    writeStr (" " ++ trivialCtorName c ++ " = {") >> newLine
-    writeStr ("  .count = 0,") >> newLine
-    writeStr ("  .tag = " ++ show (R.prCtor c) ++ ",") >> newLine
-    writeStr ("  .vmt_index = yur_Static_vmt,") >> newLine
-    writeStr ("  .nfields = 0") >> newLine
-    writeStr ("};") >> newLine
-    newLine
+    writeTrivialCtorDecl CFile c
+    writeStr CFile (" = {") >> newLine CFile
+    writeStr CFile ("  .count = 0,") >> newLine CFile
+    writeStr CFile ("  .tag = " ++ show (R.prCtor c) ++ ",") >> newLine CFile
+    writeStr CFile ("  .vmt_index = yur_Static_vmt,") >> newLine CFile
+    writeStr CFile ("  .nfields = 0") >> newLine CFile
+    writeStr CFile ("};") >> newLine CFile
+    newLine CFile
 
 writePapClosuresConstExpr ::
   R.ConstExpr -> StateT (Set (R.Const, Int)) GenCode ()
+writePapClosuresConstExpr R.Hidden = return ()
 writePapClosuresConstExpr (R.Extern _) = return ()
 writePapClosuresConstExpr (R.Fun _ e) = writePapClosuresFunExpr e
 writePapClosuresConstExpr (R.Lazy _ _ e) =
@@ -234,7 +291,30 @@ writePapClosure c v rs = do
   else do
     put (Set.insert (c, n) gn)
     lift (writePapFunClosure c v rs n)
-    when (isJust v) (lift (writeLazyFun False c n >> newLine >> newLine))
+    when (isJust v) $
+      lift (writeLazyFun False c n >> newLine CFile >> newLine CFile)
+
+papFunClosureParamName :: Int -> String
+papFunClosureParamName i = 'a' : show i
+
+writePapFunClosureDecl ::
+  FF -> R.Const -> Maybe R.Var -> [R.Ref] -> Int -> GenCode ()
+writePapFunClosureDecl ff c _v _rs n = do
+  a <- constArity c
+  let nparams = a - n
+  when (n /= 0) (writeStr ff "static ")
+  writeStructYuRefPtr ff
+  writeStr ff (papClosureName c n)
+  writeStr ff "("
+  writeParams nparams 
+  writeStr ff ")"
+  where
+    writeParams :: Int -> GenCode ()
+    writeParams 0 = writeStructYuRefPtr ff >> writeStr ff "self"
+    writeParams i = do
+      writeStructYuRefPtr ff >> writeStr ff (papFunClosureParamName i)
+      writeStr ff ", "
+      writeParams (i-1)
 
 writePapFunClosure :: R.Const -> Maybe R.Var -> [R.Ref] -> Int -> GenCode ()
 writePapFunClosure c v rs n = do
@@ -243,30 +323,24 @@ writePapFunClosure c v rs n = do
                 Just v' -> List.elemIndex (R.VarRef v') rs
   a <- constArity c
   let nparams = a - n
-  writeStructYuRefPtr
-  writeStr (papClosureName c n)
-  writeStr "("
-  writeParams nparams 
-  writeStr ") {"
-  incIndent >> newLine
+  writePapFunClosureDecl CFile c v rs n
+  writeStr CFile " {"
+  incIndent >> newLine CFile
   writeTempsAndIncs recIdx 0
   if isNothing v
-  then writeStr "yur_unref(self);" >> newLine
+  then writeStr CFile "yur_unref(self);" >> newLine CFile
   else return ()
-  writeStr "return "
-  writeStr (funName c)
-  writeStr "("
+  writeStr CFile "return "
+  writeStr CFile (funName c)
+  writeStr CFile "("
   writeArgs nparams
-  when (n > 0 && nparams > 0) (writeStr ", ")
+  when (n > 0 && nparams > 0) (writeStr CFile ", ")
   writeAppliedArgs recIdx n
-  writeStr ");"
-  decIndent >> newLine
-  writeStr "}" >> newLine
-  newLine
+  writeStr CFile ");"
+  decIndent >> newLine CFile
+  writeStr CFile "}" >> newLine CFile
+  newLine CFile
   where
-    paramName :: Int -> String
-    paramName i = 'a' : show i
-
     convertIdx :: Maybe Int -> Int -> Int    
     convertIdx recIdx i =
       let !() = assert (recIdx /= Just i) ()
@@ -280,26 +354,19 @@ writePapFunClosure c v rs n = do
         then "self"
         else 'b' : show (convertIdx recIdx i)
 
-    writeParams :: Int -> GenCode ()
-    writeParams 0 = writeStructYuRefPtr >> writeStr "self"
-    writeParams i = do
-      writeStructYuRefPtr >> writeStr (paramName i)
-      writeStr ", "
-      writeParams (i-1)
-
     writeArgs :: Int -> GenCode ()
     writeArgs 0 = return ()
-    writeArgs 1 = writeStr (paramName 1)
+    writeArgs 1 = writeStr CFile (papFunClosureParamName 1)
     writeArgs i = do
-      writeStr (paramName i)
-      writeStr ", "
+      writeStr CFile (papFunClosureParamName i)
+      writeStr CFile ", "
       writeArgs (i-1)
 
     writeFieldEntry :: Maybe Int -> Int -> GenCode ()
     writeFieldEntry recIdx i =
       if isJust v
-      then writeStr ("self->fields[" ++ show (convertIdx recIdx i + 1) ++ "]")
-      else writeStr ("self->fields[" ++ show i ++ "]")
+      then writeStr CFile ("self->fields[" ++ show (convertIdx recIdx i + 1) ++ "]")
+      else writeStr CFile ("self->fields[" ++ show i ++ "]")
 
     writeTempsAndIncs :: Maybe Int -> Int -> GenCode ()
     writeTempsAndIncs recIdx i =
@@ -307,21 +374,21 @@ writePapFunClosure c v rs n = do
       then return ()
       else do
         if recIdx == Just i
-           then writeStr "yur_inc(self);" >> newLine
+           then writeStr CFile "yur_inc(self);" >> newLine CFile
            else do
-            writeStructYuRefPtr
+            writeStructYuRefPtr CFile
             let b = tempName recIdx i
-            writeStr (b ++ " = ")
+            writeStr CFile (b ++ " = ")
             writeFieldEntry recIdx i
-            writeStr ";" >> newLine
-            writeStr ("yur_inc(" ++ b ++ ");") >> newLine
+            writeStr CFile ";" >> newLine CFile
+            writeStr CFile ("yur_inc(" ++ b ++ ");") >> newLine CFile
         writeTempsAndIncs recIdx (i+1)
 
     writeAppliedArgs :: Maybe Int -> Int -> GenCode ()
     writeAppliedArgs _ 0 = return ()
-    writeAppliedArgs recIdx 1 = writeStr (tempName recIdx 0)
+    writeAppliedArgs recIdx 1 = writeStr CFile (tempName recIdx 0)
     writeAppliedArgs recIdx i = do
-      writeStr (tempName recIdx (i-1) ++ ", ")
+      writeStr CFile (tempName recIdx (i-1) ++ ", ")
       writeAppliedArgs recIdx (i-1)
 
 papClosureName :: R.Const -> Int -> String
@@ -359,128 +426,155 @@ lazyRef c n = '&' : lazyFun c n
 funRef :: R.Const -> String
 funRef c = '&' : funImpl c
 
-writeFunDecl :: R.Const -> [R.Var] -> GenCode ()
-writeFunDecl c vs = do
-  writeStructYuRefPtr
-  writeStr (funName c)
-  writeParenVars vs
+writeFunDecl :: FF -> R.Const -> [R.Var] -> GenCode ()
+writeFunDecl ff c vs = do
+  writeStructYuRefPtr ff
+  writeStr ff (funName c)
+  writeParenVars ff vs
+
+writeFunImplDecl :: FF -> R.Const -> GenCode ()
+writeFunImplDecl ff c = do
+  writeStructYuRef ff >> writeStr ff " " >> writeStr ff (funImpl c)
 
 writeFunImpl :: R.Const -> GenCode ()
 writeFunImpl c = do
-  writeStructYuRef >> writeStr " " >> writeStr (funImpl c)
-  writeStr (" = {") >> newLine
-  writeStr ("  .count = 0,") >> newLine
-  writeStr ("  .tag = (size_t) &" ++ papClosureName c 0 ++ ",") >> newLine
-  writeStr ("  .vmt_index = yur_Static_vmt,") >> newLine
-  writeStr ("  .nfields = 0") >> newLine
-  writeStr ("};");
+  writeFunImplDecl CFile c
+  writeStr CFile (" = {") >> newLine CFile
+  writeStr CFile ("  .count = 0,") >> newLine CFile
+  writeStr CFile ("  .tag = (size_t) &" ++ papClosureName c 0 ++ ",") >> newLine CFile
+  writeStr CFile ("  .vmt_index = yur_Static_vmt,") >> newLine CFile
+  writeStr CFile ("  .nfields = 0") >> newLine CFile
+  writeStr CFile ("};");
+
+writeLazyFunDecl :: FF -> Bool -> R.Const -> Int -> GenCode ()
+writeLazyFunDecl ff _isStatic c n = do
+  when (n /= 0) (writeStr ff "static ")
+  writeStructYuRef ff >> writeStr ff " " >> writeStr ff (lazyFun c n)
 
 writeLazyFun :: Bool -> R.Const -> Int -> GenCode ()
-writeLazyFun _isStatic c n = do
-  writeStructYuRef >> writeStr " " >> writeStr (lazyFun c n)
-  writeStr (" = {") >> newLine
-  writeStr ("  .count = 0,") >> newLine
-  writeStr ("  .tag = (size_t) &" ++ papClosureName c n ++ ",") >> newLine
-  writeStr ("  .vmt_index = yur_Static_vmt,") >> newLine
-  writeStr ("  .nfields = 0") >> newLine
-  writeStr ("};")
+writeLazyFun isStatic c n = do
+  writeLazyFunDecl CFile isStatic c n
+  writeStr CFile (" = {") >> newLine CFile
+  writeStr CFile ("  .count = 0,") >> newLine CFile
+  writeStr CFile ("  .tag = (size_t) &" ++ papClosureName c n ++ ",") >> newLine CFile
+  writeStr CFile ("  .vmt_index = yur_Static_vmt,") >> newLine CFile
+  writeStr CFile ("  .nfields = 0") >> newLine CFile
+  writeStr CFile ("};")
+
+writeLazyImplDecl :: FF -> R.Const -> GenCode ()
+writeLazyImplDecl ff c = do
+  writeStructYuRef ff >> writeStr ff " " >> writeStr ff (funImpl c)
 
 writeLazyImpl :: R.Const -> GenCode ()
 writeLazyImpl c = do
-  writeStructYuRef >> writeStr " " >> writeStr (funImpl c)
-  writeStr (" = {") >> newLine
-  writeStr ("  .count = 0,") >> newLine
-  writeStr ("  .tag = 0,") >> newLine
-  writeStr ("  .vmt_index = yur_Static_vmt,") >> newLine
-  writeStr ("  .nfields = 1,") >> newLine
-  writeStr ("  .fields[0] = (yur_Ref *) &" ++ lazyFun c 0) >> newLine
-  writeStr ("};")
+  writeLazyImplDecl CFile c
+  writeStr CFile (" = {") >> newLine CFile
+  writeStr CFile ("  .count = 0,") >> newLine CFile
+  writeStr CFile ("  .tag = 0,") >> newLine CFile
+  writeStr CFile ("  .vmt_index = yur_Static_vmt,") >> newLine CFile
+  writeStr CFile ("  .nfields = 1,") >> newLine CFile
+  writeStr CFile ("  .fields[0] = (yur_Ref *) &" ++ lazyFun c 0) >> newLine CFile
+  writeStr CFile ("};")
 
 writeDecl :: R.Const -> R.ConstExpr -> GenCode ()
+writeDecl _ R.Hidden = return ()
 writeDecl c (R.Extern vs) = do
-  writeFunDecl c vs
-  writeStr ";"
-  newLine
-  newLine
+  writeFunDecl HFile c vs
+  writeHStr ";" >> newLine HFile >> newLine HFile
+  writePapFunClosureDecl HFile c Nothing [] 0
+  writeHStr ";" >> newLine HFile >> newLine HFile
   writePapFunClosure c Nothing [] 0
+  writeStr HFile "extern "
+  writeFunImplDecl HFile c
+  writeHStr ";" >> newLine HFile >> newLine HFile
   writeFunImpl c
 writeDecl c (R.Fun vs _) = do
-  writeFunDecl c vs
-  writeStr ";"
-  newLine
-  newLine
+  writeFunDecl HFile c vs
+  writeHStr ";" >> newLine HFile >> newLine HFile
+  writePapFunClosureDecl HFile c Nothing [] 0
+  writeHStr ";" >> newLine HFile >> newLine HFile
   writePapFunClosure c Nothing [] 0
+  writeStr HFile "extern "
+  writeFunImplDecl HFile c
+  writeHStr ";" >> newLine HFile >> newLine HFile
   writeFunImpl c
 writeDecl c (R.Lazy iss vs _) = do
-  writeFunDecl c vs >> writeStr ";"
+  writeFunDecl HFile c vs
+  writeHStr ";" >> newLine HFile >> newLine HFile
   when iss $ do
-    newLine
-    newLine
+    writePapFunClosureDecl HFile c Nothing [] 0
+    writeHStr ";" >> newLine HFile >> newLine HFile
     writePapFunClosure c Nothing [] 0
+    writeStr HFile "extern "
+    writeLazyFunDecl HFile True c 0
+    writeHStr ";" >> newLine HFile >> newLine HFile
     writeLazyFun True c 0
-    newLine
-    newLine
+    newLine CFile >> newLine CFile
+    writeStr HFile "extern "
+    writeLazyImplDecl HFile c
+    writeHStr ";" >> newLine HFile >> newLine HFile
     writeLazyImpl c
 
 writeConst :: R.Const -> R.ConstExpr -> GenCode ()
+writeConst _ R.Hidden = return ()
 writeConst _ (R.Extern _) = return ()
 writeConst c (R.Fun vs e) = writeFun c vs e
 writeConst c (R.Lazy _ vs e) = writeFun c vs e
 
 writeFun :: R.Const -> [R.Var] -> R.FunExpr -> GenCode ()
 writeFun c vs e = do
-  writeFunDecl c vs >> writeStr " {"
-  incIndent >> newLine
+  writeFunDecl CFile c vs >> writeStr CFile " {"
+  incIndent >> newLine CFile
   writeFunExpr e
   decIndent
-  newLine
-  writeStr "}"
+  newLine CFile
+  writeStr CFile "}"
 
 writeRefTag :: R.Ref -> GenCode ()
-writeRefTag (R.VarRef v) = writeVar v >> writeStr "->tag"
-writeRefTag (R.ConstRef r) = writeStr (funImpl r) >> writeStr ".tag"
+writeRefTag (R.VarRef v) = writeVar CFile v >> writeStr CFile "->tag"
+writeRefTag (R.ConstRef r) = writeStr CFile (funImpl r) >> writeStr CFile ".tag"
 
 writeFunExprCases :: [(R.CtorId, R.FunExpr)] -> GenCode ()
 writeFunExprCases [] = error "missing case"
 writeFunExprCases [(_, e)] = do
-  newLine
-  writeStr ("default: {")
-  incIndent >> newLine
+  newLine CFile
+  writeStr CFile ("default: {")
+  incIndent >> newLine CFile
   writeFunExpr e
-  decIndent >> newLine
-  writeStr "}"
+  decIndent >> newLine CFile
+  writeStr CFile "}"
 writeFunExprCases ((i, e) : cs) = do
-  newLine
-  writeStr ("case " ++ show i ++ ": {")
-  incIndent >> newLine
+  newLine CFile
+  writeStr CFile ("case " ++ show i ++ ": {")
+  incIndent >> newLine CFile
   writeFunExpr e
-  decIndent >> newLine
-  writeStr "}"
+  decIndent >> newLine CFile
+  writeStr CFile "}"
   writeFunExprCases cs
 
 writeFunExpr :: R.FunExpr -> GenCode ()
 writeFunExpr (R.Case r []) =
-  writeStr "yur_panic(\"expected case %zu to be unbreachable\", "
-    >> writeRefTag r >> writeStr ");"
+  writeStr CFile "yur_panic(\"expected case %zu to be unbreachable\", "
+    >> writeRefTag r >> writeStr CFile ");"
 writeFunExpr (R.Case r cs) = do
-  writeStr "switch (" >> writeRefTag r >> writeStr ") {"
+  writeStr CFile "switch (" >> writeRefTag r >> writeStr CFile ") {"
   writeFunExprCases cs
-  newLine
-  writeStr "}"
+  newLine CFile
+  writeStr CFile "}"
 writeFunExpr (R.Pforce _ v rs e2) = do
   let rs' = filter (/= R.VarRef v) rs
-  writeVar v >> writeStr "->nfields = "
-    >> writeStr (show (length rs' + 1)) >> writeStr ";" >> newLine
-  setVarFields v 1 rs' >> newLine
+  writeVar CFile v >> writeStr CFile "->nfields = "
+    >> writeStr CFile (show (length rs' + 1)) >> writeStr CFile ";" >> newLine CFile
+  setVarFields v 1 rs' >> newLine CFile
   writeFunExpr e2
 writeFunExpr (R.Let v e1 e2) = do
   case e1 of
     R.Reset _ -> return ()
-    _ -> writeVarDecl v >> writeStr ";" >> newLine
-  writeLetExpr v e1 >> newLine
+    _ -> writeVarDecl CFile v >> writeStr CFile ";" >> newLine CFile
+  writeLetExpr v e1 >> newLine CFile
   writeFunExpr e2
 writeFunExpr (R.Ret r) =
-  writeStr "return " >> writeRef r >> writeStr ";"
+  writeStr CFile "return " >> writeRef CFile r >> writeStr CFile ";"
 writeFunExpr (R.Inc v e) = do
   writeIncRefLn v
   writeFunExpr e
@@ -488,42 +582,42 @@ writeFunExpr (R.Dec v e) = do
   writeDecRefLn v
   writeFunExpr e
 writeFunExpr (R.Unuse v e) = do
-  writeStr "yur_dealloc(" >> writeRef v >> writeStr ");" >> newLine
+  writeStr CFile "yur_dealloc(" >> writeRef CFile v >> writeStr CFile ");" >> newLine CFile
   writeFunExpr e
 
 writeIncRefLn :: R.Ref -> GenCode ()
 writeIncRefLn (R.VarRef v) =
-  writeStr "yur_inc(" >> writeVar v >> writeStr ");" >> newLine
+  writeStr CFile "yur_inc(" >> writeVar CFile v >> writeStr CFile ");" >> newLine CFile
 writeIncRefLn (R.ConstRef _) = return ()
 
 writeDecRefLn :: R.Ref -> GenCode ()
 writeDecRefLn (R.VarRef v) =
-  writeStr "yur_unref(" >> writeVar v >> writeStr ");" >> newLine
+  writeStr CFile "yur_unref(" >> writeVar CFile v >> writeStr CFile ");" >> newLine CFile
 writeDecRefLn (R.ConstRef _) = return ()
 
 writeFunType :: Int -> GenCode ()
 writeFunType args = do
-  writeStructYuRefPtr >> writeStr "(*)("
+  writeStructYuRefPtr CFile >> writeStr CFile "(*)("
   doWrite args
-  writeStr ")"
+  writeStr CFile ")"
   where
     doWrite :: Int -> GenCode ()
     doWrite 0 = return ()
-    doWrite 1 = writeStructYuRefPtr
-    doWrite i = writeStructYuRefPtr >> writeStr ", " >> doWrite (i-1)
+    doWrite 1 = writeStructYuRefPtr CFile
+    doWrite i = writeStructYuRefPtr CFile >> writeStr CFile ", " >> doWrite (i-1)
 
 writeFunCast :: Int -> GenCode ()
 writeFunCast args =
-  writeStr "(" >> writeFunType args >> writeStr ")"
+  writeStr CFile "(" >> writeFunType args >> writeStr CFile ")"
 
 setFields :: String -> Int -> [R.Ref] -> GenCode ()
 setFields _ _ [] = return ()
 setFields prefix i (s:ss) = do
-  writeStr prefix
-  writeStr ("fields[" ++ show i ++ "] = ")
-  writeRef s
-  writeStr ";"
-  when (not (null ss)) newLine
+  writeStr CFile prefix
+  writeStr CFile ("fields[" ++ show i ++ "] = ")
+  writeRef CFile s
+  writeStr CFile ";"
+  when (not (null ss)) (newLine CFile)
   setFields prefix (i+1) ss
 
 setVarFields :: R.Var -> Int -> [R.Ref] -> GenCode ()
@@ -531,130 +625,130 @@ setVarFields v = setFields (varName v ++ "->")
 
 writeLetExpr :: R.Var -> R.LetExpr -> GenCode ()
 writeLetExpr letVar (R.MkLazy True _ _) = do
-  writeVar letVar >> writeStr (" = yur_alloc(1);") >> newLine
-  writeStr "yur_init(" >> writeVar letVar >> writeStr ", 0, 0);"
-  newLine
-  writeVar letVar >> writeStr "->fields[0] = 0;"
+  writeVar CFile letVar >> writeStr CFile (" = yur_alloc(1);") >> newLine CFile
+  writeStr CFile "yur_init(" >> writeVar CFile letVar >> writeStr CFile ", 0, 0);"
+  newLine CFile
+  writeVar CFile letVar >> writeStr CFile "->fields[0] = 0;"
 writeLetExpr letVar (R.MkLazy False _ c) = do
   a <- constArity c
-  writeVar letVar
-  writeStr (" = yur_alloc(" ++ show (a+1) ++ ");") >> newLine
-  writeStr "yur_init(" >> writeVar letVar >> writeStr ", 1, 0);" >> newLine
-  writeVar letVar >> writeStr "->fields[0] = ("
-  writeStructYuRefPtr >> writeStr ") "
-  writeStr (lazyRef c a) >> writeStr ";"
+  writeVar CFile letVar
+  writeStr CFile (" = yur_alloc(" ++ show (a+1) ++ ");") >> newLine CFile
+  writeStr CFile "yur_init(" >> writeVar CFile letVar >> writeStr CFile ", 1, 0);" >> newLine CFile
+  writeVar CFile letVar >> writeStr CFile "->fields[0] = ("
+  writeStructYuRefPtr CFile >> writeStr CFile ") "
+  writeStr CFile (lazyRef c a) >> writeStr CFile ";"
 writeLetExpr letVar (R.Ap _ (R.ConstRef r) rs) = do
-  writeStr (varName letVar) >> writeStr " = ("
-  writeFunCast (length rs) >> writeStr (funName r) >> writeStr ")"
-  writeParenRefs rs
-  writeStr ";"
+  writeStr CFile (varName letVar) >> writeStr CFile " = ("
+  writeFunCast (length rs) >> writeStr CFile (funName r) >> writeStr CFile ")"
+  writeParenRefs CFile rs
+  writeStr CFile ";"
 writeLetExpr letVar (R.Ap _ (R.VarRef r) rs) = do
-  writeStr (varName letVar) >> writeStr " = ("
-  writeFunCast (length rs + 1) >> writeStr " " >> writeRefTag (R.VarRef r)
-  writeStr ")("
-  writeRefs rs
-  when (not (null rs)) (writeStr ", ")
-  writeStr (varName r)
-  writeStr ");"
+  writeStr CFile (varName letVar) >> writeStr CFile " = ("
+  writeFunCast (length rs + 1) >> writeStr CFile " " >> writeRefTag (R.VarRef r)
+  writeStr CFile ")("
+  writeRefs CFile rs
+  when (not (null rs)) (writeStr CFile ", ")
+  writeStr CFile (varName r)
+  writeStr CFile ");"
 writeLetExpr letVar (R.Pap c rs) = do
   let n = length rs
-  writeStr (varName letVar)
-    >> writeStr
+  writeStr CFile (varName letVar)
+    >> writeStr CFile
           (" = yur_build("
                ++ show n ++ ", "
                ++ "(size_t) &" ++ papClosureName c n ++ ");")
-  newLine
+  newLine CFile
   setVarFields letVar 0 rs
 writeLetExpr letVar (R.Force _ (R.ConstRef r) rs) = do
-  writeStr (varName letVar) >> writeStr " = "
-  writeStr "yur_ALOAD("
-    >> writeStr (funImpl r) >> writeStr ".fields[0]);"
-  newLine
-  writeStr "if (yur_ALOAD(" >> writeStr (funImpl r) >> writeStr ".tag)) {"
-  incIndent >> newLine
+  writeStr CFile (varName letVar) >> writeStr CFile " = "
+  writeStr CFile "yur_ALOAD("
+    >> writeStr CFile (funImpl r) >> writeStr CFile ".fields[0]);"
+  newLine CFile
+  writeStr CFile "if (yur_ALOAD(" >> writeStr CFile (funImpl r) >> writeStr CFile ".tag)) {"
+  incIndent >> newLine CFile
   writeDecRefsLn (R.forceProjArgs rs)
-  decIndent >> newLine
-  writeStr "} else {"
-  incIndent >> newLine
-  writeStructYuRefPtr >> writeStr "expect = "
-    >> writeStr (varName letVar) >> writeStr ";" >> newLine
-  writeStr (varName letVar) >> writeStr " = " >> writeStr (funName r)
-    >> writeParenRefs (R.forceProjArgs rs) >> writeStr ";"
-  newLine
-  writeStr "yur_memoize(" >> writeStr (funRef r) >> writeStr ", &"
-    >> writeStr (funImpl r) >> writeStr ".fields[0], &"
-    >> writeStr (varName letVar) >> writeStr ", expect);" >> newLine
-  writeStr "yur_ASTORE(" >> writeStr (funImpl r) >> writeStr ".tag, 1);"
-  decIndent >> newLine
-  writeStr "}" >> newLine
-  writeStr "yur_inc(" >> writeVar letVar >> writeStr ");"
+  decIndent >> newLine CFile
+  writeStr CFile "} else {"
+  incIndent >> newLine CFile
+  writeStructYuRefPtr CFile >> writeStr CFile "expect = "
+    >> writeStr CFile (varName letVar) >> writeStr CFile ";" >> newLine CFile
+  writeStr CFile (varName letVar) >> writeStr CFile " = " >> writeStr CFile (funName r)
+    >> writeParenRefs CFile (R.forceProjArgs rs) >> writeStr CFile ";"
+  newLine CFile
+  writeStr CFile "yur_memoize(" >> writeStr CFile (funRef r) >> writeStr CFile ", &"
+    >> writeStr CFile (funImpl r) >> writeStr CFile ".fields[0], &"
+    >> writeStr CFile (varName letVar) >> writeStr CFile ", expect);" >> newLine CFile
+  writeStr CFile "yur_ASTORE(" >> writeStr CFile (funImpl r) >> writeStr CFile ".tag, 1);"
+  decIndent >> newLine CFile
+  writeStr CFile "}" >> newLine CFile
+  writeStr CFile "yur_inc(" >> writeVar CFile letVar >> writeStr CFile ");"
 writeLetExpr letVar (R.Force _ (R.VarRef r) Nothing) = do
-  writeStr (varName letVar) >> writeStr " = "
-  writeStr "yur_ALOAD("
-    >> writeStr (varName r) >> writeStr "->fields[0]);"
-  writeStr "if (!yur_ALOAD(" >> writeVar r >> writeStr "->tag)) {"
-  incIndent >> newLine
-  writeStructYuRefPtr >> writeStr "expect = "
-    >> writeStr (varName letVar) >> writeStr ";" >> newLine
-  writeStr (varName letVar) >> writeStr " = ("
-  writeFunCast 1 >> writeStr " "
-    >> writeStr (varName letVar) >> writeStr "->tag)("
-    >> writeStr (varName r) >> writeStr ");" >> newLine
-  writeStr "yur_memoize(" >> writeVar r >> writeStr ", &"
-    >> writeStr (varName r) >> writeStr "->fields[0], &"
-    >> writeStr (varName letVar) >> writeStr ", expect);" >> newLine
-  writeStr "yur_ASTORE(" >> writeVar r >> writeStr "->tag, 1);"
-  decIndent >> newLine
-  writeStr "}" >> newLine
-  writeStr "yur_inc(" >> writeVar letVar >> writeStr ");"
+  writeStr CFile (varName letVar) >> writeStr CFile " = "
+  writeStr CFile "yur_ALOAD("
+    >> writeStr CFile (varName r) >> writeStr CFile "->fields[0]);"
+  writeStr CFile "if (!yur_ALOAD(" >> writeVar CFile r >> writeStr CFile "->tag)) {"
+  incIndent >> newLine CFile
+  writeStructYuRefPtr CFile >> writeStr CFile "expect = "
+    >> writeStr CFile (varName letVar) >> writeStr CFile ";" >> newLine CFile
+  writeStr CFile (varName letVar) >> writeStr CFile " = ("
+  writeFunCast 1 >> writeStr CFile " "
+    >> writeStr CFile (varName letVar) >> writeStr CFile "->tag)("
+    >> writeStr CFile (varName r) >> writeStr CFile ");" >> newLine CFile
+  writeStr CFile "yur_memoize(" >> writeVar CFile r >> writeStr CFile ", &"
+    >> writeStr CFile (varName r) >> writeStr CFile "->fields[0], &"
+    >> writeStr CFile (varName letVar) >> writeStr CFile ", expect);" >> newLine CFile
+  writeStr CFile "yur_ASTORE(" >> writeVar CFile r >> writeStr CFile "->tag, 1);"
+  decIndent >> newLine CFile
+  writeStr CFile "}" >> newLine CFile
+  writeStr CFile "yur_inc(" >> writeVar CFile letVar >> writeStr CFile ");"
 writeLetExpr letVar (R.Force _ (R.VarRef r) (Just (c, rs))) = do
-  writeStr (varName letVar) >> writeStr " = "
-  writeStr "yur_ALOAD("
-    >> writeStr (varName r) >> writeStr "->fields[0]);"
-  newLine
-  writeStr "if (yur_ALOAD(" >> writeVar r >> writeStr "->tag)) {"
-  incIndent >> newLine
+  writeStr CFile (varName letVar) >> writeStr CFile " = "
+  writeStr CFile "yur_ALOAD("
+    >> writeStr CFile (varName r) >> writeStr CFile "->fields[0]);"
+  newLine CFile
+  writeStr CFile "if (yur_ALOAD(" >> writeVar CFile r >> writeStr CFile "->tag)) {"
+  incIndent >> newLine CFile
   writeDecRefsLn rs
-  decIndent >> newLine
-  writeStr "} else {"
-  incIndent >> newLine
-  writeStructYuRefPtr >> writeStr "expect = "
-    >> writeStr (varName letVar) >> writeStr ";" >> newLine
-  writeStr (varName letVar) >> writeStr " = "
-  writeStr (funName c)
-    >> writeStr "(" >> writeRefs rs >> writeStr ");" >> newLine
-  writeStr "yur_ASTORE(" >> writeVar r >> writeStr "->nfields, 1);" >> newLine
-  writeStr "yur_memoize(" >> writeVar r >> writeStr ", &"
-    >> writeStr (varName r) >> writeStr "->fields[0], &"
-    >> writeStr (varName letVar) >> writeStr ", expect);" >> newLine
-  writeStr "yur_ASTORE(" >> writeVar r >> writeStr "->tag, 1);"
-  decIndent >> newLine
-  writeStr "}" >> newLine
-  writeStr "yur_inc(" >> writeVar letVar >> writeStr ");"
+  decIndent >> newLine CFile
+  writeStr CFile "} else {"
+  incIndent >> newLine CFile
+  writeStructYuRefPtr CFile >> writeStr CFile "expect = "
+    >> writeStr CFile (varName letVar) >> writeStr CFile ";" >> newLine CFile
+  writeStr CFile (varName letVar) >> writeStr CFile " = "
+  writeStr CFile (funName c)
+    >> writeStr CFile "(" >> writeRefs CFile rs >> writeStr CFile ");" >> newLine CFile
+  writeStr CFile "yur_ASTORE(" >> writeVar CFile r >> writeStr CFile "->nfields, 1);" >> newLine CFile
+  writeStr CFile "yur_memoize(" >> writeVar CFile r >> writeStr CFile ", &"
+    >> writeStr CFile (varName r) >> writeStr CFile "->fields[0], &"
+    >> writeStr CFile (varName letVar) >> writeStr CFile ", expect);" >> newLine CFile
+  writeStr CFile "yur_ASTORE(" >> writeVar CFile r >> writeStr CFile "->tag, 1);"
+  decIndent >> newLine CFile
+  writeStr CFile "}" >> newLine CFile
+  writeStr CFile "yur_inc(" >> writeVar CFile letVar >> writeStr CFile ");"
 writeLetExpr letVar (R.CtorBox c []) = do
-  writeStr (varName letVar)
-  writeStr " = "
-  writeStr (trivialCtorRef c)
-  writeStr ";"
+  writeStr CFile (varName letVar)
+  writeStr CFile " = "
+  writeStr CFile (trivialCtorRef c)
+  writeStr CFile ";"
 writeLetExpr letVar (R.CtorBox c rs@(_:_)) = do
   let n = length rs
-  writeStr (varName letVar)
-  writeStr (" = yur_build(" ++ show n ++ ", " ++ show (R.prCtor c) ++ ");")
-  newLine
+  writeStr CFile (varName letVar)
+  writeStr CFile (" = yur_build(" ++ show n ++ ", " ++ show (R.prCtor c) ++ ");")
+  newLine CFile
   setVarFields letVar 0 rs
 writeLetExpr letVar (R.Proj i r) = do
-  writeStr (varName letVar)
-  writeStr " = ("
-  writeRef r
-  writeStr (")->fields[" ++ show i ++ "];")
+  writeStr CFile (varName letVar)
+  writeStr CFile " = ("
+  writeRef CFile r
+  writeStr CFile (")->fields[" ++ show i ++ "];")
 writeLetExpr letVar (R.Reset n) = do
-  writeVar letVar
-  writeStr " = "
-  writeStr "yur_reset(" >> writeVar letVar
-    >> writeStr ", " >> writeStr (show n) >> writeStr ");"
+  writeVar CFile letVar
+  writeStr CFile " = "
+  writeStr CFile "yur_reset(" >> writeVar CFile letVar
+    >> writeStr CFile ", " >> writeStr CFile (show n) >> writeStr CFile ");"
 writeLetExpr letVar (R.Reuse v c rs) = do
-  writeStr (varName letVar) >> writeStr " = "
-    >> writeVar v >> writeStr ";" >> newLine
-  writeStr (varName letVar) >> writeStr "->tag = "
-    >> writeStr (show (R.prCtor c)) >> writeStr ";" >> newLine
+  writeStr CFile (varName letVar) >> writeStr CFile " = "
+    >> writeVar CFile v >> writeStr CFile ";" >> newLine CFile
+  writeStr CFile (varName letVar) >> writeStr CFile "->tag = "
+    >> writeStr CFile (show (R.prCtor c)) >> writeStr CFile ";" >> newLine CFile
   setVarFields letVar 0 rs

@@ -8,7 +8,6 @@ module Main (main) where
 import PackageMap (PackageMap)
 import System.Console.ArgParser.Params as ArPa
 import System.Console.ArgParser as Ar
-import qualified TypeCheck.Term as Te
 import TypeCheck.TypeCheck
 import qualified Ir.BaseIr as Ba
 import qualified Ir.HighLevelIr as Hl
@@ -23,16 +22,20 @@ import System.FilePath (takeDirectory, takeFileName)
 import Str (stdRuntimePath)
 import System.Environment (getArgs, getExecutablePath)
 import qualified Data.Map as Map
+import Data.IORef
 
-runIr ::
-  ProgramOptions -> [Te.RefVar] -> Te.DataCtorMap -> Te.ImplicitMap -> Te.RefMap -> IO ()
-runIr opts vs dm im rm = do
-  let (hap, har) = Hl.highLevelIr (optionOptimize opts) vs dm im rm
+collectIr :: IORef [FilePath] -> TypeCheckContCollect
+collectIr objectFilesRef outputBaseName = do
+  let ofile = outputBaseName ++ ".o"
+  modifyIORef objectFilesRef (ofile :)
+
+runIr :: IORef [FilePath] -> ProgramOptions -> TypeCheckContCompile
+runIr objectFilesRef opts outputBaseName importBaseNames moduleName vs dm im rm = do
+  let (hap, har) = Hl.highLevelIr (optionOptimize opts) moduleName vs dm im rm
   when (optionPrintHighLevelIR opts) $ do
     putStrLn "\n## High level intermediate representation\n"
     putStrLn (Hl.irToString hap har)
-  let needsMain = optionCompile opts || optionAssembly opts
-  let bap = Ba.baseIr (optionOptimize opts) needsMain hap har
+  let bap = Ba.baseIr (optionOptimize opts) hap har
   when (optionPrintBaseIR opts) $ do
     putStrLn "\n## Base intermediate representation\n"
     putStrLn (Ba.irToString bap)
@@ -40,9 +43,11 @@ runIr opts vs dm im rm = do
   when (optionPrintRefCountIR opts) $ do
     putStrLn "\n## Reference counted intermediate representation\n"
     putStrLn (Rc.irToString rcp)
-  let cfile = argumentFileName opts ++ ".c"
+  let cfile = outputBaseName ++ ".c"
+  let hfile = outputBaseName ++ ".h"
+  let himports = map (++ ".h") importBaseNames
   when (optionAssembly opts || optionCompile opts) $ do
-    Cg.genCode rcp cfile
+    Cg.genCode rcp cfile hfile himports
   let root = projectRootPath opts
   let runtimePath = root ++ "/" ++ stdRuntimePath
   let mimallocLib = root ++ "/mimalloc/out/libmimalloc.a"
@@ -50,11 +55,12 @@ runIr opts vs dm im rm = do
             then "gcc"
             else root ++ "/gcc/yu-stack-install/bin/gcc"
   when (optionAssembly opts) $ do
-    let outfile = argumentFileName opts ++ ".s"
+    let outfile = outputBaseName ++ ".s"
+    putStrLn $ "assemble " ++ outfile
     let cargs = if optionOptimize opts
                 then ["-std=gnu11",
                        "-Wall",
-                       "-static",
+                       "-pthread",
                        "-S",
                        "-O3",
                        "-DNDEBUG",
@@ -64,7 +70,7 @@ runIr opts vs dm im rm = do
                        cfile]
                 else ["-std=gnu11",
                        "-Wall",
-                       "-static",
+                       "-pthread",
                        "-S",
                        "-g",
                        "-momit-leaf-frame-pointer",
@@ -82,38 +88,44 @@ runIr opts vs dm im rm = do
     let runtime = if optionNoSplitStack opts
                   then runtimePath ++ "/out/system-stack/libyur.a"
                   else runtimePath ++ "/out/split-stack/libyur.a"
-    let outfile = argumentFileName opts ++ ".exe"
+    let link = moduleName == ""
+    let outfile = if link
+                  then outputBaseName ++ ".exe"
+                  else outputBaseName ++ ".o"
+    objectFiles <- readIORef objectFilesRef
+    if link
+    then do
+      putStrLn $ "compile and link " ++ outfile
+    else do
+      writeIORef objectFilesRef (outfile : objectFiles)
+      putStrLn $ "compile " ++ outfile
+    let compileArg = if link then [] else ["-c"]
     let cargs = if optionOptimize opts
                 then ["-std=gnu11",
                        "-Wall",
-                       "-static",
+                       "-pthread",
                        "-DNDEBUG",
                        "-O3",
-                       "-flto",
                        "-mtune=native",
                        "-momit-leaf-frame-pointer",
                        "-I", runtimePath,
                        "-o", outfile,
-                       cfile,
-                       "-Wl,--whole-archive",
-                       runtime,
-                       "-Wl,--no-whole-archive",
-                       mimallocLib,
-                       "-Wl,--whole-archive",
-                       "-lpthread",
-                       "-Wl,--no-whole-archive",
-                       "-latomic"]
+                       cfile]
                 else ["-std=gnu11",
                        "-Wall",
-                       "-static",
+                       "-pthread",
                        "-g",
                        "-momit-leaf-frame-pointer",
                        "-I", runtimePath,
                        "-o", outfile,
-                       cfile,
-                       "-Wl,--whole-archive",
+                       cfile]
+    let linkArgs = if not link
+                   then []
+                   else
+                     objectFiles ++
+                      (if optionOptimize opts then ["-Wl,-s"] else []) ++
+                      ["-static",
                        runtime,
-                       "-Wl,--no-whole-archive",
                        mimallocLib,
                        "-Wl,--whole-archive",
                        "-lpthread",
@@ -122,7 +134,11 @@ runIr opts vs dm im rm = do
     let splitArgs = if optionNoSplitStack opts
                     then ["-Dyur_DISABLE_SPLIT_STACK"]
                     else ["-fyu-stack", "-fno-omit-frame-pointer"]
-    let allArgs = splitArgs ++ cargs ++ argumentGccOptions opts
+    let allArgs = compileArg
+                  ++ splitArgs
+                  ++ cargs
+                  ++ linkArgs
+                  ++ argumentGccOptions opts
     when (optionVerboseOutput opts) $
       putStrLn (gcc ++ concat (map (" "++) allArgs))
     command_ [] gcc allArgs
@@ -146,12 +162,11 @@ run opts = do
   let params = TypeCheckParams
                 { tcParamVerbose = optionVerboseOutput opts
                 , tcParamCompile = optionCompile opts || optionAssembly opts
-                , tcParamReset = optionReset opts
+                , tcParamClean = optionClean opts
                 }
-  tc <- runTT params
-              packs
-              (argumentFileName opts)
-              (runIr opts)
+  objectFilesRef <- newIORef []
+  tc <- runTT params packs (argumentFileName opts)
+          (runIr objectFilesRef opts, collectIr objectFilesRef)
   case tc of
     Just msg -> hPutStrLn stderr msg >> Exit.exitWith (Exit.ExitFailure 1)
     Nothing -> return ()
@@ -159,7 +174,7 @@ run opts = do
 data ProgramOptions = ProgramOptions
   { optionPackages :: [String]
   , optionCompile :: Bool
-  , optionReset :: Bool
+  , optionClean :: Bool
   , optionAssembly :: Bool
   , optionOptimize :: Bool
   , optionNoSplitStack :: Bool
@@ -199,7 +214,7 @@ makeProgramOptions
   = ProgramOptions
     { optionPackages = optPackages
     , optionCompile = optCompile
-    , optionReset = optClean
+    , optionClean = optClean
     , optionAssembly = optAssembly
     , optionOptimize = optOptimize
     , optionNoSplitStack = NO_SPLIT_STACK || optNoSplitStack
@@ -222,7 +237,7 @@ cmdParser = makeProgramOptions
     `Ar.Descr` "paths to include packages"
   `Ar.andBy` ArPa.FlagParam ArPa.Short "compile" id
     `Ar.Descr` "compile the source code"
-  `Ar.andBy` ArPa.FlagParam ArPa.Long "reset" id
+  `Ar.andBy` ArPa.FlagParam ArPa.Long "clean" id
     `Ar.Descr` "force compiler to re-type-check and re-compile everything"
   `Ar.andBy` ArPa.FlagParam ArPa.Short "assembly" id
     `Ar.Descr` "output compiler generated assembly"

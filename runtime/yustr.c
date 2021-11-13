@@ -1219,7 +1219,7 @@ yur_Ref *yu__docmp_doyu_slChar_slChar_nuChar_doyu_slChar_slType(yur_Ref *c, yur_
   return yur_build(0, t);
 }
 
-yur_Ref *yu_cmpIsTransitive_doyu_slChar_slChar(yur_Ref *r2, yur_Ref *r1,
+yur_Ref *yu_cmpIsTransitive_qu_doyu_slChar_slChar(yur_Ref *r2, yur_Ref *r1,
     yur_Ref *z, yur_Ref *y, yur_Ref *x) {
   yur_unref(x);
   yur_unref(y);

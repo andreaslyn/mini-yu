@@ -3,7 +3,6 @@ module Str
   , stdImportPath
   , stdRuntimePath
   , outputFolderName
-  , outputCheckedExtension
   , isKeyword
   , isStrictKeyword
   , isPunctuation
@@ -62,9 +61,6 @@ stdRuntimePath = "runtime"
 
 outputFolderName :: FilePath
 outputFolderName = ".yupackage"
-
-outputCheckedExtension :: FilePath
-outputCheckedExtension = ".check"
 
 isKeyword :: String -> Bool
 isKeyword s

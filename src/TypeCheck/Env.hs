@@ -10,6 +10,8 @@ module TypeCheck.Env
   , ScopeMap
   , GlobalMap
   , forceInsertGlobal
+  , includeImportBasePath
+  , getImportBasePaths
   , getRefMap
   , getImplicitMap
   , getDataCtorMap
@@ -65,6 +67,8 @@ where
 import TypeCheck.Term
 import TypeCheck.HackGlobalVarId
 import Data.Maybe (isNothing, isJust)
+import Data.Set (Set)
+import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -124,13 +128,14 @@ data Env = Env ScopeId ScopeMap (Maybe Env) deriving Show
 
 -- Module name -> (module's expand map, root environment of module)
 type ModuleStateMap =
-  Map.Map VarName (ModuleExpandMap, Env)
+  Map.Map VarName (Set FilePath, ModuleExpandMap, Env)
 
 type ImplicitVarMap = IntMap.IntMap (PreTerm, [ScopeId])
 
 data EnvSt = EnvSt
   { env :: Env
   , globalEnv :: GlobalMap
+  , importBasePaths :: Set FilePath
   , moduleExpandMap :: ModuleExpandMap
   , moduleStateMap :: ModuleStateMap
   , nextLocalVarName :: VarId
@@ -167,6 +172,7 @@ emptyCtxSt =
   EnvSt
     { env = Env 0 Map.empty Nothing
     , globalEnv = Map.empty
+    , importBasePaths = Set.empty
     , moduleExpandMap = Map.empty
     , moduleStateMap = Map.empty
     , nextLocalVarName = 0
@@ -192,6 +198,14 @@ getCurrentScopeId = fmap currentScopeId get
 
 incCurrentScopeId :: Monad m => EnvT m ()
 incCurrentScopeId = modify (\s -> s{currentScopeId = currentScopeId s + 1})
+
+includeImportBasePath :: Monad m => FilePath -> EnvT m ()
+includeImportBasePath p =
+  modify (\s -> s{importBasePaths = Set.insert p (importBasePaths s)})
+
+{-# INLINE getImportBasePaths #-}
+getImportBasePaths :: Monad m => EnvT m (Set FilePath)
+getImportBasePaths = fmap importBasePaths get
 
 {-# INLINE getRefMap #-}
 getRefMap :: Monad m => EnvT m RefMap
@@ -301,14 +315,14 @@ modifyModuleStateMap f =
   modify (\s -> s{moduleStateMap = f (moduleStateMap s)})
 
 lookupOrCreateModuleStateMap :: Monad m =>
-  VarName -> EnvT m (ModuleExpandMap, Env)
+  VarName -> EnvT m (Set FilePath, ModuleExpandMap, Env)
 lookupOrCreateModuleStateMap modName = do
   m <- getModuleStateMap
   case Map.lookup modName m of
     Nothing -> do
       incCurrentScopeId
       nid <- getCurrentScopeId
-      let p = (Map.empty, Env nid Map.empty Nothing)
+      let p = (Set.empty, Map.empty, Env nid Map.empty Nothing)
       modifyModuleStateMap (Map.insert modName p)
       return p
     Just p -> return p
@@ -330,15 +344,18 @@ tryInsertModuleExpand alias mo = do
 localEnvNewModule :: Monad m => VarName -> EnvT m a -> EnvT m a
 localEnvNewModule newModName c = do
   s <- get
-  (ex, en) <- lookupOrCreateModuleStateMap newModName
+  (fs, ex, en) <- lookupOrCreateModuleStateMap newModName
   msm <- getModuleStateMap
   (x, s') <- lift (runStateT c
                     (s { moduleStateMap = msm
+                       , importBasePaths = fs
                        , moduleExpandMap = ex
                        , env = en }))
   let msm' = moduleStateMap s'
   put (s' { moduleStateMap =
-              Map.insert newModName (moduleExpandMap s', env s') msm'
+              Map.insert newModName
+                (importBasePaths s', moduleExpandMap s', env s') msm'
+          , importBasePaths = importBasePaths s
           , moduleExpandMap = moduleExpandMap s
           , env = env s })
   return x

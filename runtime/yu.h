@@ -51,6 +51,19 @@ extern yur_Ref yur_printref;
 
 extern yur_Ref yur_unit;
 
+yur_ALWAYS_INLINE static yur_Ref *yu__un() {
+  return &yur_unit;
+}
+
+yur_ALWAYS_INLINE static yur_Ref *yu__pa_un0(yur_Ref *self) {
+  // No need to unref self (which is unit), since it is static.
+  return &yur_unit;
+}
+
+extern yur_Ref yu__im_pa_un0;
+
+extern yur_Ref yu__im_un;
+
 yur_SYSTEM_SWITCH_DECL(, yur_Ref *, yur_malloc, (size_t nbytes));
 
 yur_SYSTEM_SWITCH_DECL(, yur_Ref *, yur_alloc, (size_t nfields));

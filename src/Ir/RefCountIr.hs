@@ -149,6 +149,7 @@ data ConstExpr =
     Fun [Var] FunExpr
   | Lazy Bool [Var] FunExpr -- Bool is whether Lasy is static, not effect.
   | Extern [Var]
+  | Hidden
 
 type Program = IntMap (Const, ConstExpr)
 
@@ -183,6 +184,7 @@ runRefCountIr ((c, e) : es) = do
   runRefCountIr es
 
 irConstExpr :: B.ConstExpr -> StM ConstExpr
+irConstExpr B.Hidden = return Hidden
 irConstExpr (B.Extern a) = return (Extern a)
 irConstExpr (B.Fun vs e) = return (Fun vs (irFunExpr vs e))
 irConstExpr (B.Lazy iss vs e) = return (Lazy iss vs (irFunExpr vs e))
@@ -619,6 +621,9 @@ constExprToString :: Const -> ConstExpr -> String
 constExprToString c e = execWriter (runStateT (writeConst c e) 0)
 
 writeConst :: Const -> ConstExpr -> ToString ()
+writeConst c Hidden = do
+  writeStr "hidden "
+  writeStr (nameConst c)
 writeConst c (Extern vs) = do
   writeStr "extern "
   writeStr (nameConst c)
@@ -669,7 +674,7 @@ writeFunExpr b (Case v cs) = do
     writeCases [] = return ()
     writeCases ((i, w) : ws) = do
       newLine
-      writeStr "let "
+      writeStr "of "
       writeStr (show i)
       writeStr " => "
       writeFunExpr True w

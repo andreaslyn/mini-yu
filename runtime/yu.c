@@ -155,6 +155,21 @@ yur_Ref yur_unit = {
   .nfields = 0
 };
 
+yur_Ref yu__im_pa_un0 = {
+  .count = 0,
+  .tag = (size_t) &yu__pa_un0,
+  .vmt_index = yur_Static_vmt,
+  .nfields = 0
+};
+
+yur_Ref yu__im_un = {
+  .count = 0,
+  .tag = 0,
+  .vmt_index = yur_Static_vmt,
+  .nfields = 1,
+  .fields[0] = (yur_Ref *) &yu__im_pa_un0
+};
+
 yur_SYSTEM_SWITCH_DEF(,
     yur_NORETURN void, yur_panic, (const char *fmt, ...)) {
   va_list ap;
@@ -270,7 +285,7 @@ yur_Ref *yu_undefinedAxiom_doyu_slundefined_slundefined(yur_Ref *x) {
 }
 
 
-yur_Ref *yu_funextAxiom_doyu_sl_basic_slEqual(yur_Ref *B, yur_Ref *A,
+yur_Ref *yu_funextAxiom_doyu_slbasic_slEqual(yur_Ref *B, yur_Ref *A,
     yur_Ref *r, yur_Ref *g, yur_Ref *f) {
   yur_unref(B);
   yur_unref(A);

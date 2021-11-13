@@ -2,6 +2,9 @@
 
 module TypeCheck.TypeCheck
   ( TypeCheckParams (..)
+  , TypeCheckCont
+  , TypeCheckContCompile
+  , TypeCheckContCollect
   , runTT
   ) where
 
@@ -32,7 +35,6 @@ import TypeCheck.SubstMap
 import Data.List (find, sortOn, sortBy, partition, isPrefixOf, intercalate)
 import Data.Foldable (foldlM, foldrM)
 import qualified System.Directory as Sys
-import qualified System.IO as Sys
 import Control.Exception (assert)
 import TypeCheck.TypeCheckIO
 import TypeCheck.PatternUnify
@@ -50,9 +52,26 @@ _useTrace = trace
 _useIntercalate :: [a] -> [[a]] -> [a]
 _useIntercalate = intercalate
 
+type TypeCheckContCompile =
+  FilePath -> -- Output base file path of file to compile
+  [FilePath] -> -- Output base file path of imported modules
+  VarName -> -- Current module name
+  [RefVar] ->
+  DataCtorMap ->
+  ImplicitMap ->
+  RefMap ->
+  IO ()
+
+type TypeCheckContCollect = 
+  FilePath ->  -- Output base file path of file to compile
+  IO ()
+
+type TypeCheckCont =
+  (TypeCheckContCompile, TypeCheckContCollect)
+
 runTypeCheckT ::
   TypeCheckParams -> PackageMap -> FilePath -> String -> Program ->
-  ([RefVar] -> DataCtorMap -> ImplicitMap -> RefMap -> IO ()) ->
+  TypeCheckCont ->
   IO (Maybe String)
 runTypeCheckT params packagePaths file moduleName prog contin = do
   r <- runExceptT
@@ -61,7 +80,7 @@ runTypeCheckT params packagePaths file moduleName prog contin = do
             (Env.runEnvT
               (tcInitProgram packagePaths prog contin))
               (Map.singleton file (Nothing, Map.empty)))
-          (params, file, moduleName, ""))
+          (params, file, moduleName, file))
   case r of
     Left e -> return (Just (typeCheckErrMsg e))
     Right () -> return Nothing
@@ -91,8 +110,7 @@ getImportFilePathCreateOutputBaseName packagePaths p =
           return $ Right (file, outbase')
 
 runTT ::
-  TypeCheckParams -> PackageMap -> FilePath ->
-  ([RefVar] -> DataCtorMap -> ImplicitMap -> RefMap -> IO ()) ->
+  TypeCheckParams -> PackageMap -> FilePath -> TypeCheckCont ->
   IO (Maybe String)
 runTT params packagePaths file contin = do
   isf <- liftIO (Sys.doesFileExist file)
@@ -309,60 +327,54 @@ checkMainExists = do
           ++ " is defined by let () => ...")
 
 tcInitProgram ::
-  PackageMap -> Program ->
-  ([RefVar] -> DataCtorMap -> ImplicitMap -> RefMap -> IO ()) ->
-  TypeCheckIO ()
+  PackageMap -> Program -> TypeCheckCont -> TypeCheckIO ()
 tcInitProgram packagePaths prog contin = do
-  _ <- tcImports packagePaths (fst prog)
+  _ <- tcImports packagePaths (fst prog) contin
   tcProgramStrict prog contin
 
-tcProgramTryLazy :: PackageMap -> Program -> TypeCheckIO UTCTime
-tcProgramTryLazy packagePaths prog = do
-  t1 <- tcImports packagePaths (fst prog)
+tcProgramTryLazy :: PackageMap -> Program -> TypeCheckCont -> TypeCheckIO UTCTime
+tcProgramTryLazy packagePaths prog contin = do
+  t1 <- tcImports packagePaths (fst prog) contin
   yuPath <- currentFilePath
   t2 <- liftIO $ Sys.getModificationTime yuPath
   let time = max t1 t2
   strict <- needsCheck time
   if strict
   then do
-    tcProgramStrict prog (\_ _ _ _ -> return ())
-    makeCheckedFile
+    tcProgramStrict prog contin
   else do
-    tcProgramLazy prog
+    tcProgramLazy prog contin
   return time
   where
-    makeCheckedFile :: TypeCheckIO ()
-    makeCheckedFile = do
-      checkPath <- currentOutputCheckedName
-      liftIO $ Sys.writeFile checkPath ""
-
     needsCheck :: UTCTime -> TypeCheckIO Bool
     needsCheck time = do
-      rebuild <- isResetOn
+      rebuild <- isCleanOn
       if rebuild
       then return True
       else do
-        checkPath <- currentOutputCheckedName
-        exists <- liftIO $ Sys.doesFileExist checkPath
+        objPath <- currentOutputObjectFileName
+        exists <- liftIO $ Sys.doesFileExist objPath
         if not exists
         then return True
-        else needsCheckModificationTimes time checkPath
+        else needsCheckModificationTimes time objPath
 
     needsCheckModificationTimes :: UTCTime -> FilePath -> TypeCheckIO Bool
-    needsCheckModificationTimes time checkPath = do
-      checkTime <- liftIO $ Sys.getModificationTime checkPath
+    needsCheckModificationTimes time objPath = do
+      checkTime <- liftIO $ Sys.getModificationTime objPath
       if checkTime < time
       then return True
       else return False
 
-tcProgramLazy :: Program -> TypeCheckIO ()
-tcProgramLazy prog = do
+tcProgramLazy :: Program -> TypeCheckCont -> TypeCheckIO ()
+tcProgramLazy prog contin = do
   let (dataDefs, otherDefs) = partition defIsData (snd prog)
   insertUnknownDataDefs Set.empty IntMap.empty dataDefs
   mapM_ (insertUnknownCtors IntMap.empty) dataDefs
   mapM_ (insertUnknownRef IntMap.empty False) otherDefs
   _ <- mapM (tcDef IntMap.empty True) dataDefs
   Env.clearImplicitVarMap
+  outBase <- currentOutputFileBaseName
+  liftIO (snd contin outBase)
 
 checkPositivity :: RefVar -> TypeCheckIO ()
 checkPositivity (RefData dv) = do
@@ -378,9 +390,7 @@ checkPositivity (RefData dv) = do
 checkPositivity _ = return ()
 
 tcProgramStrict ::
-  Program ->
-  ([RefVar] -> DataCtorMap -> ImplicitMap -> RefMap -> IO ()) ->
-  TypeCheckIO ()
+  Program -> TypeCheckCont -> TypeCheckIO ()
 tcProgramStrict prog contin = do
   verbose <- isVerboseOn
   when verbose $ do
@@ -401,7 +411,9 @@ tcProgramStrict prog contin = do
   ccm <- Env.getDataCtorMap
   cim <- Env.getImplicitMap
   crm <- Env.getRefMap
-  liftIO (contin rs ccm cim crm)
+  outBase <- currentOutputFileBaseName
+  importBases <- Env.getImportBasePaths
+  liftIO (fst contin outBase (Set.toList importBases) modName rs ccm cim crm)
 
 insertAllImportExport ::
   Loc -> Bool -> [(VarName, (VarStatus, Bool))] -> TypeCheckIO ()
@@ -511,9 +523,9 @@ insertImportExport vis ina em (ii@(lo, na0, b) : imex) = do
       err lo (Fatal $ "name " ++ quote na
                       ++ " is not exported by module " ++ quote ina)
 
-tcImports :: PackageMap -> [ModuleIntro] -> TypeCheckIO UTCTime
-tcImports _ [] = return (UTCTime (ModifiedJulianDay 0) 0)
-tcImports packagePaths ((malias, (lo, ina), imex) : imps) = do
+tcImports :: PackageMap -> [ModuleIntro] -> TypeCheckCont -> TypeCheckIO UTCTime
+tcImports _ [] _ = return (UTCTime (ModifiedJulianDay 0) 0)
+tcImports packagePaths ((malias, (lo, ina), imex) : imps) contin = do
   case malias of
     Nothing -> return ()
     Just (alo, alias) -> do
@@ -525,6 +537,7 @@ tcImports packagePaths ((malias, (lo, ina), imex) : imps) = do
   case inaPath0 of
     Left e0 -> err lo (Fatal e0)
     Right (inaPath, inaOutBase) -> do
+      Env.includeImportBasePath inaOutBase
       isf <- liftIO (Sys.doesFileExist inaPath)
       when (not isf)
         (err lo (Fatal $ "unable to find import file \"" ++ inaPath ++ "\""))
@@ -536,7 +549,7 @@ tcImports packagePaths ((malias, (lo, ina), imex) : imps) = do
         Just (Nothing, _) -> err lo (Fatal "cyclic import")
         Just (Just time1, em) -> do
           insertImportExport Set.empty ina em imex
-          time2 <- tcImports packagePaths imps
+          time2 <- tcImports packagePaths imps contin
           return (max time1 time2)
         Nothing -> do
           doTcImport is inaPath inaOutBase
@@ -554,14 +567,14 @@ tcImports packagePaths ((malias, (lo, ina), imex) : imps) = do
         Right prog' -> do
           (em, t1) <- local (const (params, inaPath, ina, inaOutBase)) $
                         Env.localEnvNewModule ina $ do
-                          time <- tcProgramTryLazy packagePaths prog'
+                          time <- tcProgramTryLazy packagePaths prog' contin
                           Env.addToGlobals ina
                           e <- Env.getScopeMap
                           return (e, time)
           is' <- lift get
           lift (put (Map.insert inaPath (Just t1, em) is'))
           insertImportExport Set.empty ina em imex
-          t2 <- tcImports packagePaths imps
+          t2 <- tcImports packagePaths imps contin
           return (max t1 t2)
 
 tcProgram :: [Def] -> TypeCheckIO ()

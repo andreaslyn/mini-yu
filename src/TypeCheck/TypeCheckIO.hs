@@ -4,12 +4,12 @@ module TypeCheck.TypeCheckIO
   , TypeCheckErr (..)
   , isVerboseOn
   , isCompileOn
-  , isResetOn
+  , isCleanOn
   , typeCheckParams
   , currentFilePath
   , currentModuleName
   , currentOutputFileBaseName
-  , currentOutputCheckedName
+  , currentOutputObjectFileName
   , typeCheckErrMsg
   , err
   , lookupEnv
@@ -26,7 +26,6 @@ module TypeCheck.TypeCheckIO
   ) where
 
 import Loc (Loc)
-import qualified Str
 import qualified TypeCheck.Env as Env
 import TypeCheck.Term
 import Control.Monad.State
@@ -36,14 +35,13 @@ import Data.Map (Map)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
-import Control.Exception (assert)
 import Data.Time.Clock (UTCTime)
 
 data TypeCheckParams =
   TypeCheckParams
     { tcParamVerbose :: Bool
     , tcParamCompile :: Bool
-    , tcParamReset :: Bool
+    , tcParamClean :: Bool
     }
 
 data TypeCheckErr =
@@ -71,11 +69,11 @@ isCompileOn = do
   (params, _, _, _) <- ask
   return (tcParamCompile params)
 
-{-# INLINE isResetOn #-}
-isResetOn :: TypeCheckIO Bool
-isResetOn = do
+{-# INLINE isCleanOn #-}
+isCleanOn :: TypeCheckIO Bool
+isCleanOn = do
   (params, _, _, _) <- ask
-  return (tcParamReset params)
+  return (tcParamClean params)
 
 {-# INLINE typeCheckParams #-}
 typeCheckParams :: TypeCheckIO TypeCheckParams
@@ -99,12 +97,12 @@ currentModuleName = do
 currentOutputFileBaseName :: TypeCheckIO FilePath
 currentOutputFileBaseName = do
   (_, _, _, outputBase) <- ask
-  return $ assert (not $ null outputBase) outputBase
+  return outputBase
 
-currentOutputCheckedName :: TypeCheckIO FilePath
-currentOutputCheckedName = do
+currentOutputObjectFileName :: TypeCheckIO FilePath
+currentOutputObjectFileName = do
   base <- currentOutputFileBaseName
-  return (base ++ Str.outputCheckedExtension)
+  return (base ++ ".o")
 
 err :: Loc -> TypeCheckErr -> TypeCheckIO a
 err lo msg = do
