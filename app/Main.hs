@@ -30,118 +30,149 @@ collectIr objectFilesRef outputBaseName = do
   modifyIORef objectFilesRef (ofile :)
 
 runIr :: IORef [FilePath] -> ProgramOptions -> TypeCheckContCompile
-runIr objectFilesRef opts outputBaseName importBaseNames moduleName vs dm im rm = do
-  let (hap, har) = Hl.highLevelIr (optionOptimize opts) moduleName vs dm im rm
-  when (optionPrintHighLevelIR opts) $ do
-    putStrLn "\n## High level intermediate representation\n"
-    putStrLn (Hl.irToString hap har)
-  let bap = Ba.baseIr (optionOptimize opts) hap har
-  when (optionPrintBaseIR opts) $ do
-    putStrLn "\n## Base intermediate representation\n"
-    putStrLn (Ba.irToString bap)
-  let rcp = Rc.refCountIr bap
-  when (optionPrintRefCountIR opts) $ do
-    putStrLn "\n## Reference counted intermediate representation\n"
-    putStrLn (Rc.irToString rcp)
-  let cfile = outputBaseName ++ ".c"
-  let hfile = outputBaseName ++ ".h"
-  let himports = map (++ ".h") importBaseNames
-  when (optionAssembly opts || optionCompile opts) $ do
-    Cg.genCode rcp cfile hfile himports
-  let root = projectRootPath opts
-  let runtimePath = root ++ "/" ++ stdRuntimePath
-  let mimallocLib = root ++ "/mimalloc/out/libmimalloc.a"
-  let gcc = if optionNoSplitStack opts
-            then "gcc"
-            else root ++ "/gcc/yu-stack-install/bin/gcc"
-  when (optionAssembly opts) $ do
-    let outfile = outputBaseName ++ ".s"
-    putStrLn $ "assemble " ++ outfile
-    let cargs = if optionOptimize opts
-                then ["-std=gnu11",
-                       "-Wall",
-                       "-pthread",
-                       "-S",
-                       "-O3",
-                       "-DNDEBUG",
-                       "-momit-leaf-frame-pointer",
-                       "-I", runtimePath,
-                       "-o", outfile,
-                       cfile]
-                else ["-std=gnu11",
-                       "-Wall",
-                       "-pthread",
-                       "-S",
-                       "-g",
-                       "-momit-leaf-frame-pointer",
-                       "-I", runtimePath,
-                       "-o", outfile,
-                       cfile]
-    let splitArgs = if optionNoSplitStack opts
-                    then ["-Dyur_DISABLE_SPLIT_STACK"]
-                    else ["-fyu-stack", "-fno-omit-frame-pointer"]
-    let allArgs = splitArgs ++ cargs ++ argumentGccOptions opts
-    when (optionVerboseOutput opts) $
-      putStrLn (gcc ++ concat (map (" "++) allArgs))
-    command_ [] gcc allArgs
-  when (optionCompile opts) $ do
-    let runtime = if optionNoSplitStack opts
-                  then runtimePath ++ "/out/system-stack/libyur.a"
-                  else runtimePath ++ "/out/split-stack/libyur.a"
-    let link = moduleName == ""
-    let outfile = if link
-                  then outputBaseName ++ ".exe"
-                  else outputBaseName ++ ".o"
-    objectFiles <- readIORef objectFilesRef
-    if link
-    then do
-      putStrLn $ "compile and link " ++ outfile
-    else do
-      writeIORef objectFilesRef (outfile : objectFiles)
-      putStrLn $ "compile " ++ outfile
-    let compileArg = if link then [] else ["-c"]
-    let cargs = if optionOptimize opts
-                then ["-std=gnu11",
-                       "-Wall",
-                       "-pthread",
-                       "-DNDEBUG",
-                       "-O3",
-                       "-mtune=native",
-                       "-momit-leaf-frame-pointer",
-                       "-I", runtimePath,
-                       "-o", outfile,
-                       cfile]
-                else ["-std=gnu11",
-                       "-Wall",
-                       "-pthread",
-                       "-g",
-                       "-momit-leaf-frame-pointer",
-                       "-I", runtimePath,
-                       "-o", outfile,
-                       cfile]
-    let linkArgs = if not link
-                   then []
-                   else
-                     objectFiles ++
-                      (if optionOptimize opts then ["-Wl,-s"] else []) ++
-                      ["-static",
-                       runtime,
-                       mimallocLib,
-                       "-Wl,--whole-archive",
-                       "-lpthread",
-                       "-Wl,--no-whole-archive",
-                       "-latomic"]
-    let splitArgs = if optionNoSplitStack opts
-                    then ["-Dyur_DISABLE_SPLIT_STACK"]
-                    else ["-fyu-stack", "-fno-omit-frame-pointer"]
-    let allArgs = compileArg
-                  ++ splitArgs
-                  ++ cargs
-                  ++ linkArgs
-                  ++ argumentGccOptions opts
-    when (optionVerboseOutput opts) $
-      putStrLn (gcc ++ concat (map (" "++) allArgs))
-    command_ [] gcc allArgs
+runIr objectFilesRef opts outputBaseName importBaseNames allBaseNames
+        moduleName vs dm im rm =
+  when (optionPrintHighLevelIR opts
+        || optionPrintBaseIR opts
+        || optionPrintRefCountIR opts
+        || optionAssembly opts
+        || optionCompile opts)
+    runFromHighLevelIr
+  where
+    runFromHighLevelIr :: IO ()
+    runFromHighLevelIr = do
+      let (hap, har) = Hl.highLevelIr (optionOptimize opts) moduleName vs dm im rm
+      when (optionPrintHighLevelIR opts) $ do
+        putStrLn "\n## High level intermediate representation\n"
+        putStrLn (Hl.irToString hap har)
+      when (optionPrintBaseIR opts
+            || optionPrintRefCountIR opts
+            || optionAssembly opts
+            || optionCompile opts) $
+        runFromBaseIr hap har
+
+    runFromBaseIr :: Hl.Program -> Hl.ProgramRoots -> IO ()
+    runFromBaseIr hap har = do
+      bap <- Ba.baseIr (optionOptimize opts) (optionVerboseOutput opts)
+              outputBaseName allBaseNames moduleName hap har
+      when (optionPrintBaseIR opts) $ do
+        putStrLn "\n## Base intermediate representation\n"
+        putStrLn (Ba.irToString bap)
+      when (optionPrintRefCountIR opts
+            || optionAssembly opts
+            || optionCompile opts) $
+        runFromRefCountIr bap
+
+    runFromRefCountIr :: Ba.Program -> IO ()
+    runFromRefCountIr bap = do
+      let rcp = Rc.refCountIr bap
+      when (optionPrintRefCountIR opts) $ do
+        putStrLn "\n## Reference counted intermediate representation\n"
+        putStrLn (Rc.irToString rcp)
+      when (optionAssembly opts
+            || optionCompile opts) $ do
+        runFromAssemblyCompile rcp
+
+    runFromAssemblyCompile :: Rc.Program -> IO ()
+    runFromAssemblyCompile rcp = do
+      let cfile = outputBaseName ++ ".c"
+      let hfile = outputBaseName ++ ".h"
+      let himports = map (++ ".h") importBaseNames
+      Cg.genCode rcp cfile hfile himports
+      let root = projectRootPath opts
+      let runtimePath = root ++ "/" ++ stdRuntimePath
+      let mimallocLib = root ++ "/mimalloc/out/libmimalloc.a"
+      let gcc = if optionNoSplitStack opts
+                then "gcc"
+                else root ++ "/gcc/yu-stack-install/bin/gcc"
+      when (optionAssembly opts) $ do
+        let outfile = outputBaseName ++ ".s"
+        putStrLn $ "assemble " ++ outfile
+        let cargs = if optionOptimize opts
+                    then ["-std=gnu11",
+                           "-Wall",
+                           "-pthread",
+                           "-S",
+                           "-O3",
+                           "-DNDEBUG",
+                           "-momit-leaf-frame-pointer",
+                           "-I", runtimePath,
+                           "-o", outfile,
+                           cfile]
+                    else ["-std=gnu11",
+                           "-Wall",
+                           "-pthread",
+                           "-S",
+                           "-g",
+                           "-momit-leaf-frame-pointer",
+                           "-I", runtimePath,
+                           "-o", outfile,
+                           cfile]
+        let splitArgs = if optionNoSplitStack opts
+                        then ["-Dyur_DISABLE_SPLIT_STACK"]
+                        else ["-fyu-stack", "-fno-omit-frame-pointer"]
+        let allArgs = splitArgs ++ cargs ++ argumentGccOptions opts
+        when (optionVerboseOutput opts) $
+          putStrLn (gcc ++ concat (map (" "++) allArgs))
+        command_ [] gcc allArgs
+      when (optionCompile opts) $ do
+        let runtime = if optionNoSplitStack opts
+                      then runtimePath ++ "/out/system-stack/libyur.a"
+                      else runtimePath ++ "/out/split-stack/libyur.a"
+        let link = moduleName == ""
+        let outfile = if link
+                      then outputBaseName ++ ".exe"
+                      else outputBaseName ++ ".o"
+        objectFiles <- readIORef objectFilesRef
+        if link
+        then do
+          putStrLn $ "compile and link " ++ outfile
+        else do
+          writeIORef objectFilesRef (outfile : objectFiles)
+          putStrLn $ "compile " ++ outfile
+        let compileArg = if link then [] else ["-c"]
+        let cargs = if optionOptimize opts
+                    then ["-std=gnu11",
+                           "-Wall",
+                           "-pthread",
+                           "-DNDEBUG",
+                           "-O3",
+                           "-mtune=native",
+                           "-momit-leaf-frame-pointer",
+                           "-I", runtimePath,
+                           "-o", outfile,
+                           cfile]
+                    else ["-std=gnu11",
+                           "-Wall",
+                           "-pthread",
+                           "-g",
+                           "-momit-leaf-frame-pointer",
+                           "-I", runtimePath,
+                           "-o", outfile,
+                           cfile]
+        let linkArgs = if not link
+                       then []
+                       else
+                         objectFiles ++
+                          (if optionOptimize opts then ["-Wl,-s"] else []) ++
+                          ["-static",
+                           runtime,
+                           mimallocLib,
+                           "-Wl,--whole-archive",
+                           "-lpthread",
+                           "-Wl,--no-whole-archive",
+                           "-latomic"]
+        let splitArgs = if optionNoSplitStack opts
+                        then ["-Dyur_DISABLE_SPLIT_STACK"]
+                        else ["-fyu-stack", "-fno-omit-frame-pointer"]
+        let allArgs = compileArg
+                      ++ splitArgs
+                      ++ cargs
+                      ++ linkArgs
+                      ++ argumentGccOptions opts
+        when (optionVerboseOutput opts) $
+          putStrLn (gcc ++ concat (map (" "++) allArgs))
+        command_ [] gcc allArgs
 
 getProjectPath :: IO FilePath
 getProjectPath = do
@@ -157,7 +188,6 @@ packagePaths opts = do
 
 run :: ProgramOptions -> IO ()
 run opts = do
-  verifyProgramOptions opts
   packs <- packagePaths opts
   let params = TypeCheckParams
                 { tcParamVerbose = optionVerboseOutput opts
@@ -186,14 +216,6 @@ data ProgramOptions = ProgramOptions
   , argumentFileName :: FilePath
   , argumentGccOptions :: [FilePath]
   }
-
-verifyProgramOptions :: ProgramOptions -> IO ()
-verifyProgramOptions opts
-  | optionOptimize opts && not (optionAssembly opts || optionCompile opts)
-      = Exit.die $ "optimization option (-o, --optimize) requires at least one of\n\tcompilation option (-c, --compile)\n\tassembly option (-a, --assembly)"
-  | optionNoSplitStack opts && not (optionAssembly opts || optionCompile opts)
-      = Exit.die $ "disable split stack option (--no-split-stack) requires at least one of\n\tcompilation option (-c, --compile)\n\tassembly option (-a, --assembly)"
-  | True = return ()
 
 makeProgramOptions ::
   FilePath -> [FilePath] -> [String] -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool ->

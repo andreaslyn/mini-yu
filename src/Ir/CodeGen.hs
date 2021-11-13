@@ -73,7 +73,7 @@ constArity c = do
   p <- fmap (\(_, _, _, z) -> z) get
   let e = R.lookupProgram c p
   case e of
-    R.Hidden -> error "attempt to get arity of hidden value"
+    R.Hidden a -> return a
     R.Extern vs -> return (length vs)
     R.Fun vs _ -> return (length vs)
     R.Lazy _ vs _ -> return (length vs)
@@ -133,7 +133,7 @@ writeDecRefsLn (v : vs) = do
   writeDecRefsLn vs
 
 notHiddenConstExpr :: R.ConstExpr -> Bool
-notHiddenConstExpr R.Hidden = False
+notHiddenConstExpr (R.Hidden _) = False
 notHiddenConstExpr _ = True
 
 notExternConstExpr :: R.ConstExpr -> Bool
@@ -200,7 +200,7 @@ writeCPrelude headerPath = do
   newLine CFile >> newLine CFile
 
 writeTrivialCtorsConstExpr :: R.ConstExpr -> StateT IntSet GenCode ()
-writeTrivialCtorsConstExpr R.Hidden = return ()
+writeTrivialCtorsConstExpr (R.Hidden _) = return ()
 writeTrivialCtorsConstExpr (R.Extern _) = return ()
 writeTrivialCtorsConstExpr (R.Fun _ e) =
   writeTrivialCtorsFunExpr e
@@ -253,7 +253,7 @@ writeTrivialCtor c = do
 
 writePapClosuresConstExpr ::
   R.ConstExpr -> StateT (Set (R.Const, Int)) GenCode ()
-writePapClosuresConstExpr R.Hidden = return ()
+writePapClosuresConstExpr (R.Hidden _) = return ()
 writePapClosuresConstExpr (R.Extern _) = return ()
 writePapClosuresConstExpr (R.Fun _ e) = writePapClosuresFunExpr e
 writePapClosuresConstExpr (R.Lazy _ _ e) =
@@ -477,7 +477,7 @@ writeLazyImpl c = do
   writeStr CFile ("};")
 
 writeDecl :: R.Const -> R.ConstExpr -> GenCode ()
-writeDecl _ R.Hidden = return ()
+writeDecl _ (R.Hidden _) = return ()
 writeDecl c (R.Extern vs) = do
   writeFunDecl HFile c vs
   writeHStr ";" >> newLine HFile >> newLine HFile
@@ -516,7 +516,7 @@ writeDecl c (R.Lazy iss vs _) = do
     writeLazyImpl c
 
 writeConst :: R.Const -> R.ConstExpr -> GenCode ()
-writeConst _ R.Hidden = return ()
+writeConst _ (R.Hidden _) = return ()
 writeConst _ (R.Extern _) = return ()
 writeConst c (R.Fun vs e) = writeFun c vs e
 writeConst c (R.Lazy _ vs e) = writeFun c vs e

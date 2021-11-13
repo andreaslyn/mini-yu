@@ -12,6 +12,7 @@ module Ir.HighLevelIr
   , Const (..)
   , prConst
   , nameConst
+  , moduleConst
   , Ctor (..)
   , prCtor
   , freeVars
@@ -38,13 +39,16 @@ import Data.Foldable (foldrM, foldlM)
 
 type Var = Int
 
-data Const = Const String Int deriving Show
+data Const = Const String String Int deriving Show
 
 prConst :: Const -> Int
-prConst (Const _ i) = i
+prConst (Const _ _ i) = i
 
 nameConst :: Const -> String
-nameConst (Const n _) = n
+nameConst (Const n _ _) = n
+
+moduleConst :: Const -> String
+moduleConst (Const _ m _) = m
 
 instance Eq Const where
   c1 == c2 = prConst c1 == prConst c2
@@ -85,7 +89,10 @@ data Expr =
   | Let Var Expr Expr
   | Ret Var
   | Where Expr ProgramRoots
-  | Hidden Bool -- Bool = False if function/lazy, and True otherwise.
+    -- Hidden:
+    --  Maybe Int = Just a if function/lazy, where a is arity.
+    --  Maybe Int = Nothing means it is some other value.
+  | Hidden (Maybe Int)
 
 type Program = IntMap (Const, Expr, Bool) -- Bool = True if static.
 
@@ -167,13 +174,16 @@ convertName n =
         then n0
         else n0 ++ Str.operandDelim ++ convertName n1'
 
-getNextConst :: Bool -> String -> StM Const
+getNextConst :: Bool -> Te.VarName -> StM Const
 getNextConst convert n = do
+  let (_, mmod) = Str.moduleSplit n
   let n' = if convert then convertName n else n
   st <- get
   let c = nextConst st
   put (st {nextConst = c + 1})
-  return (Const n' c)
+  case mmod of
+    Nothing -> return (Const n' "" c)
+    Just m -> return (Const n' m c)
 
 getNextVar :: StM Var
 getNextVar = do
@@ -313,7 +323,7 @@ runStM enableOptimization moduleName vs dm im rm =
               , identityDataTypeSet = IntSet.empty
               , nextConst = 0
               , nextVar = 0
-              , unitConst = Const "" 0 -- Dummy value in the beginning.
+              , unitConst = Const "" "" 0 -- Dummy value in the beginning.
               , optimize = enableOptimization
               }
       (x, st') = runState (irInitProgram vs >>= optimizeProgram) st
@@ -347,26 +357,17 @@ isInThisModule v =
 
 hiddenFromRef :: Te.Var -> StM Expr
 hiddenFromRef v = do
-  r <- lookupRef (Te.varId v)
-  case Te.termPre r of
-    Te.TermFun _ _ _ _ -> return (Hidden False)
-    Te.TermLazyFun _ _ -> return (Hidden False)
-    _ -> return (Hidden True)
-
-hiddenFromRefTy :: Te.Var -> StM Expr
-hiddenFromRefTy v = do
-  t <- lookupRef (Te.varId v)
   is <- lookupImplicit (Te.varId v)
   if not (null is)
-  then return (Hidden False)
+  then return $ Hidden (Just (length is))
   else do
-    rm <- getRefMap
-    case TE.preTermDomCod rm (Te.termTy t) of
-      Nothing ->
-        case TE.preTermLazyCod rm (Te.termTy t) of
-          Nothing -> return (Hidden True)
-          Just _ -> return (Hidden False)
-      Just _ -> return (Hidden False)
+    r <- lookupRef (Te.varId v)
+    case Te.termPre r of
+      Te.TermFun _ _ Nothing _ ->
+        error "function without arguments and without implicits"
+      Te.TermFun _ _ (Just n) _ -> return (Hidden (Just n))
+      Te.TermLazyFun _ _ -> return (Hidden (Just 0))
+      _ -> return (Hidden Nothing)
 
 doIrProgram :: Bool -> [Te.RefVar] -> StM [(Const, Expr)]
 doIrProgram _ [] = return []
@@ -375,7 +376,7 @@ doIrProgram isStatic (Te.RefExtern v a : vs) = do
   c <- lookupTermRef v
   inm <- isInThisModule v
   if isStatic && not inm
-  then return ((c, Hidden False) : m)
+  then return ((c, Hidden (Just a)) : m)
   else return ((c, Extern a) : m)
 doIrProgram isStatic (Te.RefVal v : vs) = do
   inm <- isInThisModule v
@@ -387,9 +388,13 @@ doIrProgram isStatic (Te.RefVal v : vs) = do
   return ((c, e) : m)
 doIrProgram isStatic (Te.RefData dv : vs) = do
   inm <- isInThisModule dv
-  e <- if isStatic && not inm
-       then hiddenFromRefTy dv
-       else makeCtorConstFromVar Nothing dv dataCtor
+  e0 <- makeCtorConstFromVar Nothing dv dataCtor
+  let e = if isStatic && not inm
+          then case e0 of
+                Fun xs _ -> Hidden (Just (length xs))
+                Lazy _ _ -> Hidden (Just 0)
+                _ -> Hidden Nothing
+          else e0
   ctors <- lookupDataCtor (Te.varId dv)
   ctors' <- mapM (irCtor inm) ctors
   m <- doIrProgram isStatic vs
@@ -398,11 +403,14 @@ doIrProgram isStatic (Te.RefData dv : vs) = do
   where
     irCtor :: Bool -> Te.Var -> StM (Const, Expr)
     irCtor inm v = do
-      e <- if isStatic && not inm
-           then hiddenFromRefTy v
-           else do
-            ctor <- lookupTermCtor (Te.varId v)
-            makeCtorConstFromVar (Just dv) v ctor
+      ctor <- lookupTermCtor (Te.varId v)
+      e0 <- makeCtorConstFromVar (Just dv) v ctor
+      let e = if isStatic && not inm
+              then case e0 of
+                    Fun xs _ -> Hidden (Just (length xs))
+                    Lazy _ _ -> Hidden (Just 0)
+                    _ -> Hidden Nothing
+              else e0
       c <- lookupTermRef v
       return (c, e)
 
@@ -913,7 +921,10 @@ writeExpr _ p (Fun vs e) = do
   when (isLetExpr e) (writeStr "(")
   writeExpr True p e
   when (isLetExpr e) (writeStr ")")
-writeExpr _ _ (Hidden b) = writeStr ("hidden-" ++ show b)
+writeExpr _ _ (Hidden a) =
+  case a of
+    Nothing -> writeStr "hidden "
+    Just i -> writeStr ("hidden_" ++ show i ++ " ")
 writeExpr _ _ (Extern a) = writeStr ("extern " ++ show a)
 writeExpr _ p (Lazy _ e) = writeStr "[]. " >> writeExpr True p e
 writeExpr inci p (Case v cs) = do

@@ -54,7 +54,8 @@ _useIntercalate = intercalate
 
 type TypeCheckContCompile =
   FilePath -> -- Output base file path of file to compile
-  [FilePath] -> -- Output base file path of imported modules
+  [FilePath] -> -- Output base file path of directly imported modules
+  Map VarName FilePath -> -- Map module -> output base name, for all modules
   VarName -> -- Current module name
   [RefVar] ->
   DataCtorMap ->
@@ -79,7 +80,8 @@ runTypeCheckT params packagePaths file moduleName prog contin = do
           (evalStateT
             (Env.runEnvT
               (tcInitProgram packagePaths prog contin))
-              (Map.singleton file (Nothing, Map.empty)))
+              ( Map.singleton moduleName (Nothing, Map.empty)
+              , Map.singleton moduleName file ))
           (params, file, moduleName, file))
   case r of
     Left e -> return (Just (typeCheckErrMsg e))
@@ -413,7 +415,8 @@ tcProgramStrict prog contin = do
   crm <- Env.getRefMap
   outBase <- currentOutputFileBaseName
   importBases <- Env.getImportBasePaths
-  liftIO (fst contin outBase (Set.toList importBases) modName rs ccm cim crm)
+  (_, allBases) <- lift get
+  liftIO (fst contin outBase (Set.toList importBases) allBases modName rs ccm cim crm)
 
 insertAllImportExport ::
   Loc -> Bool -> [(VarName, (VarStatus, Bool))] -> TypeCheckIO ()
@@ -544,23 +547,24 @@ tcImports packagePaths ((malias, (lo, ina), imex) : imps) contin = do
       perms <- liftIO (Sys.getPermissions inaPath)
       when (not (Sys.readable perms))
         (err lo (Fatal $ "unable to read file \"" ++ inaPath ++ "\""))
-      is <- lift get
-      case Map.lookup inaPath is of
+      (is, bs) <- lift get
+      case Map.lookup ina is of
         Just (Nothing, _) -> err lo (Fatal "cyclic import")
         Just (Just time1, em) -> do
           insertImportExport Set.empty ina em imex
           time2 <- tcImports packagePaths imps contin
           return (max time1 time2)
         Nothing -> do
-          doTcImport is inaPath inaOutBase
+          doTcImport is bs inaPath inaOutBase
   where
     doTcImport ::
-      Map FilePath (Maybe UTCTime, Env.ScopeMap) ->
+      Map VarName (Maybe UTCTime, Env.ScopeMap) -> Map VarName FilePath ->
       FilePath -> FilePath ->
       TypeCheckIO UTCTime
-    doTcImport is inaPath inaOutBase = do
+    doTcImport is bs inaPath inaOutBase = do
       params <- typeCheckParams
-      lift (put (Map.insert inaPath (Nothing, Map.empty) is))
+      lift (put ( Map.insert ina (Nothing, Map.empty) is
+                , Map.insert ina inaOutBase bs ))
       prog <- runParse inaPath
       case prog of
         Left e -> throwError (Fatal e)
@@ -571,8 +575,8 @@ tcImports packagePaths ((malias, (lo, ina), imex) : imps) contin = do
                           Env.addToGlobals ina
                           e <- Env.getScopeMap
                           return (e, time)
-          is' <- lift get
-          lift (put (Map.insert inaPath (Just t1, em) is'))
+          (is', bs') <- lift get
+          lift (put (Map.insert ina (Just t1, em) is', bs'))
           insertImportExport Set.empty ina em imex
           t2 <- tcImports packagePaths imps contin
           return (max t1 t2)

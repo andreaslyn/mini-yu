@@ -53,7 +53,7 @@ typeCheckErrMsg (Recoverable s) = s
 
 type TypeCheckIO =
   Env.EnvT
-    (StateT (Map FilePath (Maybe UTCTime, Env.ScopeMap))
+    (StateT (Map VarName (Maybe UTCTime, Env.ScopeMap), Map VarName FilePath)
       (ReaderT (TypeCheckParams, FilePath, VarName, FilePath)
         (ExceptT TypeCheckErr IO)))
 

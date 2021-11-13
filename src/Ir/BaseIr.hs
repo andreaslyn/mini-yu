@@ -34,10 +34,13 @@ import qualified Data.Map as Map
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Control.Monad.State
+import Control.Monad.Reader
 import Control.Monad.Writer (Writer, tell, execWriter)
 import qualified Ir.HighLevelIr as Hl
 import Data.Foldable (foldlM, foldrM)
-import Control.Exception (assert)
+import Control.Exception (assert, onException, catch)
+import qualified System.IO as Sys
+import qualified System.Directory as Sys
 
 import Debug.Trace (trace)
 
@@ -46,13 +49,16 @@ _useTrace = trace
 
 type Var = Int
 
-data Const = Const String Int deriving Show
+data Const = Const String String Int deriving (Show, Read)
 
 prConst :: Const -> Int
-prConst (Const _ i) = i
+prConst (Const _ _ i) = i
 
 nameConst :: Const -> String
-nameConst (Const n _) = n
+nameConst (Const n _ _) = n
+
+moduleConst :: Const -> String
+moduleConst (Const _ m _) = m
 
 instance Eq Const where
   c1 == c2 = prConst c1 == prConst c2
@@ -60,7 +66,7 @@ instance Eq Const where
 instance Ord Const where
   c1 <= c2 = prConst c1 <= prConst c2
 
-data Ctor = Ctor Int deriving Show
+data Ctor = Ctor Int deriving (Show, Read)
 
 prCtor :: Ctor -> Int
 prCtor (Ctor i) = i
@@ -77,10 +83,8 @@ instance Ord Ctor where
 data Ref =
     VarRef Var
   | ConstRef Const
+  deriving (Show, Read)
 
-instance Show Ref where
-  show (VarRef v) = "x_" ++ show v
-  show (ConstRef c) = nameConst c
 
 sameRef :: Ref -> Ref -> Bool
 sameRef (VarRef v1) (VarRef v2) = v1 == v2
@@ -98,6 +102,7 @@ data LetExpr =
   | Pforce Const Var [Ref]
   | CtorBox Ctor [Ref]
   | Proj Int Ref
+  deriving (Show, Read)
 
 projForceArgs :: Maybe (Const, [Ref]) -> [Ref]
 projForceArgs Nothing = []
@@ -112,12 +117,15 @@ data FunExpr =
     -- save the size of the variable. This purely meta-data,
     -- no computation.
   | VarFieldCnt Var FieldCnt FunExpr
+  deriving (Show, Read)
 
 data ConstExpr =
     Fun [Var] FunExpr
   | Lazy Bool [Var] FunExpr -- Bool is indicating whether it is static, not effect.
   | Extern [Var]
-  | Hidden
+  | Hidden Int -- Arity
+  | Inline ConstExpr
+  deriving (Show, Read)
 
 freeVarsRef :: Ref -> IntSet
 freeVarsRef (VarRef v) = IntSet.singleton v
@@ -148,7 +156,8 @@ freeVarsFunExpr (Case v cs) =
   in IntSet.union (freeVarsRef v) cs'
 
 freeVarsConstExpr :: ConstExpr -> IntSet
-freeVarsConstExpr Hidden = IntSet.empty
+freeVarsConstExpr (Hidden _) = IntSet.empty
+freeVarsConstExpr (Inline e) = freeVarsConstExpr e
 freeVarsConstExpr (Extern _) = IntSet.empty
 freeVarsConstExpr (Lazy _ vs e) =
   IntSet.difference (freeVarsFunExpr e) (IntSet.fromList vs)
@@ -185,16 +194,19 @@ getConstsFromFunExpr (Case v cs) =
   in IntSet.union (getConstsFromRef v) cs'
 
 getConstsFromConstExpr :: ConstExpr -> IntSet
-getConstsFromConstExpr Hidden = IntSet.empty
+getConstsFromConstExpr (Hidden _) = IntSet.empty
 getConstsFromConstExpr (Extern _) = IntSet.empty
 getConstsFromConstExpr (Lazy _ _ e) = getConstsFromFunExpr e
 getConstsFromConstExpr (Fun _ e) = getConstsFromFunExpr e
+getConstsFromConstExpr (Inline e) = getConstsFromConstExpr e
 
 type Program = IntMap (Const, ConstExpr)
 
 data St = St
   { hlProgram :: Hl.Program
   , program :: Program
+  , moduleName :: String
+  , moduleBaseNames :: Map String String
   , varMap :: IntMap (Ref, IntSet, IntSet)
                 -- Hl.Var -> (Ref, free vars in Ref, consts in Ref)
   , constMap :: IntMap Const
@@ -207,6 +219,7 @@ data St = St
   , nextConst :: Int
   , nextVar :: Int
   , optimize :: Bool
+  , verbose :: Bool
   , partialSpecializationMap :: Map (Int, Int) (Const, [Bool])
       -- Partial specializations:
       --   (Const, number of partial args) ->
@@ -214,12 +227,26 @@ data St = St
       --       map i -> true if argument at that index i is used)
   }
 
-type StM = State St
+type StM = StateT St IO
 
-baseIr :: Bool -> Hl.Program -> Hl.ProgramRoots -> Program
-baseIr doOptimize p r =
+moduleSerializePathName :: String -> String
+moduleSerializePathName = (++ Str.baseIrSerializeExtension)
+
+getModuleSerializePath :: String -> StM String
+getModuleSerializePath modName = do
+  m <- fmap moduleBaseNames get
+  case Map.lookup modName m of
+    Nothing -> error $ "unable to find base name for module " ++ modName
+    Just s -> return (moduleSerializePathName s)
+
+baseIr ::
+  Bool -> Bool -> FilePath -> Map String String ->
+  String -> Hl.Program -> Hl.ProgramRoots -> IO Program
+baseIr doOptimize doVerbose outputBaseName modBaseNames modName p r =
   let st = St { hlProgram = p
               , program = IntMap.empty
+              , moduleName = modName
+              , moduleBaseNames = modBaseNames
               , varMap = IntMap.empty
               , constMap = IntMap.empty
               , constToVarMap = IntMap.empty
@@ -230,9 +257,12 @@ baseIr doOptimize p r =
               , nextConst = 0
               , nextVar = 0
               , optimize = doOptimize
+              , verbose = doVerbose
               , partialSpecializationMap = Map.empty
               }
-  in program (execState (irInitProgram r) st)
+  in fmap program
+      (execStateT
+        (irInitProgram (moduleSerializePathName outputBaseName) r) st)
 
 withPostfix :: String -> StM a -> StM a
 withPostfix pfx m = do
@@ -256,19 +286,28 @@ appendConstNamePostfix b n = do
     if b then return (n' ++ Str.funcNameSep ++ constNamePostfix st)
          else return (n' ++ constNamePostfix st)
 
-getNextConstMaybeSep :: Bool -> String -> StM Const
-getNextConstMaybeSep b n = do
+getNextConstExact :: String -> String -> StM Const
+getNextConstExact n modName = do
+  st <- get
+  let c = nextConst st
+  put (st {nextConst = c + 1})
+  return (Const n modName c)
+
+getNextConstMaybeSep :: Bool -> String -> String -> StM Const
+getNextConstMaybeSep b n modName = do
   st <- get
   let c = nextConst st
   put (st {nextConst = c + 1})
   n' <- appendConstNamePostfix b n
-  return (Const n' c)
+  return (Const n' modName c)
 
-getNextConst :: String -> StM Const
+getNextConst :: String -> String -> StM Const
 getNextConst = getNextConstMaybeSep True
 
 getNextFunConst :: StM Const
-getNextFunConst = getNextConstMaybeSep False Str.anonymousFunString
+getNextFunConst = do
+  m <- fmap moduleName get
+  getNextConstMaybeSep False Str.anonymousFunString m
 
 getNextVar :: StM Var
 getNextVar = do
@@ -457,7 +496,7 @@ doMakeConstMaps (Hl.Where e w) = do
 
 addToConstMaps :: (Hl.Const, Hl.Expr, Bool) -> StM Const
 addToConstMaps (con, cone, isStatic) = do
-  con' <- getNextConst (Hl.nameConst con)
+  con' <- getNextConst (Hl.nameConst con) (Hl.moduleConst con)
   updateConstMap con con'
   when (not isStatic && not (isFun cone)) $ do
     v <- getNextVar
@@ -497,13 +536,260 @@ irOptimizeLoop roots cs hasInlinedCases = do
     then irOptimizeLoop roots cs' hasInlinedCases
     else return ()
 
+hiddenNameAndModuleMaps ::
+  [(Const, ConstExpr)] ->
+  (Map String Const, Map String (Map String Const))
+hiddenNameAndModuleMaps [] = (Map.empty, Map.empty)
+hiddenNameAndModuleMaps ((con, Hidden _) : cs) =
+  let (nm, cm) = hiddenNameAndModuleMaps cs
+      nm' = Map.insert (nameConst con) con nm
+      cm' = Map.alter
+              (\ mcons ->
+                  case mcons of
+                    Nothing -> Just (Map.singleton (nameConst con) con)
+                    Just cons -> Just (Map.insert (nameConst con) con cons)
+              ) (moduleConst con) cm
+  in (nm', cm')
+hiddenNameAndModuleMaps (_ : cs) =
+   hiddenNameAndModuleMaps cs
+
+makeInlineConstExpr ::
+  ConstExpr ->
+  ReaderT (IntMap Int) (StateT (Map String Const) StM) ([(Const, Int)], ConstExpr)
+makeInlineConstExpr (Hidden _) = error "attempt to add hidden as inline"
+makeInlineConstExpr (Extern _) = error "attempt to add extern as inline"
+makeInlineConstExpr (Inline _) = error "attempt to add inline as inline"
+makeInlineConstExpr (Lazy isStatic vs e) = do
+  fmap (\(cons, e') -> (cons, Lazy isStatic vs e')) (makeInlineFunExpr e)
+makeInlineConstExpr (Fun vs e) =
+  fmap (\(cons, e') -> (cons, Fun vs e')) (makeInlineFunExpr e)
+
+makeInlineFunExpr ::
+  FunExpr ->
+  ReaderT (IntMap Int) (StateT (Map String Const) StM) ([(Const, Int)], FunExpr)
+makeInlineFunExpr (Case r cs) = do
+  (rcs, r') <- makeInlineRef r
+  (cscs, cs') <- foldrM
+                  (\(i, n, e) (acs, a) -> do
+                    (ecs, e') <- makeInlineFunExpr e
+                    return (ecs ++ acs, (i, n, e') : a)
+                  ) ([], []) cs
+  return (rcs ++ cscs, Case r' cs')
+makeInlineFunExpr (Let v e1 e2) = do
+  (e1cs, e1') <- makeInlineLetExpr e1
+  (e2cs, e2') <- makeInlineFunExpr e2
+  return (e1cs ++ e2cs, Let v e1' e2')
+makeInlineFunExpr (Ret r) = do
+  (rcs, r') <- makeInlineRef r
+  return (rcs, Ret r')
+makeInlineFunExpr (VarFieldCnt v n e) = do
+  (ecs, e') <- makeInlineFunExpr e
+  return (ecs, VarFieldCnt v n e')
+
+makeInlineLetExpr ::
+  LetExpr ->
+  ReaderT (IntMap Int) (StateT (Map String Const) StM) ([(Const, Int)], LetExpr)
+makeInlineLetExpr (Ap io r rs) = do
+  (rcs, r') <- makeInlineRef r
+  (rscs, rs') <- makeInlineRefs rs
+  return (rcs ++ rscs, Ap io r' rs')
+makeInlineLetExpr (Pap c rs) = do
+  (ccs, c') <- makeInlineConst c
+  (rscs, rs') <- makeInlineRefs rs
+  return (ccs ++ rscs, Pap c' rs')
+makeInlineLetExpr (MkLazy isForced (v, rs) c) = do
+  (rscs, rs') <- makeInlineRefs rs
+  (ccs, c') <- makeInlineConst c
+  return (ccs ++ rscs, MkLazy isForced (v, rs') c')
+makeInlineLetExpr (Force io r Nothing) = do
+  (rcs, r') <- makeInlineRef r
+  return (rcs, Force io r' Nothing)
+makeInlineLetExpr (Force io r (Just (c, rs))) = do
+  (rcs, r') <- makeInlineRef r
+  (ccs, c') <- makeInlineConst c
+  (rscs, rs') <- makeInlineRefs rs
+  return (rcs ++ ccs ++ rscs, Force io r' (Just (c', rs')))
+makeInlineLetExpr (Pforce c v rs) = do
+  (ccs, c') <- makeInlineConst c
+  (rscs, rs') <- makeInlineRefs rs
+  return (ccs ++ rscs, Pforce c' v rs')
+makeInlineLetExpr (CtorBox ctor rs) = do
+  (rscs, rs') <- makeInlineRefs rs
+  return (rscs, CtorBox ctor rs')
+makeInlineLetExpr (Proj i r) = do
+  (rcs, r') <- makeInlineRef r
+  return (rcs, Proj i r')
+
+makeInlineRefs ::
+  [Ref] ->
+  ReaderT (IntMap Int) (StateT (Map String Const) StM) ([(Const, Int)], [Ref])
+makeInlineRefs [] = return ([], [])
+makeInlineRefs (r : rs) = do
+  (rcs, r') <- makeInlineRef r
+  (rscs, rs') <- makeInlineRefs rs
+  return (rcs ++ rscs, r' : rs')
+
+makeInlineRef ::
+  Ref ->
+  ReaderT (IntMap Int) (StateT (Map String Const) StM) ([(Const, Int)], Ref)
+makeInlineRef (VarRef v) = return ([], VarRef v)
+makeInlineRef (ConstRef c) = do
+  (ccs, c') <- makeInlineConst c
+  return (ccs, ConstRef c')
+
+makeInlineConst ::
+  Const ->
+  ReaderT (IntMap Int) (StateT (Map String Const) StM) ([(Const, Int)], Const)
+makeInlineConst c = do
+  m <- get
+  case Map.lookup (nameConst c) m of
+    Just c' -> return ([], c')
+    Nothing -> do
+      c' <- lift $ lift $ getNextConstExact (nameConst c) (moduleConst c)
+      put (Map.insert (nameConst c) c' m)
+      amap <- ask
+      let i = fromJust (IntMap.lookup (prConst c) amap)
+      return ([(c', i)], c')
+
+addInline ::
+  Map String ConstExpr -> Const -> ConstExpr ->
+  ReaderT (IntMap Int) (StateT (Map String Const) StM) ()
+addInline inlinableMap con cexpr = do
+  (newCons, inexpr) <- makeInlineConstExpr cexpr
+  lift $ lift $
+    modify $ \s ->
+      s {program = IntMap.insert (prConst con) (con, Inline inexpr) (program s)}
+  flip mapM_ newCons $ \(c, a) ->
+    case Map.lookup (nameConst c) inlinableMap of
+      Nothing ->
+        lift $ lift $
+          modify (\s ->
+            s {program = IntMap.insert (prConst c)
+                          (c, Hidden a) (program s)})
+      Just e ->
+        addInline inlinableMap c e
+
+addInlineIfHidden ::
+  Map String ConstExpr -> Map String Const -> (Const, ConstExpr) ->
+  ReaderT (IntMap Int) (StateT (Map String Const) StM) ()
+addInlineIfHidden inlinableMap hiddenMap (con, cexpr) = do
+  case Map.lookup (nameConst con) hiddenMap of
+    Nothing -> return ()
+    Just con' -> addInline inlinableMap con' cexpr
+
+addInlineFromModule ::
+  (String, Map String Const) -> StateT (Map String Const) StM ()
+addInlineFromModule (modName, cons) = do
+  (inlinables, arityMap) <- lift $ deserializeInlineCandidates modName
+  let inlinableMap = Map.fromList (map (\(c, e) -> (nameConst c, e)) inlinables)
+  runReaderT (mapM_ (addInlineIfHidden inlinableMap cons) inlinables) arityMap
+
+insertInline :: StM ()
+insertInline = do
+  p <- fmap program get
+  let (allHiddens, moduleHidden) = hiddenNameAndModuleMaps (IntMap.elems p)
+  evalStateT (mapM_ addInlineFromModule (Map.toList moduleHidden)) allHiddens
+
 irOptimize :: Hl.ProgramRoots -> StM ()
 irOptimize roots = do
+  insertInline
   removeOneBranchCases
   irOptimizeLoop roots IntSet.empty False
 
-irInitProgram :: Hl.ProgramRoots -> StM ()
-irInitProgram p = do
+reachableAritiesConst :: Const -> StM (IntMap Int)
+reachableAritiesConst c = do
+  p <- fmap program get
+  let (_, e) = fromJust (IntMap.lookup (prConst c) p)
+  return $ IntMap.singleton (prConst c) (arity e)
+  where
+    arity :: ConstExpr -> Int
+    arity (Fun vs _) = length vs
+    arity (Lazy _ vs _) = length vs
+    arity (Extern vs) = length vs
+    arity (Inline e) = arity e
+    arity (Hidden a) = a
+
+reachableAritiesRef :: Ref -> StM (IntMap Int)
+reachableAritiesRef (VarRef _) = return IntMap.empty
+reachableAritiesRef (ConstRef c) = reachableAritiesConst c
+
+reachableAritiesRefs :: [Ref] -> StM (IntMap Int)
+reachableAritiesRefs =
+  foldlM (\a r ->
+          fmap (IntMap.union a) (reachableAritiesRef r)
+         ) IntMap.empty
+
+reachableAritiesLetExpr :: LetExpr -> StM (IntMap Int)
+reachableAritiesLetExpr (Ap _ v vs) = reachableAritiesRefs (v:vs)
+reachableAritiesLetExpr (Pap c vs) = do
+  c' <- reachableAritiesConst c
+  vs' <- reachableAritiesRefs vs
+  return (IntMap.union c' vs')
+reachableAritiesLetExpr (MkLazy _ (_, rs) c) = do
+  rs' <- reachableAritiesRefs rs
+  c' <- reachableAritiesConst c
+  return (IntMap.union rs' c')
+reachableAritiesLetExpr (Force _ v vs) =
+  reachableAritiesRefs (v : projForceArgs vs)
+reachableAritiesLetExpr (Pforce c _ rs) = do
+  c' <- reachableAritiesConst c
+  rs' <- reachableAritiesRefs rs
+  return (IntMap.union c' rs')
+reachableAritiesLetExpr (CtorBox _ vs) = reachableAritiesRefs vs
+reachableAritiesLetExpr (Proj _ v) = reachableAritiesRef v
+
+reachableAritiesFunExpr :: FunExpr -> StM (IntMap Int)
+reachableAritiesFunExpr (Ret v) = reachableAritiesRef v
+reachableAritiesFunExpr (VarFieldCnt _ _ e) = reachableAritiesFunExpr e
+reachableAritiesFunExpr (Let _ e1 e2) = do
+  e1' <- reachableAritiesLetExpr e1
+  e2' <- reachableAritiesFunExpr e2
+  return (IntMap.union e1' e2')
+reachableAritiesFunExpr (Case v cs) = do
+  v' <- reachableAritiesRef v
+  cs' <- foldlM (\a (_, _, x) ->
+                    fmap (IntMap.union a) (reachableAritiesFunExpr x)
+                ) IntMap.empty cs
+  return (IntMap.union v' cs')
+
+reachableAritiesConstExpr :: ConstExpr -> StM (IntMap Int)
+reachableAritiesConstExpr (Hidden _) = return IntMap.empty
+reachableAritiesConstExpr (Inline e) = reachableAritiesConstExpr e
+reachableAritiesConstExpr (Extern _) = return IntMap.empty
+reachableAritiesConstExpr (Lazy _ _ e) =
+  reachableAritiesFunExpr e
+reachableAritiesConstExpr (Fun _ e) =
+  reachableAritiesFunExpr e
+
+serializeInlineCandidates :: FilePath -> StM ()
+serializeInlineCandidates serializeFilePath = do
+  vb <- fmap verbose get
+  when vb $
+    liftIO (putStrLn $ "serialize inlinable in " ++ serializeFilePath)
+  p <- fmap program get
+  let inlinables = filter (isInlineCandidateConstExpr False) (IntMap.elems p)
+  constArityMap <- foldlM
+                    (\a (_, e) ->
+                      fmap (IntMap.union a) (reachableAritiesConstExpr e)
+                    ) IntMap.empty inlinables
+  liftIO $
+    (Sys.withFile serializeFilePath Sys.WriteMode $ \h ->
+      Sys.hPrint h (inlinables, constArityMap))
+        `onException`
+          (Sys.removeFile serializeFilePath
+            `catch` (\e -> let _ = e :: IOError in return ()))
+
+deserializeInlineCandidates ::
+  String -> StM ([(Const, ConstExpr)], IntMap Int)
+deserializeInlineCandidates modName = do
+  path <- getModuleSerializePath modName
+  exists <- liftIO $ Sys.doesFileExist path
+  if exists
+  then liftIO $ fmap read (Sys.readFile path)
+  else return ([], IntMap.empty)
+
+irInitProgram :: FilePath -> Hl.ProgramRoots -> StM ()
+irInitProgram serializeFilePath p = do
   makeMaps p
   _ <- irProgram Nothing p
   p' <- fmap program get
@@ -512,6 +798,7 @@ irInitProgram p = do
   mapM_ updatePostMissingSubst (IntMap.elems p'')
   opt <- fmap optimize get
   when opt (irOptimize p)
+  serializeInlineCandidates serializeFilePath
   where
     updatePostConstSubst :: (Const, ConstExpr) -> StM ()
     updatePostConstSubst (c, e) =
@@ -524,8 +811,9 @@ irInitProgram p = do
         Nothing -> return ()
         Just (v, r) ->
           case e of
-            Hidden -> return ()
+            Hidden _ -> return ()
             Extern _ -> return ()
+            Inline _ -> return ()
             Lazy io vs e' ->
               updateProgram c (Lazy io vs (listSubst [v] [r] e'))
             Fun vs e' ->
@@ -607,7 +895,9 @@ constSubstFunExpr (Case v cs) = do
   return (f (Case v' cs'))
 
 constSubstConstExpr :: ConstExpr -> StM ConstExpr
-constSubstConstExpr Hidden = return Hidden
+constSubstConstExpr (Hidden a) = return (Hidden a)
+constSubstConstExpr (Inline e) =
+  fmap Inline (constSubstConstExpr e)
 constSubstConstExpr (Extern vs) = return (Extern vs)
 constSubstConstExpr (Lazy iss vs e) =
   fmap (Lazy iss vs) (constSubstFunExpr e)
@@ -645,7 +935,9 @@ irProgram parentExpr rs = do
                 case e' of
                   Lazy _ vs e'' -> do
                     c' <- withPostfix ""
-                            (getNextConst (Str.funFromLazyString ++ nameConst c))
+                            (getNextConst
+                              (Str.funFromLazyString ++ nameConst c)
+                              (moduleConst c))
                     updateProgram c' (Fun vs e'')
                     updateConstSubst c (Right (Ap False (ConstRef c') as))
                   _ -> return ()
@@ -848,11 +1140,11 @@ irConstExpr Nothing con fe@(Hl.Lazy io e) = do
 irConstExpr Nothing con (Hl.Where e p) = do
   f <- irProgram (Just e) p
   irConstExpr f con e
-irConstExpr Nothing _ (Hl.Hidden False) = do
-  return (Hidden, Nothing, [])
-irConstExpr Nothing con (Hl.Hidden True) = do
+irConstExpr Nothing _ (Hl.Hidden (Just a)) = do
+  return (Hidden a, Nothing, [])
+irConstExpr Nothing con (Hl.Hidden Nothing) = do
   updateConstSubst con (Right (Force False (ConstRef con) Nothing))
-  return (Hidden, Nothing, [])
+  return (Hidden 0, Nothing, [])
 irConstExpr (Just _) _ (Hl.Hidden _) =
   error "unexpected nested hidden value with free variables"
 irConstExpr ls con e = do
@@ -1008,6 +1300,8 @@ irLetExpr f (Hl.Where e p) = do
 
 ---------------------- Inlining ------------------------
 
+-- Call funInline with False, to not inline case expressions,
+-- since it causes code bloat.
 funInline :: Bool -> StM Bool
 funInline inlineCases = do
   fmap program get >>= mapM_ (\(_, e) -> papSpecializeConstExpr e)
@@ -1036,6 +1330,7 @@ doFunInline inlineCases prog =
              ) (False, e) cs
 
     funIn :: ConstExpr -> (Const, ConstExpr) -> StM (Bool, ConstExpr)
+    funIn e0 (c, Inline e) = funIn e0 (c, e)
     funIn e0 (c, Fun vs e) = aux e0 c vs e
     funIn e0 (c, Lazy _ vs x@(Ret _)) = aux e0 c vs x
     funIn e0 (c, Lazy isStatic vs x@(Let _ (CtorBox _ rs) (Ret _))) =
@@ -1050,17 +1345,41 @@ doFunInline inlineCases prog =
       let isCand = isInlineCandidate inlineCases c e
       funInlineConstExpr isCand c vs e e0
 
+isInlineCandidateConstExpr :: Bool -> (Const, ConstExpr) -> Bool
+isInlineCandidateConstExpr inlineCases (c, Fun _ e) =
+  isInlineCandidate inlineCases c e
+isInlineCandidateConstExpr inlineCases
+    (c, Lazy _ _ x@(Ret _)) =
+  isInlineCandidate inlineCases c x
+isInlineCandidateConstExpr inlineCases
+    (c, Lazy isStatic _ x@(Let _ (CtorBox _ rs) (Ret _))) =
+  if not (null rs) && isStatic
+    then False
+    else isInlineCandidate inlineCases c x
+isInlineCandidateConstExpr inlineCases
+    (c, Lazy _ _ x@(Let _ (Force _ _ _) (Ret _))) =
+  isInlineCandidate inlineCases c x
+isInlineCandidateConstExpr _ _ = False
+
+maximalInlineDepth :: Int
+maximalInlineDepth = 5
+
 isInlineCandidate :: Bool -> Const -> FunExpr -> Bool
-isInlineCandidate inlineCases con = isCandidateFunExpr
+isInlineCandidate inlineCases con = \e ->
+  let (b, d) = runState (isCandidateFunExpr e) 0
+  in b && d <= maximalInlineDepth
   where
-    isCandidateFunExpr :: FunExpr -> Bool
+    isCandidateFunExpr :: FunExpr -> State Int Bool
     isCandidateFunExpr (Case r cs) =
-      inlineCases
-      && isCandidateRef r
-      && and (map (\(_, _, e) -> isCandidateFunExpr e) cs)
-    isCandidateFunExpr (Let _ e1 e2) =
-      isCandidateLetExpr e1 && isCandidateFunExpr e2
-    isCandidateFunExpr (Ret r) = isCandidateRef r
+      if not inlineCases || not (isCandidateRef r)
+      then return False
+      else fmap and (mapM (\(_, _, e) -> isCandidateFunExpr e) cs)
+    isCandidateFunExpr (Let _ e1 e2) = do
+      modify (+1)
+      if not (isCandidateLetExpr e1)
+      then return False
+      else isCandidateFunExpr e2
+    isCandidateFunExpr (Ret r) = return (isCandidateRef r)
     isCandidateFunExpr (VarFieldCnt _ _ e) = isCandidateFunExpr e
 
     isCandidateLetExpr :: LetExpr -> Bool
@@ -1080,7 +1399,8 @@ isInlineCandidate inlineCases con = isCandidateFunExpr
 
 funInlineConstExpr ::
   Bool -> Const -> [Var] -> FunExpr -> ConstExpr -> StM (Bool, ConstExpr)
-funInlineConstExpr _ _ _ _ Hidden = return (False, Hidden)
+funInlineConstExpr _ _ _ _ (Hidden a) = return (False, Hidden a)
+funInlineConstExpr _ _ _ _ (Inline e) = return (False, Inline e)
 funInlineConstExpr _ _ _ _ (Extern vs) = return (False, Extern vs)
 funInlineConstExpr cand con vs e (Fun us d) = do
   (b, x) <- funInlineFunExpr IntMap.empty cand con vs e d
@@ -1193,7 +1513,8 @@ papInline letVar partialCon partialRefs = do
 papSpecializeConstExpr :: ConstExpr -> StM ()
 papSpecializeConstExpr (Fun _ e) = papSpecializeFunExpr e
 papSpecializeConstExpr (Lazy _ _ e) = papSpecializeFunExpr e
-papSpecializeConstExpr Hidden = return ()
+papSpecializeConstExpr (Hidden _) = return ()
+papSpecializeConstExpr (Inline _) = return ()
 papSpecializeConstExpr (Extern _) = return ()
 
 papSpecializeFunExpr :: FunExpr -> StM ()
@@ -1243,6 +1564,7 @@ specializePap partialCon partialRefs = do
       con <- getNextConst
                (Str.partialSpecializationString numberPartialRefs nused
                 ++ nameConst partialCon)
+               (moduleConst partialCon)
       fn <- makeFreshVarsConstExpr (Fun vs body)
       updateProgram con fn
       return con
@@ -1302,7 +1624,9 @@ updateLeafsFunExpr v leaf (Let w e1 e2) =
 type FreshVarMap = IntMap Var
 
 makeFreshVarsConstExpr :: ConstExpr -> StM ConstExpr
-makeFreshVarsConstExpr Hidden = return Hidden
+makeFreshVarsConstExpr (Hidden a) = return (Hidden a)
+makeFreshVarsConstExpr (Inline e) =
+  fmap Inline (makeFreshVarsConstExpr e)
 makeFreshVarsConstExpr (Extern vs) = do
   vs' <- mapM (const getNextVar) vs
   return (Extern vs')
@@ -1388,7 +1712,8 @@ removeOneBranchCases = do
       aux cs
 
 removeOneBranchCaseConstExpr :: ConstExpr -> ConstExpr
-removeOneBranchCaseConstExpr Hidden = Hidden
+removeOneBranchCaseConstExpr (Hidden a) = Hidden a
+removeOneBranchCaseConstExpr (Inline e) = Inline e
 removeOneBranchCaseConstExpr (Extern vs) = Extern vs
 removeOneBranchCaseConstExpr (Fun vs e) =
   Fun vs (removeOneBranchCaseFunExpr e)
@@ -1430,7 +1755,8 @@ _removeUnusedVals roots = do
           lookupProgramConst c
 
 getReachableConstExpr :: ConstExpr -> StateT IntSet StM Program
-getReachableConstExpr Hidden = return IntMap.empty
+getReachableConstExpr (Hidden _) = return IntMap.empty
+getReachableConstExpr (Inline e) = getReachableConstExpr e
 getReachableConstExpr (Extern _) = return IntMap.empty
 getReachableConstExpr (Fun _ e) = getReachableFunExpr e
 getReachableConstExpr (Lazy _ _ e) = getReachableFunExpr e
@@ -1554,8 +1880,10 @@ changeRemovedFunLetExpr _ _ _ e = return e
 removeDeadCodeConstExpr ::
   DeadCodeConsts -> Const -> ConstExpr ->
   StM (Bool, ConstExpr, DeadCodeConsts)
-removeDeadCodeConstExpr dead _ Hidden =
-  return (False, Hidden, dead)
+removeDeadCodeConstExpr dead _ (Hidden a) =
+  return (False, Hidden a, dead)
+removeDeadCodeConstExpr dead _ (Inline e) =
+  return (False, Inline e, dead)
 removeDeadCodeConstExpr dead _ (Extern vs) =
   return (False, Extern vs, dead)
 removeDeadCodeConstExpr dead c (Fun vs e) = do
@@ -1570,6 +1898,7 @@ removeDeadCodeConstExpr dead c (Fun vs e) = do
       else do
         c' <- getNextConst (Str.anonymousDuplicateString
                             ++ nameConst c)
+                           (moduleConst c)
         let dead' = IntSet.insert (prConst c) dead
         f <- makeFreshVarsConstExpr (Fun vs' e')
         let useList = map (flip IntSet.member li) vs
@@ -1802,9 +2131,12 @@ constExprToString :: Const -> ConstExpr -> String
 constExprToString c e = execWriter (runStateT (writeConst c e) 0)
 
 writeConst :: Const -> ConstExpr -> ToString ()
-writeConst c Hidden = do
-  writeStr "hidden "
+writeConst c (Hidden a) = do
+  writeStr ("hidden_" ++ show a ++ " ")
   writeStr (nameConst c)
+writeConst c (Inline e) = do
+  writeStr "inline "
+  writeConst c e
 writeConst c (Extern vs) = do
   writeStr "extern "
   writeStr (nameConst c)

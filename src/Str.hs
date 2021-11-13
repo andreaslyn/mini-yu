@@ -3,6 +3,7 @@ module Str
   , stdImportPath
   , stdRuntimePath
   , outputFolderName
+  , baseIrSerializeExtension
   , isKeyword
   , isStrictKeyword
   , isPunctuation
@@ -61,6 +62,9 @@ stdRuntimePath = "runtime"
 
 outputFolderName :: FilePath
 outputFolderName = ".yupackage"
+
+baseIrSerializeExtension :: FilePath
+baseIrSerializeExtension = ".inline"
 
 isKeyword :: String -> Bool
 isKeyword s

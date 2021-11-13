@@ -2,6 +2,7 @@
 *.yu.h
 *.yu.s
 *.yu.exe
+*.yu.inline
 Hs*/Main
 Hs*/Main.hi
 Hs*/Main.s

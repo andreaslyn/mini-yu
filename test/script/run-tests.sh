@@ -13,7 +13,7 @@ mini_yu="../../yuc"
 
 run_test() {
   echo "CLEAN TEST $1"
-  "$mini_yu" "$1" --reset -p "$dir/yu0" $args
+  "$mini_yu" "$1" --clean -p "$dir/yu0" $args
   echo "LAZY  TEST $1"
   "$mini_yu" "$1" -p "$dir/yu0" $args
 }
