@@ -59,7 +59,7 @@ libyur:
 
 .PHONY: custom-gcc
 custom-gcc:
-	if [ ! -d gcc ]; then ./configure-gcc.sh; fi
+	if [ ! -f gcc/yu-stack-build/Makefile ]; then ./configure-gcc.sh; fi
 	$(MAKE) -C gcc/yu-stack-build
 	$(MAKE) -C gcc/yu-stack-build install
 
@@ -69,7 +69,7 @@ base_clean:
 
 .PHONY: mini-yu-stdlib
 mini-yu-stdlib:
-	$(PROJECT_PATH)/yuc $(PROJECT_PATH)/stdlib/yu/main.yu -co
+	$(PROJECT_PATH)/yuc $(PROJECT_PATH)/stdlib/yu/main.yu --clean -co
 
 clean: base_clean
 	stack clean

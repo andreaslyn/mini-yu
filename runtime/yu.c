@@ -61,7 +61,7 @@ void yur_memoize(yur_Ref *lazy, yur_Ref **dest, yur_Ref **src,
   } else if (yur_LIKELY(i == yur_Static_vmt)) {
     __atomic_store_n(dest, *src, memory_order_relaxed);
     yur_mark_children_static(lazy);
-  } else if (yur_UNLIKELY(i == yur_Dynamic_vmt)) {
+  } else if (yur_UNLIKELY(i == yur_Destructor_vmt)) {
     *dest = *src;
   } else {
     yur_atomic_memoize(lazy, dest, src, expect);

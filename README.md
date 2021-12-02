@@ -45,7 +45,8 @@ submodule, which mini yu uses as memory allocator. The `make` commands
 will configure and build the project. The `SPLITSTACK=0` option disables
 a split stack feature used for automatically growing/shrinking the
 runtime stack(s). This feature requires a custom gcc version. To build
-mini yu with split stack feature, use the following commands:
+mini yu with split stack feature, make sure you have MP 4.2+ and MPFR 3.1.0+
+and MPC 0.8.0+ installed, then issue the following commands:
 ```
 git submodule update --init
 make config
