@@ -6,9 +6,7 @@ module TypeCheck.PatternUnify
   , tcPatternUnify
   , patternUnify2
   , patternUnify2NoNormalize
-  , patUnifWithBoundIds
   , tcMergePatUnifMaps
-  , mergePatUnifMaps
   )
 where
 
@@ -74,6 +72,14 @@ patternUnify2NoNormalize ::
 patternUnify2NoNormalize newPatternIds t1 t2 = do
   boundIds <- lift Env.getNextVarId
   patUnifWithBoundIds False newPatternIds boundIds t1 t2
+
+preTermIsRigid :: PreTerm -> Bool
+preTermIsRigid (TermApp _ f _) = preTermIsRigid f
+preTermIsRigid (TermImplicitApp _ f _) = preTermIsRigid f
+preTermIsRigid (TermLazyApp _ f) = preTermIsRigid f
+preTermIsRigid (TermCtor _ _) = True
+preTermIsRigid TermUnitElem = True
+preTermIsRigid _ = False
 
 canAppUnify :: PreTerm -> Bool
 canAppUnify (TermApp _ f _) = canAppUnify f
@@ -159,11 +165,11 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
     punify2NotVar :: PreTerm -> PreTerm -> PatUnifResult
     punify2NotVar ar1@(TermArrow io1 d1 c1) ar2@(TermArrow io2 d2 c2) = do
       if io1 /= io2
-      then throwError . UnifyAbsurd $
+      then throwError . UnifyUnable $
             "unable to unify effectful function type with regular function type"
       else if length d1 /= length d2
         then do
-          throwError . UnifyAbsurd $ "function types with different arities"
+          throwError . UnifyUnable $ "function types with different arities"
         else
           catchError (
             do
@@ -200,7 +206,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
           return (IntMap.insert (varId n2) v x)
     punify2NotVar (TermLazyArrow io1 c1) (TermLazyArrow io2 c2) = do
       if io1 /= io2
-      then throwError . UnifyAbsurd $
+      then throwError . UnifyUnable $
             "unable to unify effectful lazy type with regular lazy type"
       else
         punify2 c1 c2
@@ -212,7 +218,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
           then do
             t1' <- lift $ preTermToString defaultExprIndent t1
             t2' <- lift $ preTermToString defaultExprIndent t2
-            throwError . UnifyAbsurd $
+            throwError . UnifyUnable $
               "unable to unify\n"
               ++ t1' ++ "\nwith\n" ++ t2' ++ "\ndifferent arities"
           else punify (zip x1 x2) s1
@@ -225,7 +231,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
           then do
             t1' <- lift $ preTermToString defaultExprIndent t1
             t2' <- lift $ preTermToString defaultExprIndent t2
-            throwError . UnifyAbsurd $
+            throwError . UnifyUnable $
                   "unable to unify\n"
                   ++ t1' ++ "\nwith\n" ++ t2'
                   ++ "\ndifferent implicit arities"
@@ -246,7 +252,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
     punify2NotVar (TermData v1) (TermData v2) =
       if varId v1 == varId v2
         then return IntMap.empty
-        else throwError . UnifyAbsurd $
+        else throwError . UnifyUnable $
                 "cannot unify different data types "
                 ++ quote (varName v1) ++ " and " ++ quote (varName v2)
     punify2NotVar TermTy TermTy = return IntMap.empty
@@ -254,7 +260,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
     punify2NotVar TermUnitTy TermUnitTy = return IntMap.empty
     punify2NotVar f1@(TermLazyFun io1 t1) f2@(TermLazyFun io2 t2) = do
       if io1 /= io2
-      then throwError . UnifyAbsurd $
+      then throwError . UnifyUnable $
             "unable to unify effectful lazy with pure lazy"
       else
         if io1
@@ -281,13 +287,13 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
               punify2 t1' t2')
             (unifyAlphaIfUnable f1 f2)
       | io1 /= io2 =
-          throwError . UnifyAbsurd $
+          throwError . UnifyUnable $
             "unable to unify effectful function with regular function"
       | length i1 /= length i2 =
-          throwError . UnifyAbsurd $
+          throwError . UnifyUnable $
             "unable to unify functions with different arities"
       | True =
-          throwError . UnifyAbsurd $
+          throwError . UnifyUnable $
             "unable to unify values with different implicits"
     punify2NotVar f1@(TermLazyFun False t1) t2 =
       catchError (punify2 t1 (TermLazyApp False t2))
@@ -542,7 +548,7 @@ doPatUnifWithBoundIds withNormalize newPatternIds boundIds = \t1 t2 -> do
 
     unifyAlphaCheckRigid ::
       PreTerm -> PreTerm -> PatUnifResult
-    unifyAlphaCheckRigid t1 t2 = do
+    unifyAlphaCheckRigid t1 t2 =
       if preTermIsRigid t1 && preTermIsRigid t2
         then do
           t1' <- lift $ preTermToString defaultExprIndent t1

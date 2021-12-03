@@ -24,7 +24,6 @@ module TypeCheck.Term
   , prePatternIsVar
   , prePatternToPreTerm
   , prePatternGetRoot
-  , preTermIsRigid
   )
 where
 
@@ -218,16 +217,3 @@ prePatternGetRoot (PatternApp f _) = prePatternGetRoot f
 prePatternGetRoot (PatternLazyApp f) = prePatternGetRoot f
 prePatternGetRoot (PatternImplicitApp _ f _) = prePatternGetRoot f
 prePatternGetRoot r = r
-
-preTermIsRigid :: PreTerm -> Bool
-preTermIsRigid (TermApp _ f _) = preTermIsRigid f
-preTermIsRigid (TermImplicitApp _ f _) = preTermIsRigid f
-preTermIsRigid (TermLazyApp _ f) = preTermIsRigid f
-preTermIsRigid (TermCtor _ _) = True
-preTermIsRigid (TermData _) = True
-preTermIsRigid (TermArrow _ _ _) = True
-preTermIsRigid (TermLazyArrow _ _) = True
-preTermIsRigid TermTy = True
-preTermIsRigid TermUnitTy = True
-preTermIsRigid TermUnitElem = True
-preTermIsRigid _ = False

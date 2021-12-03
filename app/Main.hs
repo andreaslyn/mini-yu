@@ -126,10 +126,10 @@ runIr objectFilesRef opts outputBaseName importBaseNames allBaseNames
         objectFiles <- readIORef objectFilesRef
         if link
         then do
-          putStrLn $ "compile and link " ++ outfile
+          putStrLn $ "build and link " ++ outfile
         else do
           writeIORef objectFilesRef (outfile : objectFiles)
-          putStrLn $ "compile " ++ outfile
+          putStrLn $ "build " ++ outfile
         let compileArg = if link then [] else ["-c"]
         let cargs = if optionOptimize opts
                     then ["-std=gnu11",

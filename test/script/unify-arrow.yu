@@ -2,8 +2,8 @@
 data Id : Ty & Ty -> Ty
 of refl : (A : Ty) -> Id A A
 
-\\val error-bound : (X : Ty, Id((A : Ty) -> A, Ty -> X)) -> {}
-\\let (X, refl(_)) => []
+\\val error-bound : (X : Ty) & Id ((A : Ty) -> A) (Ty -> X) -> {}
+\\let X (refl(_)) => ()
 
 val easy-ok : (X : Ty) & (Y : Ty) & Id ((A : Ty) -> X -> A) ((B : Ty) -> Y -> B) -> Id X Y
 let X Y (refl(_)) => refl(X)
@@ -15,11 +15,13 @@ val hard-ok :
 let X Y (refl(_)) => refl(X)
 
 
-val hard-absurd :
+\{
+val hard-unable :
   (X : Ty) & (Y : Ty) &
     Id ((A : Ty) & (Unused : A) -> Ty & A -> A)
        ((B : Ty) & B -> (y : Id X Y) & (b : B) -> B) -> Id X Y
 let X Y {}
+\}
 
 data Bool : Ty
 of true : Bool
@@ -38,11 +40,13 @@ val harder1-ok :
   Id X Y
 let X Y _ (refl(_)) => refl(X)
 
-val harder1-absurd :
+\{
+val harder1-unable :
   (X : Ty) & (Y : Ty) & (b : Bool) &
     Id ((x : Wrap(false)) & (y : Ty) -> Bool) ((x' : Wrap(b)) & (ite b ((_ : {}) => Y) ((_ : {}) => Bool)) -> Bool) ->
   Id X Y
 let X Y _ {}
+\}
 
 val harder2-ok :
   (X : Ty) & (Y : Ty) & (a : Bool) & (b : Bool) &
