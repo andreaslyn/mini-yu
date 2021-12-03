@@ -14,7 +14,7 @@ struct yur_Prompt {
 };
 
 // PromptAxiom : Ty -> Ty
-yur_Ref *yu_PromptAxiom_doyu_slOneshot_slOneshot(yur_Ref *) {
+yur_Ref *yu_PromptAxiom_doyu_slOneshot_slOneshot(yur_Ref *self) {
   return &yur_unit;
 }
 
