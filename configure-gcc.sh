@@ -6,7 +6,7 @@ root=`readlink -f "$root"`
 cd "$root"
 
 if ! git -C gcc branch 2>&1 | grep -q "yu-stack"; then
-  git clone https://github.com/andreaslyn/gcc.git -b yu-stack
+  git clone https://github.com/andreaslyn/gcc.git -b yu-stack-10
 fi
 
 mkdir -p gcc/yu-stack-install
