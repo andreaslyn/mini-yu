@@ -20,6 +20,7 @@ CSOURCE := \
   $(ROOT_DIR)/yustack.c \
   $(ROOT_DIR)/yuoneshot.c
 SSOURCE := \
+  $(ROOT_DIR)/yu_inc_unref.S \
   $(ROOT_DIR)/yustack.S \
   $(ROOT_DIR)/yuoneshot.S
 

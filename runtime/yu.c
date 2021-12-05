@@ -24,6 +24,17 @@ void yur_unref_children(yur_Ref *r) {
   yur_for_each_child(r, yur_unref);
 }
 
+void yur_unref_children_dealloc(yur_Ref *r) {
+  yur_for_each_child(r, yur_unref);
+  yur_dealloc(r);
+}
+
+void yur_destructor_unref_children_dealloc(yur_Ref *r) {
+  ((void (*)(yur_Ref *)) r->tag)(r);
+  yur_for_each_child(r, yur_unref);
+  yur_dealloc(r);
+}
+
 static void yur_mark_children_atomic(yur_Ref *r) {
   yur_for_each_child(r, yur_mark_atomic);
 }
@@ -70,6 +81,10 @@ void yur_memoize(yur_Ref *lazy, yur_Ref **dest, yur_Ref **src,
 
 /////////////////////////// Dynamic Ref //////////////////////////////
 
+extern yur_ALWAYS_INLINE void yur_dynamic_inc(yur_Ref *r);
+
+extern yur_ALWAYS_INLINE void yur_dynamic_unref(yur_Ref *r);
+
 yur_ALWAYS_INLINE
 static void yur_dynamic_mark_atomic(yur_Ref *r) {
   __atomic_store_n(&r->vmt_index, yur_Atomic_dynamic_vmt, memory_order_relaxed);
@@ -77,6 +92,11 @@ static void yur_dynamic_mark_atomic(yur_Ref *r) {
 }
 
 ///////////////////////// Destructor Ref /////////////////////////////
+
+yur_ALWAYS_INLINE
+static void yur_destructor_inc(yur_Ref *r) {
+  yur_dynamic_inc(r);
+}
 
 void yur_destructor_unref(yur_Ref *r) {
   if (--r->count)
@@ -94,6 +114,11 @@ static void yur_destructor_mark_atomic(yur_Ref *r) {
 
 /////////////////////// Atomic dynamic Ref ///////////////////////////
 
+yur_ALWAYS_INLINE
+static void yur_atomic_dynamic_inc(yur_Ref *r) {
+  __atomic_add_fetch(&r->count, 1, memory_order_relaxed);
+}
+
 void yur_atomic_dynamic_unref(yur_Ref *r) {
   if (__atomic_sub_fetch(&r->count, 1, memory_order_acq_rel))
     return;
@@ -102,6 +127,11 @@ void yur_atomic_dynamic_unref(yur_Ref *r) {
 }
 
 ////////////////////// Atomic destructor Ref /////////////////////////
+
+yur_ALWAYS_INLINE
+static void yur_atomic_destructor_inc(yur_Ref *r) {
+  __atomic_add_fetch(&r->count, 1, memory_order_relaxed);
+}
 
 void yur_atomic_destructor_unref(yur_Ref *r) {
   if (__atomic_sub_fetch(&r->count, 1, memory_order_acq_rel))
@@ -113,8 +143,11 @@ void yur_atomic_destructor_unref(yur_Ref *r) {
 
 //////////////////////////// Methods /////////////////////////////////
 
-void yur_inc2(yur_Ref *r) {
-  yur_Vmt_index i = yur_ALOAD(r->vmt_index);
+extern yur_ALWAYS_INLINE void yur_inc(yur_Ref *r);
+
+extern yur_ALWAYS_INLINE void yur_unref(yur_Ref *r);
+
+void yur_inc_slow(yur_Ref *r, yur_Vmt_index i) {
   if (i == yur_Atomic_destructor_vmt)
     return yur_atomic_destructor_inc(r);
   if (i == yur_Atomic_dynamic_vmt)
@@ -122,14 +155,16 @@ void yur_inc2(yur_Ref *r) {
   return yur_destructor_inc(r);
 }
 
-void yur_unref2(yur_Ref *r) {
-  yur_Vmt_index i = yur_ALOAD(r->vmt_index);
+void yur_unref_slow(yur_Ref *r, yur_Vmt_index i) {
   if (i == yur_Atomic_destructor_vmt)
     return yur_atomic_destructor_unref(r);
   if (i == yur_Atomic_dynamic_vmt)
     return yur_atomic_dynamic_unref(r);
   return yur_destructor_unref(r);
 }
+
+extern yur_ALWAYS_INLINE
+yur_Ref *yur_reset(yur_Ref *r, yur_Num_fields nfields);
 
 yur_Ref *yur_reset_alloc(yur_Ref *r, yur_Num_fields nfields) {
   yur_unref(r);
@@ -223,6 +258,18 @@ yur_SYSTEM_SWITCH_DEF(extern yur_ALWAYS_INLINE,
   mi_free(r);
 }
 
+////////////////////////// Ref construction //////////////////////////
+
+extern yur_ALWAYS_INLINE
+void yur_init(yur_Ref *r, yur_Num_fields nfields, size_t tag);
+
+extern yur_ALWAYS_INLINE
+yur_Ref *yur_build(yur_Num_fields nfields, size_t tag) {
+  yur_Ref *r = yur_alloc(nfields);
+  yur_init(r, nfields, tag);
+  return r;
+}
+
 ///////////////////////////////// main ///////////////////////////////
 
 _Static_assert(sizeof(rlim_t) >= 4, "size of rlim_t is too small");
@@ -279,11 +326,14 @@ int main() {
 
 //////////////////// Basic extern implementations ////////////////////
 
+extern yur_ALWAYS_INLINE yur_Ref *yu__un();
+
+extern yur_ALWAYS_INLINE yur_Ref *yu__pa_un0(yur_Ref *self);
+
 yur_Ref *yu_undefinedAxiom_doyu_slundefined_slundefined(yur_Ref *x) {
   yur_unref(x);
   yur_panic("undefined");
 }
-
 
 yur_Ref *yu_funextAxiom_doyu_slbasic_slEqual(yur_Ref *B, yur_Ref *A,
     yur_Ref *r, yur_Ref *g, yur_Ref *f) {

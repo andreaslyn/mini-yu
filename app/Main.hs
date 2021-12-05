@@ -19,7 +19,7 @@ import qualified Ir.CodeGen as Cg
 import System.Command (command_)
 import System.IO (hPutStrLn, stderr)
 import System.FilePath (takeDirectory, takeFileName)
-import Str (stdRuntimePath)
+import Str (quote, stdRuntimePath)
 import System.Environment (getArgs, getExecutablePath)
 import qualified Data.Map as Map
 import Data.IORef
@@ -41,7 +41,7 @@ runIr objectFilesRef opts outputBaseName importBaseNames allBaseNames
   where
     runFromHighLevelIr :: IO ()
     runFromHighLevelIr = do
-      let (hap, har) = Hl.highLevelIr (optionOptimize opts) moduleName vs dm im rm
+      let (hap, har) = Hl.highLevelIr (not $ optionFast opts) moduleName vs dm im rm
       when (optionPrintHighLevelIR opts) $ do
         putStrLn "\n## High level intermediate representation\n"
         putStrLn (Hl.irToString hap har)
@@ -53,7 +53,7 @@ runIr objectFilesRef opts outputBaseName importBaseNames allBaseNames
 
     runFromBaseIr :: Hl.Program -> Hl.ProgramRoots -> IO ()
     runFromBaseIr hap har = do
-      bap <- Ba.baseIr (optionOptimize opts) (optionVerboseOutput opts)
+      bap <- Ba.baseIr (not $ optionFast opts) (optionVerboseOutput opts)
               outputBaseName allBaseNames moduleName hap har
       when (optionPrintBaseIR opts) $ do
         putStrLn "\n## Base intermediate representation\n"
@@ -103,15 +103,17 @@ runIr objectFilesRef opts outputBaseName importBaseNames allBaseNames
                            "-Wall",
                            "-pthread",
                            "-S",
-                           "-g",
+                           "-O1",
+                           "-foptimize-sibling-calls",
                            "-momit-leaf-frame-pointer",
                            "-I", runtimePath,
                            "-o", outfile,
                            cfile]
+        let debugOpt = if optionDebug opts then ["-g"] else []
         let splitArgs = if optionNoSplitStack opts
                         then ["-Dyur_DISABLE_SPLIT_STACK"]
                         else ["-fyu-stack", "-fno-omit-frame-pointer"]
-        let allArgs = splitArgs ++ cargs ++ argumentGccOptions opts
+        let allArgs = splitArgs ++ cargs ++ debugOpt ++ argumentGccOptions opts
         when (optionVerboseOutput opts) $
           putStrLn (gcc ++ concat (map (" "++) allArgs))
         command_ [] gcc allArgs
@@ -145,7 +147,8 @@ runIr objectFilesRef opts outputBaseName importBaseNames allBaseNames
                     else ["-std=gnu11",
                            "-Wall",
                            "-pthread",
-                           "-g",
+                           "-O1",
+                           "-foptimize-sibling-calls",
                            "-momit-leaf-frame-pointer",
                            "-I", runtimePath,
                            "-o", outfile,
@@ -154,7 +157,7 @@ runIr objectFilesRef opts outputBaseName importBaseNames allBaseNames
                        then []
                        else
                          objectFiles ++
-                          (if optionOptimize opts then ["-Wl,-s"] else []) ++
+                          (if not $ optionFast opts then ["-Wl,-s"] else []) ++
                           ["-static",
                            runtime,
                            mimallocLib,
@@ -162,12 +165,14 @@ runIr objectFilesRef opts outputBaseName importBaseNames allBaseNames
                            "-lpthread",
                            "-Wl,--no-whole-archive",
                            "-latomic"]
+        let debugOpt = if optionDebug opts then ["-g"] else []
         let splitArgs = if optionNoSplitStack opts
                         then ["-Dyur_DISABLE_SPLIT_STACK"]
                         else ["-fyu-stack", "-fno-omit-frame-pointer"]
         let allArgs = compileArg
                       ++ splitArgs
                       ++ cargs
+                      ++ debugOpt
                       ++ linkArgs
                       ++ argumentGccOptions opts
         when (optionVerboseOutput opts) $
@@ -207,6 +212,8 @@ data ProgramOptions = ProgramOptions
   , optionClean :: Bool
   , optionAssembly :: Bool
   , optionOptimize :: Bool
+  , optionFast :: Bool
+  , optionDebug :: Bool
   , optionNoSplitStack :: Bool
   , optionPrintHighLevelIR :: Bool
   , optionPrintBaseIR :: Bool
@@ -218,7 +225,8 @@ data ProgramOptions = ProgramOptions
   }
 
 makeProgramOptions ::
-  FilePath -> [FilePath] -> [String] -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool ->
+  FilePath -> [FilePath] -> [String] ->
+  Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool ->
   ProgramOptions
 makeProgramOptions
   argFileName
@@ -228,6 +236,8 @@ makeProgramOptions
   optClean
   optAssembly
   optOptimize
+  optFast
+  optDebug
   optNoSplitStack
   optPrintHighLevelIR
   optPrintBaseIR
@@ -239,6 +249,8 @@ makeProgramOptions
     , optionClean = optClean
     , optionAssembly = optAssembly
     , optionOptimize = optOptimize
+    , optionFast = optFast
+    , optionDebug = optDebug
     , optionNoSplitStack = NO_SPLIT_STACK || optNoSplitStack
     , optionPrintHighLevelIR = optPrintHighLevelIR
     , optionPrintBaseIR = optPrintBaseIR
@@ -252,29 +264,41 @@ makeProgramOptions
 cmdParser :: Ar.ParserSpec ProgramOptions
 cmdParser = makeProgramOptions
   `Ar.parsedBy` reqPos "file"
-    `Ar.Descr` "the mini-yu source code file"
+    `Ar.Descr` "The mini-yu source code file."
   `Ar.andBy` posArgs "gcc files" [] (\xs x -> xs ++ [x])
-    `Ar.Descr` "additional files passed to gcc"
+    `Ar.Descr` "Additional files passed to gcc."
   `Ar.andBy` Ar.optFlagArgs [] "package" [] (\ ps p -> p : ps)
-    `Ar.Descr` "paths to include packages"
+    `Ar.Descr` "Paths of Mini Yu packages to include."
   `Ar.andBy` ArPa.FlagParam ArPa.Short "compile" id
-    `Ar.Descr` "compile the source code"
+    `Ar.Descr` "Compile the source code."
   `Ar.andBy` ArPa.FlagParam ArPa.Long "clean" id
-    `Ar.Descr` "force compiler to re-type-check and re-compile everything"
+    `Ar.Descr` "Force compiler to re-type-check and re-compile everything."
   `Ar.andBy` ArPa.FlagParam ArPa.Short "assembly" id
-    `Ar.Descr` "output compiler generated assembly"
+    `Ar.Descr` "Output compiler generated assembly code."
   `Ar.andBy` ArPa.FlagParam ArPa.Short "optimize" id
-    `Ar.Descr` "optimize to improve performance of generated program"
+    `Ar.Descr` "Enable more than the default optimizations to improve performance."
+  `Ar.andBy` ArPa.FlagParam ArPa.Long "fast" id
+    `Ar.Descr` "Disable optimizations to build faster."
+  `Ar.andBy` ArPa.FlagParam ArPa.Long "debug" id
+    `Ar.Descr` "Enable gcc debug information."
   `Ar.andBy` ArPa.FlagParam ArPa.Long "no-split-stack" id
-    `Ar.Descr` "use a large (3GB) system stack instead of split (segmented) stack"
+    `Ar.Descr` "Use a large (3GB) system stack instead of split (segmented) stack."
   `Ar.andBy` ArPa.FlagParam ArPa.Long "print-high-level-ir" id
-    `Ar.Descr` "print initial intermediate representation"
+    `Ar.Descr` "Print initial intermediate representation."
   `Ar.andBy` ArPa.FlagParam ArPa.Long "print-base-ir" id
-    `Ar.Descr` "print second intermediate representation"
+    `Ar.Descr` "Print second intermediate representation."
   `Ar.andBy` ArPa.FlagParam ArPa.Long "print-ref-count-ir" id
-    `Ar.Descr` "print reference counted intermediate representation"
+    `Ar.Descr` "Print reference counted intermediate representation."
   `Ar.andBy` ArPa.FlagParam ArPa.Long "verbose" id
-    `Ar.Descr` "enable verbose output"
+    `Ar.Descr` "Enable verbose output."
+
+verifyOptions :: ProgramOptions -> IO ()
+verifyOptions opts
+  | optionFast opts && optionOptimize opts = do
+      hPutStrLn stderr ("Options " ++ quote "--fast" ++ " and "
+                        ++ quote "--optimize" ++ " are incompatible together")
+      Exit.exitWith (Exit.ExitFailure 1)
+  | True = return ()
 
 cmdInterface :: IO (Ar.CmdLnInterface ProgramOptions)
 cmdInterface = mkApp cmdParser
@@ -287,12 +311,13 @@ main = do
     Right opts -> preRun opts >>= run
     Left msg -> do
       if msg == "too many arguments"
-      then hPutStrLn stderr "invalid command line arguments, try again with just --help"
+      then hPutStrLn stderr ("Invalid command line arguments, try " ++ quote "--help")
       else hPutStrLn stderr msg
       Exit.exitWith (Exit.ExitFailure 1)
   where
     preRun :: ProgramOptions -> IO ProgramOptions
     preRun opts = do
+      verifyOptions opts
       a <- canonicalizePath (argumentFileName opts)
       p <- getProjectPath
       return (opts { argumentFileName = a

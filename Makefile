@@ -21,7 +21,11 @@ else
 endif
 
 .PHONY: mini-yu
-mini-yu: $(EXE_PATH) mini-yu-stdlib
+mini-yu: $(EXE_PATH)
+
+.PHONY: stdlib
+stdlib: mini-yu
+	$(PROJECT_PATH)/yuc $(PROJECT_PATH)/stdlib/yu/main.yu -co --clean
 
 .PHONY: config
 config:
@@ -66,10 +70,6 @@ custom-gcc:
 .PHONY: base_clean
 base_clean:
 	rm -rf $(EXE_PATH)
-
-.PHONY: mini-yu-stdlib
-mini-yu-stdlib:
-	$(PROJECT_PATH)/yuc $(PROJECT_PATH)/stdlib/yu/main.yu --clean -co
 
 clean: base_clean
 	stack clean

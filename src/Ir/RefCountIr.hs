@@ -202,7 +202,7 @@ irFunExpr vs e =
   let e0 = irPreFunExpr IntMap.empty IntSet.empty e
       e1 = irResetReuseFunExpr e0
       e2 = irIncDecFunExpr (IntSet.fromList vs) e1
-  in irPreToFunExpr e2
+  in irPreToFunExpr emptyAccum e2
 
 type CoveredFieldVars = IntSet
 type VarSubst = IntMap B.Var
@@ -530,29 +530,89 @@ decDeadVars ctx li =
       decs = IntSet.foldr (\v f x -> PreDec (VarRef v) (f x) li) id vs
   in (decs, ctx')
 
-irPreToFunExpr :: PreFunExpr -> FunExpr
-irPreToFunExpr (PreInc v e _) = Inc v (irPreToFunExpr e)
-irPreToFunExpr (PreDec v e _) = Dec v (irPreToFunExpr e)
-irPreToFunExpr (PreUnuse v e _) = Unuse v (irPreToFunExpr e)
-irPreToFunExpr (PreVarFieldCnt _ _ _ _) =
-  error "expected PreVarFieldCnt to not be here"
-irPreToFunExpr (PreRet r _) = Ret r
-irPreToFunExpr (PrePforce pc v rs e2 _) =
-  Pforce pc v rs (irPreToFunExpr e2)
-irPreToFunExpr (PreLet v e1 e2 _) =
-  Let v (irPreToLetExpr e1) (irPreToFunExpr e2)
-irPreToFunExpr (PreCase r cs _) =
-  Case r (map (\(i, _, c) -> (i, irPreToFunExpr c)) cs)
+data IncDecResetAccum =
+  IncDecResetAccum
+    { accumInc :: [Ref]
+    , accumDec :: [Ref]
+    , accumReset :: [(Var, FieldCnt)]
+    , accumProj :: [(Var, Int, Ref)]
+    }
 
-irPreToLetExpr :: PreLetExpr -> LetExpr
-irPreToLetExpr (PreAp b r rs) = Ap b r rs
-irPreToLetExpr (PrePap r rs) = Pap r rs
-irPreToLetExpr (PreMkLazy isForced lp c) = MkLazy isForced lp c
-irPreToLetExpr (PreForce b r rs) = Force b r rs
-irPreToLetExpr (PreCtorBox c rs) = CtorBox c rs
-irPreToLetExpr (PreProj i r) = Proj i r
-irPreToLetExpr (PreReset n) = Reset n
-irPreToLetExpr (PreReuse v c rs) = Reuse v c rs
+emptyAccum :: IncDecResetAccum
+emptyAccum =
+  IncDecResetAccum
+    { accumInc = []
+    , accumDec = []
+    , accumReset = []
+    , accumProj = []
+    }
+
+accumUpdateInc :: IncDecResetAccum -> Ref -> IncDecResetAccum
+accumUpdateInc acc v = acc { accumInc = v : accumInc acc }
+
+accumUpdateDec :: IncDecResetAccum -> Ref -> IncDecResetAccum
+accumUpdateDec acc v = acc { accumDec = v : accumDec acc }
+
+accumUpdateReset :: IncDecResetAccum -> Var -> FieldCnt -> IncDecResetAccum
+accumUpdateReset acc v n = acc { accumReset = (v, n) : accumReset acc }
+
+accumUpdateProj :: IncDecResetAccum -> Var -> Int -> Ref -> IncDecResetAccum
+accumUpdateProj acc v i r = acc { accumProj = (v, i, r) : accumProj acc }
+
+accumDischarge :: IncDecResetAccum -> FunExpr -> FunExpr
+accumDischarge acc e0 =
+  let e1 = dischargeReset (accumReset acc) e0
+      e2 = dischargeDec (accumDec acc) e1
+      e3 = dischargeInc (accumInc acc) e2
+  in dischargeProj (accumProj acc) e3
+  where
+    dischargeInc :: [Ref] -> FunExpr -> FunExpr
+    dischargeInc [] e = e
+    dischargeInc (v:vs) e = dischargeInc vs (Inc v e)
+
+    dischargeDec :: [Ref] -> FunExpr -> FunExpr
+    dischargeDec [] e = e
+    dischargeDec (v:vs) e = dischargeDec vs (Dec v e)
+
+    dischargeReset :: [(Var, FieldCnt)] -> FunExpr -> FunExpr
+    dischargeReset [] e = e
+    dischargeReset ((v,n):vs) e = dischargeReset vs (Let v (Reset n) e)
+
+    dischargeProj :: [(Var, Int, Ref)] -> FunExpr -> FunExpr
+    dischargeProj [] e = e
+    dischargeProj ((v,i,r):vs) e = dischargeProj vs (Let v (Proj i r) e)
+
+irPreToFunExpr :: IncDecResetAccum -> PreFunExpr -> FunExpr
+irPreToFunExpr acc (PreInc v e _) =
+  irPreToFunExpr (accumUpdateInc acc v) e
+irPreToFunExpr acc (PreDec v e _) =
+  irPreToFunExpr (accumUpdateDec acc v) e
+irPreToFunExpr acc (PreUnuse v e _) =
+  accumDischarge acc $ Unuse v (irPreToFunExpr emptyAccum e)
+irPreToFunExpr _ (PreVarFieldCnt _ _ _ _) =
+  error "expected PreVarFieldCnt to not be here"
+irPreToFunExpr acc (PreRet r _) =
+  accumDischarge acc (Ret r)
+irPreToFunExpr acc (PrePforce pc v rs e2 _) =
+  accumDischarge acc $ Pforce pc v rs (irPreToFunExpr emptyAccum e2)
+irPreToFunExpr acc (PreCase r cs _) =
+  accumDischarge acc $ Case r (map (\(i, _, c) -> (i, irPreToFunExpr emptyAccum c)) cs)
+irPreToFunExpr acc (PreLet v (PreAp b r rs) e2 _) =
+  accumDischarge acc $ Let v (Ap b r rs) (irPreToFunExpr emptyAccum e2)
+irPreToFunExpr acc (PreLet v (PrePap r rs) e2 _) =
+  accumDischarge acc $ Let v (Pap r rs) (irPreToFunExpr emptyAccum e2)
+irPreToFunExpr acc (PreLet v (PreForce b r rs) e2 _) =
+  accumDischarge acc $ Let v (Force b r rs) (irPreToFunExpr emptyAccum e2)
+irPreToFunExpr acc (PreLet v (PreReuse w c rs) e2 _) =
+  accumDischarge acc $ Let v (Reuse w c rs) (irPreToFunExpr emptyAccum e2)
+irPreToFunExpr acc (PreLet v (PreCtorBox c rs) e2 _) =
+  accumDischarge acc $ Let v (CtorBox c rs) (irPreToFunExpr emptyAccum e2)
+irPreToFunExpr acc (PreLet v (PreMkLazy isForced lp c) e2 _) =
+  accumDischarge acc $ Let v (MkLazy isForced lp c) (irPreToFunExpr emptyAccum e2)
+irPreToFunExpr acc (PreLet v (PreReset n) e2 _) =
+  irPreToFunExpr (accumUpdateReset acc v n) e2
+irPreToFunExpr acc (PreLet v (PreProj i r) e2 _) =
+  irPreToFunExpr (accumUpdateProj acc v i r) e2
 
 ----------------- Printing ---------------------
 

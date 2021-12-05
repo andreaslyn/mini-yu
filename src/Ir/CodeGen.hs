@@ -127,10 +127,25 @@ writeParenRefs ff vs =
   writeStr ff "(" >> writeRefs ff vs >> writeStr ff ")"
 
 writeDecRefsLn :: [R.Ref] -> GenCode ()
-writeDecRefsLn [] = return ()
-writeDecRefsLn (v : vs) = do
-  writeDecRefLn v
-  writeDecRefsLn vs
+writeDecRefsLn rs = writeDecRefsLnAcc 0 [] rs
+
+writeDecRefsLnAcc :: Int -> [R.Var] -> [R.Ref] -> GenCode ()
+writeDecRefsLnAcc 6 acc rs = do
+  writeStr CFile "yur_unref_6("
+  writeVarArgsList acc
+  writeStr CFile ");"
+  newLine CFile
+  writeDecRefsLnAcc 0 [] rs
+writeDecRefsLnAcc _ [] [] = return ()
+writeDecRefsLnAcc i acc [] = do
+  writeStr CFile ("yur_unref_" ++ show i ++ "(")
+  writeVarArgsList acc
+  writeStr CFile ");"
+  newLine CFile
+writeDecRefsLnAcc i acc (R.VarRef v : rs) =
+  writeDecRefsLnAcc (i + 1) (v : acc) rs
+writeDecRefsLnAcc i acc (R.ConstRef _ : rs) =
+  writeDecRefsLnAcc i acc rs
 
 notHiddenConstExpr :: R.ConstExpr -> Bool
 notHiddenConstExpr (R.Hidden _) = False
@@ -326,9 +341,9 @@ writePapFunClosure c v rs n = do
   writePapFunClosureDecl CFile c v rs n
   writeStr CFile " {"
   incIndent >> newLine CFile
-  writeTempsAndIncs recIdx 0
+  writeTempsAndIncs [] recIdx 0
   if isNothing v
-  then writeStr CFile "yur_unref(self);" >> newLine CFile
+  then writeStr CFile "yur_unref_1(self);" >> newLine CFile
   else return ()
   writeStr CFile "return "
   writeStr CFile (funName c)
@@ -368,21 +383,42 @@ writePapFunClosure c v rs n = do
       then writeStr CFile ("self->fields[" ++ show (convertIdx recIdx i + 1) ++ "]")
       else writeStr CFile ("self->fields[" ++ show i ++ "]")
 
-    writeTempsAndIncs :: Maybe Int -> Int -> GenCode ()
-    writeTempsAndIncs recIdx i =
+    writeTempsAndIncs :: [String] -> Maybe Int -> Int -> GenCode ()
+    writeTempsAndIncs incNames recIdx i =
       if i >= n
-      then return ()
+      then writeIncs 0 [] incNames
       else do
         if recIdx == Just i
-           then writeStr CFile "yur_inc(self);" >> newLine CFile
-           else do
-            writeStructYuRefPtr CFile
-            let b = tempName recIdx i
-            writeStr CFile (b ++ " = ")
-            writeFieldEntry recIdx i
-            writeStr CFile ";" >> newLine CFile
-            writeStr CFile ("yur_inc(" ++ b ++ ");") >> newLine CFile
-        writeTempsAndIncs recIdx (i+1)
+        then writeTempsAndIncs ("self" : incNames) recIdx (i+1)
+        else do
+          writeStructYuRefPtr CFile
+          let b = tempName recIdx i
+          writeStr CFile (b ++ " = ")
+          writeFieldEntry recIdx i
+          writeStr CFile ";" >> newLine CFile
+          writeTempsAndIncs (b : incNames) recIdx (i+1)
+
+    writeIncs :: Int -> [String] -> [String] -> GenCode ()
+    writeIncs 6 acc bs = do
+      writeStr CFile "yur_inc_6("
+      writeStringArgsList acc
+      writeStr CFile ");"
+      newLine CFile
+      writeIncs 0 [] bs
+    writeIncs _ [] [] = return ()
+    writeIncs i acc [] = do
+      writeStr CFile ("yur_inc_" ++ show i ++ "(")
+      writeStringArgsList acc
+      writeStr CFile ");"
+      newLine CFile
+    writeIncs i acc (b : bs) = do
+      writeIncs (i + 1) (b : acc) bs
+
+    writeStringArgsList :: [String] -> GenCode ()
+    writeStringArgsList [] = error "writeStringArgsList expects at least one string"
+    writeStringArgsList [s] = writeStr CFile s
+    writeStringArgsList (s:ss) =
+      writeStr CFile s >> writeStr CFile ", " >> writeStringArgsList ss
 
     writeAppliedArgs :: Maybe Int -> Int -> GenCode ()
     writeAppliedArgs _ 0 = return ()
@@ -576,24 +612,57 @@ writeFunExpr (R.Let v e1 e2) = do
 writeFunExpr (R.Ret r) =
   writeStr CFile "return " >> writeRef CFile r >> writeStr CFile ";"
 writeFunExpr (R.Inc v e) = do
-  writeIncRefLn v
-  writeFunExpr e
+  let acc = case v of
+              R.VarRef w -> [w]
+              R.ConstRef _ -> []
+  writeFunExprIncs (length acc) acc e
 writeFunExpr (R.Dec v e) = do
-  writeDecRefLn v
-  writeFunExpr e
+  let acc = case v of
+              R.VarRef w -> [w]
+              R.ConstRef _ -> []
+  writeFunExprDecs (length acc) acc e
 writeFunExpr (R.Unuse v e) = do
   writeStr CFile "yur_dealloc(" >> writeRef CFile v >> writeStr CFile ");" >> newLine CFile
   writeFunExpr e
 
-writeIncRefLn :: R.Ref -> GenCode ()
-writeIncRefLn (R.VarRef v) =
-  writeStr CFile "yur_inc(" >> writeVar CFile v >> writeStr CFile ");" >> newLine CFile
-writeIncRefLn (R.ConstRef _) = return ()
+writeVarArgsList :: [R.Var] -> GenCode ()
+writeVarArgsList [] = error "writeVarArgsList expects at least one variable"
+writeVarArgsList [v] = writeVar CFile v
+writeVarArgsList (v:vs) = writeVarArgsList vs >> writeStr CFile ", " >> writeVar CFile v
 
-writeDecRefLn :: R.Ref -> GenCode ()
-writeDecRefLn (R.VarRef v) =
-  writeStr CFile "yur_unref(" >> writeVar CFile v >> writeStr CFile ");" >> newLine CFile
-writeDecRefLn (R.ConstRef _) = return ()
+writeFunExprIncs :: Int -> [R.Var] -> R.FunExpr -> GenCode ()
+writeFunExprIncs 6 acc e = do
+  writeStr CFile "yur_inc_6(" >> writeVarArgsList acc >> writeStr CFile ");" >> newLine CFile
+  writeFunExpr e
+writeFunExprIncs i acc (R.Inc v e) =
+  case v of
+    R.VarRef w -> writeFunExprIncs (i + 1) (w : acc) e
+    R.ConstRef _ -> writeFunExprIncs i acc e
+writeFunExprIncs 0 _ e =
+  writeFunExpr e
+writeFunExprIncs i acc e = do
+  writeStr CFile ("yur_inc_" ++ show i ++ "(")
+  writeVarArgsList acc
+  writeStr CFile ");"
+  newLine CFile
+  writeFunExpr e
+
+writeFunExprDecs :: Int -> [R.Var] -> R.FunExpr -> GenCode ()
+writeFunExprDecs 6 acc e = do
+  writeStr CFile "yur_unref_6(" >> writeVarArgsList acc >> writeStr CFile ");" >> newLine CFile
+  writeFunExpr e
+writeFunExprDecs i acc (R.Dec v e) =
+  case v of
+    R.VarRef w -> writeFunExprDecs (i + 1) (w : acc) e
+    R.ConstRef _ -> writeFunExprDecs i acc e
+writeFunExprDecs 0 _ e =
+  writeFunExpr e
+writeFunExprDecs i acc e = do
+  writeStr CFile ("yur_unref_" ++ show i ++ "(")
+  writeVarArgsList acc
+  writeStr CFile ");"
+  newLine CFile
+  writeFunExpr e
 
 writeFunType :: Int -> GenCode ()
 writeFunType args = do
@@ -681,7 +750,7 @@ writeLetExpr letVar (R.Force _ (R.ConstRef r) rs) = do
   writeStr CFile "yur_ASTORE(" >> writeStr CFile (funImpl r) >> writeStr CFile ".tag, 1);"
   decIndent >> newLine CFile
   writeStr CFile "}" >> newLine CFile
-  writeStr CFile "yur_inc(" >> writeVar CFile letVar >> writeStr CFile ");"
+  writeStr CFile "yur_inc_1(" >> writeVar CFile letVar >> writeStr CFile ");"
 writeLetExpr letVar (R.Force _ (R.VarRef r) Nothing) = do
   writeStr CFile (varName letVar) >> writeStr CFile " = "
   writeStr CFile "yur_ALOAD("
@@ -700,7 +769,7 @@ writeLetExpr letVar (R.Force _ (R.VarRef r) Nothing) = do
   writeStr CFile "yur_ASTORE(" >> writeVar CFile r >> writeStr CFile "->tag, 1);"
   decIndent >> newLine CFile
   writeStr CFile "}" >> newLine CFile
-  writeStr CFile "yur_inc(" >> writeVar CFile letVar >> writeStr CFile ");"
+  writeStr CFile "yur_inc_1(" >> writeVar CFile letVar >> writeStr CFile ");"
 writeLetExpr letVar (R.Force _ (R.VarRef r) (Just (c, rs))) = do
   writeStr CFile (varName letVar) >> writeStr CFile " = "
   writeStr CFile "yur_ALOAD("
@@ -724,7 +793,7 @@ writeLetExpr letVar (R.Force _ (R.VarRef r) (Just (c, rs))) = do
   writeStr CFile "yur_ASTORE(" >> writeVar CFile r >> writeStr CFile "->tag, 1);"
   decIndent >> newLine CFile
   writeStr CFile "}" >> newLine CFile
-  writeStr CFile "yur_inc(" >> writeVar CFile letVar >> writeStr CFile ");"
+  writeStr CFile "yur_inc_1(" >> writeVar CFile letVar >> writeStr CFile ");"
 writeLetExpr letVar (R.CtorBox c []) = do
   writeStr CFile (varName letVar)
   writeStr CFile " = "
