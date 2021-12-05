@@ -39,19 +39,23 @@ To build mini yu quickly, go to the project root and enter the commands
 git submodule update --init
 make config
 make SPLITSTACK=0
+make stdlib
 ```
 This will clone the [mimalloc](https://github.com/microsoft/mimalloc)
 submodule, which mini yu uses as memory allocator. The `make` commands
 will configure and build the project. The `SPLITSTACK=0` option disables
 a split stack feature used for automatically growing/shrinking the
-runtime stack(s). This feature requires a custom gcc version. To build
-mini yu with split stack feature, make sure you have MP 4.2+ and MPFR 3.1.0+
-and MPC 0.8.0+ installed, then issue the following commands:
+runtime stack(s). This feature requires a custom gcc version. The `stdlib`
+target builds the Mini Yu standard library.
+
+In order to build mini yu with split stack feature, make sure you have MP 4.2+
+and MPFR 3.1.0+ and MPC 0.8.0+ installed, then issue the following commands:
 ```
 git submodule update --init
 make config
 make -j8 custom-gcc
 make
+make stdlib
 ```
 This will build mimalloc, the custom version of gcc, and the mini yu
 compiler. Beware that building the custom gcc will take some time.

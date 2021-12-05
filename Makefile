@@ -73,8 +73,10 @@ base_clean:
 
 clean: base_clean
 	stack clean
-	rm -r $(PROJECT_PATH)/stdlib/yu/.yupackage
+	rm -rf $(PROJECT_PATH)/stdlib/yu/.yupackage
+	$(MAKE) -C runtime clean
 
-cleanall: base_clean
+purge: base_clean
 	stack purge
-	rm -r $(PROJECT_PATH)/stdlib/yu/.yupackage
+	rm -rf $(PROJECT_PATH)/stdlib/yu/.yupackage
+	$(MAKE) -C runtime clean
