@@ -9,7 +9,7 @@ of (...#Bin)
 
 
 val gen-list : Bin -> List Bin
-let b => b .rec (0.Bin :: nil.L) at b x => ++ b :: x
+let b => b .rec (0.Bin :: nil.L) \ b x => ++ b :: x
 
 val 100 : Bin
 let => 10.Bin * 10.Bin
@@ -38,7 +38,7 @@ where
 end
 
 val rev [A : Ty] : List A -> List A
-let xs => xs .accum nil.L at a x => x :: a
+let xs => xs .accum nil.L \ a x => x :: a
 
 val rev' [A : Ty] : List A -> List A
 let => aux0 nil.L

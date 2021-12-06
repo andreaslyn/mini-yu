@@ -172,7 +172,7 @@ val.. (.divmod#Bin) : Bin & Bin -> Bin && Bin
 let m n =>
   if (m <? n)
   .then (0 $ m)
-  .else at
+  .else \
     q $ r := m .divmod(*2 n);
     if (r <? n)
     .then (*2 q $ r)
@@ -191,6 +191,6 @@ let n =>
   .elif (n =? 7) .then "7"
   .elif (n =? 8) .then "8"
   .elif (n =? 9) .then "9"
-  .else at
+  .else \
     q $ r := n .divmod 10;
     q .str :+: r .str

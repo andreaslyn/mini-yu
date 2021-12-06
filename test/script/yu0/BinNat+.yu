@@ -74,7 +74,7 @@ val inc : Bin+ -> Bin+
 let => n => plus n 1
 
 val mul : Bin+ & Bin+ -> Bin+
-let => x y => bin+ at aux-mul (list-Bin+ x) (list-Bin+ y)
+let => x y => bin+ \ aux-mul (list-Bin+ x) (list-Bin+ y)
 
 val aux-mul : List(Bool) & List(Bool) -> List(Bool)
 let bs1 nil => bs1

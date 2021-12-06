@@ -118,7 +118,7 @@ val simpl-op++op--aux
 let true bs => 1.Id
 let false nil => 1.Id
 let false (b :: bs) =>
-  ap=.Id (simpl-op++op--aux b bs) at t => false :: t
+  ap=.Id (simpl-op++op--aux b bs) \ t => false :: t
 
 
 val simpl-op--op++
@@ -132,9 +132,9 @@ let nil => 1.Id
 let (false :: _) => 1.Id
 let (true :: nil) => 1.Id
 let (true :: true :: bs) =>
-  ap=.Id (simpl-op--op++aux(true :: bs)) at t => true :: t
+  ap=.Id (simpl-op--op++aux(true :: bs)) \ t => true :: t
 let (true :: false :: bs) =>
-  ap=.Id (simpl-op--op++aux(false :: bs)) at t => true :: t
+  ap=.Id (simpl-op--op++aux(false :: bs)) \ t => true :: t
 
 
 val.. ind

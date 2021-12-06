@@ -23,7 +23,7 @@ let =>
 
 val evens : List(Nat) -> List(Nat)
 let (xs) =>
-  fold xs nil at n m =>
+  fold xs nil \ n m =>
     case m
     of nil => (::.yu0/List) n nil
     of _ => (::.List#List.List) n m

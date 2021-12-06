@@ -72,7 +72,7 @@ let (mk ts1) (mk ts2) =>
 
 
 val deleteMin [A] [od : Ordering? A] :
-  (ts : List at BinomialTree A od) ->
+  (ts : List \ BinomialTree A od) ->
   (ts = nil.L [A := BinomialTree A od]) ||
   BinomialTree A od && List (BinomialTree A od)
 let nil.L => in1(refl)
@@ -82,7 +82,7 @@ let (t1 :: ts1) =>
   of in2 (t2 $ ts2) =>
     if (od .le? (t1 .root) (t2 .root))
     .then (in2 (t1 $ ts1))
-    .else (in2 (t2 $ at t1 :: ts2))
+    .else (in2 (t2 $ \ t1 :: ts2))
   end
 
 

@@ -95,7 +95,7 @@ let b => test-io-lambda b; {}
 
 val test-effect-type2 : (b : Bool) ->> Ty
 let (b) =>
-  Bool & test-effect-type1(b) -> at 'A .print; {}
+  Bool & test-effect-type1(b) -> \ 'A .print; {}
 
 val test-effect-type3 : {} ->> {}
 let () =>

@@ -46,7 +46,7 @@ val (.else#Then) [A : Ty] : Then A & ([] -> A) -> A
 let (if true .then f) _ => f []
 let (if false .then _) g => g []
 let (i .elif b .then f) g =>
-  i .else at
+  i .else \
     case b []
     of true => f []
     of false => g []

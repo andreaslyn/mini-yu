@@ -99,8 +99,8 @@ val plus-plus-swap-12
   : (k : Nat) & (m : Nat) & (n : Nat) ->
     k + (m + n) = m + (k + n)
 let k m n =>
-  resp (plus-assoc k m n) (x => x = r) at
-  rew.Id (plus-comm k m) (x => x + n = r) at
+  resp (plus-assoc k m n) (x => x = r) \
+  rew.Id (plus-comm k m) (x => x + n = r) \
   rew.Id (plus-assoc m k n) (x => x = r) 1.Id
 where
   val r : Nat

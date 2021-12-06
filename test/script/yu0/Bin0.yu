@@ -90,7 +90,7 @@ val ind
       ((x : Bin0) & P x -> P (++ x)) -> P b
 let 0 P a0 ai => a0
 let (pos b) P a0 ai =>
-  ind.Bin1 b (P @ pos) (ai 0 a0) at x a => ai (pos x) a
+  ind.Bin1 b (P @ pos) (ai 0 a0) \ x a => ai (pos x) a
 
 
 val rec [A : Ty] : (b : Bin0) & A & (Bin0 & A -> A) -> A

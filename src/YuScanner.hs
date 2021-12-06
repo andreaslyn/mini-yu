@@ -45,7 +45,7 @@ data TokType =
   | TokValDotDot
   | TokCase
   | TokOf
-  | TokAt
+  | TokBackslash
   | TokTy
   | TokAmp
   | TokBar
@@ -99,7 +99,7 @@ tokTypeString t =
     TokValDotDot -> "val.."
     TokCase -> "case"
     TokOf -> "of"
-    TokAt -> "at"
+    TokBackslash -> "\\"
     TokTy -> "Ty"
     TokAmp -> "&"
     TokBar -> "|"
@@ -209,6 +209,7 @@ failLoc msg lo = do
 failHere :: String -> SScanner a
 failHere msg = getLoc >>= failLoc msg
 
+-- NOTE there is a special case for backslash handled in 'readCommentOrBackslash'.
 makeWordTok :: String -> Loc -> SScanner Tok
 makeWordTok s lo
   | s == "import" = return (tok TokImport lo)
@@ -230,7 +231,6 @@ makeWordTok s lo
   | s == "->>" = return (tok TokDashGreaterIo lo)
   | s == "case" = return (tok TokCase lo)
   | s == "of" = return (tok TokOf lo)
-  | s == "at" = return (tok TokAt lo)
   | s == "=>" = return (tok TokEqGreater lo)
   | isOp1Char (head s) = return (tok (TokOp1 s) lo)
   | isOp2Char (head s) = return (tok (TokOp2 s) lo)
@@ -280,7 +280,7 @@ tryNewTok c lo
       t <- makeWordTok (c:w) lo
       return (Just t)
   | c == '"' = liftM Just readStringLit
-  | c == '\\' = readComment >> return Nothing
+  | c == '\\' = readCommentOrBackslash
   | c == '(' = return $ Just (tok TokParenL lo)
   | c == ')' = return $ Just (tok TokParenR lo)
   | c == '[' = return $ Just (tok TokSquareL lo)
@@ -344,15 +344,18 @@ tryNewTok c lo
         else
           failLoc ("unexpected escape charatcer " ++ quote [c']) lo'
 
-    readComment :: SScanner ()
-    readComment = do
+    readCommentOrBackslash :: SScanner (Maybe Tok)
+    readCommentOrBackslash = do
       c' <- consumeChar
-      if c' == '\\'
-        then skipRestOfLine
-        else if c' == '{'
-          then skipRestOfBlockComment
-          else failHere ("unexpected character " ++ quote [c'] ++
-                ", expected " ++ quote "\\" ++ " or " ++ quote "{")
+      if c' `elem` "\t\n\r "
+      then return $ Just $ tok TokBackslash lo
+      else
+          if c' == '\\'
+            then skipRestOfLine >> return Nothing
+            else if c' == '{'
+              then skipRestOfBlockComment >> return Nothing
+              else failHere ("unexpected character " ++ quote [c'] ++
+                    ", expected " ++ quote "\\" ++ " or " ++ quote "{")
 
 tryConsumeNextTok :: SScanner Tok
 tryConsumeNextTok = do

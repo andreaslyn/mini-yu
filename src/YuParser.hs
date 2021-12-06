@@ -299,7 +299,7 @@ parseDoExpr :: YuParsec Expr
 parseDoExpr = doParseDoExpr <|> parseFunExpr
 
 doParseDoExpr :: YuParsec Expr
-doParseDoExpr = yuKeyTok TokAt >> parseExpr
+doParseDoExpr = yuKeyTok TokBackslash >> parseExpr
 
 parseFunExpr :: YuParsec Expr
 parseFunExpr = do

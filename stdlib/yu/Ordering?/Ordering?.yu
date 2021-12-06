@@ -190,7 +190,7 @@ val (.setCmp#Ordering?) [A : Ty] :
   ((x y : A) -> cmp x y = R .cmp x y) ->
   Ordering? A
 let R cmp isCmp =>
-  mk (mkRel (R .le?) (R .lt?) (R .eq?) cmp) at
+  mk (mkRel (R .le?) (R .lt?) (R .eq?) cmp) \
   mkIs
     (R .isOrdering? .leIsTotalPreorder)
     isCmp'
@@ -208,7 +208,7 @@ val (.setLt#Ordering?) [A : Ty] :
   ((x y : A) -> lt x y = R .lt? x y) ->
   Ordering? A
 let R lt isLt =>
-  mk (mkRel (R .le?) lt (R .eq?) (R .cmp)) at
+  mk (mkRel (R .le?) lt (R .eq?) (R .cmp)) \
   mkIs
     (R .isOrdering? .leIsTotalPreorder)
     (R .isOrdering? .cmpIsCompatible)
@@ -226,7 +226,7 @@ val (.setEq#Ordering?) [A : Ty] :
   ((x y : A) -> eq x y = R .eq? x y) ->
   Ordering? A
 let R eq isEq =>
-  mk (mkRel (R .le?) (R .lt?) eq (R .cmp)) at
+  mk (mkRel (R .le?) (R .lt?) eq (R .cmp)) \
   mkIs
     (R .isOrdering? .leIsTotalPreorder)
     (R .isOrdering? .cmpIsCompatible)
@@ -250,15 +250,15 @@ let R le isLe =>
 where
   val isCon : le .IsConnex?
   let x y =>
-    isLe x y .rew (t => ? (t || le y x)) at
-    isLe y x .rew (t => ? (R .le? x y || t)) at
+    isLe x y .rew (t => ? (t || le y x)) \
+    isLe y x .rew (t => ? (R .le? x y || t)) \
     R .isOrdering? .leIsTotalPreorder .1 x y
 
   val isTra : le .IsTransitive?
   let x y z lexy leyz =>
     lexy' := isLe x y .resp (?) lexy;
     leyz' := isLe y z .resp (?) leyz;
-    isLe x z .rew (?) at
+    isLe x z .rew (?) \
     R .isOrdering? .leIsTotalPreorder .2 x y z lexy' leyz'
 
   val isTP : le .IsTotalPreorder?
@@ -266,8 +266,8 @@ where
 
   val isCmp : (x y : A) -> R .cmp x y = leToCmp le x y
   let x y =>
-    isLe x y .rew (flip G (le y x)) at
-    isLe y x .rew (G (R .le? x y)) at
+    isLe x y .rew (flip G (le y x)) \
+    isLe y x .rew (G (R .le? x y)) \
     R .isOrdering? .cmpIsCompatible x y
   where
     val G : Bool & Bool -> Ty
@@ -276,13 +276,13 @@ where
 
   val isLt : (x y : A) -> R .lt? x y = leToLt? le x y
   let x y =>
-    isLe y x .rew (t => R .lt? x y = ! t) at
+    isLe y x .rew (t => R .lt? x y = ! t) \
     R .isOrdering? .ltIsCompatible x y
 
   val isEq : (x y : A) -> R .eq? x y = leToEq? le x y
   let x y =>
-    isLe x y .rew (flip G (le y x)) at
-    isLe y x .rew (G (R .le? x y)) at
+    isLe x y .rew (flip G (le y x)) \
+    isLe y x .rew (G (R .le? x y)) \
     R .isOrdering? .eqIsCompatible x y
   where
     val G : Bool & Bool -> Ty
@@ -299,7 +299,7 @@ let le isLe =>
       le
       (leToLt? le)
       (leToEq? le)
-      (leToCmp le)) at
+      (leToCmp le)) \
   mkIs isLe (x y => refl) (x y => refl) (x y => refl)
 
 
@@ -326,17 +326,17 @@ val cmpToEq?IsCompatible [A : Ty] :
   cmpToEq? cmp x y = cmpToLeToEq? cmp x y
 let cmp isC => x y =>
   cmp x y .notGtIsLtOrEq .rew
-    (t => cmp x y .eq? = t && ! cmp y x .gt?) at
+    (t => cmp x y .eq? = t && ! cmp y x .gt?) \
   cmp y x .notGtIsLtOrEq .rew
-    (t => cmp x y .eq? = (cmp x y .lt? || cmp x y .eq?) && t) at
+    (t => cmp x y .eq? = (cmp x y .lt? || cmp x y .eq?) && t) \
   isC y x .rew
     (t =>
       cmp x y .eq?
-      = (cmp x y .lt? || cmp x y .eq?) && (t || cmp y x .eq?)) at
+      = (cmp x y .lt? || cmp x y .eq?) && (t || cmp y x .eq?)) \
   eqSym (isC y x) (! isC x y) (cmp y x) (cmp x y) .rew
     (t =>
       cmp x y .eq?
-      = (cmp x y .lt? || cmp x y .eq?) && (cmp x y .gt? || t)) at
+      = (cmp x y .lt? || cmp x y .eq?) && (cmp x y .gt? || t)) \
   cmp x y .ind
     (c => c .eq? = (c .lt? || c .eq?) && (c .gt? || c .eq?))
     refl refl refl
@@ -370,7 +370,7 @@ val cmpToCmpIsCompatible [A : Ty] :
   cmp x y = cmpToLeToCmp cmp x y
 let cmp isC => x y =>
   (! isC x y) .rew
-    (a => cmp x y = leToCmpImpl (! cmp x y .gt?) (! a)) at
+    (a => cmp x y = leToCmpImpl (! cmp x y .gt?) (! a)) \
   cmp x y .ind
     (c => c = leToCmpImpl (! c .gt?) (! c .lt?)) refl refl refl
 
@@ -381,7 +381,7 @@ val cmpToLeIsConnex? [A : Ty] :
     cmpToLt? cmp x y = cmpToGt? cmp y x) ->
   cmpToLe? cmp .IsConnex?
 let cmp isC => x y =>
-  isC x y .resp (b => ? (! cmp x y .gt? || ! b)) at
+  isC x y .resp (b => ? (! cmp x y .gt? || ! b)) \
   cmp x y .ind (c => ? (! c .gt? || ! c .lt?)) refl refl refl
 
 

@@ -58,7 +58,7 @@ where
 
   val.. merge-all : Delay-List1 (List A) -> List A
   let (one as) => as
-  let (as :: xs) => merge-all at merge-with-head as (xs ())
+  let (as :: xs) => merge-all \ merge-with-head as (xs ())
 
   val merge-with-head : List A & Delay-List1 (List A) -> Delay-List1 (List A)
   let as (one bs) => one (merge as bs)

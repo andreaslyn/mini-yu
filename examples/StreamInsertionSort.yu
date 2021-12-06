@@ -22,7 +22,7 @@ where
 end
 
 
-val test : at
+val test : \
   a := 3.N :: 2.N :: 5.N :: 3.N :: 1.N :: nil.Stream;
   b := 1.N :: 2.N :: 3.N :: 3.N :: 5.N :: nil.Stream;
   a .insertionSort ordering?.N = b

@@ -9,11 +9,11 @@ import N => yu/Nat
 val primesLessThan : Nat -> List Nat
 let 0.N => nil.L
 let (++ 0.N) => nil.L
-let (++ ++ n) => primes (n .listSmaller .map at x => (x + 2.N) $ is++.N)
+let (++ ++ n) => primes (n .listSmaller .map \ x => (x + 2.N) $ is++.N)
 where
   val.. primes : List (&: (.Is++#Nat)) -> List Nat
   let nil.L => nil.L
-  let (n $ D :: ns) => n :: primes (ns .filter at x => ! (n .divides (x .1) D))
+  let (n $ D :: ns) => n :: primes (ns .filter \ x => ! (n .divides (x .1) D))
 end
 
 

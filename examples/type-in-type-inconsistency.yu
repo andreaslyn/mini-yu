@@ -1,5 +1,5 @@
 \{
-\\ Short proat at type-in-type inconsistency.
+\\ Short proof of type-in-type inconsistency.
 \\
 \\ This code was originally written by Torsten Altenkirch in Agda,
 \\ http://www.cs.nott.ac.uk/~psztxa/g53cfr/l20.html/l20.html.
@@ -23,7 +23,7 @@ let => m {} (const 0)
 
 
 val 2 : M
-let => m Bool at b => if b .then 0 .else 1
+let => m Bool \ b => if b .then 0 .else 1
 
 
 val (<-#M) : M & M -> Ty
@@ -35,7 +35,7 @@ let a b => ! (a <- b)
 
 
 val R : M
-let => m (&: at (a : M) => a <! a) (.1)
+let => m (&: \ (a : M) => a <! a) (.1)
 
 
 val lem-1 [X : M] : X <- R -> X <! X

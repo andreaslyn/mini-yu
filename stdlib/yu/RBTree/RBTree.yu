@@ -110,10 +110,10 @@ let leaf _ => false
 let (t1 .node t2 x _) y => od .eq? x y || t1 .member y || t2 .member y
 
 
-val test : at
+val test : \
   xs := 1.N :: 6.N :: 5.N :: 4.N :: 6.N :: 1.N :: 3.N :: 2.N :: nil.L;
   f := fromList [od := ordering?.N];
-  ? at
+  ? \
     f xs .member 1.N && f xs .member 2.N && f xs .member 3.N &&
     f xs .member 4.N && f xs .member 5.N && f xs .member 6.N &&
     ! f xs .member 0.N && ! f xs .member 7.N

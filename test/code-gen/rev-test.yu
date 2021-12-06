@@ -40,7 +40,7 @@ where
 end
 
 val reverse [A : Ty] : List A -> List A
-let xs => xs .accum nil.L at a x => x :: a
+let xs => xs .accum nil.L \ a x => x :: a
 
 val reverse' [A : Ty] : List A -> List A
 let => aux0 nil.L

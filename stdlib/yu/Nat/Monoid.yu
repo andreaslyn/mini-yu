@@ -15,7 +15,7 @@ val isMonoid+ : IsMonoid Nat
 let =>
   mkIs.Mon (+) 0
     (k m n => ! associativeOp+.N-th)
-    ((n => simpl0Op+.N-th) $ at n => refl)
+    ((n => simpl0Op+.N-th) $ \ n => refl)
 
 
 val monoid+ : Monoid

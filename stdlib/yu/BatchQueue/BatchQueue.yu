@@ -59,8 +59,8 @@ let (mkBatchQueue (_ :: ff) rr) => mkBatchQueue ff rr
 
 val (.uncons?#BatchQueue) [A : Ty] : BatchQueue A -> ? (A && BatchQueue A)
 let (mkBatchQueue nil.L _) => no
-let (mkBatchQueue (x :: nil.L) rr) => yes at x $ mkBatchQueue (rr .rev) nil.L
-let (mkBatchQueue (x :: ff) rr) => yes at x $ mkBatchQueue ff rr
+let (mkBatchQueue (x :: nil.L) rr) => yes \ x $ mkBatchQueue (rr .rev) nil.L
+let (mkBatchQueue (x :: ff) rr) => yes \ x $ mkBatchQueue ff rr
 
 
 val (.tail?#BatchQueue) [A : Ty] : BatchQueue A -> ? BatchQueue A

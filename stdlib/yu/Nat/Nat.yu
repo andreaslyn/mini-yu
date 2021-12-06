@@ -66,7 +66,7 @@ end
 
 val (.divmod?#Nat) : Nat & Nat -> ? (Nat && Nat)
 let _ 0 => no
-let m (++ n) => yes at m .divmod (++ n) is++
+let m (++ n) => yes \ m .divmod (++ n) is++
 
 
 val (.div?#Nat) : Nat & Nat -> ? Nat

@@ -83,7 +83,7 @@ let (a .node b _) => a .merge b
 val fromList [A : Ty] [od : Ordering? A] : List A -> LeftistHeap A od
 let list => heapList list .tournament (.merge)
 where
-  val heapList : List A -> DelayList1 at LeftistHeap A od
+  val heapList : List A -> DelayList1 \ LeftistHeap A od
   let nil.L => one.DelayList1 leaf
   let (x :: xs) => singleton x :: heapList xs
 end

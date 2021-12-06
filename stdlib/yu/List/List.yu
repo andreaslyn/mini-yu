@@ -84,7 +84,7 @@ val (.update?#List) [A : Ty] : List A & A & Nat -> ? List A
 let nil _ _ => no
 let (_ :: xs) a 0 => yes(a :: xs)
 let (x :: xs) a (++ n) =>
-  xs .update? a n >>= at xs' => yes (x :: xs')
+  xs .update? a n >>= \ xs' => yes (x :: xs')
 
 
 val (.update!#List) [A : Ty] : List A & A & Nat -> List A
@@ -141,9 +141,9 @@ let as => as .fold nil (:+:)
 
 val (.accumScan#List) [A B : Ty] : List A & B & (B & A -> B) -> List B
 let xs y f =>
-  xs .accum (y $ at (t : List B) => y :: t) (b a =>
+  xs .accum (y $ \ (t : List B) => y :: t) (b a =>
     b' := f (b .1) a;
-    b' $ at (t : List B) => b .2 (b' :: t)
+    b' $ \ (t : List B) => b .2 (b' :: t)
   ) .2 nil
 
 

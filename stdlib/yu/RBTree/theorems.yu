@@ -40,7 +40,7 @@ val (.blackInvariant#RBTree) [A : Ty] [od : Ordering? A] :
 let t =>
   case t .pathCountBlackNodes
   of nil.L => true.B
-  of n :: ns => ns .accum true.B at a x => a && (x =? n)
+  of n :: ns => ns .accum true.B \ a x => a && (x =? n)
   end
 
 

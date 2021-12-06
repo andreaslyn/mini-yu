@@ -84,8 +84,8 @@ val (.revDistributesOp:+:#List) [A : Ty] :
 let nil ys => ! ys .rev .nilRightIdentityOp:+:
 let (x :: xs) ys =>
   (xs :+: ys) .simplRevOp:: x @
-  xs .revDistributesOp:+: ys .rewL (t => t :+: x :: nil) at
-  xs .simplRevOp:: x .rewR (t => ys .rev :+: t) at
+  xs .revDistributesOp:+: ys .rewL (t => t :+: x :: nil) \
+  xs .simplRevOp:: x .rewR (t => ys .rev :+: t) \
   ! ys .rev .associativeOp:+: (xs .rev) (x :: nil)
 
 
@@ -100,7 +100,7 @@ val (.revPreservesAll#List) [A : Ty] [P : A -> Ty] :
   (xs : List A) & xs .All P -> xs .rev .All P
 let nil H => allNil
 let (x :: xs) (X :: Xs) =>
-  xs .simplRevOp:: x .rew(t => t .All P) at
+  xs .simplRevOp:: x .rew(t => t .All P) \
   xs .rev .op:+:PreservesAll
     (x :: nil) (xs .revPreservesAll Xs) (X :: allNil)
 
@@ -137,7 +137,7 @@ where
     let _ gt.Ord _ _ c _ _ _ _ _ _ => c refl .rec
     let eq.Ord eq.Ord xz _ _ exy eyz e _ _ _ =>
       e refl refl .rewL
-        (a => ! a .rec lt.Ord (xs .cmp zs C) gt.Ord .gt?) at
+        (a => ! a .rec lt.Ord (xs .cmp zs C) gt.Ord .gt?) \
       isTrans xs ys zs (exy refl) (eyz refl)
     let eq.Ord lt.Ord xz _ _ _ _ _ e _ _ =>
       e refl refl .rewL

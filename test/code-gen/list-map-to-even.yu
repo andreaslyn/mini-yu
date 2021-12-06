@@ -28,7 +28,7 @@ let ns => ns .map (.isEven)
 
 val count-evens : List Bool -> Nat
 let ns =>
-  ns .fold 0.N at b x =>
+  ns .fold 0.N \ b x =>
     case b
     of true => ++ x
     of false => x
