@@ -407,7 +407,9 @@ writePapFunClosure c v rs n = do
       writeIncs 0 [] bs
     writeIncs _ [] [] = return ()
     writeIncs i acc [] = do
-      writeStr CFile ("yur_inc_" ++ show i ++ "(")
+      if i == 1
+      then writeStr CFile "yur_inc("
+      else writeStr CFile ("yur_inc_" ++ show i ++ "(")
       writeStringArgsList acc
       writeStr CFile ");"
       newLine CFile
@@ -641,7 +643,9 @@ writeFunExprIncs i acc (R.Inc v e) =
 writeFunExprIncs 0 _ e =
   writeFunExpr e
 writeFunExprIncs i acc e = do
-  writeStr CFile ("yur_inc_" ++ show i ++ "(")
+  if i == 1
+  then writeStr CFile "yur_inc("
+  else writeStr CFile ("yur_inc_" ++ show i ++ "(")
   writeVarArgsList acc
   writeStr CFile ");"
   newLine CFile
