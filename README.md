@@ -72,15 +72,15 @@ This section describes some of the features of Mini Yu.
 
 To get started, here is the Hello World program in Mini Yu:
 ```
-\\ Import basic functionality from standard library:
+## Import basic functionality from standard library:
 import yu/prelude
 of (...)
 
-\\ Function main is the program entry point:
+## Function main is the program entry point:
 val main : {} ->> {}
 let () => "Hello, World!" .println
 ```
-Note that line comments start with `\\`.
+Note that line comments start with `##`.
 
 Copy the code and put it in a file named `hello-world.yu`.
 Compile it with the command

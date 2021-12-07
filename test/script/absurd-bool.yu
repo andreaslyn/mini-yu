@@ -6,8 +6,8 @@ of true : Bool
 data IsTrue : Bool -> Ty
 of is-true : IsTrue(true)
 
-\\val is-true-false : IsTrue(false) -> Bool
-\\let (is-true) => true
+##val is-true-false : IsTrue(false) -> Bool
+##let (is-true) => true
 
 val is-true-false : IsTrue(false) -> Bool
 let {}

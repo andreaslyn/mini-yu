@@ -1,10 +1,10 @@
-\{
-\\ Short proof of type-in-type inconsistency.
-\\
-\\ This code was originally written by Torsten Altenkirch in Agda,
-\\ http://www.cs.nott.ac.uk/~psztxa/g53cfr/l20.html/l20.html.
-\\ I have rewritten the code in Yu syntax.
-\}
+#{
+Short proof of type-in-type inconsistency.
+
+This code was originally written by Torsten Altenkirch in Agda,
+http://www.cs.nott.ac.uk/~psztxa/g53cfr/l20.html/l20.html.
+It has been ported to Mini Yu.
+#}
 
 import yu/prelude
 of (...)

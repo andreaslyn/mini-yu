@@ -42,7 +42,7 @@ let a b x =>
   if (a <=rank b) .then (b .node a x) .else (a .node b x)
 
 
-\\ Runs in O(log(n) ^ 2) time, since <=rank is O(log(n)).
+## Runs in O(log(n) ^ 2) time, since <=rank is O(log(n)).
 
 val (.merge#LeftistHeap) [A : Ty] [od : Ordering? A] :
   LeftistHeap A od & LeftistHeap A od -> LeftistHeap A od

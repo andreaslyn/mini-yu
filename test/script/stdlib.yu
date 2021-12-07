@@ -88,7 +88,7 @@ of shift
 import yu/BatchQueue/BatchQueue
 import yu/BatchQueue
 
-\\ Use some values here to make lazy test check them
+## Use some values here to make lazy test check them
 
 val falseIsLessThanTrue : ? (false <? true)
 let => refl

@@ -209,7 +209,6 @@ failLoc msg lo = do
 failHere :: String -> SScanner a
 failHere msg = getLoc >>= failLoc msg
 
--- NOTE there is a special case for backslash handled in 'readCommentOrBackslash'.
 makeWordTok :: String -> Loc -> SScanner Tok
 makeWordTok s lo
   | s == "import" = return (tok TokImport lo)
@@ -262,7 +261,7 @@ skipRestOfBlockComment = skipNest 1
     skipNest 0 = return ()
     skipNest i = do
       c <- consumeChar
-      if c /= '\\'
+      if c /= '#'
         then skipNest i
         else consumeChar >>= skipNestHashtag i
 
@@ -275,12 +274,8 @@ skipRestOfBlockComment = skipNest 1
 tryNewTok :: Char -> Loc -> SScanner (Maybe Tok)
 tryNewTok c lo
   | c `elem` "\t\n\r " = return Nothing
-  | isGeneralWordChar c = do
-      w <- readWord
-      t <- makeWordTok (c:w) lo
-      return (Just t)
+  | c == '#' = readComment >> return Nothing
   | c == '"' = liftM Just readStringLit
-  | c == '\\' = readCommentOrBackslash
   | c == '(' = return $ Just (tok TokParenL lo)
   | c == ')' = return $ Just (tok TokParenR lo)
   | c == '[' = return $ Just (tok TokSquareL lo)
@@ -288,6 +283,11 @@ tryNewTok c lo
   | c == '{' = return $ Just (tok TokCurlyL lo)
   | c == '}' = return $ Just (tok TokCurlyR lo)
   | c == ';' = return $ Just (tok TokSemiColon lo)
+  | c == '\\' = readBackslashWord
+  | isGeneralWordChar c = do
+      w <- readWord
+      t <- makeWordTok (c:w) lo
+      return (Just t)
   | otherwise = failLoc ("invalid input character") lo
   where
     readWord :: SScanner String
@@ -344,18 +344,22 @@ tryNewTok c lo
         else
           failLoc ("unexpected escape charatcer " ++ quote [c']) lo'
 
-    readCommentOrBackslash :: SScanner (Maybe Tok)
-    readCommentOrBackslash = do
+    readComment :: SScanner ()
+    readComment = do
+      c' <- consumeChar
+      if c' == '#'
+        then skipRestOfLine
+        else if c' == '{'
+          then skipRestOfBlockComment
+          else failHere ("unexpected input, expected "
+                         ++ quote "#" ++ " or " ++ quote "{" ++ " after " ++ quote "#")
+
+    readBackslashWord :: SScanner (Maybe Tok)
+    readBackslashWord = do
       c' <- consumeChar
       if c' `elem` "\t\n\r "
-      then return $ Just $ tok TokBackslash lo
-      else
-          if c' == '\\'
-            then skipRestOfLine >> return Nothing
-            else if c' == '{'
-              then skipRestOfBlockComment >> return Nothing
-              else failHere ("unexpected character " ++ quote [c'] ++
-                    ", expected " ++ quote "\\" ++ " or " ++ quote "{")
+      then return $ Just (tok TokBackslash lo)
+      else failHere ("unexpected input " ++ quote (c' : "") ++ " after " ++ quote "\\")
 
 tryConsumeNextTok :: SScanner Tok
 tryConsumeNextTok = do

@@ -24,10 +24,10 @@ of nil [X Y A : Ty] : A -> LazyList X Y A
 of cons [X Y A : Ty] : Y & (X ->> LazyList X Y A) -> LazyList X Y A
 
 
-\{
+#{
 val coyield [X Y A : Ty] : Y & Prompt (LazyList X Y A) ->> X
 let y pt => shift (k => cons y k) pt
-\}
+#}
 
 
 val coRoutineSum : Nat & Prompt (LazyList {} Nat {}) ->> {}

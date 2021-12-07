@@ -16,7 +16,7 @@ import Char => yu0/Char
 import very-weak-funext => yu0/very-weak-funext
 import Category => yu0/Category
 
-\\ Use some values here to make lazy test check them
+## Use some values here to make lazy test check them
 
 val useMulBinNat : Bin.BinNat
 let => 10.BinNat *.BinNat 2.BinNat

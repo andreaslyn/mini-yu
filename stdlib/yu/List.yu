@@ -9,9 +9,7 @@ of (...#.All#List)
 of here
 of (...#.Has#List)
 
-\{
 import yu/List/theorems
 export
 of ordering?
 of equivalence?
-\}

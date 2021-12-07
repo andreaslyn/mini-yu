@@ -8,7 +8,7 @@ import basic => yu/basic
 of (...)
 
 
-\\\\\\\\\\\\\\\\\\\\\\\\\\ Addition theormes \\\\\\\\\\\\\\\\\\\\\\\\\
+########################## Addition theormes #########################
 
 
 val simplOp++Op+ [m n : Nat] : ++ m + n = ++ (m + n)
@@ -68,7 +68,7 @@ where
 end
 
 
-\\\\\\\\\\\\\\\\\\\\\\ Multiplication theormes \\\\\\\\\\\\\\\\\\\\\\\
+###################### Multiplication theormes #######################
 
 
 val op*IsOp*r [m n : Nat] : m * n = m *r n
@@ -76,7 +76,7 @@ let [n := 0] => refl
 let [n := ++ n] => op+IsOp+r @ op*IsOp*r .ap (t => t +r m)
 
 
-\\\\\\\\\\\\\\\\\\\\\\\\ Ordering theormes \\\\\\\\\\\\\\\\\\\\\\\\\\\
+######################## Ordering theormes ###########################
 
 
 val op++Is<? [n : Nat] : ? (n <? ++ n)
