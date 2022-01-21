@@ -407,7 +407,7 @@ listRemoveIdx i (x:xs) =
 listRemoveIdx _ _ = error "incompatible listRemoveIdx index with list"
 
 -- Normalize, then get Xn from X1 -> X2 -> ... -> Xn, where n = 1 is allowed.
--- Bool = True if lazy arrow on the way.
+-- Bool = True if IO arrow on the way.
 preTermFinalCod :: RefMap -> PreTerm -> (PreTerm, Bool)
 preTermFinalCod = \r t -> doPreTermFinalCod (preTermNormalize r t)
   where
