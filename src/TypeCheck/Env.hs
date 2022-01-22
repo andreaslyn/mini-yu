@@ -5,6 +5,7 @@ module TypeCheck.Env
   , isStatusUnknown
   , isStatusInProgress
   , isStatusTerm
+  , Env
   , EnvT
   , getEnv
   , ScopeMap
@@ -17,6 +18,7 @@ module TypeCheck.Env
   , getDataCtorMap
   , runEnvT
   , addToGlobals
+  , findTermVarType
   , TypeCheck.Env.lookup
   , getModuleExpandMap
   , tryInsertModuleExpand
@@ -400,6 +402,15 @@ expandVarName modName vn = do
                   _ -> s0 ++ "." ++ moduleToAdd
       in operandConcatMaybe s0' s1
 
+findTermVarType :: Var -> Env -> Maybe PreTerm
+findTermVarType v (Env _ m next) =
+  case Map.lookup (varName v) m of
+    Just (StatusTerm t@(Term {termPre = TermVar _ w}), _) ->
+        if varId v == varId w
+        then Just (termTy t)
+        else next >>= findTermVarType v
+    _ -> next >>= findTermVarType v
+
 doLookup :: GlobalMap -> VarName -> Env -> Maybe VarStatus
 doLookup g v (Env _ m Nothing) =
   case Map.lookup v m of
@@ -527,17 +538,21 @@ withDepth i c = do
 
 scope :: Monad m => EnvT m a -> EnvT m a
 scope c = do
-  e0 <- getEnv
-  s <- case e0 of
-        Env _ _ Nothing -> do
+  origNextVar <- fmap nextLocalVarName get
+  depth <- getDepth
+  s <- if depth == 0
+        then do
           s0 <- get
           return (s0 {nextLocalVarName = 0})
-        _ -> get
+        else
+          get
   incCurrentScopeId
   nid <- getCurrentScopeId
   let e = Env nid Map.empty (Just (env s))
   (x, s') <- lift (runStateT c (s {env = e}))
-  put s'
+  if depth == 0
+  then put (s' {nextLocalVarName = origNextVar})
+  else put s'
   case env s' of
     Env _ _ (Just s'') -> putEnv s''
     _ -> error "missing scope in nested environment?"

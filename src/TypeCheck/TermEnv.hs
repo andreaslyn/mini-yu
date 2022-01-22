@@ -502,7 +502,7 @@ preTermPartialApplication appIo numMissing f args fio = do
     newAppliedVars (a : as) = do
       i <- Env.freshVarId
       l <- Env.getNextLocalVarIdStr
-      let v = mkVar i ("_" ++ l)
+      let v = mkVar i ("_x" ++ l)
       vs <- newAppliedVars as
       return ((v, a) : vs)
 
@@ -517,7 +517,7 @@ preTermPartialApplication appIo numMissing f args fio = do
         i <- Env.freshVarId
         l <- Env.getNextLocalVarIdStr
         vs <- makeNewVars (n + 1)
-        let v = mkVar i ("_" ++ l)
+        let v = mkVar i ("_x" ++ l)
         return (v : vs)
 
 prePatternApplyWithVars ::
@@ -537,14 +537,16 @@ prePatternApplyWithVars ctor = \ty -> do
     addArg :: (Var, PreTerm) -> TypeCheckIO (VarName, PrePattern)
     addArg (n, _) = do
       i <- Env.freshVarId
-      let v = mkVar i "_"
+      l <- Env.getNextLocalVarIdStr
+      let v = mkVar i ("_x" ++ l)
       let a = PatternVar v
       return (varName n, a)
 
     addArg1 :: (Maybe Var, PreTerm) -> TypeCheckIO PrePattern
     addArg1 _ = do
       i <- Env.freshVarId
-      let v = mkVar i "_"
+      l <- Env.getNextLocalVarIdStr
+      let v = mkVar i ("_x" ++ l)
       let a = PatternVar v
       return a
 
@@ -653,13 +655,13 @@ preTermExistsVar :: RefMap -> (VarId -> Bool) -> PreTerm -> Bool
 preTermExistsVar rm p t =
   not (IntSet.null (IntSet.filter p (preTermVars rm t)))
 
-preTermGetAlphaType :: ImplicitMap -> RefMap -> Env.ImplicitVarMap -> PreTerm -> Maybe PreTerm
-preTermGetAlphaType im rm iv (TermLazyApp _ f) = do
-  ty <- preTermGetAlphaType im rm iv f
+preTermGetAlphaType :: Env.Env -> ImplicitMap -> RefMap -> Env.ImplicitVarMap -> PreTerm -> Maybe PreTerm
+preTermGetAlphaType env im rm iv (TermLazyApp _ f) = do
+  ty <- preTermGetAlphaType env im rm iv f
   (cod, _) <- preTermLazyCod rm ty
   return cod
-preTermGetAlphaType im rm iv (TermImplicitApp _ f xs) = do
-  ty <- preTermGetAlphaType im rm iv f
+preTermGetAlphaType env im rm iv (TermImplicitApp _ f xs) = do
+  ty <- preTermGetAlphaType env im rm iv f
   is <- case f of
           TermData v -> return (Env.forceLookupImplicitMap (varId v) im)
           TermCtor v _ -> return (Env.forceLookupImplicitMap (varId v) im)
@@ -671,8 +673,8 @@ preTermGetAlphaType im rm iv (TermImplicitApp _ f xs) = do
   where
     addSubst :: SubstMap -> ((Var, PreTerm), (VarName, PreTerm)) -> SubstMap
     addSubst s ((v, _), (_, t)) = IntMap.insert (varId v) t s
-preTermGetAlphaType im rm iv (TermApp _ f xs) = do
-  ty <- preTermGetAlphaType im rm iv f
+preTermGetAlphaType env im rm iv (TermApp _ f xs) = do
+  ty <- preTermGetAlphaType env im rm iv f
   (dom, cod, _) <- preTermDomCod rm ty
   let !() = assert (length dom == length xs) ()
   let su = foldl addSubst IntMap.empty (zip dom xs)
@@ -681,35 +683,36 @@ preTermGetAlphaType im rm iv (TermApp _ f xs) = do
     addSubst :: SubstMap -> ((Maybe Var, PreTerm), PreTerm) -> SubstMap
     addSubst s ((Nothing, _), _) = s
     addSubst s ((Just v, _), t) = IntMap.insert (varId v) t s
-preTermGetAlphaType _ rm _ (TermData v) = do
+preTermGetAlphaType _ _ rm _ (TermData v) = do
   fmap (termTy . fst) (IntMap.lookup (varId v) rm)
-preTermGetAlphaType _ rm _ (TermCtor v _) =
+preTermGetAlphaType _ _ rm _ (TermCtor v _) =
   fmap (termTy . fst) (IntMap.lookup (varId v) rm)
-preTermGetAlphaType _ rm _ (TermRef v _) = 
+preTermGetAlphaType _ _ rm _ (TermRef v _) = 
   fmap (termTy . fst) (IntMap.lookup (varId v) rm)
-preTermGetAlphaType _ _ iv (TermVar _ v) = fmap fst (IntMap.lookup (varId v) iv)
-preTermGetAlphaType im rm iv (TermLazyFun io f) =
-  fmap (TermLazyArrow io) (preTermGetAlphaType im rm iv f)
-preTermGetAlphaType im rm iv (TermFun [] io (Just _) (CaseLeaf vs f _)) = do
-  ds <- mapM (inferVarAlphaType im rm iv f) vs
-  fmap (TermArrow io (zip (map Just vs) ds)) (preTermGetAlphaType im rm iv f)
-preTermGetAlphaType _ _ _ (TermArrow _ _ _) = Just TermTy
-preTermGetAlphaType _ _ _ (TermLazyArrow _ _) = Just TermTy
-preTermGetAlphaType _ _ _ TermUnitElem = Just TermUnitTy
-preTermGetAlphaType _ _ _ TermUnitTy = Just TermTy
-preTermGetAlphaType _ _ _ TermTy = Just TermTy
-preTermGetAlphaType _ _ _ (TermFun _ _ _ _) = Nothing
-preTermGetAlphaType _ _ _ (TermCase _ _) = Nothing
-preTermGetAlphaType _ _ _ TermEmpty = Nothing
+preTermGetAlphaType env _ _ iv (TermVar _ v) = do
+    fmap fst (IntMap.lookup (varId v) iv) <|> Env.findTermVarType v env
+preTermGetAlphaType env im rm iv (TermLazyFun io f) =
+  fmap (TermLazyArrow io) (preTermGetAlphaType env im rm iv f)
+preTermGetAlphaType env im rm iv (TermFun [] io (Just _) (CaseLeaf vs f _)) = do
+  ds <- mapM (inferVarAlphaType env im rm iv f) vs
+  fmap (TermArrow io (zip (map Just vs) ds)) (preTermGetAlphaType env im rm iv f)
+preTermGetAlphaType _ _ _ _ (TermArrow _ _ _) = Just TermTy
+preTermGetAlphaType _ _ _ _ (TermLazyArrow _ _) = Just TermTy
+preTermGetAlphaType _ _ _ _ TermUnitElem = Just TermUnitTy
+preTermGetAlphaType _ _ _ _ TermUnitTy = Just TermTy
+preTermGetAlphaType _ _ _ _ TermTy = Just TermTy
+preTermGetAlphaType _ _ _ _ (TermFun _ _ _ _) = Nothing
+preTermGetAlphaType _ _ _ _ (TermCase _ _) = Nothing
+preTermGetAlphaType _ _ _ _ TermEmpty = Nothing
 
 preTermIsThisVar :: Var -> PreTerm -> Bool
 preTermIsThisVar v (TermVar False w) = varId v == varId w
 preTermIsThisVar _ _ = False
 
-inferVarAlphaType :: ImplicitMap -> RefMap -> Env.ImplicitVarMap -> PreTerm -> Var -> Maybe PreTerm
-inferVarAlphaType im rm iv (TermLazyApp _ f) v = inferVarAlphaType im rm iv f v
-inferVarAlphaType im rm iv (TermImplicitApp _ f xs) v = do
-  inferVarAlphaType im rm iv f v
+inferVarAlphaType :: Env.Env -> ImplicitMap -> RefMap -> Env.ImplicitVarMap -> PreTerm -> Var -> Maybe PreTerm
+inferVarAlphaType env im rm iv (TermLazyApp _ f) v = inferVarAlphaType env im rm iv f v
+inferVarAlphaType env im rm iv (TermImplicitApp _ f xs) v = do
+  inferVarAlphaType env im rm iv f v
   <|> (findIndex (preTermIsThisVar v . snd) xs >>= getFromArgs)
   where
     getFromArgs :: Int -> Maybe PreTerm
@@ -721,34 +724,34 @@ inferVarAlphaType im rm iv (TermImplicitApp _ f xs) v = do
               _ -> Nothing
       let !() = assert (length is == length xs) ()
       Just (snd (is !! i))
-inferVarAlphaType im rm iv (TermApp _ f xs) v = do
-  inferVarAlphaType im rm iv f v
+inferVarAlphaType env im rm iv (TermApp _ f xs) v = do
+  inferVarAlphaType env im rm iv f v
   <|> (findIndex (preTermIsThisVar v) xs >>= getFromArgs)
   where
     getFromArgs :: Int -> Maybe PreTerm
     getFromArgs i = do
-      t <- preTermGetAlphaType im rm iv f
+      t <- preTermGetAlphaType env im rm iv f
       case t of
         TermArrow _ d _ -> do
           let !() = assert (length d == length xs) ()
           Just (snd (d !! i))
         _ -> error "expected type of applied term to be arrow"
-inferVarAlphaType im rm iv (TermLazyFun _ f) v =
-  inferVarAlphaType im rm iv f v
-inferVarAlphaType im rm iv (TermFun _ _ _ (CaseLeaf _ f _)) v = do
-  inferVarAlphaType im rm iv f v
-inferVarAlphaType _ _ _ (TermData _) _ = Nothing
-inferVarAlphaType _ _ _ (TermCtor _ _) _ = Nothing
-inferVarAlphaType _ _ _ (TermRef _ _) _ = Nothing
-inferVarAlphaType _ _ _ (TermVar _ _) _ = Nothing
-inferVarAlphaType _ _ _ (TermArrow _ _ _) _ = Nothing
-inferVarAlphaType _ _ _ (TermLazyArrow _ _) _ = Nothing
-inferVarAlphaType _ _ _ TermUnitElem _ = Nothing
-inferVarAlphaType _ _ _ TermUnitTy _ = Nothing
-inferVarAlphaType _ _ _ TermTy _ = Nothing
-inferVarAlphaType _ _ _ (TermFun _ _ _ _) _ = Nothing
-inferVarAlphaType _ _ _ (TermCase _ _) _ = Nothing
-inferVarAlphaType _ _ _ TermEmpty _ = Nothing
+inferVarAlphaType env im rm iv (TermLazyFun _ f) v =
+  inferVarAlphaType env im rm iv f v
+inferVarAlphaType env im rm iv (TermFun _ _ _ (CaseLeaf _ f _)) v = do
+  inferVarAlphaType env im rm iv f v
+inferVarAlphaType _ _ _ _ (TermData _) _ = Nothing
+inferVarAlphaType _ _ _ _ (TermCtor _ _) _ = Nothing
+inferVarAlphaType _ _ _ _ (TermRef _ _) _ = Nothing
+inferVarAlphaType _ _ _ _ (TermVar _ _) _ = Nothing
+inferVarAlphaType _ _ _ _ (TermArrow _ _ _) _ = Nothing
+inferVarAlphaType _ _ _ _ (TermLazyArrow _ _) _ = Nothing
+inferVarAlphaType _ _ _ _ TermUnitElem _ = Nothing
+inferVarAlphaType _ _ _ _ TermUnitTy _ = Nothing
+inferVarAlphaType _ _ _ _ TermTy _ = Nothing
+inferVarAlphaType _ _ _ _ (TermFun _ _ _ _) _ = Nothing
+inferVarAlphaType _ _ _ _ (TermCase _ _) _ = Nothing
+inferVarAlphaType _ _ _ _ TermEmpty _ = Nothing
 
 getAppAlphaArgumentWeight ::
   RefMap -> Env.ImplicitVarMap -> PreTerm -> (Int, Int, Int)
@@ -878,7 +881,7 @@ decIndent :: ToString ()
 decIndent = modify (\n -> n-2)
 
 nextVarName :: ToString VarName
-nextVarName = liftTT (fmap ('_':) Env.getNextLocalVarIdStr)
+nextVarName = liftTT (fmap ("_x"++) Env.getNextLocalVarIdStr)
 
 writeIndent :: ToString ()
 writeIndent = get >>= \n -> doWrite n
@@ -1253,7 +1256,7 @@ writeCaseTree ::
 writeCaseTree [] (CaseLeaf [] t _) =
   writePreTerm t
 writeCaseTree (x : xs) (CaseLeaf (i : is) t _) = do
-  when (varName i /= "_") $ do
+  unless (Str.isWildcard $ varName i) $ do
     writeStr (varName i)
     vb <- isVerbose
     when vb $ do

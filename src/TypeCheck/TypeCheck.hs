@@ -202,16 +202,18 @@ insertUnknownRef subst isData d = do
 
 insertUnknownVar ::
   SubstMap -> (Loc, VarName) -> VarId -> Maybe Expr -> TypeCheckIO ()
-insertUnknownVar subst (lo, na) i e = do
+insertUnknownVar subst (lo, na0) i e = do
   depth <- Env.getDepth
+  na <- if na0 == "_"
+        then do
+            l <- Env.getNextLocalVarIdStr
+            return ("_" ++ l)
+        else do
+            checkVarNameValid (lo, na0)
+            return na0
   let s = StatusUnknownVar subst depth (lo, na) i e
-  if na == "_"
-    then
-      return ()
-    else do
-      checkVarNameValid (lo, na)
-      x <- Env.tryInsert na s False
-      verifyMultipleUsesIdent (isJust x) (lo, na)
+  x <- Env.tryInsert na s False
+  verifyMultipleUsesIdent (isJust x) (lo, na)
 
 markInProgress :: Bool -> (Loc, VarName) -> TypeCheckIO (Maybe Term)
 markInProgress isCtor (lo, na) = do
@@ -241,18 +243,20 @@ insertNonblankFreshVariable na te = do
   insertNonblankVariable na i te
 
 insertNonblankVariable :: (Loc, VarName) -> VarId -> PreTerm -> TypeCheckIO Var
-insertNonblankVariable (lo, na) i te = do
+insertNonblankVariable (lo, na0) i te = do
+  na <- if na0 == "_"
+        then do
+            l <- Env.getNextLocalVarIdStr
+            return ("_" ++ l)
+        else do
+            checkVarNameValid (lo, na0)
+            return na0
   let v = mkVar i na
   let v' = TermVar False v
   let y = StatusTerm (mkTerm v' te False)
-  if na == "_"
-    then
-      return v
-    else do
-      checkVarNameValid (lo, na)
-      x <- Env.tryInsert na y False
-      verifyMultipleUsesIdent (isJust x) (lo, na)
-      return v
+  x <- Env.tryInsert na y False
+  verifyMultipleUsesIdent (isJust x) (lo, na)
+  return v
 
 checkVarNameValid :: (Loc, VarName) -> TypeCheckIO ()
 checkVarNameValid (lo, na) = do
@@ -927,8 +931,8 @@ doTcDecl subst isCtor (Decl (lo, prena) impls ty) = do
       [VarListElem] -> ExprIO [(Var, PreTerm)]
     checkTypedImplicits [] = return []
     checkTypedImplicits (((vlo, vna), Just e) : is)
-      | vna == "_" =
-          lift $ err vlo (Fatal $ "invalid implicit name " ++ quote "_")
+      | Str.isWildcard vna =
+          lift $ err vlo (Fatal $ "invalid implicit name " ++ quote vna)
       | True = do
           pa <- lift $ markInProgress False (vlo, vna)
           x <- case pa of
@@ -1479,7 +1483,8 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
         PatternEmpty -> do
           d <- makeCtorPatterns b cids (patternTy q)
           vi <- Env.freshVarId
-          let d' = map (\x -> (lo, qh ++ [x] ++ qt, t, [mkVar vi "_"])) d
+          dl <- mapM (\x -> fmap ((,) x) Env.getNextLocalVarIdStr) d
+          let d' = map (\(x,l) -> (lo, qh ++ [x] ++ qt, t, [mkVar vi ("_" ++ l)])) dl
           e <- duplicateCatchAll idx cids rss
           return ((lo, qs, t, []) : d' ++ e)
         _ -> fmap ((lo, qs, t, []):) (duplicateCatchAll idx cids rss)
@@ -1684,14 +1689,20 @@ doCasesToCaseTree startIdx pss@((firstLoc, ps, te) : _) = do
     pvarsImplicits ::
       [(VarName, Pattern)] -> TypeCheckIO [(VarName, Var)]
     pvarsImplicits qs =
-      mapM (\(n, _) -> fmap (\i -> (n, mkVar i "_")) Env.freshVarId) qs
+      mapM (\(n, _) -> do
+        i <- Env.freshVarId
+        l <- Env.getNextLocalVarIdStr
+        return (n, mkVar i ("_" ++ l))) qs
 
     pvarsArgs :: [Maybe [Pattern]] -> TypeCheckIO [Maybe [Var]]
     pvarsArgs [] = return []
     pvarsArgs (Nothing : qss) =
       fmap (Nothing:) (pvarsArgs qss)
     pvarsArgs (Just qs : qss) = do
-      qs' <- mapM (\_ -> fmap (flip mkVar "_") Env.freshVarId) qs
+      qs' <- mapM (\_ -> do
+        i <- Env.freshVarId
+        l <- Env.getNextLocalVarIdStr
+        return $ mkVar i ("_" ++ l)) qs
       qss' <- pvarsArgs qss
       return (Just qs' : qss')
 
@@ -1805,7 +1816,6 @@ tcExprOperandResult subst ty e = do
       Bool -> Bool -> PreTerm -> ExprIO (OperandResult, Expr, Term)
     exprCheckLazyOrDelay isLazy io expectedTy = do
       (_, opex, e') <- tcExprOperandResult subst expectedTy e
-      tcExprSubstUnify (exprLoc e) expectedTy (termTy e')
       when (termIo e' && not io)
         (lift $ err (exprLoc e) (Recoverable $
           "unable to construct pure lazy value, "
@@ -2117,10 +2127,10 @@ doTcExpr isTrial subst _ ty expr@(ExprFun exty lo as body) =
       error "expected function explicit type or implicit type"
     checkParam (((_, Nothing), _), Just x) = return x
     checkParam ((((vlo, vna), Just e), i), _)
-      | vna == "_" = do
+      | Str.isWildcard vna = do
           e' <- tcExpr subst TermTy e
           lift (verifyNoIoEscapeFromType vlo vna e')
-          let v = mkVar i "_"
+          let v = mkVar i vna
           return (v, termPre e')
       | True = do
           pa <- lift (markInProgress False (vlo, vna))
@@ -2148,7 +2158,7 @@ doTcExpr isTrial subst _ ty expr@(ExprFun exty lo as body) =
       ExprIO (SubstMap, [(Int, (Var, PreTerm))])
     insertTypedParams su [] = return (su, [])
     insertTypedParams su ((idx, (v, t), (((vlo, vna), e), i)) : xs) = do
-      pa <- if vna == "_"
+      pa <- if Str.isWildcard vna
               then return Nothing
               else lift (markInProgress False (vlo, vna))
       rm <- lift Env.getRefMap
@@ -2168,7 +2178,7 @@ doTcExpr isTrial subst _ ty expr@(ExprFun exty lo as body) =
           tcExprSubstUnify (exprLoc e') t' t0
       let var = mkVar i vna
       let tvar = TermVar False var
-      when (vna /= "_")
+      unless (Str.isWildcard vna)
         (lift $ updateToStatusTerm vna (mkTerm tvar t' False))
       let su' = case v of
                   Nothing -> su
@@ -2201,7 +2211,7 @@ doTcExpr isTrial subst _ _ expr@(ExprArrow _ io dom cod) =
       e' <- tcExpr subst TermTy e
       return (Nothing, termPre e', termIo e')
     checkParam (Right ((vlo, vna), e))
-      | vna == "_" = checkParam (Left e)
+      | Str.isWildcard vna = checkParam (Left e)
       | True = do
           pa <- lift (markInProgress False (vlo, vna))
           case pa of
@@ -2975,9 +2985,10 @@ doTcPattern hasImplicitApp hasApp newpids ty (ParsePatternVar (lo, na0)) = do
       _ <- ctorFromVarStatus x'
       error "StatusInProgress True was supposed to be unreachable"
     _ -> do
-      ss <- preTermToString defaultExprIndent ty
       if hasImplicitApp || hasApp
-      then err lo (Recoverable $ "expected " ++ quote na0
+      then do
+        ss <- preTermToString defaultExprIndent ty
+        err lo (Recoverable $ "expected " ++ quote na0
                                ++ " to be constructor of\n" ++ ss)
       else do
         v <- insertNonblankFreshVariable (lo, na) ty

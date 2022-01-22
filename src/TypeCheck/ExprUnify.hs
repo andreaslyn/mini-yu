@@ -406,8 +406,9 @@ doExprUnify normalize = \t1 t2 -> do
       im <- lift Env.getImplicitMap
       rm <- lift Env.getRefMap
       iv <- lift Env.getImplicitVarMap
-      let mt1 = preTermGetAlphaType im rm iv f1
-      let mt2 = preTermGetAlphaType im rm iv f2
+      env <- lift Env.getEnv
+      let mt1 = preTermGetAlphaType env im rm iv f1
+      let mt2 = preTermGetAlphaType env im rm iv f2
       case (mt1, mt2) of
         (Just (TermArrow aio ds c), Just at2) -> do
           let (ds0, ds1) = splitAt numMissing ds
@@ -494,7 +495,8 @@ doExprUnify normalize = \t1 t2 -> do
               im <- lift Env.getImplicitMap
               rm <- lift Env.getRefMap
               iv <- lift Env.getImplicitVarMap
-              if typesEqual im rm iv f1 f2
+              env <- lift Env.getEnv
+              if typesEqual env im rm iv f1 f2
               then doUnifyVarAppRec f1 f2 as1 as2
               else throwError ""
           | length as1 > length as2 =
@@ -502,9 +504,9 @@ doExprUnify normalize = \t1 t2 -> do
           | True =
               unifyPartialVarApp io2 f2 as2 f1 as1
           where
-            typesEqual im rm iv x y = 
-              let s = preTermGetAlphaType im rm iv x
-                  t = preTermGetAlphaType im rm iv y
+            typesEqual env im rm iv x y =
+              let s = preTermGetAlphaType env im rm iv x
+                  t = preTermGetAlphaType env im rm iv y
               in case (s, t) of
                   (Just s', Just t') -> preTermsEqual rm s' t'
                   _ -> False

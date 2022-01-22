@@ -4,6 +4,7 @@ module Str
   , stdRuntimePath
   , outputFolderName
   , baseIrSerializeExtension
+  , isWildcard
   , isKeyword
   , isStrictKeyword
   , isPunctuation
@@ -65,6 +66,10 @@ outputFolderName = ".yupackage"
 
 baseIrSerializeExtension :: FilePath
 baseIrSerializeExtension = ".inline"
+
+isWildcard :: String -> Bool
+isWildcard ('_' : _) = True
+isWildcard _ = False
 
 isKeyword :: String -> Bool
 isKeyword s

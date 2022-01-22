@@ -322,7 +322,8 @@ callRel p a = do
     unifyTypes b = do
       im <- lift (lift Env.getImplicitMap)
       rm <- lift (lift Env.getRefMap)
-      case (preTermGetAlphaType im rm IntMap.empty p, preTermGetAlphaType im rm IntMap.empty b) of
+      env <- lift (lift Env.getEnv)
+      case (preTermGetAlphaType env im rm IntMap.empty p, preTermGetAlphaType env im rm IntMap.empty b) of
         (Just pty, Just aty) -> do
           newids <- lift (lift Env.getNextVarId)
           un <- lift (lift (runExceptT (patternUnify2 newids pty aty)))
