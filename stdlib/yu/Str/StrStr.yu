@@ -47,8 +47,8 @@ let (x :: xs) f s => f x :+: s :+: xs .str f s
 
 
 val (.str#Bool) : Bool -> Str
-let true => mk ('t.C :: 'r.C :: 'u.C :: 'e.C :: nil.L)
-let false => mk ('f.C :: 'a.C :: 'l.C :: 's.C :: 'e.C :: nil.L)
+let true => mk (`t.C :: `r.C :: `u.C :: `e.C :: nil.L)
+let false => mk (`f.C :: `a.C :: `l.C :: `s.C :: `e.C :: nil.L)
 
 
 val (.str#Char) : Char -> Str

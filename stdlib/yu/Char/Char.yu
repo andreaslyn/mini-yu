@@ -24,75 +24,75 @@ of (...#Ordering?)
 import Ord?-th => yu/Ordering?/theorems
 
 data (.IsDigit#Char) : Char -> Ty
-of 0IsDigit : '0 .IsDigit
-of 1IsDigit : '1 .IsDigit
-of 2IsDigit : '2 .IsDigit
-of 3IsDigit : '3 .IsDigit
-of 4IsDigit : '4 .IsDigit
-of 5IsDigit : '5 .IsDigit
-of 6IsDigit : '6 .IsDigit
-of 7IsDigit : '7 .IsDigit
-of 8IsDigit : '8 .IsDigit
-of 9IsDigit : '9 .IsDigit
+of 0IsDigit : `0 .IsDigit
+of 1IsDigit : `1 .IsDigit
+of 2IsDigit : `2 .IsDigit
+of 3IsDigit : `3 .IsDigit
+of 4IsDigit : `4 .IsDigit
+of 5IsDigit : `5 .IsDigit
+of 6IsDigit : `6 .IsDigit
+of 7IsDigit : `7 .IsDigit
+of 8IsDigit : `8 .IsDigit
+of 9IsDigit : `9 .IsDigit
 
 
 val (.toUpper#Char) : Char -> Char
-let ('a) => 'A
-let ('b) => 'B
-let ('c) => 'C
-let ('d) => 'D
-let ('e) => 'E
-let ('f) => 'F
-let ('g) => 'G
-let ('h) => 'H
-let ('i) => 'I
-let ('j) => 'J
-let ('k) => 'K
-let ('l) => 'L
-let ('m) => 'M
-let ('n) => 'N
-let ('o) => 'O
-let ('p) => 'P
-let ('q) => 'Q
-let ('r) => 'R
-let ('s) => 'S
-let ('t) => 'T
-let ('u) => 'U
-let ('v) => 'V
-let ('w) => 'W
-let ('x) => 'X
-let ('y) => 'Y
-let ('z) => 'Z
+let (`a) => `A
+let (`b) => `B
+let (`c) => `C
+let (`d) => `D
+let (`e) => `E
+let (`f) => `F
+let (`g) => `G
+let (`h) => `H
+let (`i) => `I
+let (`j) => `J
+let (`k) => `K
+let (`l) => `L
+let (`m) => `M
+let (`n) => `N
+let (`o) => `O
+let (`p) => `P
+let (`q) => `Q
+let (`r) => `R
+let (`s) => `S
+let (`t) => `T
+let (`u) => `U
+let (`v) => `V
+let (`w) => `W
+let (`x) => `X
+let (`y) => `Y
+let (`z) => `Z
 let (c) => c
 
 
 val (.toLower#Char) : Char -> Char
-let ('A) => 'a
-let ('B) => 'b
-let ('C) => 'c
-let ('D) => 'd
-let ('E) => 'e
-let ('F) => 'f
-let ('G) => 'g
-let ('H) => 'h
-let ('I) => 'i
-let ('J) => 'j
-let ('K) => 'k
-let ('L) => 'l
-let ('M) => 'm
-let ('N) => 'n
-let ('O) => 'o
-let ('P) => 'p
-let ('Q) => 'q
-let ('R) => 'r
-let ('S) => 's
-let ('T) => 't
-let ('U) => 'u
-let ('V) => 'v
-let ('W) => 'w
-let ('X) => 'x
-let ('Y) => 'y
-let ('Z) => 'z
+let (`A) => `a
+let (`B) => `b
+let (`C) => `c
+let (`D) => `d
+let (`E) => `e
+let (`F) => `f
+let (`G) => `g
+let (`H) => `h
+let (`I) => `i
+let (`J) => `j
+let (`K) => `k
+let (`L) => `l
+let (`M) => `m
+let (`N) => `n
+let (`O) => `o
+let (`P) => `p
+let (`Q) => `q
+let (`R) => `r
+let (`S) => `s
+let (`T) => `t
+let (`U) => `u
+let (`V) => `v
+let (`W) => `w
+let (`X) => `x
+let (`Y) => `y
+let (`Z) => `z
 let (c) => c
 
 

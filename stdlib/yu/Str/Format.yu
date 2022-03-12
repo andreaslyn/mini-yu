@@ -43,12 +43,12 @@ let p f => f p
 
 val listPreFormat : List Char -> PreFormat
 let (nil.L) => nilPreFormat
-let ('%.C :: 'N.C :: cs) => listPreFormat cs .map natPreFormat
-let ('%.C :: 's.C :: cs) => listPreFormat cs .map strPreFormat
-let ('%.C :: 'c.C :: cs) => listPreFormat cs .map charPreFormat
-let ('%.C :: 'B.C :: cs) => listPreFormat cs .map boolPreFormat
-let ('%.C :: '%.C :: cs) => listPreFormat cs .map (constPreFormat '%.C)
-let ('%.C :: _ :: cs) => errorPreFormat
+let (`%.C :: `N.C :: cs) => listPreFormat cs .map natPreFormat
+let (`%.C :: `s.C :: cs) => listPreFormat cs .map strPreFormat
+let (`%.C :: `c.C :: cs) => listPreFormat cs .map charPreFormat
+let (`%.C :: `B.C :: cs) => listPreFormat cs .map boolPreFormat
+let (`%.C :: `%.C :: cs) => listPreFormat cs .map (constPreFormat `%.C)
+let (`%.C :: _ :: cs) => errorPreFormat
 let (c :: cs) => listPreFormat cs .map (constPreFormat c)
 
 

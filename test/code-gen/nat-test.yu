@@ -29,16 +29,16 @@ val N : Nat
 let => mul 10000 1000
 
 val.. natToStr : Nat -> Str
-let (0.N) => mk.S('0 :: nil.L)
-let (++ 0.N) => mk.S('1 :: nil.L)
-let (++ ++ 0.N) => mk.S('2 :: nil.L)
-let (++ ++ ++ 0.N) => mk.S('3 :: nil.L)
-let (++ ++ ++ ++ 0.N) => mk.S('4 :: nil.L)
-let (++ ++ ++ ++ ++ 0.N) => mk.S('5 :: nil.L)
-let (++ ++ ++ ++ ++ ++ 0.N) => mk.S('6 :: nil.L)
-let (++ ++ ++ ++ ++ ++ ++ 0.N) => mk.S('7 :: nil.L)
-let (++ ++ ++ ++ ++ ++ ++ ++ 0.N) => mk.S('8 :: nil.L)
-let (++ ++ ++ ++ ++ ++ ++ ++ ++ 0.N) => mk.S('9 :: nil.L)
+let (0.N) => mk.S(`0 :: nil.L)
+let (++ 0.N) => mk.S(`1 :: nil.L)
+let (++ ++ 0.N) => mk.S(`2 :: nil.L)
+let (++ ++ ++ 0.N) => mk.S(`3 :: nil.L)
+let (++ ++ ++ ++ 0.N) => mk.S(`4 :: nil.L)
+let (++ ++ ++ ++ ++ 0.N) => mk.S(`5 :: nil.L)
+let (++ ++ ++ ++ ++ ++ 0.N) => mk.S(`6 :: nil.L)
+let (++ ++ ++ ++ ++ ++ ++ 0.N) => mk.S(`7 :: nil.L)
+let (++ ++ ++ ++ ++ ++ ++ ++ 0.N) => mk.S(`8 :: nil.L)
+let (++ ++ ++ ++ ++ ++ ++ ++ ++ 0.N) => mk.S(`9 :: nil.L)
 let (n) =>
   q $ r := n .divmod 10.N is++.N;
   natToStr q :+: natToStr r

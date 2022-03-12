@@ -15,8 +15,8 @@ extern len : (A : Ty) & List A -> Nat
 val main : {} ->> {}
 let () =>
   case !# true
-  of false => '1 .println
-  of true => '0 .println
+  of false => `1 .println
+  of true => `0 .println
   end;
   case len Nat (0.N :: 0.N :: 0.N :: nil.L)
   of 0.N => "0\n" .print

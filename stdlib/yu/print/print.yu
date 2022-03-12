@@ -21,7 +21,7 @@ of (.str#Char)
 extern (.print#Char) : Char ->> {}
 
 val (.println#Char) : Char ->> {}
-let c => c .print; 'lf.C .print
+let c => c .print; `lf.C .print
 
 
 val (.print#Str) : Str ->> {}
@@ -33,25 +33,25 @@ where
 end
 
 val (.println#Str) : Str ->> {}
-let s => s .print; 'lf.C .print
+let s => s .print; `lf.C .print
 
 
 val (.print#Bool) : Bool ->> {}
 let b => b .str .print
 
 val (.println#Bool) : Bool ->> {}
-let b => b .print; 'lf.C .print
+let b => b .print; `lf.C .print
 
 
 val (.print#Nat) : Nat ->> {}
 let n => n .str .print
 
 val (.println#Nat) : Nat ->> {}
-let n => n .print; 'lf.C .print
+let n => n .print; `lf.C .print
 
 
 val (.print#List) [A : Ty] : List A & (A -> Str) & Str ->> {}
 let xs f s => xs .str f s .print
 
 val (.println#List) [A : Ty] : List A & (A -> Str) & Str ->> {}
-let xs f s => xs .print f s; 'lf.C .print
+let xs f s => xs .print f s; `lf.C .print

@@ -1,129 +1,129 @@
 data Char : Ty
-of '0 : Char ## "0"
-of '1 : Char ## "1"
-of '2 : Char ## "2"
-of '3 : Char ## "3"
-of '4 : Char ## "4"
-of '5 : Char ## "5"
-of '6 : Char ## "6"
-of '7 : Char ## "7"
-of '8 : Char ## "8"
-of '9 : Char ## "9"
-of 'a : Char ## "a"
-of 'b : Char ## "b"
-of 'c : Char ## "c"
-of 'd : Char ## "d"
-of 'e : Char ## "e"
-of 'f : Char ## "f"
-of 'g : Char ## "g"
-of 'h : Char ## "h"
-of 'i : Char ## "i"
-of 'j : Char ## "j"
-of 'k : Char ## "k"
-of 'l : Char ## "l"
-of 'm : Char ## "m"
-of 'n : Char ## "n"
-of 'o : Char ## "o"
-of 'p : Char ## "p"
-of 'q : Char ## "q"
-of 'r : Char ## "r"
-of 's : Char ## "s"
-of 't : Char ## "t"
-of 'u : Char ## "u"
-of 'v : Char ## "v"
-of 'w : Char ## "w"
-of 'x : Char ## "x"
-of 'y : Char ## "y"
-of 'z : Char ## "z"
-of 'A : Char ## "A"
-of 'B : Char ## "B"
-of 'C : Char ## "C"
-of 'D : Char ## "D"
-of 'E : Char ## "E"
-of 'F : Char ## "F"
-of 'G : Char ## "G"
-of 'H : Char ## "H"
-of 'I : Char ## "I"
-of 'J : Char ## "J"
-of 'K : Char ## "K"
-of 'L : Char ## "L"
-of 'M : Char ## "M"
-of 'N : Char ## "N"
-of 'O : Char ## "O"
-of 'P : Char ## "P"
-of 'Q : Char ## "Q"
-of 'R : Char ## "R"
-of 'S : Char ## "S"
-of 'T : Char ## "T"
-of 'U : Char ## "U"
-of 'V : Char ## "V"
-of 'W : Char ## "W"
-of 'X : Char ## "X"
-of 'Y : Char ## "Y"
-of 'Z : Char ## "Z"
-of 'nul : Char ## Null character
-of 'lf : Char  ## Line feed "\n"
-of 'tab : Char ## Horizontal tab "\t"
-of 'sp : Char  ## Space " "
-of 'qu : Char  ## Double quote "\""
-of 'po : Char  ## Pound sign "#"
-of '' : Char   ## Single quote "'"
-of '^ : Char   ## "^"
-of '@ : Char   ## "@"
-of 'ba : Char  ## Back slash "##"
-of '/ : Char   ## "/"
-of '* : Char   ## "*"
-of '% : Char   ## "%"
-of '$ : Char   ## "$"
-of 'of : Char   ## "|"
-of '& : Char   ## "&"
-of '+ : Char   ## "+"
-of '- : Char   ## "-"
-of '? : Char   ## "?"
-of '! : Char   ## "!"
-of '< : Char   ## "<"
-of '> : Char   ## ">"
-of '= : Char   ## "="
-of ': : Char   ## ":"
-of '~ : Char   ## "~"
-of 'soh : Char ## Start of heading character
-of 'stx : Char ## Start of text character
-of 'etx : Char ## End of header character
-of 'eot : Char ## End of transmission character
-of 'enq : Char ## Enquiry character
-of 'ack : Char ## Acknowledge
-of 'bel : Char ## Bell character
-of 'bs : Char  ## Back space character
-of 'vt : Char  ## Vertical tab character
-of 'ff : Char  ## Form feed character
-of 'cr : Char  ## Carriage return character
-of 'so : Char  ## Shift out character
-of 'si : Char  ## Shift in character
-of 'dle : Char ## Data link escape character
-of 'dc1 : Char ## Device control 1 character
-of 'dc2 : Char ## Device control 2 character
-of 'dc3 : Char ## Device control 3 character
-of 'dc4 : Char ## Device control 4 character
-of 'nak : Char ## Negative acknowledge character
-of 'syn : Char ## Synchronous idle character
-of 'etb : Char ## End of transmission block character
-of 'can : Char ## Cancel character
-of 'em : Char  ## End of medium character
-of 'sub : Char ## Substitute character
-of 'esc : Char ## Escape character
-of 'fs : Char  ## File seperator character
-of 'gs : Char  ## Group seperator character
-of 'rs : Char  ## REecord seperator character
-of 'us : Char  ## Unit seperator character
-of 'lpa : Char ## Left parenthesis "("
-of 'rpa : Char ## Right parenthesis ")"
-of 'lsq : Char ## Left square bracket "]"
-of 'rsq : Char ## Right square bracket "]"
-of 'lcu : Char ## Left curly bracket "{"
-of 'rcu : Char ## Right curly bracket "}"
-of 'pe : Char  ## Period "."
-of 'co : Char  ## Comma ","
-of 'se : Char  ## Semicolon ";"
-of 'un : Char  ## Underscore "_"
-of 'gr : Char  ## Grave accent "`"
-of 'del : Char ## De|e character
+of `0 : Char ## "0"
+of `1 : Char ## "1"
+of `2 : Char ## "2"
+of `3 : Char ## "3"
+of `4 : Char ## "4"
+of `5 : Char ## "5"
+of `6 : Char ## "6"
+of `7 : Char ## "7"
+of `8 : Char ## "8"
+of `9 : Char ## "9"
+of `a : Char ## "a"
+of `b : Char ## "b"
+of `c : Char ## "c"
+of `d : Char ## "d"
+of `e : Char ## "e"
+of `f : Char ## "f"
+of `g : Char ## "g"
+of `h : Char ## "h"
+of `i : Char ## "i"
+of `j : Char ## "j"
+of `k : Char ## "k"
+of `l : Char ## "l"
+of `m : Char ## "m"
+of `n : Char ## "n"
+of `o : Char ## "o"
+of `p : Char ## "p"
+of `q : Char ## "q"
+of `r : Char ## "r"
+of `s : Char ## "s"
+of `t : Char ## "t"
+of `u : Char ## "u"
+of `v : Char ## "v"
+of `w : Char ## "w"
+of `x : Char ## "x"
+of `y : Char ## "y"
+of `z : Char ## "z"
+of `A : Char ## "A"
+of `B : Char ## "B"
+of `C : Char ## "C"
+of `D : Char ## "D"
+of `E : Char ## "E"
+of `F : Char ## "F"
+of `G : Char ## "G"
+of `H : Char ## "H"
+of `I : Char ## "I"
+of `J : Char ## "J"
+of `K : Char ## "K"
+of `L : Char ## "L"
+of `M : Char ## "M"
+of `N : Char ## "N"
+of `O : Char ## "O"
+of `P : Char ## "P"
+of `Q : Char ## "Q"
+of `R : Char ## "R"
+of `S : Char ## "S"
+of `T : Char ## "T"
+of `U : Char ## "U"
+of `V : Char ## "V"
+of `W : Char ## "W"
+of `X : Char ## "X"
+of `Y : Char ## "Y"
+of `Z : Char ## "Z"
+of `nul : Char ## Null character
+of `lf : Char  ## Line feed "\n"
+of `tab : Char ## Horizontal tab "\t"
+of `sp : Char  ## Space " "
+of `qu : Char  ## Double quote "\""
+of `po : Char  ## Pound sign "#"
+of `' : Char   ## Single quote "'"
+of `^ : Char   ## "^"
+of `@ : Char   ## "@"
+of `ba : Char  ## Back slash "##"
+of `/ : Char   ## "/"
+of `* : Char   ## "*"
+of `% : Char   ## "%"
+of `$ : Char   ## "$"
+of `| : Char   ## "|"
+of `& : Char   ## "&"
+of `+ : Char   ## "+"
+of `- : Char   ## "-"
+of `? : Char   ## "?"
+of `! : Char   ## "!"
+of `< : Char   ## "<"
+of `> : Char   ## ">"
+of `= : Char   ## "="
+of `: : Char   ## ":"
+of `~ : Char   ## "~"
+of `soh : Char ## Start of heading character
+of `stx : Char ## Start of text character
+of `etx : Char ## End of header character
+of `eot : Char ## End of transmission character
+of `enq : Char ## Enquiry character
+of `ack : Char ## Acknowledge
+of `bel : Char ## Bell character
+of `bs : Char  ## Back space character
+of `vt : Char  ## Vertical tab character
+of `ff : Char  ## Form feed character
+of `cr : Char  ## Carriage return character
+of `so : Char  ## Shift out character
+of `si : Char  ## Shift in character
+of `dle : Char ## Data link escape character
+of `dc1 : Char ## Device control 1 character
+of `dc2 : Char ## Device control 2 character
+of `dc3 : Char ## Device control 3 character
+of `dc4 : Char ## Device control 4 character
+of `nak : Char ## Negative acknowledge character
+of `syn : Char ## Synchronous idle character
+of `etb : Char ## End of transmission block character
+of `can : Char ## Cancel character
+of `em : Char  ## End of medium character
+of `sub : Char ## Substitute character
+of `esc : Char ## Escape character
+of `fs : Char  ## File seperator character
+of `gs : Char  ## Group seperator character
+of `rs : Char  ## REecord seperator character
+of `us : Char  ## Unit seperator character
+of `lpa : Char ## Left parenthesis "("
+of `rpa : Char ## Right parenthesis ")"
+of `lsq : Char ## Left square bracket "]"
+of `rsq : Char ## Right square bracket "]"
+of `lcu : Char ## Left curly bracket "{"
+of `rcu : Char ## Right curly bracket "}"
+of `pe : Char  ## Period "."
+of `co : Char  ## Comma ","
+of `se : Char  ## Semicolon ";"
+of `un : Char  ## Underscore "_"
+of `` : Char  ## Grave accent "`"
+of `del : Char ## De|e character

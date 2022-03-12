@@ -6,8 +6,8 @@ import N => yu/Nat
 
 
 val boolToAscii : Bool -> Char
-let true => '1
-let false => '0
+let true => `1
+let false => `0
 
 val (!'#Bool) : Bool -> Bool
 let true => false
@@ -73,7 +73,7 @@ val main : {} ->> {}
 let () =>
   boolToAscii (nat-package true) .print;
   boolToAscii (nat-package false) .print;
-  'lf .print;
+  `lf .print;
   lazy-print1 ();
   lazy-print2 ();
   lazy-print1 ();
@@ -81,8 +81,8 @@ let () =>
   "" .print
 where
   val lazy-print1 : () ->> {}
-  let => '1 .println
+  let => `1 .println
 
   val lazy-print2 : () ->> {}
-  let => '2 .println
+  let => `2 .println
 end
