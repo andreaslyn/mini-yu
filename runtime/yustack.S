@@ -248,7 +248,7 @@ yur_run_s:
   movq %rsp, SYSTEM_STACK
 
   // Get a new stack segment:
-  movq $8, %rdi
+  movq $24, %rdi
   call yur_initial_stack_seg_s
   // Set the new stack segment boundaries:
   movq %rax, CURR_SEG_BEGIN
