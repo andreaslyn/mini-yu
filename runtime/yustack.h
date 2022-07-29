@@ -36,6 +36,8 @@
       "call " yur_STRINGIFY(name ## _s) "\n\t" \
       "movq %%r15, %%rsp\n\t" \
       "movq -8(%%rsp), %%r15\n\t" \
+      "cmpq %%rbp, %%rsp\n\t" \
+      "je   __yu_lessstack\n\t" \
       "ret" : : : ); \
   } \
   __attribute__((no_split_stack)) __attribute__((used)) attributes \

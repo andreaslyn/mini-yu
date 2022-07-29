@@ -174,11 +174,9 @@ __yu_morestack:
 .p2align 4
 __yu_lessstack:
 .cfi_startproc
-  // On entry here we have rsp == CURR_SEG_BEGIN.
-  // Save rsp in register r10 before switching stack:
-  movq %rsp, %r10
-
-  // Switch to system stack, which we assume is properly aligned:
+  // On entry here we have rbp == CURR_SEG_BEGIN.
+  // Here the stack may be 8 byte or 16 byte aligned.
+  // Switch to system stack (which we assume is properly aligned):
   movq SYSTEM_STACK, %rsp
 
   // We need to preserve registers rax and rdx, since these registers
@@ -191,14 +189,14 @@ __yu_lessstack:
   // argument to call yur_delete_stack_seg_s later on.
   movq CURR_SEG_END, %rdi
 
-  // Get the previous stack pointer, r10->prev_sp:
-  movq (%r10), %rax
-  // Get the previous segment beginning, r10->prev_seg_begin:
-  movq 8(%r10), %rdx
-  // Get the previous segment end, r10->prev_seg_end:
-  movq 16(%r10), %r11
-  // Get the previous frame pointer, r10->prev_bp:
-  movq 24(%r10), %r10
+  // Get the previous stack pointer, rbp->prev_sp:
+  movq (%rbp), %rax
+  // Get the previous segment beginning, rbp->prev_seg_begin:
+  movq 8(%rbp), %rdx
+  // Get the previous segment end, rbp->prev_seg_end:
+  movq 16(%rbp), %r11
+  // Get the previous frame pointer, rbp->prev_bp:
+  movq 24(%rbp), %r10
 
   // Update global state to the previous segment pointers:
   movq %rdx, CURR_SEG_BEGIN
@@ -225,8 +223,7 @@ __yu_lessstack:
   // If the stack pointer is at the beginning, then repeat:
   je __yu_lessstack
 
-  // If everythng turns out right, then the return address on top
-  // of the stack will return back to our caller's caller:
+  // Return back to our caller's caller:
   ret
 .cfi_endproc
 
@@ -305,6 +302,8 @@ yur_get_seg_bounds:
 .cfi_startproc
   movq CURR_SEG_BEGIN, %rax
   movq CURR_SEG_END, %rdx
+  cmpq %rbp, %rsp
+  je __yu_lessstack
   ret
 .cfi_endproc
 
@@ -316,6 +315,8 @@ yur_set_seg_bounds:
 .cfi_startproc
   movq %rdi, CURR_SEG_BEGIN
   movq %rsi, CURR_SEG_END
+  cmpq %rbp, %rsp
+  je __yu_lessstack
   ret
 .cfi_endproc
 
@@ -329,5 +330,7 @@ yur_switch_seg_bounds:
   movq CURR_SEG_END, %rdx
   movq %rdi, CURR_SEG_BEGIN
   movq %rsi, CURR_SEG_END
+  cmpq %rbp, %rsp
+  je __yu_lessstack
   ret
 .cfi_endproc

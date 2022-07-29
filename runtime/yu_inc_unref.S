@@ -3,6 +3,9 @@
 
 .text
 
+#define lessstack_ret cmpq %rbp, %rsp; je __yu_lessstack; ret
+
+
 #define INC(reg, next) \
 	testw $0xFE, 16(%reg); \
 	jnz 1f; \
@@ -40,7 +43,9 @@ yur_inc_3:
 yur_inc_2:
   INC(rsi, jmp yur_inc_1)
 yur_inc_1:
-  INC(rdi, ret)
+  INC(rdi, lessstack_ret)
+  cmpq %rbp, %rsp
+  je __yu_lessstack
   ret
 .cfi_endproc
 
@@ -105,7 +110,9 @@ yur_unref_3:
 yur_unref_2:
   DEC(rsi, jmp yur_unref_1)
 yur_unref_1:
-  DEC(rdi, ret)
+  DEC(rdi, lessstack_ret)
+  cmpq %rbp, %rsp
+  je __yu_lessstack
   ret
 .cfi_endproc
 
@@ -132,6 +139,8 @@ yur_unref_1:
   popq %rdi; \
   movq %rbp, %rsp; \
   popq %rbp; \
+  cmpq %rbp, %rsp; \
+  je __yu_lessstack; \
   ret
 
 

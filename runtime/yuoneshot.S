@@ -63,6 +63,8 @@ yur_setjmp:
   movq (%rsp), %rdx         /* save return addr ptr for new rip */
   movq %rdx, 56(%rdi)
   xorl %eax, %eax           /* always return 0 */
+  cmpq %rbp, %rsp
+  je __yu_lessstack
   ret
 .cfi_endproc
 
