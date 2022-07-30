@@ -18,13 +18,13 @@ let () =>
 
 val test-io-in-case1 : Bool ->> {}
 let true => ()
-let false => 'A .print
+let false => `A .print
 
 val test-io-in-case2 : Bool ->> {}
 let b =>
   case b
   of true => ()
-  of false => 'B .print
+  of false => `B .print
   end
 
 val test-io-in-case3 : Bool ->> {}
@@ -35,13 +35,13 @@ let (b) =>
   end
 
 val test-io-in-lambda1 : Bool ->> {}
-let => _ => 'A .print
+let => _ => `A .print
 
 val test-io-in-lambda2 : Bool ->> {}
 let => b =>
   case b
-  of true => 'A .print
-  of false => 'B .print
+  of true => `A .print
+  of false => `B .print
   end
 
 val test-io-in-lambda3 : Bool ->> {}
@@ -87,22 +87,22 @@ end
 
 val test-io-lambda : Bool ->> {}
 let (b) =>
-  ((b : Bool) => case b of true => 'A .print of false => 'B .print end) b
+  ((b : Bool) => case b of true => `A .print of false => `B .print end) b
 
 val test-effect-type1 : Bool ->> Ty
-let true => 'A .print; Bool
+let true => `A .print; Bool
 let b => test-io-lambda b; {}
 
 val test-effect-type2 : (b : Bool) ->> Ty
 let (b) =>
-  Bool & test-effect-type1(b) -> \ 'A .print; {}
+  Bool & test-effect-type1(b) -> \ `A .print; {}
 
 val test-effect-type3 : {} ->> {}
 let () =>
   f := ((x : const [B := (_) => Bool ->> Ty] Bool test-effect-type2) => x);
   case f true
   of true => ()
-  of false => 'F .print; ()
+  of false => `F .print; ()
   end
 where
   val const[A : Ty] [B : A -> Ty] : (a : A) -> B a -> A
