@@ -50,7 +50,7 @@ let h leaf => h
 let leaf h => h
 let (a1 .node b1 x1) (a2 .node b2 x2) =>
   if (od .le? x1 x2)
-  .then (a1 .mkNode (b1 .merge (a2 .node b2 x2)) x1)
+  .then (a1 .mkNode (b1 .merge \ a2 .node b2 x2) x1)
   .else (a2 .mkNode (a1 .node b1 x1 .merge b2) x2)
 
 

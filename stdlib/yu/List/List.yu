@@ -47,6 +47,10 @@ data (.Is::#List) [A : Ty] : List A -> Ty
 of is:: [A : Ty] [a : A] [as : List A] : (a :: as) .Is::
 
 
+val single [A] : A -> List A
+let a => a :: nil
+
+
 val (.empty?#List) [A : Ty] : List A -> Bool
 let nil => true
 let (_ :: _) => false
@@ -126,13 +130,23 @@ let nil ys => ys
 let (x :: xs) ys => x :: xs :+: ys
 
 
-val (.revAux#List) [A : Ty] : List A & List A -> List A
+val (>>=#List) [A B : Ty] : List A & (A -> List B) -> List B
+let nil _ => nil
+let (x :: xs) k => k x :+: (xs >>= k)
+
+
+val (.flat#List) [A : Ty] : List (List A) -> List A
+let nil => nil
+let (xs :: xss) => xs :+: xss .flat
+
+
+val revAux [A : Ty] : List A & List A -> List A
 let nil ys => ys
-let (x :: xs) ys => xs .revAux (x :: ys)
+let (x :: xs) ys => revAux xs (x :: ys)
 
 
 val (.rev#List) [A : Ty] : List A -> List A
-let as => as .revAux nil
+let as => revAux as nil
 
 
 val (.concat#List) [A : Ty] : List (List A) -> List A
