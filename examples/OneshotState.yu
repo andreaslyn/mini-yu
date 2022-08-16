@@ -16,7 +16,7 @@ let s pt => shift (k => _ => k () s) pt
 
 
 val run [S A : Ty] : S & (Prompt (S ->> A) ->> A) ->> A
-let s h => reset-> [A := S ->> A] h (a => _ => a) s
+let s h => reset-> h (a => _ => a) s
 
 
 val increment [A : Ty] : Prompt (Nat ->> A) ->> {}

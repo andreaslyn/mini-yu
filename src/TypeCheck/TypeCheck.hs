@@ -2585,7 +2585,10 @@ makeTermApp subst flo preTy f' preArgs0 = do
                    then head preArgs0 : opexes0
                    else opexes0
       rm <- lift Env.getRefMap
-      let c = substPreTerm rm su c'
+      esu <- getExprSubst
+      let c = if null postArgs
+              then substPreTerm rm su c'
+              else substPreTerm rm esu $ substPreTerm rm su c'
       if numMissing > 0
       then do
         g <- lift $ preTermPartialApplication
