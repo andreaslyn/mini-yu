@@ -7,7 +7,7 @@ of 0 : Nat
 of (+1#Nat) : Nat -> Nat
 
 data Vec : Ty -> Nat -> Ty
-of vnil : (A : Ty) -> Vec(A)(0)
+of vnil : (A : Ty) -> (Vec A)(0)
 
-val test-absurd : (n : Nat) & Id Ty (Vec Nat \ +1 0) (Vec Nat \ +1 +1 n) -> Nat
+val test-absurd : (n : Nat) & Id Ty ((Vec Nat) \ +1 0) ((Vec Nat) \ +1 +1 n) -> Nat
 let n {}

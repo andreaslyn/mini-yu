@@ -37,11 +37,11 @@ of 0 : Nat
 of inc : Nat -> Nat
 
 data Vec : Ty -> Nat -> Ty
-of vnil : (A : Ty) -> Vec(A)(0)
-of vcons : (A : Ty) -> A & Vec(A)(n) & (n : Nat) -> Vec(A)(inc(n))
+of vnil : (A : Ty) -> (Vec A)(0)
+of vcons : (A : Ty) -> A & (Vec A)(n) & (n : Nat) -> (Vec A)(inc(n))
 
-val empty-vec : Vec(Nat)(0)
+val empty-vec : (Vec Nat)(0)
 let => vnil(Nat)
 
-val singleton-vec : Vec {} (inc 0)
-let => vcons {} () (vnil {}) 0
+val singleton-vec : (Vec {}) (inc 0)
+let => (vcons {}) () (vnil {}) 0

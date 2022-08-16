@@ -14,12 +14,12 @@ of mk [A : Ty] :
   (R : A & A -> Bool) & R .IsEquivalence? -> Equivalence? A
 
 
-val (.eq?#Equivalence?) [A : Ty] : Equivalence? A -> A & A -> Bool
-let (mk R _) => R
+val (.eq?#Equivalence?) [A : Ty] : Equivalence? A & A & A -> Bool
+let (mk R _) x y => R x y
 
 
-val (.neq?#Equivalence?) [A : Ty] : Equivalence? A -> A & A -> Bool
-let E => x y => !.B E .eq? x y
+val (.neq?#Equivalence?) [A : Ty] : Equivalence? A & A & A -> Bool
+let E x y => !.B E .eq? x y
 
 
 val (.isEquivalence#Equivalence?) [A : Ty] :

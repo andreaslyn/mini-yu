@@ -5,5 +5,5 @@ let (f) => x => f x
 val apap : (Ty -> Ty) -> Ty -> Ty
 let => ap ap
 
-val test : apap (_ => Ty) Ty
+val test : (apap \ _ => Ty) Ty
 let => Ty

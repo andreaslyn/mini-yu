@@ -51,8 +51,8 @@ let le (isC $ _) => x =>
 val (.eqIsReflexive?#Ordering?) [A : Ty] :
   (R : Ordering? A) -> R .eq? .IsReflexive?
 let R => x =>
-  R .isOrdering? .eqIsCompatible x x .rew (?) \
-  leToEqIsReflexive? (R .le?) (R .isOrdering? .leIsTotalPreorder) x
+  (R .isOrdering? .eqIsCompatible) x x .rew (?) \
+  (leToEqIsReflexive? (R .le?) \ R .isOrdering? .leIsTotalPreorder) x
 
 
 val leToEqIsSymmetric? [A : Ty] :
@@ -66,9 +66,9 @@ let le isLe => x y eqxy =>
 val (.eqIsSymmetric#Ordering?) [A : Ty] :
   (R : Ordering? A) -> R .eq? .IsSymmetric?
 let R => x y eqxy =>
-  R .isOrdering? .eqIsCompatible y x .rew (?) \
-  leToEqIsSymmetric? (R .le?) (R .isOrdering? .leIsTotalPreorder)
-    x y (R .isOrdering? .eqIsCompatible x y .resp (?) eqxy)
+  (R .isOrdering? .eqIsCompatible) y x .rew (?) \
+  (leToEqIsSymmetric? (R .le?) \ R .isOrdering? .leIsTotalPreorder)
+    x y ((R .isOrdering? .eqIsCompatible) x y .resp (?) eqxy)
 
 
 val leToEqIsTransitive? [A : Ty] :
@@ -85,12 +85,11 @@ let le (_ $ isT) => x y z eqxy eqyz =>
 val (.eqIsTransitive?#Ordering?) [A : Ty] :
   (R : Ordering? A) -> R .eq? .IsTransitive?
 let R => x y z eqxy eqyz =>
-  R .isOrdering? .eqIsCompatible x z .rew (?) \
-  leToEqIsTransitive?
-    (R .le?) (R .isOrdering? .leIsTotalPreorder)
+  (R .isOrdering? .eqIsCompatible) x z .rew (?) \
+  (leToEqIsTransitive? (R .le?) \ R .isOrdering? .leIsTotalPreorder)
     x y z
-    (R .isOrdering? .eqIsCompatible x y .resp (?) eqxy)
-    (R .isOrdering? .eqIsCompatible y z .resp (?) eqyz)
+    ((R .isOrdering? .eqIsCompatible) x y .resp (?) eqxy)
+    ((R .isOrdering? .eqIsCompatible) y z .resp (?) eqyz)
 
 
 val leToEqIsEquivalence? [A : Ty] :
@@ -115,9 +114,7 @@ val leToLtIsTransitive? [A : Ty] :
   (le : A & A -> Bool) & le .IsTotalPreorder? ->
   leToLt?.Ord? le .IsTransitive?
 let le (isC $ isT) => x y z ltxy ltyz =>
-  le z x .ind
-    (b => (? b -> Empty) -> ? ! b)
-    (const refl) (c => c refl .rec)
+  (le z x .ind (b => (? b -> Empty) -> ? ! b) (const refl) \ c => c refl .rec)
     (contra x y z ltxy ltyz)
 where
   val contra :
@@ -138,12 +135,11 @@ end
 val (.ltIsTransitive?#Ordering?) [A : Ty] :
   (R : Ordering? A) -> R .lt? .IsTransitive?
 let R => x y z ltxy ltyz =>
-  R .isOrdering? .ltIsCompatible x z .rew (?) \
-  leToLtIsTransitive?
-    (R .le?) (R .isOrdering? .leIsTotalPreorder)
+  (R .isOrdering? .ltIsCompatible) x z .rew (?) \
+  (leToLtIsTransitive? (R .le?) \ R .isOrdering? .leIsTotalPreorder)
     x y z
-    (R .isOrdering? .ltIsCompatible x y .resp (?) ltxy)
-    (R .isOrdering? .ltIsCompatible y z .resp (?) ltyz)
+    ((R .isOrdering? .ltIsCompatible) x y .resp (?) ltxy)
+    ((R .isOrdering? .ltIsCompatible) y z .resp (?) ltyz)
 
 
 val (.ltLeToLt?#Ordering?) [A : Ty] :
@@ -153,17 +149,17 @@ val (.ltLeToLt?#Ordering?) [A : Ty] :
   ? R .le? y z ->
   ? R .lt? x z
 let R x y z ltxy leyz =>
-  R .isOrdering? .ltIsCompatible x z .rew (?) \
-  R .le? z x .ind
+  (R .isOrdering? .ltIsCompatible) x z .rew (?) \
+  (R .le? z x .ind
     (b => (? b -> Empty) -> ? ! b)
     (const refl)
-    (c => c refl .rec)
+    \ c => c refl .rec)
     contra
 where
   val contra : ? R .le? z x -> Empty
   let lezx =>
-    a := R .leIsTransitive? y z x leyz lezx;
-    ltxy' := R .isOrdering? .ltIsCompatible x y .resp (?) ltxy;
+    a := (R .leIsTransitive?) y z x leyz lezx;
+    ltxy' := (R .isOrdering? .ltIsCompatible) x y .resp (?) ltxy;
     b := op!ToOp?false.B-th ltxy';
     case ! a @ b of {} end
 end
@@ -176,17 +172,17 @@ val (.leLtToLt?#Ordering?) [A : Ty] :
   ? R .lt? y z ->
   ? R .lt? x z
 let R x y z lexy ltyz =>
-  R .isOrdering? .ltIsCompatible x z .rew (?) \
-  R .le? z x .ind
+  (R .isOrdering? .ltIsCompatible) x z .rew (?) \
+  (R .le? z x .ind
     (b => (? b -> Empty) -> ? ! b)
     (const refl)
-    (c => c refl .rec)
+    \ c => c refl .rec)
     contra
 where
   val contra : ? R .le? z x -> Empty
   let lezx =>
-    a := R .leIsTransitive? z x y lezx lexy;
-    ltyz' := R .isOrdering? .ltIsCompatible y z .resp (?) ltyz;
+    a := (R .leIsTransitive?) z x y lezx lexy;
+    ltyz' := (R .isOrdering? .ltIsCompatible) y z .resp (?) ltyz;
     b := op!ToOp?false.B-th ltyz';
     case ! a @ b of {} end
 end
@@ -195,8 +191,8 @@ end
 val (.cmpEqIsEq?#Ordering?) [A : Ty] :
   (R : Ordering? A) & (x y : A) -> R .cmp x y .eq? = R .eq? x y
 let R x y =>
-  R .isOrdering? .cmpIsCompatible x y .rewL (t => t .eq?) \
-  (p => p @ ! R .isOrdering? .eqIsCompatible x y) \
+  (R .isOrdering? .cmpIsCompatible) x y .rewL (t => t .eq?) \
+  (p => p @ ! (R .isOrdering? .eqIsCompatible) x y) \
   leToCmpEqIsOp&& (R .le? x y) (R .le? y x)
 where
   val leToCmpEqIsOp&& :
@@ -211,10 +207,10 @@ end
 val (.cmpLtIsLt?#Ordering?) [A : Ty] :
   (R : Ordering? A) & (x y : A) -> R .cmp x y .lt? = R .lt? x y
 let R x y =>
-  R .isOrdering? .cmpIsCompatible x y .rewL(t => t .lt?) \
-  (p => p @ ! R .isOrdering? .ltIsCompatible x y) \
+  (R .isOrdering? .cmpIsCompatible) x y .rewL(t => t .lt?) \
+  (p => p @ ! (R .isOrdering? .ltIsCompatible) x y) \
   leToCmpLtIsOp! (R .le? x y) (R .le? y x) \ c =>
-    case pullOutOp||.B-th (R .leIsConnex? x y)
+    case pullOutOp||.B-th ((R .leIsConnex?) x y)
     of in1.Sum h => case ! h @ op!ToOp?false.B-th c of {} end
     of in2.Sum h => h
     end
@@ -232,9 +228,9 @@ end
 val (.cmpLtIsGt?#Ordering?) [A : Ty] :
   (R : Ordering? A) & (x y : A) -> R .cmp x y .lt? = R .cmp y x .gt?
 let R x y =>
-  R .isOrdering? .cmpIsCompatible x y .rewL(t => t .lt?) \
-  R .isOrdering? .cmpIsCompatible y x .rewR(t => t .gt?) \
-  ltIsGt (R .le? x y) (R .le? y x) (R .isOrdering? .leIsConnex? x y)
+  (R .isOrdering? .cmpIsCompatible) x y .rewL(t => t .lt?) \
+  (R .isOrdering? .cmpIsCompatible) y x .rewR(t => t .gt?) \
+  ltIsGt (R .le? x y) (R .le? y x) ((R .isOrdering? .leIsConnex?) x y)
 where
   val ltIsGt :
     (a : Bool) & (b : Bool) & ? (a || b) ->
@@ -249,5 +245,5 @@ end
 val (.eqToLe#Ordering?) [A : Ty] :
   (R : Ordering? A) & (x y : A) & ? R .eq? x y -> ? R .le? x y
 let R x y eqxy =>
-  eqxy' := R .isOrdering? .eqIsCompatible x y .resp (?) eqxy;
+  eqxy' := (R .isOrdering? .eqIsCompatible) x y .resp (?) eqxy;
   pullOutOp&&.B-th eqxy' .1

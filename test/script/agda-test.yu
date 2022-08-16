@@ -39,7 +39,7 @@ where
 end
 
 val first-fn : Nat -> Nat
-let => (n) => plus(n)(zero)
+let => (n) => (plus n)(zero)
 
 val second-fn : Nat -> Nat
 let (n) => n
@@ -51,10 +51,10 @@ val succ-inj [x : Nat] [y : Nat] : Id (succ(x)) (succ(y)) -> Id x y
 let (refl(succ(_))) => refl(x)
 
 data my-new-id[A : Ty] : A -> A -> Ty
-of my-new-id-ctor1[A : Ty] : (x : A) -> \ (y : A) -> \ my-new-id(x)(y)
-of my-new-id-ctor2[A : Ty] : \ () := (); (x : A) -> (y : A) -> my-new-id(x)(y)
-of my-new-id-refl[A : Ty] : (x : A) -> my-new-id(x)(x)
+of my-new-id-ctor1[A : Ty] : (x : A) -> \ (y : A) -> \ (my-new-id x)(y)
+of my-new-id-ctor2[A : Ty] : \ () := (); (x : A) -> (y : A) -> (my-new-id x)(y)
+of my-new-id-refl[A : Ty] : (x : A) -> (my-new-id x)(x)
 
-val test-my-new-id[n : Nat] : my-new-id(n)(plus(zero)(n)) -> Nat
-let (my-new-id-ctor1(x)(y)) => zero
+val test-my-new-id[n : Nat] : (my-new-id n)((plus zero)(n)) -> Nat
+let ((my-new-id-ctor1 x)(y)) => zero
 let (_) => zero

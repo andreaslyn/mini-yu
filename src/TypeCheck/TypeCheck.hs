@@ -2485,88 +2485,50 @@ doTcExprApp isTrial subst operandArg ty f preArgs = do
                   _ -> error "expected at least two arguments applied"
   (args', r) <- do
     if not isTrial
-    then doMakeTermApp f' args
+    then makeTermApp subst (exprLoc f) ty f' args
     else do
       rm <- lift Env.getRefMap
       case preTermDomCod rm (termTy f') of
-        Nothing -> doMakeTermApp f' args
+        Nothing -> makeTermApp subst (exprLoc f) ty f' args
         Just (dom, cod, _) ->
           if length dom /= length args
           then
-            doMakeTermApp f' args
+            makeTermApp subst (exprLoc f) ty f' args
           else do
-            asp <- getArgSplit f' args
-            if isNothing asp
-            then makeTrivialApp f' args cod
-            else
-              case preTermDomCod rm cod of
-                Nothing -> doMakeTermApp f' args
-                Just (_, cod', _) -> makeTrivialApp f' args cod'
+            makeTrivialApp f' args cod
   return (args', opex, r)
   where
     makeTrivialApp :: Term -> [Expr] -> PreTerm -> ExprIO ([Expr], Term)
     makeTrivialApp f' args cod = do
       opn <- lift (typeOperandName cod)
       if isNothing opn
-      then doMakeTermApp f' args
+      then makeTermApp subst (exprLoc f) ty f' args
       else return (args, mkTerm TermEmpty cod False)
-
-    getArgSplit :: Term -> [Expr] -> ExprIO (Maybe (Expr, [Expr]))
-    getArgSplit f' args =
-      case args of
-        a1 : a2 : args' ->
-          if isPostfixExpr f
-          then do
-            r <- lift Env.getRefMap
-            case preTermDomCod r (termTy f') of
-              Just ([_], _, _) -> do
-                return (Just (a1, a2 : args'))
-              _ -> return Nothing
-          else return Nothing
-        _ -> return Nothing
-
-    doMakeTermApp :: Term -> [Expr] -> ExprIO ([Expr], Term)
-    doMakeTermApp f' args = do
-      asp <- getArgSplit f' args
-      case asp of
-        Nothing -> makeTermApp subst (exprLoc f) ty f' args
-        Just (a1, args') -> do
-          (ex1, e1) <- makeTermApp subst (exprLoc f) Nothing f' [a1]
-          rm <- lift Env.getRefMap
-          isu <- getExprSubst
-          let e1' = mkTerm (substPreTerm rm isu (termPre e1))
-                      (substPreTerm rm isu (termTy e1)) (termIo e1)
-          (ex2, e2) <- makeTermApp subst (exprLoc f) ty e1' args'
-          return (ex1 ++ ex2, e2)
-
-    isPostfixExpr :: Expr -> Bool
-    isPostfixExpr (ExprVar _ (_, vna)) = isPostfixOp vna && not ('#' `elem` vna)
-    isPostfixExpr (ExprImplicitApp _ v@(ExprVar _ _) _) = isPostfixExpr v
-    isPostfixExpr _ = False
 
 makeTermApp ::
   SubstMap -> Loc ->
   Maybe PreTerm -> Term -> [Expr] -> ExprIO ([Expr], Term)
-makeTermApp subst flo preTy f' preArgs0 = do
+makeTermApp subst flo fty f' preArgs0 = do
   r <- lift Env.getRefMap
   let dc = preTermDomCod r (termTy f')
   case dc of
     Nothing -> errorExpectedFunctionType
     Just (d0, c0, io) -> do
-      (missingUnit, preArgs) <- if null d0
+      (missingUnit, args) <- if null d0
                                 then
                                   case preArgs0 of
                                     (ExprUnitElem _ : as) ->
                                       return (True, as)
                                     _ -> errorExpectedFunctionType
                                 else return (False, preArgs0)
-      let numPreArgs = length preArgs
-      let numMissing = length d0 - numPreArgs
+      let numArgs = length args
+      let numMissing = length d0 - numArgs
       (d', c') <- if numMissing > 0
-                  then lift (splitDom numPreArgs d0 c0 io)
-                  else return (d0, c0)
-      let (args, postArgs) = splitAt (length d') preArgs
-      let ty = if null postArgs then preTy else Nothing
+                  then lift (splitDom numArgs d0 c0 io)
+                  else
+                    if numMissing == 0
+                    then return (d0, c0)
+                    else lift $ err flo $ Fatal "function is given too many arguments"
       iv <- lift Env.getImplicitVarMap
       let args0 = dependencyOrderArgsWithOrder
                     appOrdering
@@ -2576,7 +2538,7 @@ makeTermApp subst flo preTy f' preArgs0 = do
                     args
       let args1 = map (\(i, (v, (p, w)), e) -> (i, v, p, w, e)) args0
       let domVars = getDomVars d'
-      (su, ps, io') <- applyArgs ty domVars False c' IntMap.empty args1
+      (su, ps, io') <- applyArgs fty domVars False c' IntMap.empty args1
       let (opexes0, ps') = foldr
                             (\(_, opex, p) (a1, a2) ->
                                 (opex : a1, p : a2)
@@ -2594,11 +2556,7 @@ makeTermApp subst flo preTy f' preArgs0 = do
       else do
         let e = TermApp io (termPre f') ps'
         let fap = mkTerm e c (termIo f' || io || io')
-        if null postArgs
-        then return (opexes, fap)
-        else do
-          (opexes', fap') <- makeTermApp subst flo preTy fap postArgs
-          return (opexes ++ opexes', fap')
+        return (opexes, fap)
   where
     errorExpectedFunctionType :: ExprIO a
     errorExpectedFunctionType = do
@@ -2787,7 +2745,7 @@ tcPattern newpids ty p = do
 makePatternApp ::
   Loc -> VarId -> PreTerm -> (SubstMap, Pattern) -> [ParsePattern] ->
   TypeCheckIO (SubstMap, Pattern)
-makePatternApp flo newpids ty (fsu, f') prePargs0 = do
+makePatternApp flo newpids ty (fsu, f') prePargs = do
   r <- Env.getRefMap
   when (not $ patternPreCanApply (patternPre f')) $ do
     unableToMatchPattern flo (patternTy f')
@@ -2797,18 +2755,17 @@ makePatternApp flo newpids ty (fsu, f') prePargs0 = do
       unableToMatchPattern flo (patternTy f')
     Just (dom0, cod, io) -> do
       let !() = assert (not io) ()
-      prePargs <- if null dom0
+      pargs <- if null dom0
                   then
-                    case prePargs0 of
+                    case prePargs of
                       (ParsePatternUnit _ : as) -> return as
                       _ -> unableToMatchPattern flo (patternTy f')
-                  else return prePargs0
-      when (length dom0 > length prePargs)
-        (err flo
-          (Fatal $
-            "expected " ++ show (length dom0) ++ " argument(s), "
-            ++ "but given " ++ show (length prePargs)))
-      let (pargs, postPargs) = splitAt (length dom0) prePargs
+                  else return prePargs
+      let argDelta = length pargs - length dom0
+      when (argDelta > 0)
+        (err flo (Fatal "pattern is given too many arguments"))
+      when (argDelta < 0)
+        (err flo (Fatal "pattern is given too few arguments"))
       let (fcod, _) = preTermFinalCod r cod
       dsu <- tcPatternUnify newpids flo fcod ty
       rm <- Env.getRefMap
@@ -2828,9 +2785,7 @@ makePatternApp flo newpids ty (fsu, f') prePargs0 = do
       let ps' = map (patternPre . snd . snd) (sortOn fst ps)
       let p = Pattern {patternPre = PatternApp (patternPre f') ps',
                        patternTy = c}
-      if null postPargs
-      then return (psu, p)
-      else makePatternApp flo newpids ty (psu, p) postPargs
+      return (psu, p)
 
 unableToMatchPattern :: Loc -> PreTerm -> TypeCheckIO a
 unableToMatchPattern lo ty = do
@@ -2864,25 +2819,7 @@ doTcPattern _ _ newpids ty (ParsePatternLazyApp f) = do
       return (psu, p)
 doTcPattern _ _ newpids ty (ParsePatternApp f pargs) = do
   f' <- doTcPattern False True newpids ty f
-  case pargs of
-    a1 : a2 : pargs' ->
-      if isPostfixPattern f
-      then do
-        r <- Env.getRefMap
-        case preTermDomCod r (patternTy (snd f')) of
-          Just ([_], _, _) -> do
-            f'' <- makePatternApp (patternLoc f) newpids ty f' [a1]
-            makePatternApp (patternLoc f) newpids ty f'' (a2 : pargs')
-          _ -> makePatternApp (patternLoc f) newpids ty f' pargs
-      else makePatternApp (patternLoc f) newpids ty f' pargs
-    _ -> makePatternApp (patternLoc f) newpids ty f' pargs
-  where
-    isPostfixPattern :: ParsePattern -> Bool
-    isPostfixPattern (ParsePatternVar (_, vna)) =
-      isPostfixOp vna && not ('#' `elem` vna)
-    isPostfixPattern (ParsePatternImplicitApp v@(ParsePatternVar _) _) =
-      isPostfixPattern v
-    isPostfixPattern _ = False
+  makePatternApp (patternLoc f) newpids ty f' pargs
 doTcPattern _ hasApp newpids ty (ParsePatternImplicitApp f pargs) = do
   (fsu, f') <- doTcPattern True hasApp newpids ty f
   rm <- Env.getRefMap

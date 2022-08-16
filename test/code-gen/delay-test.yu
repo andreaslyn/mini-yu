@@ -35,7 +35,7 @@ where
   let (++ 0.N) => false
   let (++ ++ n) => even n
 end
-let b => odd () (plus 1 (plus 1 1))
+let b => (odd ()) (plus 1 (plus 1 1))
 where
   val 1 : Nat
   let => ++ 0.N
@@ -56,7 +56,7 @@ where
     o := odd;
     case n
     of 0.N => !' b
-    of ++ n => o () n
+    of ++ n => (o ()) n
     end
 
   val.. odd : () -> Nat -> Bool

@@ -157,16 +157,16 @@ where
 
     val cmpxyGtIsEmpty : C .cmp x y = gt.Ord -> Empty
     let e =>
-      e .rew
+      (e .rew
         (c => ? ! c .rec lt.Ord (xs .cmp ys C) gt.Ord .gt? -> Empty)
-        (a => case a of {} end)
+        \ a => case a of {} end)
         lxys
 
     val cmpyzGtIsEmpty : C .cmp y z = gt.Ord -> Empty
     let e =>
-      e .rew
+      (e .rew
         (c => ? ! c .rec lt.Ord (ys .cmp zs C) gt.Ord .gt? -> Empty)
-        (a => case a of {} end)
+        \ a => case a of {} end)
         lyzs
 
     val cmpxyEqToGt : C .cmp x y = eq.Ord -> ? ! xs .cmp ys C .gt?
@@ -182,7 +182,7 @@ where
     let eqxy eqyz =>
       eqxy' := C .cmpEqIsEq? x y .resp (?) eqxy;
       eqyz' := C .cmpEqIsEq? y z .resp (?) eqyz;
-      t := C .eqIsTransitive? x y z eqxy' eqyz';
+      t := (C .eqIsTransitive?) x y z eqxy' eqyz';
       C .cmp x z .eq?ToOp= (C .cmpEqIsEq? x z .rew (?) t)
 
     val composeEqLt :
@@ -206,7 +206,7 @@ where
     let ltxy ltyz =>
       ltxy' := C .cmpLtIsLt? x y .resp (?) ltxy;
       ltyz' := C .cmpLtIsLt? y z .resp (?) ltyz;
-      t := C .ltIsTransitive? x y z ltxy' ltyz';
+      t := (C .ltIsTransitive?) x y z ltxy' ltyz';
       C .cmp x z .lt?ToOp= (C .cmpLtIsLt? x z .rew (?) t)
   end
 end
@@ -254,9 +254,9 @@ where
 
     val eqToEq : (x y : A) & ? C .cmp x y .eq? -> C .cmp y x = eq.Ord
     let x y eqxy =>
-      C .cmp y x .ind
+      (C .cmp y x .ind
         (a => (? a .lt? -> Empty) & (? a .gt? -> Empty) -> a = eq.Ord)
-        (f _ => f refl .rec) (_ _ => refl) (_ g => g refl .rec)
+        (f _ => f refl .rec) (_ _ => refl) \ _ g => g refl .rec)
         contraLt
         contraGt
     where

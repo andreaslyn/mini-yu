@@ -33,12 +33,12 @@ of (...#Equivalence?)
 
 val cmpIsTransitive? : cmpToLe?.Ord? (.cmp#Str) .IsTransitive?
 let r s t lrs lst =>
-  cmpIsTransitive?.List-th
-    ordering?.C (r .list) (s .list) (t .list) lrs lst
+  (cmpIsTransitive?.List-th ordering?.C)
+    (r .list) (s .list) (t .list) lrs lst
 
 
 val cmpIsCompatible : (r s : Str) -> r .cmp s .lt? = s .cmp r .gt?
-let r s => cmpIsCompatible.List-th ordering?.C (r .list) (s .list)
+let r s => (cmpIsCompatible.List-th ordering?.C) (r .list) (s .list)
 
 
 val ordering? : Ordering? Str

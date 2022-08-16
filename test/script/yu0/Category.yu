@@ -29,11 +29,11 @@ of category :
 val Obj : Category -> Ty
 let (category o _ _ _ _ _ _) => o
 
-val Hom : (X : Category) -> Obj(X) & Obj(X) -> Ty
-let (category _ h _ _ _ _ _) => h
+val Hom : (X : Category) & Obj(X) & Obj(X) -> Ty
+let (category _ h _ _ _ _ _) x y => h x y
 
-val id-hom : (X : Category) -> (A : Obj(X)) -> Hom X A A
-let (category _ _ i _ _ _ _) => i
+val id-hom : (X : Category) & (A : Obj(X)) -> Hom X A A
+let (category _ _ i _ _ _ _) A => i A
 
 val com
   : (X : Category) ->

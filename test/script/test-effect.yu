@@ -99,7 +99,7 @@ let (b) =>
 
 val test-effect-type3 : {} ->> {}
 let () =>
-  f := ((x : const [B := (_) => Bool ->> Ty] Bool test-effect-type2) => x);
+  f := ((x : (const [B := (_) => Bool ->> Ty] Bool) test-effect-type2) => x);
   case f true
   of true => ()
   of false => `F .print; ()

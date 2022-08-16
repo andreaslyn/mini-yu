@@ -39,7 +39,7 @@ let X (++ m) n => len(nilX)
 where
   val len : ListOfX X -> Nat
   let (nilX) => 0
-  let (consX _ xs) => ++(len(xs))
+  let ((consX _) xs) => ++(len(xs))
 end
 
 data ListOfX : Ty -> Ty

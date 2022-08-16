@@ -108,9 +108,9 @@ of inter-right : (k : Nat) & (m : Nat) & (n : Nat) -> Interleave k m n -> Interl
 
 val shuffle : (A : Ty) & (k : Nat) & (m : Nat) & (n : Nat) & Interleave k m n & Vec A k & Vec A m -> Vec A n
 let _ _ _ _ inter-zero v w => w
-let A _ m' _ (inter-left k m n i) (vcons x v _ _) w =>
+let A _ m' _ ((inter-left k m n) i) (vcons x v _ _) w =>
   vcons x (shuffle A k m n i v w) n A
-let A _ _ _ (inter-right k' m n i) v (vcons y w _ _) =>
+let A _ _ _ ((inter-right k' m n) i) v (vcons y w _ _) =>
   vcons y (shuffle A k' m n i v w) n A
 
 data Deal
@@ -126,23 +126,23 @@ val makeDeal
       (i : Interleave k m n) & (v : Vec A n) -> Deal A k m n i v
 let A k m n inter-zero (vnil _) =>
   deal A 0 0 0 inter-zero (vnil A) (vnil A)
-let A _ _ _ (inter-left k m n i) (vcons x xs n' A') =>
+let A _ _ _ ((inter-left k m n) i) (vcons x xs n' A') =>
   aux (makeDeal A k m n i xs)
 where
   val aux :
     Deal A k m n i xs ->
-    Deal A (+1 k) m (+1 n) (inter-left k m n i) (vcons x xs n A)
+    Deal A (+1 k) m (+1 n) ((inter-left k m n) i) (vcons x xs n A)
   let (deal A _ _ _ _ ls rs) =>
-    deal A (+1 k) m (+1 n) (inter-left k m n i) (vcons x ls k A) rs
+    deal A (+1 k) m (+1 n) ((inter-left k m n) i) (vcons x ls k A) rs
 end
-let A _ _ _ (inter-right k m n i) (vcons x xs n' A') =>
+let A _ _ _ ((inter-right k m n) i) (vcons x xs n' A') =>
   aux (makeDeal A k m n i xs)
 where
   val aux :
     Deal A k m n i xs ->
-    Deal A k (+1 m) (+1 n) (inter-right k m n i) (vcons x xs n A)
+    Deal A k (+1 m) (+1 n) ((inter-right k m n) i) (vcons x xs n A)
   let (deal A _ _ _ _ ls rs) =>
-    deal A k (+1 m) (+1 n) (inter-right k m n i) ls (vcons x rs m A)
+    deal A k (+1 m) (+1 n) ((inter-right k m n) i) ls (vcons x rs m A)
 end
 
 val transitive-Id : (A : Ty) & (x y z : A) & Id A x y & Id A y z -> Id A x z

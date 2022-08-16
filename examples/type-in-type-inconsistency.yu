@@ -47,7 +47,7 @@ let X! => (X $ X!) $ refl
 
 
 val lem-3 : R <! R
-let Ri => lem-1 Ri Ri
+let Ri => (lem-1 Ri) Ri
 
 
 val contr : Empty

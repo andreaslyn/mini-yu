@@ -155,10 +155,10 @@ let as => as .fold nil (:+:)
 
 val (.accumScan#List) [A B : Ty] : List A & B & (B & A -> B) -> List B
 let xs y f =>
-  xs .accum (y $ \ (t : List B) => y :: t) (b a =>
+  r := xs .accum (y $ \ (t : List B) => y :: t) (b a =>
     b' := f (b .1) a;
-    b' $ \ (t : List B) => b .2 (b' :: t)
-  ) .2 nil
+    b' $ \ (t : List B) => (b .2) (b' :: t));
+  (r .2) nil
 
 
 val (.foldScan#List) [A B : Ty] : List A & B & (A & B -> B) -> List B

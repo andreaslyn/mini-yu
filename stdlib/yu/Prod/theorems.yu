@@ -12,11 +12,11 @@ let f g => x => f x $ g x
 
 val pairMapProperty1 [A B X : Ty]
   : (f : X -> A) & (g : X -> B) -> (x : X) ->
-    pairMap f g x .1 = f x
+    (pairMap f g) x .1 = f x
 let _ _ => _ => refl
 
 
 val pairMapProperty2 [A B X : Ty]
   : (f : X -> A) & (g : X -> B) -> (x : X) ->
-    pairMap f g x .2 = g x
+    (pairMap f g) x .2 = g x
 let _ _ => _ => refl

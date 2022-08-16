@@ -149,4 +149,4 @@ let m n D => n .mod m D =? 0
 
 
 val (.listSmaller#Nat) : Nat -> List Nat
-let n => n .rec [A := List Nat -> List Nat] id (m f => t => f (m :: t)) nil
+let n => (n .rec [A := List Nat -> List Nat] id \ m f => t => f (m :: t)) nil
