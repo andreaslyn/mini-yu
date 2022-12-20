@@ -129,3 +129,4 @@ main :: IO ()
 main = do
   putStrLn (natToStr $ runCoRoutineSum total)
   putStrLn (natToStr $ runCoRoutineSum (Succ total))
+  putStrLn (natToStr $ runCoRoutineSum (Succ $ Succ total))

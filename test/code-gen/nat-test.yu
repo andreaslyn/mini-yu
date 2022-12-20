@@ -45,5 +45,5 @@ let (n) =>
 
 val main : {} ->> {}
 let () =>
-  N .println;
-  plus N (++ 0.N) .println
+  natToStr N .println;
+  natToStr (plus N \ ++ 0.N) .println

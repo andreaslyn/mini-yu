@@ -49,7 +49,7 @@ compile_all() {
   compile_ocaml "$dir/OCamlNatTest"
   compile_ocaml "$dir/OCamlRevTest"
   compile_ocaml "$dir/OCamlSortTest"
-  compile_ocaml "$dir/MulticoreOCamlCoroutineTest"
+  compile_ocaml "$dir/OCamlCoroutineTest"
 }
 
 clean_ghc() {
@@ -73,7 +73,7 @@ clean_all() {
   clean_ocaml "$dir/"OCamlNatTest
   clean_ocaml "$dir/"OCamlRevTest
   clean_ocaml "$dir/"OCamlSortTest
-  clean_ocaml "$dir/"MulticoreOCamlCoroutineTest
+  clean_ocaml "$dir/"OCamlCoroutineTest
 }
 
 if [ "$1" = compile ]; then
