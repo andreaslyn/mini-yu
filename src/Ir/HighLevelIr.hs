@@ -568,17 +568,19 @@ irAppExpr isImplicit io f as = do
       StM ([Var], Expr -> Expr)
     addArg (b, t) (vs, p) = do
       v' <- getNextVar
-      b' <- irArg b t
-      return (v' : vs, Let v' b' . p)
-
-    irArg :: Te.PreTerm -> Maybe Te.PreTerm -> StM Expr
-    irArg b Nothing = irExpr b
-    irArg b (Just t) = do
+      b' <- irExpr b
       rm <- getRefMap
-      let t' = TE.preTermNormalize rm t
-      if isRelevantTyNormalized t'
-      then irExpr b
-      else makeIrrelevantFunNormalized t'
+      case t of
+        Nothing ->
+          return (v' : vs, Let v' b' . p)
+        Just s -> do
+          let s' = TE.preTermNormalize rm s
+          if isRelevantTyNormalized s'
+          then return (v' : vs, Let v' b' . p)
+          else do
+            w <- getNextVar
+            a <- makeIrrelevantFunNormalized s'
+            return (v' : vs, Let w b' . Let v' a . p)
 
     argTypes :: StM [Maybe Te.PreTerm]
     argTypes = do

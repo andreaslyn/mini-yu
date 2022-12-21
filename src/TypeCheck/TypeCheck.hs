@@ -2358,6 +2358,10 @@ doTcExpr isTrial subst operandArg _ expr@(ExprImplicitApp exty f args) =
           if Set.member na remain
             then do
               (_, opex, e0) <- tcExprOperandResult subst ty e
+              when (termIo e0) $ lift $ err (exprLoc e) $ Fatal $
+                "effect escapes from implicit argument, \
+                \it may be possible to move the effectful \
+                \computation out with an assignment (:=)"
               e' <- runUnify a e0
               rm <- lift Env.getRefMap
               isu <- getExprSubst
@@ -2661,6 +2665,10 @@ makeTermApp subst flo preTy f' preArgs0 = do
     applyArgs ty domVars unified cod su ((idx, Just v, p, w, e) : xs) = do
       unified' <- unifyCod ty domVars unified w cod su
       (e', opex, eio) <- applyTc p w e
+      when eio $ lift $ err (exprLoc e) $ Fatal $
+        "effect escapes from dependent argument, \
+        \it may be possible to move the effectful \
+        \computation out with an assignment (:=)"
       r <- lift Env.getRefMap
       let xs' = substArgs r (IntMap.singleton (varId v) e') xs
       let su' = IntMap.insert (varId v) e' su

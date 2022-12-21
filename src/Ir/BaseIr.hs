@@ -1880,6 +1880,7 @@ changeRemovedFunLetExpr _ _ _ e = return e
 removeDeadCodeConstExpr ::
   DeadCodeConsts -> Const -> ConstExpr ->
   StM (Bool, ConstExpr, DeadCodeConsts)
+  -- (any change, new expr, funs with unused args)
 removeDeadCodeConstExpr dead _ (Hidden a) =
   return (False, Hidden a, dead)
 removeDeadCodeConstExpr dead _ (Inline e) =
@@ -1888,7 +1889,7 @@ removeDeadCodeConstExpr dead _ (Extern vs) =
   return (False, Extern vs, dead)
 removeDeadCodeConstExpr dead c (Fun vs e) = do
   let g = IntSet.fromList vs
-  (b1, li, e') <- removeDeadCodeFunExpr c vs g e
+  (b1, li, e', io) <- removeDeadCodeFunExpr c vs g e
   let vs' = filter (flip IntSet.member li) vs
   if length vs == length vs'
     then return (b1, Fun vs e', dead)
@@ -1905,40 +1906,43 @@ removeDeadCodeConstExpr dead c (Fun vs e) = do
         f' <- changeRemovedFunConstExpr c c' useList f
         updateProgram c' f'
         v0 <- getNextVar
-        let a = Ap False (ConstRef c') (map VarRef vs')
+        let a = Ap io (ConstRef c') (map VarRef vs')
         let a' = Let v0 a (Ret (VarRef v0))
         return (True, Fun vs a', dead')
 removeDeadCodeConstExpr dead c (Lazy iss vs e) = do
   let g = IntSet.fromList vs
-  (b, _li, e') <- removeDeadCodeFunExpr c vs g e
+  (b, _, e', _) <- removeDeadCodeFunExpr c vs g e
   return (b, Lazy iss vs e', dead)
 
 removeDeadCodeFunExpr ::
-  Const -> [Var] -> VarContext -> FunExpr -> StM (Bool, LiveSet, FunExpr)
+  Const -> [Var] -> VarContext -> FunExpr ->
+  StM (Bool, LiveSet, FunExpr, Bool)
+  -- (any change, new expr, funs with unused args, contains io app)
 removeDeadCodeFunExpr con params g (Case r cs) = do
-  (b2, li2, cs') <- foldrM (\(i, n, c) (a, li, cs') ->
-                             do (b, li', c') <- removeDeadCodeFunExpr con params g c
-                                return (a || b, IntSet.union li li', (i, n, c') : cs')
-                           ) (False, IntSet.empty, []) cs
+  (b2, li2, cs', io) <- foldrM
+                          (\(i, n, c) (a, li, cs', io) -> do
+                            (b, li', c', io') <- removeDeadCodeFunExpr con params g c
+                            return (a || b, IntSet.union li li', (i, n, c') : cs', io || io')
+                          ) (False, IntSet.empty, [], False) cs
   (li3, r') <- removeDeadCodeRef r
   let ca = Case r' cs'
-  return (b2, IntSet.union li2 li3, ca)
+  return (b2, IntSet.union li2 li3, ca, io)
 removeDeadCodeFunExpr con params g (Let v e1 e2) = do
-  (li1, e1', io) <- removeDeadCodeLetExpr con params e1
-  (b1, li2, e2') <- removeDeadCodeFunExpr con params (IntSet.insert v g) e2
-  if io || IntSet.member v li2
-  then return (b1, IntSet.union li1 li2, Let v e1' e2')
-  else return (True, li2, e2')
+  (li1, e1', io1) <- removeDeadCodeLetExpr con params e1
+  (b1, li2, e2', io2) <- removeDeadCodeFunExpr con params (IntSet.insert v g) e2
+  if io1 || IntSet.member v li2
+  then return (b1, IntSet.union li1 li2, Let v e1' e2', io1 || io2)
+  else return (True, li2, e2', io2)
 removeDeadCodeFunExpr _ _ _ (Ret r) = do
   (li, r') <- removeDeadCodeRef r
-  return (False, li, Ret r')
+  return (False, li, Ret r', False)
 removeDeadCodeFunExpr con params g (VarFieldCnt v n e) = do
-  (b, li, e') <- removeDeadCodeFunExpr con params g e
+  (b, li, e', io) <- removeDeadCodeFunExpr con params g e
   return $
     if IntSet.member v g
-    then (b, li, VarFieldCnt v n e')
-    else (b, li, e') -- This does not count as removing code / progress,
-                     -- so do not blindly return True here.
+    then (b, li, VarFieldCnt v n e', io)
+    else (b, li, e', io) -- This does not count as removing code / progress,
+                         -- so do not blindly return True here.
 
 removeDeadCodeLetExpr ::
   Const -> [Var] -> LetExpr -> StM (LiveSet, LetExpr, Bool)
