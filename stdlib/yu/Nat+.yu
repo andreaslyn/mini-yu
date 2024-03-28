@@ -1,0 +1,18 @@
+import yu/Nat+/Nat+
+export
+of Nat+
+of 1
+of 2
+of 3
+of 4
+of 5
+of 6
+of 7
+of 8
+of 9
+of 10
+of (...#Nat+)
+
+import yu/Nat+/theorems
+export
+of simplOp++Op+r

@@ -9,7 +9,10 @@ import yu/RBTree
 import yu/DelayList1/DelayList1
 import yu/Lazy
 import yu/Order
+import yu/Nat+/Nat+
+import yu/Nat+/theorems
 import yu/Bin+/Bin+
+import yu/Bin+/ind
 import yu/Sum
 import yu/List
 import yu/algebra
@@ -67,6 +70,7 @@ import yu/basic/theorems
 import yu/Equivalence?
 import yu/Bool/Bool
 import yu/Bool/theorems
+import yu/Nat+
 import yu/Bin+
 import yu/Option/Option
 import yu/HVec/HVec

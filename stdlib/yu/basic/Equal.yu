@@ -35,6 +35,7 @@ val (.rewR#Equal) [A : Ty] [B : A -> Ty] [C : Ty] [a1 a2 : A] [c : C]
   : a1 = a2 & (f : (x : A) -> B x) & c = f a2 -> c = f a1
 let e f h => e .rew (x => c = f x) h
 
+
 val (.rewL#Equal)
   [A : Ty] [B : A -> Ty] [C : Ty] [a1 : A] [a2 : A] [c : C]
   : a1 = a2 & (f : (x : A) -> B x) & f a2 = c -> f a1 = c

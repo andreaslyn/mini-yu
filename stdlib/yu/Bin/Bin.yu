@@ -2,6 +2,9 @@ import Bin+ => yu/Bin+/Bin+
 of Bin+
 of (...#Bin+)
 
+import yu/Bin+/ind
+of (...#Bin+)
+
 import Prod => yu/Prod/Prod
 of (&&#Ty)
 of ($#)
@@ -112,7 +115,7 @@ let ((n % b) .inBin) => n .inBin $ b
 
 val (*2#Bin) : Bin -> Bin
 let 0 => 0
-let (n .inBin) => (*2 n) .inBin
+let (n .inBin) => (n * 2.Bin+) .inBin
 
 
 val (-toBinAux#Bin+) : Bin+ & Bin+ -> Bin

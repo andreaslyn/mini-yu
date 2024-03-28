@@ -1,0 +1,153 @@
+import yu/basic
+of const
+of Bool
+of true
+of false
+of Equal
+of (=#)
+of refl
+of (...#Equal)
+of (@compose#)
+
+import Bin+ => yu/Bin+/Bin+
+of Bin+
+of (...#Bin+)
+
+import Nat+ => yu/Nat+
+of Nat+
+of (...#Nat+)
+
+
+val (.toNat+#Bin+) : Bin+ -> Nat+
+let 1.Bin+ => 1.Nat+
+let (n % false) => n .toNat+ *r 2.Nat+
+let (n % true) => ++ (n .toNat+ *r 2.Nat+)
+
+
+val (.toBin+#Nat+) : Nat+ -> Bin+
+let 1.Nat+ => 1.Bin+
+let (++ n) => ++ n .toBin+
+
+
+## TODO - move this?
+val simplOp+1 : (m : Bin+) -> m + 1.Bin+ = ++ m
+let 1.Bin+ => refl
+let (m % _) => refl
+
+
+## TODO - move this?
+val simplOp++Op++Op% : (m : Bin+) & (a : Bool) -> ++ ++ (m % a) = ++ m % a
+let 1.Bin+ false => refl
+let 1.Bin+ true => refl
+let (m % false) false => refl
+let (m % false) true => refl
+let (m % true) false => refl
+let (m % true) true => refl
+
+
+## TODO - move this?
+val simplOp+Op++ : (m n : Bin+) -> m + ++ n = ++ (m + n)
+let 1.Bin+ n => refl
+let (m % a) 1.Bin+ =>
+  simplOp+1 (m % a) .rewR (++) \
+  simplOp+1 m .rewL (x => x % a) \
+  ! simplOp++Op++Op% m a
+let (m % false) (n % false) => refl
+let (m % true) (n % false) => refl
+let (m % false) (n % true) => simplOp+Op++ m n .ap (x => x % false)
+let (m % true) (n % true) => simplOp+Op++ m n .ap (x => x % true)
+
+
+## TODO - move this?
+val simplToBin+Op+r : (m n : Nat+) -> (m +r n) .toBin+ = m .toBin+ + n .toBin+
+let m 1.Nat+ => ! simplOp+1 (m .toBin+)
+let m (++ n) =>
+  simplToBin+Op+r m n .ap (++) @ ! simplOp+Op++ (m .toBin+) (n .toBin+)
+
+
+val op*2IsDouble : (n : Bin+) -> n * 2.Bin+ = n + n
+let 1.Bin+ => refl
+let (n % false) => op*2IsDouble n .ap (x => x % false)
+let (n % true) => op*2IsDouble n .rewL (x => ++ x % false) refl
+
+
+## TODO - move this?
+val equalToNat+ToBin+ : (n : Bin+) -> n .toNat+ .toBin+ = n
+let 1.Bin+ => refl
+let (n % false) =>
+  simplToBin+Op+r (n .toNat+) (n .toNat+) @
+  equalToNat+ToBin+ n .rewL (x => x + x) \
+  ! op*2IsDouble n
+let (n % true) =>
+  simplToBin+Op+r (n .toNat+) (++ n .toNat+) @
+  simplOp+Op++ (n .toNat+ .toBin+) (n .toNat+ .toBin+) @
+  equalToNat+ToBin+ n .rewL (x => ++ (x + x)) \
+  (! op*2IsDouble n) .rewL (++) refl
+
+
+val simplOp++ToNat+ : (n : Bin+) -> (++ n) .toNat+ = ++ n .toNat+
+let 1.Bin+ => refl
+let (n % false) => refl
+let (n % true) =>
+  simplOp++ToNat+ n .rewL (x => x *r 2.Nat+) \
+  simplOp++Op+r.Nat+ (n .toNat+) (n .toNat+) .ap (++)
+
+
+val equalToBin+ToNat+ : (n : Nat+) -> n .toBin+ .toNat+ = n
+let 1.Nat+ => refl
+let (++ n) =>
+  simplOp++ToNat+ (n .toBin+) @
+  equalToBin+ToNat+ n .rewL (++) refl
+
+
+val.. (.ind#Bin+)
+  : (n0 : Bin+) & (P : Bin+ -> Ty) & (() -> P 1.Bin+) &
+      ((n : Bin+) & P n -> P (++ n)) -> P n0
+let 1.Bin+ P a s => a ()
+let (n % b) P a s =>
+    n .simplOp++Op--#Bin+ b .resp P \
+    s n' (n' .ind P (a ()) s)
+where
+    val n' : Bin+
+    let => -- (n % b)
+end
+
+
+val (.rec#Bin+) [A : Ty] : (b : Bin+) & A & (Bin+ & A -> A) -> A
+let n a0 ai => n .ind (const A) a0 ai
+
+
+#{ FIXME
+val (.ind#Bin+)
+  : (n0 : Bin+) & (P : Bin+ -> Ty) & (() -> P 1.Bin+) &
+      ((n : Bin+) & P n -> P (++ n)) -> P n0
+let n P b s =>
+  equalToNat+ToBin+ n .resp P \
+  n .toNat+ .ind (P @compose (.toBin+#Nat+)) (b ()) (x h => s (x .toBin+) h)
+
+
+val (.rec#Bin+) [A : Ty] : (b : Bin+) & A & (Bin+ & A -> A) -> A
+let n a0 ai => n .ind (const A) a0 ai
+
+
+val simplInd1
+  : (P : Bin+ -> Ty) & (b : P 1.Bin+) & (s : (n : Bin+) & P n -> P (++ n)) ->
+    1.Bin+ .ind P b s = b
+let P b s => refl
+
+
+val simplIndOp++
+  : (n0 : Bin+) &
+    (P : Bin+ -> Ty) &
+    (b : P 1.Bin+) &
+    (s : (n : Bin+) & P n -> P (++ n)) ->
+    (++ n0) .ind P b s = s n0 (n0 .ind P b s)
+let 1.Bin+ P b s => refl
+let n P b s => undefined ## TODO - implement
+  ## equalToNat+ToBin+ (++ n0) .resp P \
+  ## (++ n0) .toNat+ .ind (P @compose (.toBin+#Nat+)) (b ()) (x h => s (x .toBin+) h)
+  ## =
+  ## s n0 \
+  ## equalToNat+ToBin+ n0 .resp P \
+  ## n0 .toNat+ .ind (P @compose (.toBin+#Nat+)) (b ()) (x h => s (x .toBin+) h)
+#}

@@ -74,17 +74,13 @@ let 1 n => ++ n
 let m 1 => ++ m
 let (m % a) (n % false) => (m + n) % a
 let (m % false) (n % b) => (m + n) % b
-let (m % true) (n % true) => (++ m + n) % false
+let (m % true) (n % true) => ++ (m + n) % false
 
 
 val (*#Bin+) : Bin+ & Bin+ -> Bin+
 let m 1 => m
 let m (n % false) => (m * n) % false
 let m (n % true) => ((m * n) % false) + m
-
-
-val (*2#Bin+) : Bin+ -> Bin+
-let n => n % false
 
 
 val (--#Bin+) : Bin+ -> Bin+
@@ -125,20 +121,3 @@ let (_ % false) => refl
 let (1 % true) => refl
 let (n % true % true) => (n % true) .simplOp--Op++ .ap (t => t % true)
 let (n % false % true) => (n % false) .simplOp--Op++ .ap (t => t % true)
-
-
-val.. (.ind#Bin+)
-  : (b : Bin+) & (P : Bin+ -> Ty) & P 1 &
-      ((x : Bin+) & P x -> P (++ x)) -> P b
-let 1 P p1 _ => p1
-let (n % a) P p1 pi =>
-  h := n' .ind P p1 pi;
-  n .simplOp++Op-- a .resp P (pi n' h)
-where
-  val n' : Bin+
-  let => -- (n % a)
-end
-
-
-val (.rec#Bin+) [A : Ty] : (b : Bin+) & A & (Bin+ & A -> A) -> A
-let n a0 ai => n .ind (const A) a0 ai

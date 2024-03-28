@@ -1,0 +1,54 @@
+import Fun => yu/basic/Fun
+of const
+
+data Nat+ : Ty
+of 1 : Nat+
+of (++#Nat+) : Nat+ -> Nat+
+
+val 2 : Nat+
+let => ++ 1
+
+val 3 : Nat+
+let => ++ 2
+
+val 4 : Nat+
+let => ++ 3
+
+val 5 : Nat+
+let => ++ 4
+
+val 6 : Nat+
+let => ++ 5
+
+val 7 : Nat+
+let => ++ 6
+
+val 8 : Nat+
+let => ++ 7
+
+val 9 : Nat+
+let => ++ 8
+
+val 10 : Nat+
+let => ++ 9
+
+
+val (.ind#Nat+) :
+  (n0 : Nat+) & (P : Nat+ -> Ty) & (() -> P 1) & ((n : Nat+) & P n -> P (++ n)) -> P n0
+let 1 P b _ => b ()
+let (++ n) P b s => s n (n .ind P (b ()) s)
+
+
+val (.rec#Nat+) [A : Ty] :
+  Nat+ & (() -> A) & (Nat+ & A -> A) -> A
+let n a s => n .ind (const A) (a ()) s
+
+
+val (+r#Nat+) : Nat+ & Nat+ -> Nat+
+let m 1 => ++ m
+let m (++ n) => ++ (m +r n)
+
+
+val (*r#Nat+) : Nat+ & Nat+ -> Nat+
+let m 1 => m
+let m (++ n) => m *r n +r m

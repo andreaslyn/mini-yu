@@ -1,0 +1,13 @@
+import yu/Nat+/Nat+
+of (...)
+
+import Equal => yu/basic/Equal
+of Equal
+of (=#)
+of refl
+of (...#Equal)
+
+
+val simplOp++Op+r : (m n : Nat+) -> ++ m +r n = ++ (m +r n)
+let m 1 => refl
+let m (++ n) => simplOp++Op+r m n .ap (++)
