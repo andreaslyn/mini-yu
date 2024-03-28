@@ -17,6 +17,7 @@ A list of some work I have relied on while developing mini yu:
 * [Andreas Abel, foetus - Termination Checker for Simple Functional Programs](https://www.semanticscholar.org/paper/foetus-Termination-Checker-for-Simple-Functional-Abel/c216d842401569de47d2472b84d33f4f38bbe670)
 * [Matúš Tejiščák and Edwin Brady, Practical Erasure in Dependently Typed Languages](https://eb.host.cs.st-andrews.ac.uk/drafts/dtp-erasure-draft.pdf)
 * [Daan Leijen, Benjamin Zorn and Leonardo de Moura, Mimalloc: Free List Sharding in Action](https://www.microsoft.com/en-us/research/publication/mimalloc-free-list-sharding-in-action/)
+* [KC Sivaramakrishnan et al, Retrofitting Effect Handlers onto OCaml](https://dl.acm.org/doi/10.1145/3408995)
 
 # Building
 
